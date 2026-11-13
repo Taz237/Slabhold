@@ -28,8 +28,6 @@ export const HUB_COPY = {
   findByName: "Find it by name",
   readerSoon: "Card reading is coming to the iPhone app. For now, snap a photo and find the card by name.",
   compReaderSoon: "Card reading is coming to the iPhone app. For now, find the card by name to see sold prices.",
-  scannerDown: "The scanner couldn't start. Choose a photo or type the card in.",
-  compScannerDown: "The scanner couldn't start. Find the card by name to see sold prices.",
   readFailed: "We couldn't read that one. Try again with the card flat and in good light.",
   addEntry: "Scan a card",
   addEntryBody: "Point your camera at a card or slab",
