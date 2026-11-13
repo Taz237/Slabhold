@@ -204,7 +204,7 @@ export function CardPostsList({ cardId }: { cardId: string }) {
         {user ? (
           <Link
             href={`/compose?card=${encodeURIComponent(cardId)}`}
-            className="hit-44 shrink-0 rounded-full bg-zinc-900 px-3 py-1.5 text-xs font-semibold whitespace-nowrap text-white dark:bg-zinc-100 dark:text-zinc-950"
+            className="hit-44 shrink-0 rounded-full bg-zinc-900 px-3 py-1.5 text-xs font-semibold whitespace-nowrap text-white big:whitespace-normal dark:bg-zinc-100 dark:text-zinc-950"
           >
             Post about this card
           </Link>
@@ -223,7 +223,7 @@ export function CardPostsList({ cardId }: { cardId: string }) {
           {Array.from({ length: 4 }, (_, i) => (
             <div
               key={i}
-              className="h-16 animate-pulse rounded-xl bg-zinc-100 dark:bg-white/5"
+              className="h-16 skeleton-shimmer rounded-xl"
             />
           ))}
         </div>

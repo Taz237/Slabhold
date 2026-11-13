@@ -380,7 +380,7 @@ function PublicCardAnalytics({
                 key={spec.label}
                 className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 dark:border-white/10 dark:bg-white/5"
               >
-                <dt className="text-[13px] text-zinc-500">{spec.label}</dt>
+                <dt className="text-13 text-zinc-500">{spec.label}</dt>
                 <dd className="text-sm font-semibold">{spec.value}</dd>
               </div>
             ))}
@@ -421,7 +421,7 @@ function PublicCardAnalytics({
             <SimilarCardsLine read={priceRead} />
           ) : (
             <>
-              <p className={`flex h-5 items-center ${compLabel}`}>{compEyebrow(priceRead?.kind ?? "estimate")}</p>
+              <p className={`flex min-h-5 items-center ${compLabel}`}>{compEyebrow(priceRead?.kind ?? "estimate")}</p>
               <p className={`mt-1 min-h-10 min-w-0 ${priceRead?.kind === "estimate" || !priceRead ? `${compHeroValue} whitespace-nowrap` : `max-w-full py-1.5 ${compSectionValue}`}`}>
                 {valueLoading && !flags.priced ? (
                   <span data-skeleton="hero" className="skeleton-shimmer inline-block h-8 w-32 rounded-lg bg-zinc-100 align-middle dark:bg-white/5" />
@@ -442,7 +442,7 @@ function PublicCardAnalytics({
                 <span>{basedOnSalesLabel(shownValue?.nSales ?? 0)}</span>
               ) : null}
               {priceRead?.kind === "estimate" && isLowConfidenceValue(shownValue) ? (
-                <span className="rounded-md bg-amber-500/15 px-1.5 text-[11px] leading-4 font-semibold text-amber-800 dark:text-amber-200">
+                <span className="rounded-md bg-amber-500/15 px-1.5 text-11 leading-4 font-semibold text-amber-800 dark:text-amber-200">
                   Low confidence
                 </span>
               ) : null}
@@ -572,7 +572,7 @@ function PublicCardAnalytics({
         ) : null}
         {/* With the comp card up, the attribution sits in its footer. */}
         {usingLive && !compsLoading && !authRequired && !chartShowsAttribution ? (
-          <p className="mt-3 text-[11px] text-zinc-400">
+          <p className="mt-3 text-11 text-zinc-400">
             Sold data via Trawl (third-party, not affiliated with eBay)
           </p>
         ) : null}
@@ -631,7 +631,7 @@ function SalesChartPlaceholder({
 }) {
   return (
     <section className={compCard}>
-      <p className={`flex h-5 items-center ${compLabel}`}>{eyebrow}</p>
+      <p className={`flex min-h-5 items-center ${compLabel}`}>{eyebrow}</p>
       <div className="mt-1 flex min-h-10 items-baseline">
         {value && /^\$[\d,]+\.\d{2}$/.test(value) ? (
           <p className={compHeroValue}>{value}</p>
@@ -641,21 +641,23 @@ function SalesChartPlaceholder({
           </p>
         ) : null}
       </div>
-      <div className={`mt-4 flex h-44 flex-col items-center justify-center gap-1 px-4 text-center ${compTile}`}>
-        <p className="text-sm font-semibold">{failed ? "Sales are taking a break" : "Loading sold prices…"}</p>
-        {failed ? (
-          <>
-            <p className="text-sm text-zinc-500">{"Couldn't load the sales graph."}</p>
-            <button
-              type="button"
-              onClick={onRetry}
-              className="mt-2 inline-flex h-11 items-center rounded-full px-5 text-sm font-semibold text-violet-700 hover:bg-violet-500/10 focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:outline-none dark:text-violet-300"
-            >
-              Try again
-            </button>
-          </>
-        ) : null}
-      </div>
+      {failed ? (
+        <div className={`mt-4 flex min-h-44 flex-col items-center justify-center gap-1 px-4 py-4 text-center ${compTile}`}>
+          <p className="text-sm font-semibold">Sales are taking a break</p>
+          <p className="text-sm text-zinc-500">{"Couldn't load the sales graph."}</p>
+          <button
+            type="button"
+            onClick={onRetry}
+            className="mt-2 inline-flex min-h-11 items-center rounded-full px-5 text-sm font-semibold text-violet-700 hover:bg-violet-500/10 focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:outline-none dark:text-violet-300"
+          >
+            Try again
+          </button>
+        </div>
+      ) : (
+        <div className="skeleton-shimmer mt-4 h-44 rounded-xl" aria-busy="true">
+          <span className="sr-only">Loading sold prices</span>
+        </div>
+      )}
     </section>
   );
 }

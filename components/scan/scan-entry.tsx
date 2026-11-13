@@ -17,8 +17,8 @@ export function ScanEntry({ href, title, body }: { href: string; title: string; 
         <ScanLine className="size-5" strokeWidth={1.75} aria-hidden />
       </span>
       <span className="min-w-0">
-        <span className="block text-[15px] font-semibold">{title}</span>
-        <span className="block truncate text-[13px] text-zinc-500 dark:text-zinc-400">{body}</span>
+        <span className="block text-15 font-semibold">{title}</span>
+        <span className="block truncate text-13 text-zinc-500 dark:text-zinc-400">{body}</span>
       </span>
     </Link>
   );

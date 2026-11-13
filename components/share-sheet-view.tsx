@@ -22,7 +22,7 @@ function XLogo({ className }: { className?: string }) {
 }
 
 const rowClass =
-  "tap-fade flex min-h-14 w-full items-center gap-3 rounded-2xl px-3 text-left text-[15px] font-semibold transition-colors hover:bg-zinc-100 focus-visible:bg-zinc-100 focus-visible:outline-none dark:hover:bg-white/[0.06] dark:focus-visible:bg-white/[0.06]";
+  "tap-fade flex min-h-14 w-full items-center gap-3 rounded-2xl px-3 text-left text-15 font-semibold transition-colors hover:bg-zinc-100 focus-visible:bg-zinc-100 focus-visible:outline-none dark:hover:bg-white/[0.06] dark:focus-visible:bg-white/[0.06]";
 
 const iconWell = "grid h-10 w-10 shrink-0 place-items-center rounded-full";
 
@@ -95,7 +95,7 @@ export function ShareSheet({ target, onClose }: { target: ShareTarget; onClose: 
             <h2 id={titleId} className="text-base font-semibold tracking-tight">
               Share
             </h2>
-            <p className="truncate text-[13px] text-zinc-500">{target.title}</p>
+            <p className="truncate text-13 text-zinc-500">{target.title}</p>
           </div>
           <button
             ref={closeRef}

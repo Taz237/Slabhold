@@ -46,21 +46,21 @@ export type ScanHubDeps = {
 /** The phone's alternate readings fill open fields (lib/scan/alternates.ts); the result is plain lines. */
 async function defaultSettle(capture: ScanCapture): Promise<ScanCapture> {
   if (!capture.alternates?.length && !capture.backAlternates?.length) return capture;
-  const [{ INDEXED_DIRECTORY }, { withAlternates }] = await Promise.all([import("@/lib/players/directory"), import("@/lib/scan/alternates")]);
-  return withAlternates(capture, INDEXED_DIRECTORY);
+  const [{ SCAN_DIRECTORY }, { withAlternates }] = await Promise.all([import("@/lib/players/scan-directory"), import("@/lib/scan/alternates")]);
+  return withAlternates(capture, SCAN_DIRECTORY);
 }
 
 async function defaultIdentify(capture: ScanCapture, signal: AbortSignal): Promise<ScanMatchResult | null> {
-  const [{ INDEXED_DIRECTORY }, { searchCatalogRemote }, { loadProductData }, { matchScan }] = await Promise.all([
-    import("@/lib/players/directory"),
+  const [{ SCAN_DIRECTORY }, { searchCatalogRemote }, { loadProductData }, { matchScan }] = await Promise.all([
+    import("@/lib/players/scan-directory"),
     import("@/lib/catalog/search-remote"),
     import("@/lib/cards/product-data"),
     import("@/lib/scan/match"),
   ]);
-  const read = scanReadFrom(capture, INDEXED_DIRECTORY);
+  const read = scanReadFrom(capture, SCAN_DIRECTORY);
   return matchScan(read, {
     soldTitles: defaultSoldTitles,
-    directory: INDEXED_DIRECTORY,
+    directory: SCAN_DIRECTORY,
     search: searchCatalogRemote,
     products: loadProductData,
     signal,
@@ -314,7 +314,7 @@ export function ScanHub({
     <div className="flex min-h-[70dvh] flex-col">
       <h1 className="text-2xl font-semibold tracking-tight">{comp ? HUB_COPY.compTitle : HUB_COPY.addTitle}</h1>
       <p className="mt-1 text-sm leading-5 text-zinc-600 dark:text-zinc-400">{comp ? HUB_COPY.compBody : HUB_COPY.addBody}</p>
-      <p className="mt-3 text-[13px] text-zinc-500 dark:text-zinc-400">{HUB_COPY.unlimited}</p>
+      <p className="mt-3 text-13 text-zinc-500 dark:text-zinc-400">{HUB_COPY.unlimited}</p>
 
       {available === false ? (
         <p className="mt-6 rounded-2xl border border-zinc-200 p-4 text-sm leading-5 text-zinc-600 dark:border-white/10 dark:text-zinc-400">
@@ -333,7 +333,7 @@ export function ScanHub({
           <div className="flex items-start gap-3">
             <CameraOff className="mt-0.5 size-5 shrink-0 text-zinc-500 dark:text-zinc-400" strokeWidth={1.75} aria-hidden />
             <div className="min-w-0">
-              <h2 className="text-[15px] font-semibold">{HUB_COPY.cameraOff}</h2>
+              <h2 className="text-15 font-semibold">{HUB_COPY.cameraOff}</h2>
               <p className="mt-1 text-sm leading-5 text-zinc-600 dark:text-zinc-400">
                 {cameraOff.settings ? HUB_COPY.cameraOffBody : HUB_COPY.cameraOffManual}
               </p>
@@ -356,10 +356,10 @@ export function ScanHub({
       {/* The actions sit low, where a thumb reaches. */}
       <div className="mt-auto space-y-3 pt-10 pb-2">
         {available === null ? (
-          <div aria-hidden className="h-14 rounded-full bg-zinc-200 motion-safe:animate-pulse dark:bg-white/10" />
+          <div aria-hidden className="skeleton-shimmer h-14 rounded-full" />
         ) : available ? (
           <>
-            <PrimaryButton onClick={() => void startScan()} className="min-h-14 gap-2 text-[15px]">
+            <PrimaryButton onClick={() => void startScan()} className="min-h-14 gap-2 text-15">
               <ScanLine className="size-5" strokeWidth={1.75} aria-hidden />
               {HUB_COPY.scan}
             </PrimaryButton>
@@ -377,14 +377,14 @@ export function ScanHub({
         ) : comp ? (
           <Link
             href="/comp"
-            className={`inline-flex min-h-14 w-full items-center justify-center rounded-full bg-violet-600 px-6 text-[15px] font-semibold text-white hover:bg-violet-500 ${focusRing}`}
+            className={`inline-flex min-h-14 w-full items-center justify-center rounded-full bg-violet-600 px-6 text-15 font-semibold text-white hover:bg-violet-500 ${focusRing}`}
           >
             {HUB_COPY.findByName}
           </Link>
         ) : (
           <>
             <PhotoFileInputs cameraRef={cameraRef} libraryRef={libraryRef} onPick={(file) => void onWebPhoto(file)} />
-            <PrimaryButton onClick={() => cameraRef.current?.click()} className="min-h-14 gap-2 text-[15px]">
+            <PrimaryButton onClick={() => cameraRef.current?.click()} className="min-h-14 gap-2 text-15">
               <Camera className="size-5" strokeWidth={1.75} aria-hidden />
               {HUB_COPY.scan}
             </PrimaryButton>

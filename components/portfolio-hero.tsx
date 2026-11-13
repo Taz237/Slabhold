@@ -102,7 +102,7 @@ function storage(): Storage | null {
 }
 
 const label = "text-xs font-medium text-zinc-500 dark:text-zinc-400";
-const pulse = "animate-pulse bg-zinc-200/70 dark:bg-white/[0.06]";
+const pulse = "skeleton-shimmer";
 type CountUp = typeof import("@/components/hero-count-up");
 let countUp: CountUp | null = null;
 let countUpLoad: Promise<unknown> | null = null;
@@ -436,9 +436,9 @@ const CollectionValueCard = memo(function CollectionValueCard({
       aria-label="Collection value"
     >
       <div className="relative p-4 sm:p-5">
-        <div className="flex items-center justify-between gap-2">
-          <p className={`whitespace-nowrap ${label}`}>Collection value</p>
-          <div className="flex shrink-0 items-center gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className={label}>Collection value</p>
+          <div className="flex items-center gap-2">
             {shareable && canChart && liveReady ? (
               <button
                 type="button"
@@ -460,14 +460,14 @@ const CollectionValueCard = memo(function CollectionValueCard({
         ) : null}
         {valuesLoading ? (
           <>
-            <span className="mt-1 block h-11 w-44 animate-pulse rounded-lg bg-zinc-200/80 dark:bg-white/10" aria-hidden />
+            <span className="mt-1 block h-11 w-44 skeleton-shimmer rounded-lg" aria-hidden />
             <span className="sr-only">Loading collection value</span>
           </>
         ) : (
           <p
             ref={headlineRef}
             data-slot="hero-value"
-            className="mt-0.5 text-[40px] leading-[1.1] font-semibold tracking-[-0.03em] tabular-nums"
+            className="mt-0.5 text-[2.5rem] leading-[1.1] font-semibold tracking-[-0.03em] tabular-nums"
             aria-live={scrub ? "off" : "polite"}
           >
             {valuesFailed ? "—" : money(headline)}
@@ -635,8 +635,8 @@ function ThinChart({
 
   return (
     <div
-      className="relative flex flex-col items-center justify-center gap-1 overflow-hidden rounded-xl bg-zinc-50 px-6 text-center dark:bg-white/[0.03]"
-      style={{ height: CHART_HEIGHT }}
+      className="relative flex flex-col items-center justify-center gap-1 overflow-hidden rounded-xl bg-zinc-50 px-6 py-4 text-center dark:bg-white/[0.03]"
+      style={{ minHeight: CHART_HEIGHT }}
     >
       <svg
         aria-hidden
@@ -735,7 +735,7 @@ function StatRow({
   const card = pick ? (pick.kind === "best" ? pick.best.card : pick.card) : null;
 
   return (
-    <div className="grid grid-cols-2 gap-2" data-slot="collection-stats">
+    <div className="grid grid-cols-2 gap-2 big:grid-cols-1" data-slot="collection-stats">
       <Tile name="Cards">
         <p className={value}>{cardCount.toLocaleString("en-US")}</p>
         {loading || failed ? (

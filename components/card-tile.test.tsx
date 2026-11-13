@@ -66,7 +66,7 @@ describe("ProfileCardGrid", () => {
       [card({ conditionType: "graded", grade: "PSA 10", photoDataUrl: PHOTO })],
       new Map([["c1", ok(412)]]),
     );
-    assert.match(html, /class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4/);
+    assert.match(html, /class="grid grid-cols-2 gap-3 big:grid-cols-1 sm:grid-cols-3 lg:grid-cols-4/);
     assert.match(html, /href="\/u\/luka77\/cards\/c1"/);
     assert.match(html, /data-kind="slab"/);
     assert.match(html, />PSA</);
@@ -146,7 +146,7 @@ describe("PostCardTile", () => {
 
   it("shows a skeleton while the price loads, never $0", () => {
     const html = postTile({}, { priceText: "…" });
-    assert.match(html, /animate-pulse/);
+    assert.match(html, /skeleton-shimmer/);
     assert.doesNotMatch(html, /\$0/);
   });
 });

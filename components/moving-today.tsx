@@ -205,7 +205,7 @@ export function NewChip() {
   return (
     <span
       data-new-chip=""
-      className="inline-flex shrink-0 items-center rounded-full bg-zinc-500/15 px-1.5 py-0.5 text-[12px] leading-4 font-medium text-zinc-600 dark:text-zinc-300"
+      className="inline-flex shrink-0 items-center rounded-full bg-zinc-500/15 px-1.5 py-0.5 text-12 leading-4 font-medium text-zinc-600 dark:text-zinc-300"
     >
       New
     </span>
@@ -265,7 +265,7 @@ export function MoverTile({
         <span
           data-top-badge=""
           aria-hidden="true"
-          className={`pointer-events-none absolute top-[calc((132px-8px)*5/3-12px)] left-1/2 inline-flex h-5 -translate-x-1/2 items-center rounded-full px-2 text-[11px] font-semibold whitespace-nowrap tabular-nums shadow-[0_4px_12px_-4px_rgba(0,0,0,0.5)] backdrop-blur-sm ${
+          className={`pointer-events-none absolute top-[calc((132px-8px)*5/3-12px)] left-1/2 inline-flex h-5 -translate-x-1/2 items-center rounded-full px-2 text-11 font-semibold whitespace-nowrap tabular-nums shadow-[0_4px_12px_-4px_rgba(0,0,0,0.5)] backdrop-blur-sm ${
             gain.tone === "up"
               ? "bg-violet-50 text-violet-700 dark:bg-[#1e1036] dark:text-violet-300"
               : "bg-zinc-100 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400"
@@ -278,7 +278,7 @@ export function MoverTile({
         </span>
       ) : null}
       {rail || !mover || !sale.soldLabel ? null : (
-        <p className="px-1.5 pb-1 text-[11px] leading-4 text-zinc-500 dark:text-zinc-400">Sold {sale.soldLabel}</p>
+        <p className="px-1.5 pb-1 text-11 leading-4 text-zinc-500 dark:text-zinc-400">Sold {sale.soldLabel}</p>
       )}
     </CardTile>
   );
@@ -326,8 +326,8 @@ export function MovingTodayPanel({ payload }: { payload: MovingTodayPayload }) {
     >
       <div className="flex h-6 items-center gap-1.5 px-4">
         <FreshnessDot day={day} />
-        <h2 className="shrink-0 text-[15px] leading-6 font-semibold tracking-tight">{payload.title}</h2>
-        <p className="min-w-0 flex-1 truncate text-[11px] text-zinc-500 dark:text-zinc-400">
+        <h2 className="shrink-0 text-15 leading-6 font-semibold tracking-tight">{payload.title}</h2>
+        <p className="min-w-0 flex-1 truncate text-11 text-zinc-500 dark:text-zinc-400">
           {range ? <span className="font-mono">· {range}</span> : null}
           <Freshness payload={payload} lead={Boolean(range)} short />
         </p>
@@ -335,7 +335,7 @@ export function MovingTodayPanel({ payload }: { payload: MovingTodayPayload }) {
           href={MOVING_TODAY_PATH}
           prefetch={false}
           aria-label={`See all ${total} cards`}
-          className={`-my-2.5 shrink-0 rounded py-2.5 pl-2 text-[13px] ${SEE_ALL_LINK} ${tileFocusRing}`}
+          className={`-my-2.5 shrink-0 rounded py-2.5 pl-2 text-13 ${SEE_ALL_LINK} ${tileFocusRing}`}
         >
           See all
         </Link>
@@ -361,7 +361,7 @@ export function MovingTodayPanel({ payload }: { payload: MovingTodayPayload }) {
               data-see-all-tile=""
               className={`flex h-full min-h-44 flex-col items-center justify-center gap-1 rounded-[10px] bg-zinc-100 text-center transition-transform duration-150 ease-out motion-safe:active:scale-[0.97] dark:bg-white/[0.04] ${tileFocusRing}`}
             >
-              <span className={`text-[13px] ${SEE_ALL_LINK}`}>See all {total}</span>
+              <span className={`text-13 ${SEE_ALL_LINK}`}>See all {total}</span>
               <ChevronRight aria-hidden className="h-4 w-4 text-zinc-400" />
             </Link>
           </li>
@@ -377,7 +377,7 @@ export function MovingQuiet({ signedIn = true }: { signedIn?: boolean }) {
     <section aria-label="Moving this week" data-moving-today="quiet" className="py-3">
       <Link
         href={signedIn ? "/cards/new" : signupPath("/cards/new")}
-        className={`-my-2.5 flex min-h-11 items-center gap-1 px-4 text-[12px] leading-6 sm:text-[13px] ${tileFocusRing}`}
+        className={`-my-2.5 flex min-h-11 items-center gap-1 px-4 text-12 leading-6 sm:text-13 ${tileFocusRing}`}
       >
         <span className="min-w-0 truncate">
           <span className="text-zinc-500 dark:text-zinc-400">Prices are quiet this week. </span>

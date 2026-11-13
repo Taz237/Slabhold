@@ -321,7 +321,7 @@ export function MessageThread({ username }: { username: string }) {
           />
           <span className="min-w-0">
             <span className="flex min-w-0 items-center gap-1">
-              <span className="truncate text-[15px] font-semibold leading-5">{partner.displayName}</span>
+              <span className="truncate text-15 font-semibold leading-5">{partner.displayName}</span>
               <TeamBadge username={partner.username} inLink />
             </span>
             <span className="block truncate text-xs text-zinc-500 dark:text-zinc-400">@{partner.username}</span>
@@ -373,7 +373,7 @@ export function MessageThread({ username }: { username: string }) {
                 <p
                   key={row.key}
                   data-thread-time=""
-                  className="pt-4 pb-2 text-center text-[13px] font-medium text-zinc-500 dark:text-zinc-400"
+                  className="pt-4 pb-2 text-center text-13 font-medium text-zinc-500 dark:text-zinc-400"
                 >
                   <time dateTime={row.at} title={exactTime(row.at)}>
                     {threadTimeLabel(row.at)}
@@ -432,7 +432,7 @@ export function MessageThread({ username }: { username: string }) {
             rows={1}
             placeholder="Start a message"
             aria-label={`Message ${partner.displayName}`}
-            className="max-h-32 min-h-11 flex-1 resize-none rounded-[22px] border border-zinc-200 bg-white px-4 py-[11px] text-[15px] leading-5 outline-none placeholder:text-zinc-500 focus:border-violet-500/60 focus:ring-2 focus:ring-violet-600/20 dark:border-white/10 dark:bg-white/[0.06] dark:focus:border-violet-400/50"
+            className="max-h-32 min-h-11 flex-1 resize-none rounded-[22px] border border-zinc-200 bg-white px-4 py-[11px] text-15 leading-5 outline-none placeholder:text-zinc-500 focus:border-violet-500/60 focus:ring-2 focus:ring-violet-600/20 dark:border-white/10 dark:bg-white/[0.06] dark:focus:border-violet-400/50"
           />
           <button
             type="submit"
@@ -505,7 +505,7 @@ function MessageRow({
                 event.preventDefault();
                 onToggleTime();
               }}
-              className="cursor-default rounded-[inherit] px-3.5 py-2 text-[15px] leading-5 break-words whitespace-pre-wrap outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+              className="cursor-default rounded-[inherit] px-3.5 py-2 text-15 leading-5 break-words whitespace-pre-wrap outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
             >
               <MentionText
                 text={message.content}
@@ -524,18 +524,18 @@ function MessageRow({
           <time
             data-bubble-time=""
             dateTime={message.createdAt}
-            className="mt-1 px-1 text-[11px] text-zinc-500 dark:text-zinc-400 motion-safe:animate-[add-fade_160ms_ease-out_both]"
+            className="mt-1 px-1 text-11 text-zinc-500 dark:text-zinc-400 motion-safe:animate-[add-fade_160ms_ease-out_both]"
           >
             {exactTime(message.createdAt)}
           </time>
         ) : null}
         {sending ? (
-          <span data-sending-label="" className="mt-1 px-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+          <span data-sending-label="" className="mt-1 px-1 text-11 text-zinc-500 dark:text-zinc-400">
             Sending…
           </span>
         ) : null}
         {seen ? (
-          <span data-seen="" className="mt-1 px-1 text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
+          <span data-seen="" className="mt-1 px-1 text-11 font-semibold text-zinc-500 dark:text-zinc-400">
             Seen
           </span>
         ) : null}
@@ -577,11 +577,11 @@ function ThreadHint({
       <span className="rounded-full p-1 ring-2 ring-violet-500/40">
         <Avatar name={name} image={avatar} accent={accent} expandable={false} className="h-16 w-16 text-base" />
       </span>
-      <p className="mt-3 text-[17px] font-semibold tracking-tight">
+      <p className="mt-3 text-17 font-semibold tracking-tight">
         {name}
         <TeamBadge username={username} className="ml-1 align-[-2px]" />
       </p>
-      <p className="text-[13px] text-zinc-500 dark:text-zinc-400">@{username}</p>
+      <p className="text-13 text-zinc-500 dark:text-zinc-400">@{username}</p>
       <p className="mt-4 max-w-[16rem] text-sm leading-5 text-zinc-500 dark:text-zinc-400">
         This is the start of your conversation. Say hi, ask about a card, or talk pickups.
       </p>

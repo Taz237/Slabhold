@@ -107,7 +107,7 @@ function TeamBadgeMark({ size, inLink, className }: { size: "sm" | "md"; inLink:
               role="tooltip"
               data-team-badge-tip=""
               style={{ left: tip.x, top: tip.y }}
-              className="team-badge-tip pointer-events-none fixed z-[90] -translate-x-1/2 -translate-y-[calc(100%+6px)] rounded-lg bg-zinc-900 px-2 py-1 text-[12px] leading-4 font-medium whitespace-nowrap text-zinc-100 shadow-lg ring-1 ring-white/10"
+              className="team-badge-tip pointer-events-none fixed z-[90] -translate-x-1/2 -translate-y-[calc(100%+6px)] rounded-lg bg-zinc-900 px-2 py-1 text-12 leading-4 font-medium whitespace-nowrap text-zinc-100 shadow-lg ring-1 ring-white/10"
             >
               {TEAM_BADGE_LABEL}
             </span>,

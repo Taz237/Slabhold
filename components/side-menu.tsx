@@ -99,9 +99,9 @@ const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 const mainRow =
-  "tap-fade flex min-h-12 items-center gap-4 rounded-2xl px-3 text-[19px] font-semibold tracking-tight focus-visible:ring-2 focus-visible:ring-[#7C3AED] focus-visible:outline-none";
+  "tap-fade flex min-h-12 items-center gap-4 rounded-2xl px-3 text-[1.1875rem] font-semibold tracking-tight focus-visible:ring-2 focus-visible:ring-[#7C3AED] focus-visible:outline-none";
 const settingsRow =
-  "tap-fade flex min-h-11 items-center gap-3 rounded-2xl px-3 text-[15px] font-medium focus-visible:ring-2 focus-visible:ring-[#7C3AED] focus-visible:outline-none";
+  "tap-fade flex min-h-11 items-center gap-3 rounded-2xl px-3 text-15 font-medium focus-visible:ring-2 focus-visible:ring-[#7C3AED] focus-visible:outline-none";
 
 function rowTone(active: boolean) {
   return active
@@ -171,7 +171,7 @@ export function AccountMenu({ user, showLogin }: { user: Profile | null; showLog
           image={user.avatarDataUrl}
           accent={user.accent}
           expandable={false}
-          className="h-8 w-8 text-[11px]"
+          className="h-8 w-8 text-11"
         />
       </button>
       <Suspense fallback={null}>
@@ -596,7 +596,7 @@ export function SideMenu({
         aria-label="Menu"
         tabIndex={-1}
         style={drag !== null && open ? { transform: `translateX(${drag.px}px)`, transition: "none" } : undefined}
-        className={`absolute inset-y-0 left-0 flex w-[80%] max-w-[320px] flex-col overflow-y-auto overscroll-contain border-r border-zinc-200 bg-white pt-[env(safe-area-inset-top)] pb-[max(1rem,env(safe-area-inset-bottom))] pl-[env(safe-area-inset-left)] shadow-2xl outline-none transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none dark:border-white/10 dark:bg-[#09090B] ${
+        className={`absolute inset-y-0 left-0 flex w-[80%] max-w-[320px] flex-col big:w-full big:max-w-none overflow-y-auto overscroll-contain border-r border-zinc-200 bg-white pt-[env(safe-area-inset-top)] pb-[max(1rem,env(safe-area-inset-bottom))] pl-[env(safe-area-inset-left)] shadow-2xl outline-none transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none dark:border-white/10 dark:bg-[#09090B] ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -615,13 +615,13 @@ export function SideMenu({
               className="h-12 w-12 text-sm"
             />
             <span className="block w-full min-w-0">
-              <span className="block truncate text-[17px] font-semibold tracking-tight">
+              <span className="block truncate text-17 font-semibold tracking-tight">
                 {user.displayName}
               </span>
-              <span className="block truncate text-[15px] text-zinc-500">@{user.username}</span>
+              <span className="block truncate text-15 text-zinc-500">@{user.username}</span>
             </span>
           </Link>
-          <div className="mt-1 flex items-center gap-1 text-[14px]">
+          <div className="mt-1 flex items-center gap-1 text-14">
             <CountLink href="/profile/following" count={followingCount(userId)} label="Following" onPick={onClose} />
             <span aria-hidden className="text-zinc-400">
               ·
@@ -668,7 +668,7 @@ export function SideMenu({
               if (item.href === "/messages" && unreadMessageCount > 0) {
                 label = `Messages, ${unreadMessageCount} unread`;
                 trailing = (
-                  <span className="grid h-5 min-w-5 place-items-center rounded-full bg-[#7C3AED] px-1.5 text-[11px] font-semibold leading-none text-white">
+                  <span className="grid h-5 min-w-5 place-items-center rounded-full bg-[#7C3AED] px-1.5 text-11 font-semibold leading-none text-white">
                     {countLabel(unreadMessageCount)}
                   </span>
                 );
@@ -714,7 +714,7 @@ export function SideMenu({
         <div className="mx-4 my-3 border-t border-zinc-200 dark:border-white/10" />
 
         <div className="px-2">
-          <h2 className="px-3 pb-1 text-[13px] font-medium text-zinc-500">
+          <h2 className="px-3 pb-1 text-13 font-medium text-zinc-500">
             Settings and support
           </h2>
           <ul className="space-y-0.5">

@@ -44,8 +44,8 @@ export function QuickCompNotice({
     <section data-quick-comp-state={state} className={compCard}>
       <p className={`flex h-5 items-center ${compLabel}`}>Recent sales</p>
       <GhostPlot>
-        <p className="text-[15px] leading-5 font-medium">{title}</p>
-        {caption ? <p className={`text-[13px] leading-5 ${textMuted}`}>{caption}</p> : null}
+        <p className="text-15 leading-5 font-medium">{title}</p>
+        {caption ? <p className={`text-13 leading-5 ${textMuted}`}>{caption}</p> : null}
         {action}
       </GhostPlot>
     </section>

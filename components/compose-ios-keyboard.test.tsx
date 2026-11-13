@@ -263,7 +263,7 @@ describe("composer layout, like X", () => {
         body.dispatchEvent(new win.MouseEvent("click", { bubbles: true }));
       });
       assert.equal(win.document.activeElement === field(), true, "a tap on the empty body focuses the field");
-      assert.match(field().className, /text-\[17px\]/, "17px: big, and no iOS zoom");
+      assert.match(field().className, /text-17/, "17px at the default text size: big, and no iOS zoom");
       assert.equal(field().getAttribute("placeholder"), "What's happening?");
     } finally {
       view.unmount();

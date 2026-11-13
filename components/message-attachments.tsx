@@ -142,7 +142,7 @@ function PostUnavailable() {
   return (
     <span
       data-post-unavailable=""
-      className="mt-1 inline-flex min-h-7 items-center rounded-full bg-zinc-100 px-3 text-[13px] font-medium text-zinc-500 dark:bg-white/[0.06] dark:text-zinc-400"
+      className="mt-1 inline-flex min-h-7 items-center rounded-full bg-zinc-100 px-3 text-13 font-medium text-zinc-500 dark:bg-white/[0.06] dark:text-zinc-400"
     >
       Post unavailable
     </span>
@@ -166,13 +166,13 @@ function SharedPostMini({ post, author }: { post: Post; author: Profile }) {
             expandable={false}
             className="h-5 w-5 text-[8px]"
           />
-          <span className="truncate text-[13px] font-semibold tracking-tight">{author.displayName}</span>
-          <span className="truncate text-[13px] text-zinc-500">@{author.username}</span>
+          <span className="truncate text-13 font-semibold tracking-tight">{author.displayName}</span>
+          <span className="truncate text-13 text-zinc-500">@{author.username}</span>
         </span>
         {post.body ? (
-          <span className="mt-1 line-clamp-2 text-[14px] leading-5 text-zinc-700 dark:text-zinc-200">{post.body}</span>
+          <span className="mt-1 line-clamp-2 text-14 leading-5 text-zinc-700 dark:text-zinc-200">{post.body}</span>
         ) : (
-          <span className="mt-1 block text-[14px] leading-5 text-zinc-500">View post</span>
+          <span className="mt-1 block text-14 leading-5 text-zinc-500">View post</span>
         )}
       </span>
       {photo || post.card ? (

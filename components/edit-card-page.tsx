@@ -14,7 +14,7 @@ export function EditCardPage({ id }: { id: string }) {
         aria-busy="true"
         aria-label="Loading card"
         data-edit-skeleton=""
-        className="h-64 rounded-2xl bg-zinc-200/80 motion-safe:animate-pulse dark:bg-white/5"
+        className="skeleton-shimmer h-64 rounded-2xl"
       />
     );
   }

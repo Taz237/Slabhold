@@ -46,7 +46,7 @@ export default async function ProfileBadgesPage({ params }: Props) {
             aria-labelledby={`badges-${category}`}
             className="rounded-3xl border border-zinc-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03]"
           >
-            <h2 id={`badges-${category}`} className="text-[15px] font-semibold">
+            <h2 id={`badges-${category}`} className="text-15 font-semibold">
               {CATEGORY_COPY[category].label}
             </h2>
             <ul className="mt-3 grid grid-cols-3 gap-y-4 min-[420px]:grid-cols-4">

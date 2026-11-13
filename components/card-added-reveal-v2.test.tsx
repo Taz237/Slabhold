@@ -156,7 +156,7 @@ describe("Added screen v2", () => {
       assert.ok(toggle);
       assert.equal(toggle.getAttribute("aria-checked"), "false");
       assert.match(toggle.className, /min-h-11/, "44px tap target");
-      assert.match(toggle.className, /text-\[13px\]/, "small");
+      assert.match(toggle.className, /text-13/, "small (13px at the default text size)");
       const actions = view.host.querySelector('[data-slot="reveal-actions"]')!;
       assert.ok(actions.compareDocumentPosition(toggle) & win.Node.DOCUMENT_POSITION_FOLLOWING, "after the two buttons");
       await act(async () => toggle.click());

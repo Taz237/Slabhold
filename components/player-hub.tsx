@@ -52,11 +52,11 @@ function PostList({ posts }: { posts: HubPost[] }) {
         return (
           <li key={post.id} className="border-b border-zinc-200 py-3 last:border-b-0 dark:border-white/10">
             <Link href={post.href} className="block">
-              <span className="flex min-w-0 items-baseline gap-1 text-[15px]">
+              <span className="flex min-w-0 items-baseline gap-1 text-15">
                 <span className="truncate font-semibold">{post.authorName}</span>
                 {stamp ? <span className="shrink-0 text-zinc-500">· {stamp}</span> : null}
               </span>
-              <span className="mt-0.5 line-clamp-3 block text-[15px] leading-5 whitespace-pre-wrap">
+              <span className="mt-0.5 line-clamp-3 block text-15 leading-5 whitespace-pre-wrap">
                 {post.body}
               </span>
             </Link>
@@ -87,7 +87,7 @@ function CardList({ cards }: { cards: HubCard[] }) {
               />
             </Link>
             <span className="min-w-0">
-              <Link href={card.href} className="block truncate text-[15px] font-semibold hover:underline">
+              <Link href={card.href} className="block truncate text-15 font-semibold hover:underline">
                 {card.detail || card.playerName}
               </Link>
               <Link href={card.ownerHref} className="block truncate text-sm text-zinc-500 hover:underline">
@@ -134,7 +134,7 @@ function OwnerList({ owners }: { owners: HubOwner[] }) {
           <Link href={owner.href} className="flex min-h-12 items-center justify-between gap-3 py-2">
             <span className="min-w-0">
               <span className="flex min-w-0 items-center gap-1">
-                <span className="truncate text-[15px] font-semibold">{owner.displayName}</span>
+                <span className="truncate text-15 font-semibold">{owner.displayName}</span>
                 <TeamBadge username={owner.username} inLink />
               </span>
               <span className="block truncate text-sm text-zinc-500">@{owner.username}</span>

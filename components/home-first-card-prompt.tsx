@@ -20,7 +20,7 @@ export function HomeFirstCardPrompt({ afterGetStarted = false }: { afterGetStart
           <Camera aria-hidden className="h-5 w-5" />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-[15px] font-semibold tracking-tight">Add your first card</span>
+          <span className="block text-15 font-semibold tracking-tight">Add your first card</span>
           <span className="block text-sm text-zinc-500 dark:text-zinc-400">
             Snap it and we match recent sold prices.
           </span>

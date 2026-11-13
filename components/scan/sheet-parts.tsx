@@ -69,7 +69,7 @@ export function SheetFrame({
         <div className="flex items-center justify-between gap-2 pr-2 pl-5 pt-2">
           <h2
             id={titleId}
-            className={scene ? "text-[13px] font-medium text-zinc-500 dark:text-zinc-400" : "text-[17px] font-semibold tracking-tight"}
+            className={scene ? "text-13 font-medium text-zinc-500 dark:text-zinc-400" : "text-17 font-semibold tracking-tight"}
           >
             {title}
           </h2>
@@ -140,7 +140,7 @@ export function MatchSummary({ photo, match }: { photo: string | null; match: Sc
     <div className="grid grid-cols-[80px_1fr] items-start gap-4">
       <CardPhoto photo={photo} name={match.playerName} />
       <div className="min-w-0 pt-1">
-        <p className="text-[17px] leading-6 font-semibold">
+        <p className="text-17 leading-6 font-semibold">
           <Field sureness={match.sureness.player}>{match.playerName || CONFIRM_COPY.playerOpen}</Field>
         </p>
         <p className="mt-1 text-sm leading-5">
@@ -260,10 +260,10 @@ export function RevealName({ match, parallel, photo = null }: { match: ScanMatch
   const tags = stageMotion("tags");
   return (
     <div className="flex flex-col items-center text-center" data-reveal="name">
-      <p data-stage="player" className={`text-[22px] leading-7 font-semibold tracking-tight ${player.className}`} style={player.style}>
+      <p data-stage="player" className={`text-[1.375rem] leading-7 font-semibold tracking-tight ${player.className}`} style={player.style}>
         <Field sureness={match.sureness.player}>{match.playerName || CONFIRM_COPY.playerOpen}</Field>
       </p>
-      <p className="mt-1 text-[15px] leading-5 text-zinc-600 dark:text-zinc-300">
+      <p className="mt-1 text-15 leading-5 text-zinc-600 dark:text-zinc-300">
         <span data-stage="set" className={`inline-block ${set.className}`} style={set.style}>
           <Field sureness={match.sureness.year}>{match.yearLabel}</Field>{" "}
           <Field sureness={match.sureness.set}>{match.setBrand}</Field>
@@ -357,7 +357,7 @@ export function ParallelStrip({
     <div>
       <div className="flex items-baseline justify-between gap-3">
         <SectionLabel>{CONFIRM_COPY.parallel}</SectionLabel>
-        {hint ? <p className="mb-2 text-right text-[13px] text-zinc-500 dark:text-zinc-400">{hint}</p> : null}
+        {hint ? <p className="mb-2 text-right text-13 text-zinc-500 dark:text-zinc-400">{hint}</p> : null}
       </div>
       <div
         role="group"
@@ -404,17 +404,17 @@ export function OtherMatches({
       <SectionLabel>{CONFIRM_COPY.others}</SectionLabel>
       <ul className="divide-y divide-zinc-200 rounded-2xl border border-zinc-200 dark:divide-white/10 dark:border-white/10">
         {rows.slice(1).map((match, index) => (
-          <li key={`${match.catalogId ?? "read"}-${index}`} className="flex items-center gap-2 py-1 pl-2">
+          <li key={`${match.catalogId ?? "read"}-${index}`} className="flex items-center gap-2 py-1 pl-2 big:flex-col big:items-start">
             {/* That exact card's photo from a sold listing, or an empty card. Its own tap target: it enlarges. */}
             <ListingThumb match={match} scan={photo} />
             <button
               type="button"
               onClick={() => onPromote(index + 1)}
-              className={`flex min-h-14 min-w-0 flex-1 items-center justify-between gap-3 rounded-r-2xl py-2 pr-4 text-left hover:bg-zinc-900/[0.03] dark:hover:bg-white/[0.04] ${focusRing}`}
+              className={`flex min-h-14 min-w-0 flex-1 items-center justify-between gap-3 rounded-r-2xl py-2 pr-4 text-left big:w-full hover:bg-zinc-900/[0.03] dark:hover:bg-white/[0.04] ${focusRing}`}
             >
               <span className="min-w-0">
                 <span className="block truncate text-sm font-medium">{match.playerName}</span>
-                <span className="block truncate text-[13px] text-zinc-500 dark:text-zinc-400">{matchLine(match)}</span>
+                <span className="block truncate text-13 text-zinc-500 dark:text-zinc-400">{matchLine(match)}</span>
               </span>
               <ChevronRight className="size-4 shrink-0 text-zinc-400" aria-hidden />
             </button>
@@ -425,7 +425,7 @@ export function OtherMatches({
   );
 }
 
-const skeletonBar = "rounded-md bg-zinc-200 motion-safe:animate-pulse dark:bg-white/10";
+const skeletonBar = "skeleton-shimmer rounded-md";
 
 /** Skeletons while the scan is matched. Never a spinner. */
 export function MatchingSkeleton({ photo, label }: { photo: string | null; label: string }) {
@@ -541,7 +541,7 @@ export function OtherGroups({ groups, onPick }: { groups: readonly { label: stri
   if (groups.length === 0) return null;
   return (
     <div className="mt-4">
-      <p className="text-[13px] font-medium text-zinc-500 dark:text-zinc-400">{COMP_COPY.otherGroups}</p>
+      <p className="text-13 font-medium text-zinc-500 dark:text-zinc-400">{COMP_COPY.otherGroups}</p>
       <GroupRows groups={groups} onPick={onPick} />
     </div>
   );
@@ -563,7 +563,7 @@ export function LastSold({
   /** Tap a parallel the sales name to pick it. */
   onPick?: (label: string) => void;
 }) {
-  const box = "flex min-h-11 items-center justify-between gap-3 rounded-2xl border border-zinc-200 px-4 py-2.5 dark:border-white/10";
+  const box = "flex min-h-11 items-center justify-between gap-3 rounded-2xl border border-zinc-200 px-4 py-2.5 big:flex-wrap dark:border-white/10";
   if (solds.status === "looking") {
     return (
       <div className={box} aria-busy="true">
@@ -583,13 +583,13 @@ export function LastSold({
       return (
         <div className={box} data-slot="last-sold-picked">
           <div className="min-w-0">
-            <p className="text-[13px] font-medium text-zinc-500 dark:text-zinc-400">
+            <p className="text-13 font-medium text-zinc-500 dark:text-zinc-400">
               {COMP_COPY.lastSold} · {picked.label}
             </p>
             <p className="text-xs text-zinc-500 dark:text-zinc-400">{COMP_COPY.credit}</p>
           </div>
           <p className="shrink-0 text-right">
-            <span className="font-mono text-[17px] font-semibold tabular-nums">{money(picked.lastPriceCents / 100)}</span>
+            <span className="font-mono text-17 font-semibold tabular-nums">{money(picked.lastPriceCents / 100)}</span>
             {day ? <span className="block font-mono text-xs text-zinc-500 dark:text-zinc-400 tabular-nums">{day}</span> : null}
           </p>
         </div>
@@ -607,14 +607,14 @@ export function LastSold({
     return (
       <div className={box}>
         <div className="min-w-0">
-          <p className="text-[13px] font-medium text-zinc-500 dark:text-zinc-400">
+          <p className="text-13 font-medium text-zinc-500 dark:text-zinc-400">
             {COMP_COPY.lastSold}
             {comp.status === "ok" && comp.parallel ? ` · ${comp.parallel}` : ""}
           </p>
           <p className="text-xs text-zinc-500 dark:text-zinc-400">{COMP_COPY.credit}</p>
         </div>
         <p className="shrink-0 text-right">
-          <span className="font-mono text-[17px] font-semibold tabular-nums">{money(sale.priceCents / 100)}</span>
+          <span className="font-mono text-17 font-semibold tabular-nums">{money(sale.priceCents / 100)}</span>
           {day ? <span className="block font-mono text-xs text-zinc-500 dark:text-zinc-400 tabular-nums">{day}</span> : null}
         </p>
       </div>
@@ -673,7 +673,7 @@ export function SetNotes({ match, onSapphire, center = false }: { match: ScanMat
   if (!fromSales && !ask) return null;
   return (
     <div className={center ? "flex justify-center" : ""} data-slot="set-notes">
-      {fromSales ? <p className="text-[13px] leading-5 text-zinc-500 dark:text-zinc-400">{CONFIRM_COPY.sapphireFromSales}</p> : null}
+      {fromSales ? <p className="text-13 leading-5 text-zinc-500 dark:text-zinc-400">{CONFIRM_COPY.sapphireFromSales}</p> : null}
       {ask ? (
         <button
           type="button"

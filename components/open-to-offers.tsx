@@ -16,7 +16,7 @@ import { usePublicCards } from "@/lib/social/use-public-cards";
 import { useCardValue } from "@/lib/value/use-card-values";
 
 const badgeClass =
-  "inline-flex items-center rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 dark:text-emerald-200";
+  "inline-flex items-center rounded-full bg-emerald-500/15 px-2 py-0.5 text-11 font-semibold text-emerald-800 dark:text-emerald-200";
 
 export function OpenToOffersBadge({ className = "" }: { className?: string }) {
   return <span className={`${badgeClass} ${className}`.trim()}>{OPEN_TO_OFFERS_LABEL}</span>;
@@ -115,10 +115,10 @@ function CardMessagePreviewPending() {
       aria-label="Loading card"
       className="mt-1 flex w-64 max-w-full items-center gap-3 rounded-2xl border border-violet-500/15 bg-white p-2.5 pr-3.5 dark:border-violet-400/20 dark:bg-zinc-900"
     >
-      <span className="h-[78px] w-14 shrink-0 animate-pulse rounded-lg bg-zinc-200 motion-reduce:animate-none dark:bg-white/10" />
+      <span className="h-[78px] w-14 shrink-0 skeleton-shimmer rounded-lg" />
       <span className="min-w-0 flex-1 space-y-2">
-        <span className="block h-3.5 w-32 animate-pulse rounded-full bg-zinc-200 motion-reduce:animate-none dark:bg-white/10" />
-        <span className="block h-3 w-24 animate-pulse rounded-full bg-zinc-200/70 motion-reduce:animate-none dark:bg-white/[0.06]" />
+        <span className="block h-3.5 w-32 skeleton-shimmer rounded-full" />
+        <span className="block h-3 w-24 skeleton-shimmer rounded-full" />
       </span>
     </span>
   );
@@ -136,8 +136,8 @@ function CardMessagePreviewRetry({ onRetry }: { onRetry: () => void }) {
     >
       <span className="h-[78px] w-14 shrink-0 rounded-lg bg-zinc-100 dark:bg-white/10" />
       <span className="min-w-0 flex-1">
-        <span className="block text-[14px] leading-5 font-semibold">Couldn&apos;t load this card</span>
-        <span className="block text-[13px] leading-5 font-semibold text-violet-600 dark:text-[#A78BFA]">Try again</span>
+        <span className="block text-14 leading-5 font-semibold">Couldn&apos;t load this card</span>
+        <span className="block text-13 leading-5 font-semibold text-violet-600 dark:text-[#A78BFA]">Try again</span>
       </span>
     </button>
   );
@@ -173,16 +173,16 @@ export function CardMessagePreviewBody({
       <SharedCardPhoto imageUrl={card.imageUrl} player={card.player} />
       <span className="min-w-0 flex-1">
         {card.grade ? (
-          <span className="mb-1 inline-flex h-5 items-center rounded-full bg-violet-600 px-2 font-mono text-[10px] font-semibold text-white">
+          <span className="mb-1 inline-flex h-5 items-center rounded-full bg-violet-600 px-2 font-mono text-10 font-semibold text-white">
             {card.grade}
           </span>
         ) : null}
-        <span className="block truncate text-[15px] leading-5 font-semibold tracking-tight">{card.player}</span>
-        <span className="block truncate text-[13px] leading-5 text-zinc-500">
+        <span className="block truncate text-15 leading-5 font-semibold tracking-tight">{card.player}</span>
+        <span className="block truncate text-13 leading-5 text-zinc-500">
           {card.year} {card.set}
         </span>
         {card.estimateLabel ? (
-          <span className="block truncate text-[13px] leading-5 font-semibold tabular-nums">{card.estimateLabel}</span>
+          <span className="block truncate text-13 leading-5 font-semibold tabular-nums">{card.estimateLabel}</span>
         ) : null}
       </span>
     </Link>
@@ -221,7 +221,7 @@ export function SharedCardPhoto({
           className="h-full w-full rounded-[3px] bg-zinc-900 object-cover"
         />
       ) : (
-        <span className="grid h-full w-full place-items-center rounded-[3px] bg-[#7C3AED] text-[10px] font-semibold text-white">
+        <span className="grid h-full w-full place-items-center rounded-[3px] bg-[#7C3AED] text-10 font-semibold text-white">
           {initials(player) || "?"}
         </span>
       )}

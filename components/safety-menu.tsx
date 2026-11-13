@@ -20,7 +20,7 @@ const SAFETY_ACTIONS = { blockAccount, muteAccount, submitReport, unblockAccount
 const ACTION_FAILED = { ok: false as const, error: SAFETY_ACTION_FAILED };
 
 const menuItem =
-  "block w-full px-4 py-2.5 text-left text-[15px] font-semibold hover:bg-zinc-100 dark:hover:bg-white/10";
+  "block w-full px-4 py-2.5 text-left text-15 font-semibold hover:bg-zinc-100 dark:hover:bg-white/10";
 
 export function SafetyMenu({
   targetType,

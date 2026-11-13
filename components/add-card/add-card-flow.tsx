@@ -583,7 +583,7 @@ export function AddCardFlow(props: AddCardFlowProps) {
       {flow.step === "player" ? (
         // Same photo block as before, with the tile beside the buttons on a phone too,
         // so the player search stays above the fold.
-        <div className="[&_section>div.grid]:grid-cols-[96px_1fr] [&_section>div.grid]:items-center">
+        <div className="[&_section>div.grid]:grid-cols-[96px_1fr] [&_section>div.grid]:items-center big:[&_section>div.grid]:grid-cols-[96px]">
           {props.photoBlock}
         </div>
       ) : null}
@@ -603,7 +603,7 @@ export function AddCardFlow(props: AddCardFlowProps) {
           <div className="min-w-0 flex-1">
             <FlowProgress value={flowProgress(flow, answers)} label={`Add card progress: ${counter}`} />
           </div>
-          <span className="shrink-0 font-mono text-[11px] text-zinc-500 tabular-nums">
+          <span className="shrink-0 font-mono text-11 text-zinc-500 tabular-nums">
             {counter}
           </span>
         </div>
@@ -625,7 +625,7 @@ export function AddCardFlow(props: AddCardFlowProps) {
         </p>
         <div key={flow.step} ref={stepRef} className={`space-y-4 ${animation}`}>
           <div>
-            <p className="font-mono text-[11px] font-medium text-violet-700 dark:text-[#A78BFA]">
+            <p className="font-mono text-11 font-medium text-violet-700 dark:text-[#A78BFA]">
               {STEP_LABELS[flow.step]}
             </p>
             <h2 id={headingId} className="mt-1 text-2xl font-semibold tracking-tight">

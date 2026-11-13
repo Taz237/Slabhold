@@ -26,7 +26,7 @@ export function EmptyState({
           {icon}
         </div>
       ) : null}
-      <p className={`font-semibold tracking-tight ${compact ? "text-[15px]" : "text-[17px]"}`}>
+      <p className={`font-semibold tracking-tight ${compact ? "text-15" : "text-17"}`}>
         {title}
       </p>
       {detail ? (
@@ -50,11 +50,11 @@ export function LoadingRows({ count = 3 }: { count?: number }) {
     <div className="px-4 py-2">
       {Array.from({ length: count }, (_, row) => (
         <div key={row} className="flex gap-3 border-b border-zinc-200 py-3 dark:border-white/10">
-          <div className="h-10 w-10 shrink-0 animate-pulse rounded-full bg-zinc-200/80 dark:bg-white/10" />
+          <div className="h-10 w-10 shrink-0 skeleton-shimmer rounded-full" />
           <div className="min-w-0 flex-1 space-y-2 pt-1.5">
-            <div className="h-3 w-28 animate-pulse rounded-full bg-zinc-200/80 dark:bg-white/10" />
-            <div className="h-3 w-full animate-pulse rounded-full bg-zinc-200/70 dark:bg-white/[0.06]" />
-            <div className="h-3 w-2/3 animate-pulse rounded-full bg-zinc-200/70 dark:bg-white/[0.06]" />
+            <div className="h-3 w-28 skeleton-shimmer rounded-full" />
+            <div className="h-3 w-full skeleton-shimmer rounded-full" />
+            <div className="h-3 w-2/3 skeleton-shimmer rounded-full" />
           </div>
         </div>
       ))}
@@ -78,12 +78,12 @@ export function ProfileSkeleton() {
   return (
     <div className="-mx-4 -mt-5" aria-busy="true" aria-live="polite">
       <span className="sr-only">Loading profile</span>
-      <div className="h-40 animate-pulse bg-zinc-200/80 dark:bg-white/5" />
+      <div className="h-40 skeleton-shimmer" />
       <div className="px-4">
-        <div className="-mt-10 h-20 w-20 animate-pulse rounded-full bg-zinc-200 ring-4 ring-[var(--background)] dark:bg-white/10" />
-        <div className="mt-4 h-4 w-36 animate-pulse rounded-full bg-zinc-200/80 dark:bg-white/10" />
-        <div className="mt-2 h-3 w-24 animate-pulse rounded-full bg-zinc-200/70 dark:bg-white/[0.06]" />
-        <div className="mt-4 h-3 w-40 animate-pulse rounded-full bg-zinc-200/70 dark:bg-white/[0.06]" />
+        <div className="-mt-10 h-20 w-20 skeleton-shimmer rounded-full ring-4 ring-[var(--background)]" />
+        <div className="mt-4 h-4 w-36 skeleton-shimmer rounded-full" />
+        <div className="mt-2 h-3 w-24 skeleton-shimmer rounded-full" />
+        <div className="mt-4 h-3 w-40 skeleton-shimmer rounded-full" />
       </div>
       <LoadingRows count={2} />
     </div>
@@ -95,21 +95,21 @@ export function CollectionSkeleton() {
     <div className="space-y-4" aria-busy="true" aria-live="polite">
       <span className="sr-only">Loading collection</span>
       <div className="rounded-3xl border border-zinc-200 p-4 dark:border-white/10 sm:p-5">
-        <div className="h-3 w-28 animate-pulse rounded-full bg-zinc-200/70 dark:bg-white/[0.06]" />
-        <div className="mt-3 h-10 w-44 animate-pulse rounded-lg bg-zinc-200/80 dark:bg-white/10" />
-        <div className="mt-3 h-5 w-32 animate-pulse rounded-full bg-zinc-200/70 dark:bg-white/[0.06]" />
+        <div className="h-3 w-28 skeleton-shimmer rounded-full" />
+        <div className="mt-3 h-10 w-44 skeleton-shimmer rounded-lg" />
+        <div className="mt-3 h-5 w-32 skeleton-shimmer rounded-full" />
       </div>
       <div className="flex gap-1.5 overflow-hidden py-1">
         {Array.from({ length: 5 }, (_, index) => (
-          <div key={index} className="h-9 w-16 shrink-0 animate-pulse rounded-full bg-zinc-200/70 dark:bg-white/[0.06]" />
+          <div key={index} className="h-9 w-16 shrink-0 skeleton-shimmer rounded-full" />
         ))}
       </div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 big:grid-cols-1 sm:grid-cols-3 lg:grid-cols-4">
         {Array.from({ length: 4 }, (_, index) => (
           <div key={index} className="p-1">
-            <div className="aspect-[3/5] w-full animate-pulse rounded-[10px] bg-zinc-200/80 dark:bg-white/[0.06]" />
-            <div className="mt-2 h-3.5 w-3/4 animate-pulse rounded-full bg-zinc-200/80 dark:bg-white/10" />
-            <div className="mt-1.5 h-3 w-1/2 animate-pulse rounded-full bg-zinc-200/70 dark:bg-white/[0.06]" />
+            <div className="aspect-[3/5] w-full skeleton-shimmer rounded-[10px]" />
+            <div className="mt-2 h-3.5 w-3/4 skeleton-shimmer rounded-full" />
+            <div className="mt-1.5 h-3 w-1/2 skeleton-shimmer rounded-full" />
           </div>
         ))}
       </div>

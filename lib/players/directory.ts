@@ -3,6 +3,7 @@
  * Refresh with `node scripts/build-player-directory.mjs` (ESPN public rosters
  * plus the retired-star list in that script). Names, sport, and team only.
  * Normalized names are computed once, when this chunk loads.
+ * The scanner reads with a wider list on top of this one: scan-directory.ts.
  */
 import { compactNorm, normInterest } from "@/lib/social/follow-rank";
 import { collapseInitials } from "./initials";
@@ -13,7 +14,7 @@ export type { DirectoryPlayer, IndexedDirectoryPlayer };
 
 export const PLAYER_DIRECTORY: readonly DirectoryPlayer[] = players;
 
-export const INDEXED_DIRECTORY: readonly IndexedDirectoryPlayer[] = players.map((player) => {
+export function indexPlayer(player: DirectoryPlayer): IndexedDirectoryPlayer {
   const norm = normInterest(player.name);
   const words = norm ? norm.split(" ") : [];
   const joined = collapseInitials(words);
@@ -27,4 +28,6 @@ export const INDEXED_DIRECTORY: readonly IndexedDirectoryPlayer[] = players.map(
   if (joined !== words) indexed.joined = joined;
   if (player.team) indexed.team = player.team;
   return indexed;
-});
+}
+
+export const INDEXED_DIRECTORY: readonly IndexedDirectoryPlayer[] = players.map(indexPlayer);

@@ -76,6 +76,15 @@ function hasText(inner: string): boolean {
   return /[A-Za-z0-9{]/.test(withoutComments);
 }
 
+/** A text size class: text-11 (px at the default size, in rem), text-[11px], text-[0.6875rem], or text-[min(0.6875rem,13px)] (its rem part). */
+const SIZE = /text-(?:\[(?:min\()?(\d*\.?\d+)(px|rem)|(\d+)(?![\w.-]))/;
+
+/** That size in px at the default text size (1rem = 16px). */
+function sizePx(match: RegExpMatchArray): number {
+  if (match[3]) return Number(match[3]);
+  return Number(match[1]) * (match[2] === "rem" ? 16 : 1);
+}
+
 describe("accessibility floor: shell, tabs and scan sheets", () => {
   for (const file of CHROME_FILES) {
     const source = read(file);
@@ -92,11 +101,11 @@ describe("accessibility floor: shell, tabs and scan sheets", () => {
         .split("\n")
         .map((text, index) => ({ text, line: index + 1 }))
         // An arrow glyph hidden from screen readers is a picture, not text.
-        .filter(({ text }) => /text-\[(\d+(?:\.\d+)?)px\]/.test(text) && !/aria-hidden|MoveArrow/.test(text))
-        .filter(({ text }) => [...text.matchAll(/text-\[(\d+(?:\.\d+)?)px\]/g)].some((m) => Number(m[1]) < 11))
+        .filter(({ text }) => SIZE.test(text) && !/aria-hidden|MoveArrow/.test(text))
+        .filter(({ text }) => [...text.matchAll(new RegExp(SIZE, "g"))].some((m) => sizePx(m) < 11))
         .map(({ line }) => `${file}:${line}`);
       assert.deepEqual(small, []);
-      assert.doesNotMatch(source, /text-\[0?\.\d+rem\]|text-\[\d+pt\]/, "sizes stay in px so this check sees them");
+      assert.doesNotMatch(source, /text-\[\d+pt\]/, "sizes stay in rem or px so this check sees them");
     });
 
     it(`${file}: grey text keeps AA contrast in dark and light`, () => {

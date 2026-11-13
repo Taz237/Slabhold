@@ -278,7 +278,7 @@ export function BadgeRevealView({
     : null;
 
   const secondary =
-    "tap inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full border border-white/10 px-5 text-[15px] font-medium text-[#F4F4F5] transition-colors hover:bg-white/[0.06]";
+    "tap inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full border border-white/10 px-5 text-15 font-medium text-[#F4F4F5] transition-colors hover:bg-white/[0.06]";
 
   return (
     <div
@@ -343,17 +343,17 @@ export function BadgeRevealView({
           </div>
 
           <div className={`mt-8 flex w-full flex-col items-center ${reduce ? "" : "badge-reveal-copy"}`}>
-            <p className="font-mono text-[13px] text-zinc-400 tabular-nums">{dateLabel}</p>
-            <h2 id={titleId} className="mt-2 text-[28px] leading-9 font-semibold">
+            <p className="font-mono text-13 text-zinc-400 tabular-nums">{dateLabel}</p>
+            <h2 id={titleId} className="mt-2 text-[1.75rem] leading-9 font-semibold">
               {badgeName(headline.category, headline.tier)}
             </h2>
             <div className="mt-3 flex flex-col gap-1">
-              <p className="text-[15px] leading-6 text-balance text-zinc-300">{CATEGORY_COPY[headline.category].rule}</p>
-              {nextLine ? <p className="text-[15px] leading-6 text-zinc-400 tabular-nums">{nextLine}</p> : null}
+              <p className="text-15 leading-6 text-balance text-zinc-300">{CATEGORY_COPY[headline.category].rule}</p>
+              {nextLine ? <p className="text-15 leading-6 text-zinc-400 tabular-nums">{nextLine}</p> : null}
             </div>
             {reveal.others.length > 0 ? (
               <div className="mt-6 w-full rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-left">
-                <p className="text-[12px] text-zinc-400">Also earned</p>
+                <p className="text-12 text-zinc-400">Also earned</p>
                 <ul className="mt-2 flex flex-col gap-2">
                   {reveal.others.slice(0, 4).map((badge) => (
                     <li key={badge.id} className="flex items-center gap-2 text-sm">
@@ -363,7 +363,7 @@ export function BadgeRevealView({
                   ))}
                 </ul>
                 {reveal.others.length > 4 ? (
-                  <p className="mt-2 text-[12px] text-zinc-400 tabular-nums">+{reveal.others.length - 4} more</p>
+                  <p className="mt-2 text-12 text-zinc-400 tabular-nums">+{reveal.others.length - 4} more</p>
                 ) : null}
               </div>
             ) : null}
@@ -371,7 +371,7 @@ export function BadgeRevealView({
         </div>
 
         <div className="flex flex-col gap-3">
-          <p role="status" className="min-h-5 text-center text-[13px] leading-5 text-zinc-400">
+          <p role="status" className="min-h-5 text-center text-13 leading-5 text-zinc-400">
             {pinState === "full"
               ? `You already pinned ${MAX_PINNED_BADGES}. Unpin one to make room.`
               : pinState === "error"

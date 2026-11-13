@@ -205,7 +205,7 @@ describe("Movers rail", () => {
 
   it("keeps the header to one line with no share button", () => {
     const out = html(createElement(MovingTodayPanel, { payload: payload(5) }));
-    assert.match(out, /<h2[^>]*text-\[15px\][^>]*>Moving this week<\/h2>/);
+    assert.match(out, /<h2[^>]*text-15[^>]*>Moving this week<\/h2>/);
     assert.match(out, /font-mono">· Oct 23–29/);
     assert.doesNotMatch(out, /aria-label="Share"/);
     assert.doesNotMatch(out, /Oct 23 – Oct 29/);

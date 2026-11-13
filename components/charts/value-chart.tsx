@@ -574,7 +574,7 @@ function FullChart({
                 x={Math.min(Math.max(ath.x, 4), geom.plotRight - 4)}
                 y={Math.max(ath.y - 9, 10)}
                 textAnchor={ath.x < 36 ? "start" : ath.x > geom.plotRight - 36 ? "end" : "middle"}
-                className="chart-halo chart-tick text-[10.5px] tabular-nums"
+                className="chart-halo chart-tick text-[0.6562rem] tabular-nums"
               >
                 ATH {money(ath.point.value).replace(/\.00$/, "")}
               </text>

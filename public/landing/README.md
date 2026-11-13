@@ -56,5 +56,4 @@ never linked to a profile.
 
 The made-up raw card the scanner showcase scans: a silver frame and a purple
 panel drawn in SVG (250×350, 5:7, about 1 KB). No player, no text, no logos.
-Screenshots and the GIF for the redesign PR live in `docs/landing-redesign/`,
-not here, so they are never served.
+PR screenshots never go in this folder, so they are never served.

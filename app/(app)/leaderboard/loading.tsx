@@ -1,4 +1,4 @@
-const PULSE = "animate-pulse bg-white/[0.07] motion-reduce:animate-none";
+const PULSE = "skeleton-shimmer on-dark";
 
 export default function LeaderboardLoading() {
   return (

@@ -8,7 +8,7 @@ export default function CardLoading() {
   if (/^\/cards\/[^/]+\/(edit|posts)\/?$/.test(pathname)) {
     return (
       <div
-        className="h-64 animate-pulse rounded-2xl bg-zinc-200/70 dark:bg-white/5"
+        className="h-64 skeleton-shimmer rounded-2xl"
         aria-busy="true"
       />
     );

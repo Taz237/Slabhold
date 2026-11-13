@@ -218,7 +218,8 @@ function evidenceFrom(read: ScanRead, directory: readonly IndexedDirectoryPlayer
     const variety = words(label.varietyText);
     return {
       slab: true,
-      players: label.playerText ? findPlayers([label.playerText], directory) : [],
+      // Roster-file players only. The label's own text is the name for anyone else, as printed.
+      players: label.playerText ? findPlayers([label.playerText], directory).filter((hit) => !hit.more) : [],
       playerText: label.playerText,
       playerLocked: false,
       playerBothSides: false,
@@ -266,16 +267,24 @@ function evidenceFrom(read: ScanRead, directory: readonly IndexedDirectoryPlayer
   // (a bio line, the background) never outranks it.
   let playerText = "";
   let playerLocked = false;
-  const plate = players.filter((hit) => hit.nameplate).sort((a, b) => {
+  const plate = players.filter((hit) => hit.nameplate && !hit.more).sort((a, b) => {
     const both = Number(onBoth(compactName(b.name))) - Number(onBoth(compactName(a.name)));
     return both || b.score - a.score;
   })[0];
+  const printed = [read.front.printedName, read.back?.printedName ?? ""].find(Boolean) ?? "";
   if (plate) {
     players = [plate];
     playerLocked = true;
   } else {
-    const printed = [read.front.printedName, read.back?.printedName ?? ""].find(Boolean) ?? "";
-    if (printed) {
+    // A wider-list name (retired, college, prospects) only confirms the name the card printed: the
+    // same line the card is read by without it. And never against the card's own sport.
+    const confirmed = printed ? players.find((hit) => hit.more && hit.nameplate && compactName(hit.name) === compactName(printed)) : undefined;
+    const cardSports = sides.flatMap((side) => [side.team?.sport ?? "", side.sportHint ?? "", side.baseballSign ? "Baseball" : ""]).filter(Boolean);
+    players = players.filter((hit) => !hit.more);
+    if (confirmed && (cardSports.length === 0 || cardSports.every((sport) => sport === confirmed.sport))) {
+      players = [confirmed];
+      playerLocked = true;
+    } else if (printed) {
       players = [];
       playerText = printed;
       playerLocked = true;

@@ -22,6 +22,11 @@ export type RawPlayerHit = {
   line: string;
   /** The line is the name and nothing else: the card's nameplate, not a word in the background or the bio. */
   nameplate?: boolean;
+  /**
+   * The name is from the wider list (retired, college, prospects). It is only ever an exact name on a
+   * line of its own, and the matcher uses it only to confirm the name the card printed.
+   */
+  more?: true;
 };
 
 export type RawCardRead = {
@@ -297,6 +302,8 @@ type DirectoryIndex = {
   /** Near-match candidates by the first 2 and the last 3 letters, so one slip anywhere still finds them. */
   byHead: Map<string, IndexedDirectoryPlayer[]>;
   byTail: Map<string, IndexedDirectoryPlayer[]>;
+  /** The wider list, exact names only. Never in byHead or byTail: a wider-list name is never a near match. */
+  moreByCompact: Map<string, IndexedDirectoryPlayer[]>;
 };
 
 function push<K, V>(map: Map<K, V[]>, key: K, value: V) {
@@ -313,13 +320,18 @@ function directoryIndex(directory: readonly IndexedDirectoryPlayer[]): Directory
   const byCompact = new Map<string, IndexedDirectoryPlayer[]>();
   const byHead = new Map<string, IndexedDirectoryPlayer[]>();
   const byTail = new Map<string, IndexedDirectoryPlayer[]>();
+  const moreByCompact = new Map<string, IndexedDirectoryPlayer[]>();
   for (const player of directory) {
     if (!player.compact) continue;
+    if (player.more) {
+      push(moreByCompact, player.compact, player);
+      continue;
+    }
     push(byCompact, player.compact, player);
     push(byHead, player.compact.slice(0, 2), player);
     push(byTail, player.compact.slice(-3), player);
   }
-  const index = { byCompact, byHead, byTail };
+  const index = { byCompact, byHead, byTail, moreByCompact };
   indexCache.set(directory, index);
   return index;
 }
@@ -364,7 +376,19 @@ export function findPlayers(lines: string[], directory: readonly IndexedDirector
     const hit: RawPlayerHit & { order: number } = { name: player.name, sport: player.sport, score, line, order };
     if (player.team) hit.team = player.team;
     if (nameplate) hit.nameplate = true;
+    if (player.more) hit.more = true;
     best.set(key, hit);
+  };
+  /**
+   * The wider list (retired, college, prospects) is asked last and counts for less: only an exact name,
+   * only on a line that is that name and nothing else, only a line that reads as a name (no set, color,
+   * team or rookie word), and only when the roster file has nobody for those words, exact or near.
+   */
+  const offerMore = (gram: Gram, order: number, compact: string) => {
+    if (!lineCompacts.has(compact)) return;
+    const more = index.moreByCompact.get(compact);
+    if (!more || !readsAsNameLine(gram.line, directory)) return;
+    for (const player of more) offer(player, 1, gram.line, order, compact);
   };
 
   nameGrams(lines).forEach((gram, order) => {
@@ -374,31 +398,41 @@ export function findPlayers(lines: string[], directory: readonly IndexedDirector
       for (const player of exact) offer(player, 1, gram.line, order, compact);
       return;
     }
-    if (gram.words.length > FUZZY_MAX_WORDS) return;
-    if (compact.length < FUZZY_MIN_LENGTH || compact.length > FUZZY_MAX_LENGTH) return;
-    const max = compact.length <= 8 ? 1 : 2;
-    const candidates = new Set([
-      ...(index.byHead.get(compact.slice(0, 2)) ?? []),
-      ...(index.byTail.get(compact.slice(-3)) ?? []),
-    ]);
-    for (const player of candidates) {
-      if (Math.abs(player.compact.length - compact.length) > max) continue;
-      const distance = boundedDistance(compact, player.compact, max);
-      if (distance > max) continue;
-      offer(player, 1 - distance / Math.max(compact.length, player.compact.length), gram.line, order, compact);
+    let near = false;
+    if (gram.words.length <= FUZZY_MAX_WORDS && compact.length >= FUZZY_MIN_LENGTH && compact.length <= FUZZY_MAX_LENGTH) {
+      const max = compact.length <= 8 ? 1 : 2;
+      const candidates = new Set([
+        ...(index.byHead.get(compact.slice(0, 2)) ?? []),
+        ...(index.byTail.get(compact.slice(-3)) ?? []),
+      ]);
+      for (const player of candidates) {
+        if (Math.abs(player.compact.length - compact.length) > max) continue;
+        const distance = boundedDistance(compact, player.compact, max);
+        if (distance > max) continue;
+        near = true;
+        offer(player, 1 - distance / Math.max(compact.length, player.compact.length), gram.line, order, compact);
+      }
     }
+    if (!near) offerMore(gram, order, compact);
   });
 
-  return [...best.values()]
-    // An exact nameplate beats a name found inside other text (a bio, the background).
-    .sort((a, b) => b.score - a.score || Number(Boolean(b.nameplate)) - Number(Boolean(a.nameplate)) || a.order - b.order)
-    .slice(0, MAX_PLAYERS)
-    .map((hit) => {
-      const out: RawPlayerHit = { name: hit.name, sport: hit.sport, score: hit.score, line: hit.line };
-      if (hit.team) out.team = hit.team;
-      if (hit.nameplate) out.nameplate = true;
-      return out;
-    });
+  const plain = (hit: RawPlayerHit & { order: number }): RawPlayerHit => {
+    const out: RawPlayerHit = { name: hit.name, sport: hit.sport, score: hit.score, line: hit.line };
+    if (hit.team) out.team = hit.team;
+    if (hit.nameplate) out.nameplate = true;
+    if (hit.more) out.more = true;
+    return out;
+  };
+  const found = [...best.values()];
+  return [
+    ...found
+      .filter((hit) => !hit.more)
+      // An exact nameplate beats a name found inside other text (a bio, the background).
+      .sort((a, b) => b.score - a.score || Number(Boolean(b.nameplate)) - Number(Boolean(a.nameplate)) || a.order - b.order)
+      .slice(0, MAX_PLAYERS),
+    // Wider-list names ride after the roster-file ones, which are picked exactly as before.
+    ...found.filter((hit) => hit.more).sort((a, b) => a.order - b.order).slice(0, MAX_PLAYERS),
+  ].map(plain);
 }
 
 /** First word of every SETS name, so "2017 TOPPS" is a card year and "2019 NYY" is not. */
@@ -620,27 +654,32 @@ export function cardWord(word: string): boolean {
 }
 
 /**
+ * A line that can be a person's name: two or three words of letters, no digits, and nothing a card
+ * prints that isn't a name (a position, a school, a team, or a set, color, rookie, maker or back word).
+ */
+export function readsAsNameLine(line: string, directory: readonly IndexedDirectoryPlayer[]): boolean {
+  if (/\d/.test(line) || line.length > 32) return false;
+  // "RUNNING BACK", "WIDE RECEIVER", "SS / 3B": where he plays, never who he is. Nor is a school.
+  if (positionLine(line) || schoolOnLine(line)) return false;
+  const words = normInterest(line).split(" ").filter(Boolean);
+  if (words.length < 2 || words.length > 3) return false;
+  if (!words.every((word) => /^[a-z]+$/.test(word) && word.length >= 2)) return false;
+  const { teams, nicknames } = teamIndex(directory);
+  if (teams.has(words.join(" ")) || nicknames.has(words[words.length - 1])) return false;
+  return !words.some((word) => NOT_NAME_WORDS.has(word) || SET_WORDS.has(word) || PARALLEL_WORD_SET.has(word) || BACK_WORDS.has(word));
+}
+
+/**
  * A nameplate: a short line that is only a person's name. Two or three words
  * of letters, no digits, and nothing a card prints that isn't a name (team,
  * set, color, rookie and maker words). Kept even when the directory doesn't
  * know the player, so a new prospect still reads as themselves.
  */
 function readPrintedName(lines: string[], directory: readonly IndexedDirectoryPlayer[]): { name: string; anchored: boolean } {
-  const { teams, nicknames } = teamIndex(directory);
   const isTeam = (line: string) => Boolean(readTeam([normInterest(line).split(" ").filter(Boolean)], directory)) || Boolean(schoolOnLine(line));
   const names: { line: string; index: number }[] = [];
   lines.forEach((line, index) => {
-    if (/\d/.test(line) || line.length > 32) return;
-    // "RUNNING BACK", "WIDE RECEIVER", "SS / 3B": where he plays, never who he is. Nor is a school.
-    if (positionLine(line) || schoolOnLine(line)) return;
-    const words = normInterest(line).split(" ").filter(Boolean);
-    if (words.length < 2 || words.length > 3) return;
-    if (!words.every((word) => /^[a-z]+$/.test(word) && word.length >= 2)) return;
-    if (teams.has(words.join(" ")) || nicknames.has(words[words.length - 1])) return;
-    if (words.some((word) => NOT_NAME_WORDS.has(word) || SET_WORDS.has(word) || PARALLEL_WORD_SET.has(word) || BACK_WORDS.has(word))) {
-      return;
-    }
-    names.push({ line, index });
+    if (readsAsNameLine(line, directory)) names.push({ line, index });
   });
   // The header prints the name beside the position or the team: that line wins over any other.
   const beside = names.find(({ index }) =>
@@ -924,6 +963,10 @@ export function readRawCardText(
   const printedName = readPrintedName(clean, directory);
   read.printedName = printedName.name;
   read.printedNameAnchored = printedName.anchored;
+  // A wider-list name only confirms the name this side printed: the same line the card would have
+  // been read by without it. Any other line that happens to be a listed name is not the player.
+  const printedKey = compactNorm(normInterest(read.printedName));
+  read.players = read.players.filter((hit) => !hit.more || (Boolean(printedKey) && compactNorm(normInterest(hit.name)) === printedKey));
   read.team = readTeam(lineWords, directory);
   read.yearLabel = readYear(printed);
   read.copyrightYear =

@@ -134,7 +134,7 @@ function PhotoSkeleton() {
     <span
       aria-hidden
       data-photo-skeleton=""
-      className="mb-2 block aspect-[5/7] w-10 rounded-md bg-white/20 motion-safe:animate-pulse"
+      className="skeleton-shimmer on-dark mb-2 block aspect-[5/7] w-10 rounded-md"
     />
   );
 }

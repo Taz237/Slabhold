@@ -20,16 +20,16 @@ export function BadgeShareView({ view, signedIn }: { view: BadgeShareModel; sign
           className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_34%,_rgba(124,58,237,0.42),_transparent_62%)]"
         />
         <div className="relative flex flex-col items-center">
-          <p className="font-mono text-[11px] font-medium tracking-[0.18em] text-[#A78BFA] uppercase">
+          <p className="font-mono text-11 font-medium tracking-[0.18em] text-[#A78BFA] uppercase">
             {view.tierLabel}
           </p>
           <Badge category={view.category} tier={view.tier} size={208} label={view.name} className="mt-5" />
-          <h1 id="badge-title" className="mt-5 text-[28px] leading-tight font-semibold tracking-tight">
+          <h1 id="badge-title" className="mt-5 text-[1.75rem] leading-tight font-semibold tracking-tight">
             {view.name}
           </h1>
           <Link
             href={userHref(view.username)}
-            className="mt-1 inline-flex min-h-11 items-center px-2 text-[15px] font-semibold text-[#A78BFA]"
+            className="mt-1 inline-flex min-h-11 items-center px-2 text-15 font-semibold text-[#A78BFA]"
           >
             @{view.username}
           </Link>
@@ -39,7 +39,7 @@ export function BadgeShareView({ view, signedIn }: { view: BadgeShareModel; sign
       {signedIn ? (
         <Link
           href={`${userHref(view.username)}/badges`}
-          className="mt-4 flex min-h-12 items-center justify-center rounded-full border border-zinc-300 px-5 text-[15px] font-semibold dark:border-white/15"
+          className="mt-4 flex min-h-12 items-center justify-center rounded-full border border-zinc-300 px-5 text-15 font-semibold dark:border-white/15"
         >
           See all of @{view.username}&apos;s badges
         </Link>
@@ -47,7 +47,7 @@ export function BadgeShareView({ view, signedIn }: { view: BadgeShareModel; sign
         <div className="mt-4 flex flex-col items-center">
           <Link
             href={signupPath(path)}
-            className="flex min-h-12 w-full items-center justify-center rounded-full bg-violet-600 px-5 text-[15px] font-semibold text-white hover:bg-violet-500"
+            className="flex min-h-12 w-full items-center justify-center rounded-full bg-violet-600 px-5 text-15 font-semibold text-white hover:bg-violet-500"
           >
             Join Slabhold
           </Link>

@@ -62,8 +62,8 @@ export function YoureIn({ userId, username }: { userId: string; username: string
       >
         <Logo className="h-9 w-9" />
         <span>
-          <span className="block text-[17px] leading-5 font-semibold tracking-tight">You&apos;re in.</span>
-          <span className="block text-[13px] text-zinc-400">Welcome to Slabhold, @{username}.</span>
+          <span className="block text-17 leading-5 font-semibold tracking-tight">You&apos;re in.</span>
+          <span className="block text-13 text-zinc-400">Welcome to Slabhold, @{username}.</span>
         </span>
         <span aria-hidden className="youre-in-shine absolute inset-0" />
       </div>

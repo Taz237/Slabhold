@@ -46,13 +46,64 @@
   --color-violet-700: #6D28D9;
 }
 
+/*
+ * Big text (lib/ui/text-scale.ts). Text sizes are in rem, so they follow the
+ * root font size. When the screen is under 20rem across, <html data-big-text>
+ * is set: `big:` classes stack rows that no longer fit side by side, and a
+ * name that was cut with "…" wraps instead. Card art keeps its own fixed type.
+ */
+@custom-variant big (&:where([data-big-text] *));
+
+[data-big-text] .truncate:not([data-kind="slab"] *, [data-art] *) {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+/*
+ * Text sizes by their px at the default text size: text-13 is 13px there.
+ * In rem, so they grow with the reader's text size. Size only, no line height.
+ */
+@utility text-10 {
+  font-size: 0.625rem;
+}
+
+@utility text-11 {
+  font-size: 0.6875rem;
+}
+
+@utility text-12 {
+  font-size: 0.75rem;
+}
+
+@utility text-13 {
+  font-size: 0.8125rem;
+}
+
+@utility text-14 {
+  font-size: 0.875rem;
+}
+
+@utility text-15 {
+  font-size: 0.9375rem;
+}
+
+@utility text-16 {
+  font-size: 1rem;
+}
+
+@utility text-17 {
+  font-size: 1.0625rem;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
-/* Text fields stay at least 44px tall. 16px on phones stops iOS from zooming on focus. */
+/* Text fields stay at least 44px tall. 1rem on phones (16px or more) stops iOS from zooming on focus. */
 input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="file"]):not([type="hidden"]):not([type="color"]):not([type="image"]),
 select,
 textarea {
@@ -63,7 +114,7 @@ textarea {
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="file"]):not([type="hidden"]):not([type="color"]):not([type="image"]),
   select,
   textarea {
-    font-size: 16px;
+    font-size: 1rem;
   }
 }
 
@@ -560,7 +611,7 @@ textarea {
   }
 }
 
-/* Skeleton shimmer: one gradient sweep, no shadows or blur. */
+/* Skeleton shimmer: one gradient sweep, no shadows or blur. Reduce Motion: a still gray block. */
 @keyframes skeleton-shimmer {
   from {
     background-position: 150% 0;
@@ -588,6 +639,18 @@ textarea {
 @media (prefers-reduced-motion: reduce) {
   .skeleton-shimmer {
     animation: none;
+    background-image: none;
+  }
+}
+
+/* On a surface that is dark in both themes (the leaderboard, a photo overlay). */
+.skeleton-shimmer.on-dark {
+  background-color: rgb(255 255 255 / 0.07);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .skeleton-shimmer.on-dark {
+    background-image: linear-gradient(90deg, transparent 0%, rgb(255 255 255 / 0.1) 50%, transparent 100%);
   }
 }
 
@@ -1561,6 +1624,22 @@ html[data-session] [data-guest-pending] {
  * [data-seeded-viewer]. Anything else stays blank until the snapshot, as before.
  */
 [data-pending-shell]:not(:has([data-seeded-viewer])) {
+  display: none;
+}
+
+/*
+ * An account page before the snapshot loads: its skeleton instead of a blank
+ * screen, only when the session hint says someone is signed in.
+ */
+[data-pending-route-skeleton] {
+  display: none;
+}
+
+html[data-session] [data-pending-route-skeleton] {
+  display: block;
+}
+
+html[data-session] [data-pending-route-skeleton] + [data-pending-blank] {
   display: none;
 }
 

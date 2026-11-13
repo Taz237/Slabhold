@@ -36,7 +36,8 @@ export function scanReadFrom(capture: ScanCapture, directory: readonly IndexedDi
   const slab = capture.kind === "slab" || (capture.kind === null && looksLikeSlabLabel(capture.lines));
   if (slab) {
     // The label is gold: the line that names a player we know is the player line, wherever it sits.
-    const playerScore = (line: string) => findPlayers([line], directory)[0]?.score ?? 0;
+    // Roster-file players only: a wider-list name never picks which label line is the player's.
+    const playerScore = (line: string) => findPlayers([line], directory).find((hit) => !hit.more)?.score ?? 0;
     const label = readSlabLabel(capture.lines, { playerScore });
     // The barcode's cert fills the cert when the label's own wasn't read. It is never the card #.
     if (!label.certNumber && capture.cert) label.certNumber = capture.cert;

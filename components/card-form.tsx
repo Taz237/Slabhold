@@ -1109,7 +1109,7 @@ export function CardForm({
         <p
           className={
             existing
-              ? "text-[13px] text-zinc-500"
+              ? "text-13 text-zinc-500"
               : "text-sm font-medium text-zinc-500"
           }
         >
@@ -1443,7 +1443,7 @@ export function CardForm({
   ) : null;
 
   const gradeExtrasNode = graded ? (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 big:grid-cols-1 gap-3">
             <Field label="Cert #">
               <input
                 value={certNumber}
@@ -1542,7 +1542,7 @@ export function CardForm({
   );
 
   const sellFieldsNode = sold ? (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 big:grid-cols-1 gap-3">
           <Field
             label="Actual sell price"
             required
@@ -2242,7 +2242,7 @@ export function CardForm({
                 router.push("/");
               }
             }}
-            className={`flex min-h-12 w-full items-center px-4 text-left text-[15px] text-rose-600 transition-colors hover:bg-rose-500/5 dark:text-rose-400 ${focusRing} focus-visible:ring-inset focus-visible:ring-offset-0`}
+            className={`flex min-h-12 w-full items-center px-4 text-left text-15 text-rose-600 transition-colors hover:bg-rose-500/5 dark:text-rose-400 ${focusRing} focus-visible:ring-inset focus-visible:ring-offset-0`}
           >
             Delete card
           </button>
@@ -2593,7 +2593,7 @@ function FeedPostField({
             aria-label="Post caption"
             aria-invalid={over}
             onChange={(e) => onCaption(e.target.value)}
-            className={`${inputClass} mt-2 resize-y text-[15px]`}
+            className={`${inputClass} mt-2 resize-y text-15`}
             placeholder="Say something about it"
           />
           <div className="mt-1 flex min-h-7 items-center justify-between gap-3">

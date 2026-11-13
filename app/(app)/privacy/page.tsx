@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: "Privacy · Slabhold" };
 export default function PrivacyPolicyPage() {
   const email = SUPPORT_EMAIL.trim();
   return (
-    <article className="space-y-4 text-[15px] leading-6">
+    <article className="space-y-4 text-15 leading-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Privacy</h1>
         <p className="mt-1 text-sm text-zinc-500">Last updated November 7, 2026</p>

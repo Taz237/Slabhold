@@ -48,7 +48,7 @@ export function TopMovers({ week, paid }: { week: MoverRow<HeroCard>[]; paid: Mo
     <section aria-labelledby="top-movers-title" data-movers={basis} className={`${tile} p-0`}>
       <div className="flex items-start justify-between gap-2 px-3.5 pt-3.5 pb-2">
         <div className="min-w-0">
-          <h2 id="top-movers-title" className="text-[15px] leading-5 font-semibold tracking-tight">
+          <h2 id="top-movers-title" className="text-15 leading-5 font-semibold tracking-tight">
             {HEADING[basis]}
           </h2>
           <p className={`mt-0.5 text-xs leading-4 ${muted}`}>{SUBLINE[basis]}</p>

@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { INDEXED_DIRECTORY } from "@/lib/players/directory";
+import { SCAN_DIRECTORY as INDEXED_DIRECTORY } from "@/lib/players/scan-directory";
 import type { TrawlSoldResult } from "@/lib/comps/types";
 import { BAKEOFF_CASES, type BakeoffCase } from "./bakeoff-fixtures";
 import { WIDE_BAKEOFF_CASES } from "./bakeoff-fixtures-wide";
+import { PLAYER_LIST_BAKEOFF_CASES } from "./bakeoff-fixtures-players";
+import { BAKEOFF_BASELINE } from "./bakeoff-baseline";
 import { lookupLiveSolds } from "./live-solds";
 import { rankScanMatches, type ScanMatch } from "./match";
 import { withAlternates } from "./alternates";
@@ -124,12 +126,16 @@ function board(title: string, rows: readonly Row[]): string[] {
   ];
 }
 
-const ALL_CASES: BakeoffCase[] = [...BAKEOFF_CASES, ...WIDE_BAKEOFF_CASES];
+const ALL_CASES: BakeoffCase[] = [...BAKEOFF_CASES, ...WIDE_BAKEOFF_CASES, ...PLAYER_LIST_BAKEOFF_CASES];
+/** The scans the scoreboard had before the wider player list: checked field by field against bakeoff-baseline.ts. */
+const BASELINE_CASES = BAKEOFF_CASES.length + WIDE_BAKEOFF_CASES.length;
+const LETTER: Record<Mark, string> = { right: "r", open: "o", wrong: "w" };
 
 describe("the scanner bake-off", () => {
   const rows = ALL_CASES.map(score);
   const first = rows.slice(0, BAKEOFF_CASES.length);
-  const wide = rows.slice(BAKEOFF_CASES.length);
+  const wide = rows.slice(BAKEOFF_CASES.length, BASELINE_CASES);
+  const playerList = rows.slice(BASELINE_CASES);
 
   it("prints the scoreboard", () => {
     const lines = [
@@ -137,6 +143,7 @@ describe("the scanner bake-off", () => {
       ...rows.map((row) => `${FIELDS.map((field) => ICON[row[field]]).join(" ")}  ${row.name.padEnd(72)} ${row.shown}`),
       ...board("First set", first),
       ...board("Wide set", wide),
+      ...board("Player-list set", playerList),
       ...board("All", rows),
       `Known misses marked: ${ALL_CASES.reduce((sum, scan) => sum + (scan.knownWrong?.length ?? 0), 0)}`,
     ];
@@ -155,6 +162,25 @@ describe("the scanner bake-off", () => {
         else assert.notEqual(row[field], "wrong", `${field}: ${row.shown}`);
       }
     });
+  });
+
+  it("against the scoreboard before the wider player list: nothing went from right or open to wrong, nothing right fell open", () => {
+    assert.equal(BAKEOFF_BASELINE.length, BASELINE_CASES, "bakeoff-baseline.ts has a row for every first-set and wide-set scan");
+    BAKEOFF_BASELINE.forEach(([name, before], index) => {
+      assert.equal(ALL_CASES[index].name, name, "bakeoff-baseline.ts is in the scans' order");
+      const row = rows[index];
+      FIELDS.forEach((field, at) => {
+        const now = LETTER[row[field]];
+        if (before[at] !== "w") assert.notEqual(now, "w", `${name}: ${field} was ${before[at] === "r" ? "right" : "open"}, now wrong: ${row.shown}`);
+        if (before[at] === "r") assert.equal(now, "r", `${name}: ${field} was right, now open: ${row.shown}`);
+      });
+    });
+  });
+
+  it("the player-list set: an unknown name stays open, a listed name is never read where it isn't the player", () => {
+    assert.ok(PLAYER_LIST_BAKEOFF_CASES.length >= 12);
+    assert.equal(tally(playerList).wrong, 0);
+    for (const row of playerList) assert.equal(row.player, "right", `${row.name}: ${row.shown}`);
   });
 
   it("slab labels are gold: every slab reads its year, set, player and parallel off the label, with no miss", () => {

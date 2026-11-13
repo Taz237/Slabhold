@@ -125,10 +125,10 @@ export function SendPostSheetView({ post, onClose }: { post: Post; onClose: () =
           />
           <span className="min-w-0 flex-1">
             <span className="flex min-w-0 items-center gap-1">
-              <span className="truncate text-[15px] font-semibold leading-5 tracking-tight">{person.displayName}</span>
+              <span className="truncate text-15 font-semibold leading-5 tracking-tight">{person.displayName}</span>
               <TeamBadge username={person.username} />
             </span>
-            <span className="block truncate text-[13px] text-zinc-500">@{person.username}</span>
+            <span className="block truncate text-13 text-zinc-500">@{person.username}</span>
           </span>
           <button
             type="button"
@@ -192,19 +192,19 @@ export function SendPostSheetView({ post, onClose }: { post: Post; onClose: () =
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search people you follow"
             autoComplete="off"
-            className="min-h-11 w-full rounded-full border border-zinc-200 bg-zinc-50 pr-4 pl-10 text-[15px] outline-none placeholder:text-zinc-500 focus:border-violet-500/60 focus:ring-2 focus:ring-violet-600/20 dark:border-white/10 dark:bg-white/[0.06]"
+            className="min-h-11 w-full rounded-full border border-zinc-200 bg-zinc-50 pr-4 pl-10 text-15 outline-none placeholder:text-zinc-500 focus:border-violet-500/60 focus:ring-2 focus:ring-violet-600/20 dark:border-white/10 dark:bg-white/[0.06]"
           />
         </label>
         <div className="mt-2 min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {recent.length ? (
             <>
-              <p className="px-3 pt-1 pb-0.5 text-[13px] font-medium text-zinc-500">Recent</p>
+              <p className="px-3 pt-1 pb-0.5 text-13 font-medium text-zinc-500">Recent</p>
               <ul data-send-recent="">{recent.map(row)}</ul>
             </>
           ) : null}
           {others.length ? (
             <>
-              <p className="px-3 pt-2 pb-0.5 text-[13px] font-medium text-zinc-500">
+              <p className="px-3 pt-2 pb-0.5 text-13 font-medium text-zinc-500">
                 {query.trim() ? "People" : "Following"}
               </p>
               <ul data-send-others="">{others.map(row)}</ul>
@@ -229,7 +229,7 @@ export function SendPostSheetView({ post, onClose }: { post: Post; onClose: () =
             onChange={(event) => setNote(event.target.value)}
             placeholder="Add a note (optional)"
             autoComplete="off"
-            className="min-h-11 w-full rounded-full border border-zinc-200 bg-transparent px-4 text-[15px] outline-none placeholder:text-zinc-500 focus:border-violet-500/60 focus:ring-2 focus:ring-violet-600/20 dark:border-white/10"
+            className="min-h-11 w-full rounded-full border border-zinc-200 bg-transparent px-4 text-15 outline-none placeholder:text-zinc-500 focus:border-violet-500/60 focus:ring-2 focus:ring-violet-600/20 dark:border-white/10"
           />
           <p role="status" className="min-h-5 px-3 pt-1 text-xs text-zinc-500">
             {noteProblem

@@ -49,6 +49,12 @@ import {
   requestPageRefresh,
 } from "@/lib/ui/pull-refresh";
 
+/** The skeleton for an account page before the session loads. Its own chunk: no page waits on it. */
+const PendingRouteSkeleton = lazyPart<{ pathname: string }>(() =>
+  import("@/components/pending-route-skeleton").then((mod) => mod.PendingRouteSkeleton),
+);
+
+
 /*
  * The signed-in chrome loads in its own chunks. Signed-out Home renders none
  * of it, so it never downloads it. A visitor's header slot (Log in) is the
@@ -301,7 +307,7 @@ function Shell({
                 >
                   <Bell className="h-5 w-5" />
                   {unreadCount > 0 ? (
-                    <span className="absolute top-0 right-0 grid h-4 min-w-4 place-items-center rounded-full bg-violet-600 px-1 text-[11px] font-semibold leading-none text-white">
+                    <span className="absolute top-0 right-0 grid h-4 min-w-4 place-items-center rounded-full bg-violet-600 px-1 text-11 font-semibold leading-none text-white">
                       {unreadCount > 9 ? "9+" : unreadCount}
                     </span>
                   ) : null}
@@ -379,7 +385,7 @@ function Shell({
                     data-tour={tab.tour}
                     aria-label="Add card"
                     aria-current={active ? "page" : undefined}
-                    className="hit-44 tap flex min-w-0 flex-1 flex-col items-center gap-0.5 px-0.5 py-1 text-[11px] font-medium leading-none text-violet-700 dark:text-violet-200"
+                    className="hit-44 tap flex min-w-0 flex-1 flex-col items-center gap-0.5 px-0.5 py-1 text-[min(0.6875rem,13px)] font-medium leading-none text-violet-700 dark:text-violet-200"
                   >
                     <span className="grid h-11 w-11 -translate-y-3 place-items-center rounded-full bg-violet-600 text-white shadow-lg ring-4 ring-[var(--background)]">
                       <Camera className="h-5 w-5" />
@@ -399,7 +405,7 @@ function Shell({
                     messageBadge > 0 ? `Messages, ${messageBadge} unread` : tab.label
                   }
                   aria-current={active ? "page" : undefined}
-                  className={`hit-44 tap relative flex min-w-0 flex-1 flex-col items-center gap-0.5 px-0.5 py-1 text-[11px] font-medium leading-none ${
+                  className={`hit-44 tap relative flex min-w-0 flex-1 flex-col items-center gap-0.5 px-0.5 py-1 text-[min(0.6875rem,13px)] font-medium leading-none ${
                     active ? "text-zinc-900 dark:text-white" : "text-zinc-500 dark:text-zinc-400"
                   }`}
                 >
@@ -412,7 +418,7 @@ function Shell({
                       }`}
                     />
                     {messageBadge > 0 ? (
-                      <span className="absolute -top-1.5 -right-2.5 grid h-4 min-w-4 place-items-center rounded-full bg-[#7C3AED] px-1 text-[11px] font-semibold leading-none text-white ring-2 ring-[var(--background)]">
+                      <span className="absolute -top-1.5 -right-2.5 grid h-4 min-w-4 place-items-center rounded-full bg-[#7C3AED] px-1 text-11 font-semibold leading-none text-white ring-2 ring-[var(--background)]">
                         {messageBadge > 9 ? "9+" : messageBadge}
                       </span>
                     ) : null}
@@ -592,7 +598,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return (
       <>
         <AccountDeletedToast />
-        <div className="min-h-dvh bg-[var(--background)]" />
+        {requiresAccount(pathname) ? <PendingRouteSkeleton pathname={pathname} /> : null}
+        <div data-pending-blank="" className="min-h-dvh bg-[var(--background)]" />
       </>
     );
   }

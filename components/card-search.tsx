@@ -239,7 +239,7 @@ export function CardSearch({
                   key={width}
                   aria-hidden
                   style={{ width: `${width}%` }}
-                  className="block h-3.5 rounded-full bg-zinc-200/80 motion-safe:animate-pulse dark:bg-white/10"
+                  className="skeleton-shimmer block h-3.5 rounded-full"
                 />
               ))}
             </li>

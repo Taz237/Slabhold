@@ -150,7 +150,7 @@ export function SearchDoor({
               enter();
             }}
             placeholder={DOOR_PLACEHOLDER}
-            className={`h-14 w-full rounded-2xl border border-zinc-200 bg-white pr-4 pl-12 text-lg font-semibold tracking-tight text-zinc-900 placeholder:text-[15px] placeholder:font-medium placeholder:text-zinc-400 focus:border-violet-500 dark:border-white/10 dark:bg-white/5 dark:text-zinc-50 dark:placeholder:text-zinc-500 ${focusRing}`}
+            className={`h-14 w-full rounded-2xl border border-zinc-200 bg-white pr-4 pl-12 text-lg font-semibold tracking-tight text-zinc-900 placeholder:text-15 placeholder:font-medium placeholder:text-zinc-400 focus:border-violet-500 dark:border-white/10 dark:bg-white/5 dark:text-zinc-50 dark:placeholder:text-zinc-500 ${focusRing}`}
           />
         </label>
 
@@ -342,7 +342,7 @@ export function SearchDoor({
 function Section({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="border-b border-zinc-200/80 last:border-b-0 dark:border-white/5">
-      <p className="px-4 pt-2.5 pb-1 text-[12px] font-medium text-zinc-500">{label}</p>
+      <p className="px-4 pt-2.5 pb-1 text-12 font-medium text-zinc-500">{label}</p>
       <ul className="divide-y divide-zinc-200/80 dark:divide-white/5">{children}</ul>
     </div>
   );

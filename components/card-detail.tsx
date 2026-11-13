@@ -545,7 +545,7 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
             </div>
           ) : (
             <div
-              className="h-40 animate-pulse rounded-2xl bg-zinc-200/70 dark:bg-white/5"
+              className="h-40 skeleton-shimmer rounded-2xl"
               aria-busy="true"
             />
           )}
@@ -729,12 +729,12 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
         )
       ) : chartFailed && !authRequired && !soldCopy ? (
         <section data-slot="sales-chart" className={compCard}>
-          <p className={`flex h-5 items-center ${compLabel}`}>{compEyebrow(priceRead?.kind, SIMILAR_CARDS_LABEL)}</p>
+          <p className={`flex min-h-5 items-center ${compLabel}`}>{compEyebrow(priceRead?.kind, SIMILAR_CARDS_LABEL)}</p>
           <div className="mt-1 flex min-h-10 items-baseline">
             {priceRead?.kind === "estimate" && pendingLabel ? (
               <p className={compHeroValue}>{pendingLabel}</p>
             ) : pendingLabel ? (
-              <p className="py-1.5 text-xl leading-[26px] font-semibold tracking-tight">{pendingLabel}</p>
+              <p className="py-1.5 text-xl leading-[1.625rem] font-semibold tracking-tight">{pendingLabel}</p>
             ) : null}
           </div>
           <div className={`mt-4 flex h-44 flex-col items-center justify-center gap-1 px-4 text-center ${compTile}`}>
@@ -828,7 +828,7 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
           ) : null}
           {/* With the comp card up, the attribution sits in its footer. */}
           {usingLive && !compsLoading && !authRequired && !(showChart && SalesChart && shownValue?.status !== "sample") ? (
-            <p className="mt-3 text-[11px] text-zinc-400">
+            <p className="mt-3 text-11 text-zinc-400">
               Sold data via Trawl (third-party, not affiliated with eBay)
             </p>
           ) : null}
@@ -893,16 +893,16 @@ function EstSellMetric({
   if (asEstimate && label?.startsWith("$")) {
     return (
       <div className="min-w-0 overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-3 dark:border-white/10 dark:bg-black/20">
-        <p className="text-[13px] text-zinc-500">Est. sell</p>
+        <p className="text-13 text-zinc-500">Est. sell</p>
         <p className="mt-1 min-w-0 overflow-hidden text-[clamp(0.95rem,3.4vw,1.125rem)] font-semibold tabular-nums whitespace-nowrap text-ellipsis">
           {label}
         </p>
         {sample ? (
-          <p className="mt-0.5 text-[11px] text-zinc-500">Sample estimate</p>
+          <p className="mt-0.5 text-11 text-zinc-500">Sample estimate</p>
         ) : null}
         <CompBasis count={count} basis={[]} />
         {lowConfidence ? (
-          <span className="mt-1 inline-block rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 dark:text-amber-200">
+          <span className="mt-1 inline-block rounded-md bg-amber-500/15 px-1.5 py-0.5 text-10 font-semibold text-amber-800 dark:text-amber-200">
             Low confidence
           </span>
         ) : null}
@@ -923,7 +923,7 @@ function UnavailableEstSell({ short, detail }: { short: string; detail: string }
   const detailId = useId();
   return (
     <div className="min-w-0 overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-3 dark:border-white/10 dark:bg-black/20">
-      <p className="text-[13px] text-zinc-500">Est. sell</p>
+      <p className="text-13 text-zinc-500">Est. sell</p>
       <button
         type="button"
         aria-expanded={open}
@@ -971,7 +971,7 @@ function CardSpecs({
           key={spec.label}
           className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 dark:border-white/10 dark:bg-white/5"
         >
-          <dt className="text-[13px] text-zinc-500">{spec.label}</dt>
+          <dt className="text-13 text-zinc-500">{spec.label}</dt>
           <dd className="text-sm font-semibold">{spec.value}</dd>
         </div>
       ))}
@@ -992,7 +992,7 @@ function Metric({
 }) {
   return (
     <div className="min-w-0 overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-3 dark:border-white/10 dark:bg-black/20">
-      <p className="text-[13px] text-zinc-500">{label}</p>
+      <p className="text-13 text-zinc-500">{label}</p>
       <p
         title={title}
         className={`mt-1 min-w-0 max-w-full overflow-hidden text-[clamp(0.95rem,3.4vw,1.125rem)] font-semibold leading-snug break-words tabular-nums ${

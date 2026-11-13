@@ -108,11 +108,11 @@ const STEP_IN = "motion-safe:animate-[add-step-in_220ms_cubic-bezier(0.2,0.7,0.2
 const STEP_BACK = "motion-safe:animate-[add-step-back_220ms_cubic-bezier(0.2,0.7,0.2,1)_both]";
 
 const primaryButton =
-  "flex h-14 w-full items-center justify-center rounded-full bg-violet-600 text-[17px] font-semibold text-white transition-[transform,opacity] duration-150 active:scale-[0.98] disabled:opacity-50 motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] focus-visible:outline-none";
+  "flex h-14 w-full items-center justify-center rounded-full bg-violet-600 text-17 font-semibold text-white transition-[transform,opacity] duration-150 active:scale-[0.98] disabled:opacity-50 motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] focus-visible:outline-none";
 const secondaryButton =
-  "flex h-14 w-full items-center justify-center rounded-full border border-zinc-300 text-[16px] font-semibold disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:outline-none dark:border-white/15";
+  "flex h-14 w-full items-center justify-center rounded-full border border-zinc-300 text-16 font-semibold disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:outline-none dark:border-white/15";
 const quietLink =
-  "flex min-h-11 w-full items-center justify-center text-center text-[15px] font-medium text-zinc-500 focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:outline-none";
+  "flex min-h-11 w-full items-center justify-center text-center text-15 font-medium text-zinc-500 focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:outline-none";
 const errorText = "text-sm text-rose-600 dark:text-rose-400";
 
 function readStandalone(): boolean {
@@ -363,7 +363,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   }
 
   if (!ready) {
-    return <div className="mx-auto h-40 max-w-md animate-pulse rounded-2xl bg-zinc-200/70 dark:bg-white/5" />;
+    return <div className="mx-auto h-40 max-w-md skeleton-shimmer rounded-2xl" />;
   }
 
   if (user) {
@@ -389,9 +389,9 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
           <span className="relative grid h-20 w-20 place-items-center rounded-[1.6rem] bg-[#7C3AED] text-white">
             <MailCheck aria-hidden className="h-9 w-9" strokeWidth={1.8} />
           </span>
-          <h1 className="mt-6 text-[28px] font-semibold leading-tight tracking-tight">Check your email</h1>
-          <p className="mt-2 text-[15px] leading-6 text-zinc-600 dark:text-zinc-400">We sent a confirmation link to</p>
-          <p className="mt-1 max-w-full truncate rounded-full bg-violet-600/10 px-3 py-1 font-mono text-[14px] font-medium text-violet-700 dark:bg-violet-500/15 dark:text-[#A78BFA]">
+          <h1 className="mt-6 text-[1.75rem] font-semibold leading-tight tracking-tight">Check your email</h1>
+          <p className="mt-2 text-15 leading-6 text-zinc-600 dark:text-zinc-400">We sent a confirmation link to</p>
+          <p className="mt-1 max-w-full truncate rounded-full bg-violet-600/10 px-3 py-1 font-mono text-14 font-medium text-violet-700 dark:bg-violet-500/15 dark:text-[#A78BFA]">
             {confirmEmail}
           </p>
           <p className="mt-3 text-sm leading-5 text-zinc-500">
@@ -459,8 +459,8 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
     return (
       <div className={`mx-auto max-w-md ${AUTH_FORM_SCROLL}`}>
         <AuthTopBar homeHref={authLogoHref(next)} backHref={authLogoHref(next)} backLabel="Back to Slabhold" />
-        <h1 className="mt-8 text-[28px] font-semibold leading-tight tracking-tight">Resend confirmation</h1>
-        <p className="mt-2 text-[15px] leading-6 text-zinc-600 dark:text-zinc-400">{CONFIRM_RESEND_HINT}</p>
+        <h1 className="mt-8 text-[1.75rem] font-semibold leading-tight tracking-tight">Resend confirmation</h1>
+        <p className="mt-2 text-15 leading-6 text-zinc-600 dark:text-zinc-400">{CONFIRM_RESEND_HINT}</p>
         {error ? <p className={`mt-3 ${errorText}`}>{error}</p> : null}
         <form
           onSubmit={(e) => {
@@ -578,8 +578,8 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
     return (
       <div className={`mx-auto max-w-md ${AUTH_FORM_SCROLL}`}>
         <AuthTopBar homeHref={authLogoHref(next)} backHref={authLogoHref(next)} backLabel="Back to Slabhold" />
-        <h1 className="mt-8 text-[28px] font-semibold leading-tight tracking-tight">Welcome back</h1>
-        <p className="mt-2 text-[15px] leading-6 text-zinc-600 dark:text-zinc-400">
+        <h1 className="mt-8 text-[1.75rem] font-semibold leading-tight tracking-tight">Welcome back</h1>
+        <p className="mt-2 text-15 leading-6 text-zinc-600 dark:text-zinc-400">
           {finishingSetup
             ? "Log in once to finish setup. You'll pick up right where you left off."
             : "Log in to your collection, your feed and your DMs."}
@@ -666,7 +666,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         onBack={goBack}
         backLabel={step === "email" ? "Back to Slabhold" : "Back"}
         trailing={
-          <span className="font-mono text-[11px] font-medium text-zinc-500">
+          <span className="font-mono text-11 font-medium text-zinc-500">
             {stepNumber} of {SIGNUP_STEPS.length}
           </span>
         }
@@ -687,8 +687,8 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
       </div>
 
       <div key={step} className={`mt-8 ${direction === 1 ? STEP_IN : STEP_BACK}`}>
-        <h1 className="text-[28px] font-semibold leading-tight tracking-tight">{copy.title}</h1>
-        <p className="mt-2 text-[15px] leading-6 text-zinc-600 dark:text-zinc-400">{copy.lead}</p>
+        <h1 className="text-[1.75rem] font-semibold leading-tight tracking-tight">{copy.title}</h1>
+        <p className="mt-2 text-15 leading-6 text-zinc-600 dark:text-zinc-400">{copy.lead}</p>
         {social ? <SocialSignIn next={destination} failed={oauthFailed} /> : null}
         <form
           id="signup-step"
@@ -844,7 +844,7 @@ function AuthTopBar({
 }
 
 const inputClass =
-  "h-14 w-full rounded-2xl border border-zinc-300 bg-white px-4 text-[17px] outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-500 focus:ring-4 focus:ring-violet-500/15 aria-[invalid=true]:border-rose-500 motion-reduce:transition-none dark:border-white/12 dark:bg-white/[0.04] dark:placeholder:text-zinc-500";
+  "h-14 w-full rounded-2xl border border-zinc-300 bg-white px-4 text-17 outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-500 focus:ring-4 focus:ring-violet-500/15 aria-[invalid=true]:border-rose-500 motion-reduce:transition-none dark:border-white/12 dark:bg-white/[0.04] dark:placeholder:text-zinc-500";
 
 function Field({
   label,
@@ -1056,7 +1056,7 @@ function UsernameField({
         <span className="relative block">
           <span
             aria-hidden
-            className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-[17px] text-zinc-400"
+            className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-17 text-zinc-400"
           >
             @
           </span>

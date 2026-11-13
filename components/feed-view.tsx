@@ -556,10 +556,10 @@ function SignedOutBanner() {
   return (
     <div className="border-b border-zinc-200/70 px-4 py-4 dark:border-white/[0.07]">
       <div className="relative overflow-hidden rounded-2xl bg-[#7C3AED] p-4 text-white">
-        <p className="text-[13px] font-medium text-white/90">
+        <p className="text-13 font-medium text-white/90">
           Join the collectors
         </p>
-        <p className="mt-1 text-[19px] leading-6 font-semibold tracking-tight text-balance">
+        <p className="mt-1 text-[1.1875rem] leading-6 font-semibold tracking-tight text-balance">
           Track your cards and see what collectors are posting.
         </p>
         <p className="mt-1.5 text-sm leading-5 text-white/80">
@@ -670,7 +670,7 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
           maxLength={POST_LIMIT}
           rows={2}
           placeholder="What's happening?"
-          className="w-full resize-none bg-transparent text-[15px] leading-5 outline-none placeholder:text-zinc-500"
+          className="w-full resize-none bg-transparent text-15 leading-5 outline-none placeholder:text-zinc-500"
         />
         <ComposePhotoDrafts images={images} onRemove={removePhoto} />
         {readingPhoto ? <p className="mt-2 text-xs text-zinc-500">Reading photo…</p> : null}
