@@ -212,7 +212,7 @@ function PhotoStrip({
         </span>
       ))}
       {extra > 0 ? (
-        <span className="grid h-[18px] shrink-0 place-items-center rounded-full bg-white/10 px-1.5 text-[10px] font-semibold leading-none tabular-nums text-zinc-200">
+        <span className="grid h-[18px] shrink-0 place-items-center rounded-full bg-white/10 px-1.5 text-[11px] font-semibold leading-none tabular-nums text-zinc-200">
           +{extra}
         </span>
       ) : null}
@@ -272,7 +272,7 @@ function PodiumPlace({ entry, boardId }: { entry: BoardRow; boardId: string }) {
         {rank === 1 ? (
           <Crown data-crown="" aria-hidden="true" className="h-5 w-5 fill-zinc-950/15" strokeWidth={2.4} />
         ) : null}
-        <span className="rounded-sm bg-zinc-950/85 px-1.5 py-[3px] font-mono text-[9px] font-semibold leading-none tracking-[0.16em] text-white">
+        <span className="rounded-sm bg-zinc-950/85 px-1.5 py-[3px] font-mono text-[11px] font-semibold leading-none tracking-[0.16em] text-white">
           {PLACE[rank]}
         </span>
         {entry.isNew || entry.mine ? (
@@ -312,7 +312,7 @@ function GhostPlace({ spot }: { spot: OpenSpot }) {
             <Plus className="h-3.5 w-3.5" strokeWidth={2.6} />
           </span>
         ) : null}
-        <span className="font-mono text-[9px] font-semibold leading-none tracking-[0.16em]">{PLACE[spot.rank]}</span>
+        <span className="font-mono text-[11px] font-semibold leading-none tracking-[0.16em]">{PLACE[spot.rank]}</span>
       </span>
     </>
   );
@@ -417,7 +417,7 @@ function LastWeekPreview({ board }: { board: LeaderboardBoard }) {
   const labelId = `board-${board.id}-last-week`;
   return (
     <div data-last-week-preview="" className="mt-3 rounded-2xl border border-white/10 px-1 pt-2 pb-1">
-      <p id={labelId} className="px-2 text-xs font-medium text-zinc-500">
+      <p id={labelId} className="px-2 text-xs font-medium text-zinc-400">
         {LAST_WEEK_LABEL}
       </p>
       <ol aria-labelledby={labelId} className="mt-1">
@@ -443,7 +443,7 @@ function LastWeekLine({ row }: { row: LastWeekRow }) {
       href={row.username ? userHref(row.username) : null}
       className="flex min-h-11 min-w-0 items-center gap-2.5 rounded-xl px-2 transition-colors hover:bg-white/[0.04]"
     >
-      <span className="w-5 shrink-0 text-center text-[13px] font-medium tabular-nums text-zinc-500">{row.rank}</span>
+      <span className="w-5 shrink-0 text-center text-[13px] font-medium tabular-nums text-zinc-400">{row.rank}</span>
       <Avatar title={row.displayName} accent="#3f3f46" url={row.avatarUrl} size={28} />
       <span className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-200">{row.displayName}</span>
       <span className="shrink-0 whitespace-nowrap text-[13px] tabular-nums text-zinc-400">{row.scoreText}</span>
@@ -470,7 +470,7 @@ function RankRow({ entry, boardId }: { entry: BoardRow; boardId: string }) {
           <TeamBadge username={labels.username} inLink className="self-center" />
           {entry.isNew ? <Tag tone="light">New</Tag> : null}
           {entry.mine ? <Tag tone="light">{YOU_LABEL}</Tag> : null}
-          {labels.detail ? <span className="min-w-0 truncate text-xs text-zinc-500">{labels.detail}</span> : null}
+          {labels.detail ? <span className="min-w-0 truncate text-xs text-zinc-400">{labels.detail}</span> : null}
         </span>
         {boardId === "most-cards-added" ? (
           <PhotoStrip photos={entry.photos ?? []} max={4} width={20} height={28} more={false} />
@@ -655,7 +655,7 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
       </div>
 
       <div className="relative mx-4 mt-2 flex items-center justify-between gap-2">
-        <p className="min-w-0 text-xs text-zinc-500">{model.rulesLine}</p>
+        <p className="min-w-0 text-xs text-zinc-400">{model.rulesLine}</p>
         <details data-rules="" className="group shrink-0">
           <summary
             aria-label={RULES_SHEET_LABEL}
@@ -670,7 +670,7 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
             <p className="text-sm font-semibold text-white">{RULES_SHEET_LABEL}</p>
             <p className="mt-1 text-[13px] leading-5 text-zinc-400">{model.description}</p>
             {model.standingNote ? (
-              <p className="mt-1 text-[13px] leading-5 text-zinc-500" data-closed-note="">
+              <p className="mt-1 text-[13px] leading-5 text-zinc-400" data-closed-note="">
                 {model.standingNote}
               </p>
             ) : null}

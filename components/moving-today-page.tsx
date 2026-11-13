@@ -49,7 +49,7 @@ const PAINTED_TILES = 4;
 const OFFSCREEN_TILE = "[content-visibility:auto] [contain-intrinsic-size:auto_180px_auto_340px]";
 
 /** The same translucent blur as the app header and Home tabs. */
-const CHROME = "bg-[var(--chrome-bg)] backdrop-blur-xl backdrop-saturate-150";
+const CHROME = "glass bg-[var(--chrome-bg)] backdrop-blur-xl backdrop-saturate-150";
 
 const PRIMARY =
   "inline-flex min-h-11 items-center justify-center rounded-full bg-violet-600 px-5 text-sm font-semibold text-white transition-transform duration-150 ease-out motion-safe:active:scale-[0.97]";

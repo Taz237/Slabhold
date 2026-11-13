@@ -72,7 +72,7 @@ export function PrimaryButton({
 
 export function SectionLabel({ children }: { children: ReactNode }) {
   return (
-    <p className="mb-2 text-[13px] font-medium text-zinc-500">
+    <p className="mb-2 text-[13px] font-medium text-zinc-500 dark:text-zinc-400">
       {children}
     </p>
   );
@@ -97,7 +97,7 @@ export function SwatchDot({ name, size = "md" }: { name: string; size?: "sm" | "
 /** "/99" on a parallel with a known run. "1/1" for a one of one. */
 export function RunBadge({ run }: { run: number }) {
   return (
-    <span className="shrink-0 rounded-md bg-zinc-900 px-1.5 py-0.5 font-mono text-[10px] leading-4 font-semibold tracking-wide text-white tabular-nums dark:bg-white/15 dark:text-zinc-100">
+    <span className="shrink-0 rounded-md bg-zinc-900 px-1.5 py-0.5 font-mono text-[11px] leading-4 font-semibold tracking-wide text-white tabular-nums dark:bg-white/15 dark:text-zinc-100">
       {run === 1 ? "1/1" : `/${run}`}
     </span>
   );
@@ -167,7 +167,7 @@ export function DraftSlab({ art, photo }: { art: ArtCard; photo: string | null }
 }
 
 const dockSurface =
-  "bg-[color-mix(in_oklab,var(--background)_96%,transparent)] backdrop-blur-xl";
+  "glass bg-[color-mix(in_oklab,var(--background)_96%,transparent)] backdrop-blur-xl";
 
 /**
  * A step's main button. It sits at the bottom of the step, and while the iOS

@@ -167,7 +167,7 @@ function Ready({
         />
         {pick?.serialRun ? (
           <div className="mt-4">
-            <label htmlFor={serialId} className="text-[13px] font-medium text-zinc-500">
+            <label htmlFor={serialId} className="text-[13px] font-medium text-zinc-500 dark:text-zinc-400">
               {CONFIRM_COPY.serialLabel}
             </label>
             <div className="mt-2 flex items-center gap-3">
@@ -186,7 +186,7 @@ function Ready({
                 aria-label={`Your number, out of ${pick.serialRun}`}
                 className={`h-11 w-24 rounded-xl border border-zinc-300 bg-transparent px-3 font-mono text-base tabular-nums dark:border-white/15 ${focusRing}`}
               />
-              <span className="font-mono text-sm text-zinc-500 tabular-nums">/{pick.serialRun}</span>
+              <span className="font-mono text-sm text-zinc-500 dark:text-zinc-400 tabular-nums">/{pick.serialRun}</span>
             </div>
             {error ? (
               <p id={errorId} role="alert" className="mt-2 text-sm text-rose-600 dark:text-rose-400">

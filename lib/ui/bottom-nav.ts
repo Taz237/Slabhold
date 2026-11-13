@@ -34,7 +34,7 @@ export function bottomNavTabs(quickComp: boolean): readonly BottomNavTab[] {
  */
 export const MOVED_TO_MENU = [{ href: "/profile", label: "Profile" }] as const;
 
-/** Rough Geist 10px width. Wide enough that a passing label is not cramped. */
+/** Rough Geist 11px width. Wide enough that a passing label is not cramped. */
 const LABEL_PX_PER_CHAR = 6.2;
 
 /** Width of one label inside an equal tab slot at the phone width. */

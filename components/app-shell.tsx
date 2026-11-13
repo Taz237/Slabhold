@@ -7,6 +7,7 @@ import { Bell, Camera, Compass, Mail, Search, Tag, Trophy, WalletCards, type Luc
 import { Logo } from "@/components/logo";
 import { useSocial } from "@/components/social-provider";
 import { AccountDeletedToast } from "@/components/account-deleted-toast";
+import { OfflineBanner } from "@/components/offline-banner";
 import { GuestAccount } from "@/components/guest-account";
 import { JoinBar } from "@/components/join-bar";
 import { NavMotion } from "@/components/nav-motion";
@@ -272,7 +273,7 @@ function Shell({
         <header
           style={{ viewTransitionName: "app-header" }}
           data-attached-tabs={attachedTabs ? "" : undefined}
-          className={`sticky top-0 z-20 bg-[var(--chrome-bg)] pt-[env(safe-area-inset-top)] backdrop-blur-xl backdrop-saturate-150 ${
+          className={`glass sticky top-0 z-20 bg-[var(--chrome-bg)] pt-[env(safe-area-inset-top)] backdrop-blur-xl backdrop-saturate-150 ${
             attachedTabs ? "" : HEADER_HAIRLINE
           }`}>
           <div className="mx-auto grid h-[3.25rem] max-w-lg grid-cols-[1fr_auto_1fr] items-center px-4">
@@ -300,7 +301,7 @@ function Shell({
                 >
                   <Bell className="h-5 w-5" />
                   {unreadCount > 0 ? (
-                    <span className="absolute top-0 right-0 grid h-4 min-w-4 place-items-center rounded-full bg-violet-600 px-1 text-[10px] font-semibold leading-none text-white">
+                    <span className="absolute top-0 right-0 grid h-4 min-w-4 place-items-center rounded-full bg-violet-600 px-1 text-[11px] font-semibold leading-none text-white">
                       {unreadCount > 9 ? "9+" : unreadCount}
                     </span>
                   ) : null}
@@ -322,6 +323,7 @@ function Shell({
               <span aria-hidden />
             )}
           </div>
+          <OfflineBanner />
         </header>
       ) : null}
       {notice}
@@ -338,7 +340,7 @@ function Shell({
       {showNav && !chromeless ? (
         <nav
           style={{ viewTransitionName: "app-nav" }}
-          className="fixed inset-x-0 bottom-0 z-30 border-t border-zinc-200 bg-[color-mix(in_oklab,var(--background)_92%,transparent)] backdrop-blur-xl dark:border-white/10">
+          className="glass fixed inset-x-0 bottom-0 z-30 border-t border-zinc-200 bg-[color-mix(in_oklab,var(--background)_92%,transparent)] backdrop-blur-xl dark:border-white/10">
           <div className="mx-auto flex max-w-lg items-end justify-between px-1 pt-1 pb-[max(0.45rem,env(safe-area-inset-bottom))]">
             {tabs.map((tab) => {
               const active = isActive(pathname, tab.href, user);
@@ -377,7 +379,7 @@ function Shell({
                     data-tour={tab.tour}
                     aria-label="Add card"
                     aria-current={active ? "page" : undefined}
-                    className="hit-44 tap flex min-w-0 flex-1 flex-col items-center gap-0.5 px-0.5 py-1 text-[10px] font-medium leading-none text-violet-700 dark:text-violet-200"
+                    className="hit-44 tap flex min-w-0 flex-1 flex-col items-center gap-0.5 px-0.5 py-1 text-[11px] font-medium leading-none text-violet-700 dark:text-violet-200"
                   >
                     <span className="grid h-11 w-11 -translate-y-3 place-items-center rounded-full bg-violet-600 text-white shadow-lg ring-4 ring-[var(--background)]">
                       <Camera className="h-5 w-5" />
@@ -397,8 +399,8 @@ function Shell({
                     messageBadge > 0 ? `Messages, ${messageBadge} unread` : tab.label
                   }
                   aria-current={active ? "page" : undefined}
-                  className={`hit-44 tap relative flex min-w-0 flex-1 flex-col items-center gap-0.5 px-0.5 py-1 text-[10px] font-medium leading-none ${
-                    active ? "text-zinc-900 dark:text-white" : "text-zinc-500"
+                  className={`hit-44 tap relative flex min-w-0 flex-1 flex-col items-center gap-0.5 px-0.5 py-1 text-[11px] font-medium leading-none ${
+                    active ? "text-zinc-900 dark:text-white" : "text-zinc-500 dark:text-zinc-400"
                   }`}
                 >
                   <span className="relative">
@@ -410,7 +412,7 @@ function Shell({
                       }`}
                     />
                     {messageBadge > 0 ? (
-                      <span className="absolute -top-1.5 -right-2.5 grid h-4 min-w-4 place-items-center rounded-full bg-[#7C3AED] px-1 text-[10px] font-semibold leading-none text-white ring-2 ring-[var(--background)]">
+                      <span className="absolute -top-1.5 -right-2.5 grid h-4 min-w-4 place-items-center rounded-full bg-[#7C3AED] px-1 text-[11px] font-semibold leading-none text-white ring-2 ring-[var(--background)]">
                         {messageBadge > 9 ? "9+" : messageBadge}
                       </span>
                     ) : null}

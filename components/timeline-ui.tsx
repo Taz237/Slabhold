@@ -85,7 +85,7 @@ export function LaneTabs({ lane, onChange }: { lane: HomeLane; onChange: (lane: 
       data-no-pull=""
       // One unit with the header: the same background and blur, and the only hairline.
       // Above the pull-to-refresh mark (z-15), so the mark slides out from under the tabs.
-      className={`sticky ${LANE_TABS_TOP} z-[16] border-b bg-[var(--chrome-bg)] backdrop-blur-xl backdrop-saturate-150 transition-[box-shadow,border-color] duration-200 motion-reduce:transition-none ${
+      className={`sticky ${LANE_TABS_TOP} z-[16] border-b glass bg-[var(--chrome-bg)] backdrop-blur-xl backdrop-saturate-150 transition-[box-shadow,border-color] duration-200 motion-reduce:transition-none ${
         scrolled
           ? "border-zinc-200 shadow-[0_10px_24px_-18px_rgba(24,24,27,0.45)] dark:border-white/[0.09] dark:shadow-[0_10px_28px_-16px_rgba(0,0,0,0.9)]"
           : "border-zinc-200/70 dark:border-white/[0.07]"
@@ -105,7 +105,7 @@ export function LaneTabs({ lane, onChange }: { lane: HomeLane; onChange: (lane: 
               tabIndex={active ? 0 : -1}
               onClick={() => onChange(item.id)}
               className={`tap-fade min-h-12 text-[15px] tracking-tight transition-colors duration-200 hover:bg-zinc-900/[0.03] dark:hover:bg-white/[0.03] ${
-                active ? "font-semibold text-[var(--foreground)]" : "font-medium text-zinc-500"
+                active ? "font-semibold text-[var(--foreground)]" : "font-medium text-zinc-500 dark:text-zinc-400"
               }`}
             >
               {item.label}

@@ -198,7 +198,7 @@ export function CardTile({
               />
             ) : null}
           </div>
-          <p className={compact ? "truncate text-[11px] leading-4 text-zinc-500" : "truncate text-xs text-zinc-500"}>
+          <p className={compact ? "truncate text-[11px] leading-4 text-zinc-500 dark:text-zinc-400" : "truncate text-xs text-zinc-500 dark:text-zinc-400"}>
             {yearSetLine(art)}
           </p>
           <div
@@ -265,7 +265,7 @@ export function GainChip({
       className={`inline-flex shrink-0 items-center rounded-full ${
         large
           ? "gap-1 px-2.5 py-1 text-base font-semibold"
-          : `gap-0.5 ${compact ? "px-1" : "px-1.5"} py-0.5 text-[10px] font-semibold`
+          : `gap-0.5 ${compact ? "px-1" : "px-1.5"} py-0.5 text-[11px] font-semibold`
       } tabular-nums ${MOVE_PILL[gain.tone]}`}
     >
       <MoveArrow tone={gain.tone} className={large ? "text-[12px] leading-none" : "text-[8px] leading-none"} />
@@ -286,7 +286,7 @@ function AddPhotoHint({ href, playerName }: { href: string; playerName: string }
         className={`group/hint pointer-events-auto absolute right-0 bottom-0 rounded-full p-2.5 ${tileFocusRing}`}
       >
         {/* Padding makes the tap target 44px. The pill stays small. */}
-        <span className="inline-flex items-center gap-1 rounded-full bg-black/45 px-2 py-1 text-[10px] font-semibold text-white/90 backdrop-blur-sm transition group-hover/hint:bg-black/60">
+        <span className="inline-flex items-center gap-1 rounded-full bg-black/45 px-2 py-1 text-[11px] font-semibold text-white/90 backdrop-blur-sm transition group-hover/hint:bg-black/60">
           <Camera className="h-3 w-3" aria-hidden />
           Add photo
         </span>

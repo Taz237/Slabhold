@@ -88,7 +88,7 @@ export function AddCardSheet({ deps: overrides, onClose }: { deps?: Partial<AddC
         aria-label={ADD_SHEET_COPY.close}
         tabIndex={-1}
         onClick={onClose}
-        className="absolute inset-0 bg-zinc-950/55 backdrop-blur-md motion-safe:animate-[backdrop-in_220ms_ease-out_both]"
+        className="glass-scrim absolute inset-0 bg-zinc-950/55 backdrop-blur-md motion-safe:animate-[backdrop-in_220ms_ease-out_both]"
       />
       <div
         ref={dialogRef}

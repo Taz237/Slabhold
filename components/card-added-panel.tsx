@@ -161,7 +161,7 @@ export function CardAddedPanel({
         aria-label="Dismiss"
         tabIndex={-1}
         onClick={onDismiss}
-        className="absolute inset-0 bg-zinc-950/75 backdrop-blur-xl motion-safe:animate-[backdrop-in_260ms_ease-out_both]"
+        className="glass-scrim absolute inset-0 bg-zinc-950/75 backdrop-blur-xl motion-safe:animate-[backdrop-in_260ms_ease-out_both]"
       />
       <section
         ref={dialogRef}

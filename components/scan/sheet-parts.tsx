@@ -51,7 +51,7 @@ export function SheetFrame({
         tabIndex={-1}
         onClick={onClose}
         className={`absolute inset-0 motion-safe:animate-[lightbox-fade_180ms_cubic-bezier(0.22,1,0.36,1)_both] ${
-          scene ? "bg-zinc-950/70 backdrop-blur-xl" : "bg-zinc-950/50"
+          scene ? "glass-scrim bg-zinc-950/70 backdrop-blur-xl" : "bg-zinc-950/50"
         }`}
       />
       <div
@@ -69,7 +69,7 @@ export function SheetFrame({
         <div className="flex items-center justify-between gap-2 pr-2 pl-5 pt-2">
           <h2
             id={titleId}
-            className={scene ? "text-[13px] font-medium text-zinc-500" : "text-[17px] font-semibold tracking-tight"}
+            className={scene ? "text-[13px] font-medium text-zinc-500 dark:text-zinc-400" : "text-[17px] font-semibold tracking-tight"}
           >
             {title}
           </h2>
@@ -77,7 +77,7 @@ export function SheetFrame({
             type="button"
             onClick={onClose}
             aria-label={CONFIRM_COPY.close}
-            className={`inline-flex size-11 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-900/5 dark:hover:bg-white/10 ${focusRing}`}
+            className={`inline-flex size-11 items-center justify-center rounded-full text-zinc-500 dark:text-zinc-400 hover:bg-zinc-900/5 dark:hover:bg-white/10 ${focusRing}`}
           >
             <X className="size-5" aria-hidden />
           </button>
@@ -93,7 +93,7 @@ function Field({ sureness, children }: { sureness: FieldSureness; children: stri
   if (!children) return null;
   if (sureness !== "unsure") return <span>{children}</span>;
   return (
-    <span className="text-zinc-500">
+    <span className="text-zinc-500 dark:text-zinc-400">
       {children}
       <span className="sr-only"> ({CONFIRM_COPY.notSure.toLowerCase()})</span>
     </span>
@@ -125,7 +125,7 @@ export function CardPhoto({ photo, name }: { photo: string | null; name: string 
       aria-label="No photo"
       className="grid aspect-[5/7] w-20 place-items-center rounded-lg bg-gradient-to-b from-zinc-100 to-zinc-200 ring-1 ring-zinc-900/10 dark:from-white/[0.08] dark:to-white/[0.03] dark:ring-white/10"
     >
-      <span aria-hidden className="font-mono text-sm text-zinc-500">
+      <span aria-hidden className="font-mono text-sm text-zinc-500 dark:text-zinc-400">
         {initials}
       </span>
     </div>
@@ -149,7 +149,7 @@ export function MatchSummary({ photo, match }: { photo: string | null; match: Sc
           {match.cardNumber ? <Field sureness={match.sureness.number}>{`#${match.cardNumber}`}</Field> : null}
         </p>
         {match.subset ? <p className="mt-1 text-sm leading-5 text-zinc-600 dark:text-zinc-400">{match.subset}</p> : null}
-        {match.playerNew ? <p className="mt-1 text-xs leading-5 text-zinc-500">{CONFIRM_COPY.playerNew}</p> : null}
+        {match.playerNew ? <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">{CONFIRM_COPY.playerNew}</p> : null}
         {grade || match.isRookie || match.isAuto || match.firstBowman || match.serialRun ? (
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {grade ? (
@@ -158,7 +158,7 @@ export function MatchSummary({ photo, match }: { photo: string | null; match: Sc
               </span>
             ) : null}
             {cert ? (
-              <span className="font-mono text-xs leading-5 text-zinc-500 tabular-nums">
+              <span className="font-mono text-xs leading-5 text-zinc-500 dark:text-zinc-400 tabular-nums">
                 <span className="sr-only">Cert ending </span>
                 <span aria-hidden>Cert </span>
                 {cert}
@@ -171,9 +171,9 @@ export function MatchSummary({ photo, match }: { photo: string | null; match: Sc
                 {match.serialNo ? `${match.serialNo}/${match.serialRun}` : `/${match.serialRun}`}
               </span>
             ) : null}
-            {match.isRookie ? <span className="font-mono text-xs leading-5 text-zinc-500">RC</span> : null}
-            {match.firstBowman ? <span className="font-mono text-xs leading-5 text-zinc-500">1st Bowman</span> : null}
-            {match.isAuto ? <span className="font-mono text-xs leading-5 text-zinc-500">Auto</span> : null}
+            {match.isRookie ? <span className="font-mono text-xs leading-5 text-zinc-500 dark:text-zinc-400">RC</span> : null}
+            {match.firstBowman ? <span className="font-mono text-xs leading-5 text-zinc-500 dark:text-zinc-400">1st Bowman</span> : null}
+            {match.isAuto ? <span className="font-mono text-xs leading-5 text-zinc-500 dark:text-zinc-400">Auto</span> : null}
           </div>
         ) : null}
         <div className="mt-2 empty:hidden">
@@ -293,7 +293,7 @@ export function RevealName({ match, parallel, photo = null }: { match: ScanMatch
         </p>
       ) : null}
       {match.playerNew ? (
-        <p className={`mt-1 text-xs leading-5 text-zinc-500 ${tags.className}`} style={tags.style}>
+        <p className={`mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400 ${tags.className}`} style={tags.style}>
           {CONFIRM_COPY.playerNew}
         </p>
       ) : null}
@@ -305,7 +305,7 @@ export function RevealName({ match, parallel, photo = null }: { match: ScanMatch
             </span>
           ) : null}
           {cert ? (
-            <span className="font-mono text-xs leading-5 text-zinc-500 tabular-nums">
+            <span className="font-mono text-xs leading-5 text-zinc-500 dark:text-zinc-400 tabular-nums">
               <span className="sr-only">Cert ending </span>
               <span aria-hidden>Cert </span>
               {cert}
@@ -317,9 +317,9 @@ export function RevealName({ match, parallel, photo = null }: { match: ScanMatch
               {match.serialNo ? `${match.serialNo}/${match.serialRun}` : `/${match.serialRun}`}
             </span>
           ) : null}
-          {match.isRookie ? <span className="font-mono text-xs leading-5 text-zinc-500">RC</span> : null}
-          {match.firstBowman ? <span className="font-mono text-xs leading-5 text-zinc-500">1st Bowman</span> : null}
-          {match.isAuto ? <span className="font-mono text-xs leading-5 text-zinc-500">Auto</span> : null}
+          {match.isRookie ? <span className="font-mono text-xs leading-5 text-zinc-500 dark:text-zinc-400">RC</span> : null}
+          {match.firstBowman ? <span className="font-mono text-xs leading-5 text-zinc-500 dark:text-zinc-400">1st Bowman</span> : null}
+          {match.isAuto ? <span className="font-mono text-xs leading-5 text-zinc-500 dark:text-zinc-400">Auto</span> : null}
         </div>
       ) : null}
       <div className={`mt-2 empty:hidden ${tags.className}`} style={tags.style}>
@@ -357,7 +357,7 @@ export function ParallelStrip({
     <div>
       <div className="flex items-baseline justify-between gap-3">
         <SectionLabel>{CONFIRM_COPY.parallel}</SectionLabel>
-        {hint ? <p className="mb-2 text-right text-[13px] text-zinc-500">{hint}</p> : null}
+        {hint ? <p className="mb-2 text-right text-[13px] text-zinc-500 dark:text-zinc-400">{hint}</p> : null}
       </div>
       <div
         role="group"
@@ -414,7 +414,7 @@ export function OtherMatches({
             >
               <span className="min-w-0">
                 <span className="block truncate text-sm font-medium">{match.playerName}</span>
-                <span className="block truncate text-[13px] text-zinc-500">{matchLine(match)}</span>
+                <span className="block truncate text-[13px] text-zinc-500 dark:text-zinc-400">{matchLine(match)}</span>
               </span>
               <ChevronRight className="size-4 shrink-0 text-zinc-400" aria-hidden />
             </button>
@@ -480,7 +480,7 @@ function GroupRows({ groups, onPick }: { groups: readonly GroupRow[]; onPick?: (
           <>
             <span>
               {group.label}
-              <span className="text-zinc-500">
+              <span className="text-zinc-500 dark:text-zinc-400">
                 {" · "}
                 <span className="font-mono tabular-nums">{group.nSales}</span> {group.nSales === 1 ? "sale" : "sales"}
               </span>
@@ -541,7 +541,7 @@ export function OtherGroups({ groups, onPick }: { groups: readonly { label: stri
   if (groups.length === 0) return null;
   return (
     <div className="mt-4">
-      <p className="text-[13px] font-medium text-zinc-500">{COMP_COPY.otherGroups}</p>
+      <p className="text-[13px] font-medium text-zinc-500 dark:text-zinc-400">{COMP_COPY.otherGroups}</p>
       <GroupRows groups={groups} onPick={onPick} />
     </div>
   );
@@ -567,7 +567,7 @@ export function LastSold({
   if (solds.status === "looking") {
     return (
       <div className={box} aria-busy="true">
-        <p className="text-sm text-zinc-500" role="status">
+        <p className="text-sm text-zinc-500 dark:text-zinc-400" role="status">
           {COMP_COPY.looking}
         </p>
         <div aria-hidden className={`h-5 w-16 ${skeletonBar}`} />
@@ -583,14 +583,14 @@ export function LastSold({
       return (
         <div className={box} data-slot="last-sold-picked">
           <div className="min-w-0">
-            <p className="text-[13px] font-medium text-zinc-500">
+            <p className="text-[13px] font-medium text-zinc-500 dark:text-zinc-400">
               {COMP_COPY.lastSold} · {picked.label}
             </p>
-            <p className="text-xs text-zinc-500">{COMP_COPY.credit}</p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">{COMP_COPY.credit}</p>
           </div>
           <p className="shrink-0 text-right">
             <span className="font-mono text-[17px] font-semibold tabular-nums">{money(picked.lastPriceCents / 100)}</span>
-            {day ? <span className="block font-mono text-xs text-zinc-500 tabular-nums">{day}</span> : null}
+            {day ? <span className="block font-mono text-xs text-zinc-500 dark:text-zinc-400 tabular-nums">{day}</span> : null}
           </p>
         </div>
       );
@@ -607,15 +607,15 @@ export function LastSold({
     return (
       <div className={box}>
         <div className="min-w-0">
-          <p className="text-[13px] font-medium text-zinc-500">
+          <p className="text-[13px] font-medium text-zinc-500 dark:text-zinc-400">
             {COMP_COPY.lastSold}
             {comp.status === "ok" && comp.parallel ? ` · ${comp.parallel}` : ""}
           </p>
-          <p className="text-xs text-zinc-500">{COMP_COPY.credit}</p>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">{COMP_COPY.credit}</p>
         </div>
         <p className="shrink-0 text-right">
           <span className="font-mono text-[17px] font-semibold tabular-nums">{money(sale.priceCents / 100)}</span>
-          {day ? <span className="block font-mono text-xs text-zinc-500 tabular-nums">{day}</span> : null}
+          {day ? <span className="block font-mono text-xs text-zinc-500 dark:text-zinc-400 tabular-nums">{day}</span> : null}
         </p>
       </div>
     );
@@ -673,7 +673,7 @@ export function SetNotes({ match, onSapphire, center = false }: { match: ScanMat
   if (!fromSales && !ask) return null;
   return (
     <div className={center ? "flex justify-center" : ""} data-slot="set-notes">
-      {fromSales ? <p className="text-[13px] leading-5 text-zinc-500">{CONFIRM_COPY.sapphireFromSales}</p> : null}
+      {fromSales ? <p className="text-[13px] leading-5 text-zinc-500 dark:text-zinc-400">{CONFIRM_COPY.sapphireFromSales}</p> : null}
       {ask ? (
         <button
           type="button"

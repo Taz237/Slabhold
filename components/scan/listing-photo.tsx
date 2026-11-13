@@ -124,7 +124,7 @@ function ListingCompare({
             autoFocus
             onClick={onClose}
             aria-label={LISTING_COPY.close}
-            className={`-mt-2 -mr-2 grid size-11 shrink-0 place-items-center rounded-full text-zinc-500 hover:bg-zinc-900/5 dark:hover:bg-white/10 ${focusRing}`}
+            className={`-mt-2 -mr-2 grid size-11 shrink-0 place-items-center rounded-full text-zinc-500 dark:text-zinc-400 hover:bg-zinc-900/5 dark:hover:bg-white/10 ${focusRing}`}
           >
             <X className="size-5" aria-hidden />
           </button>
@@ -135,7 +135,7 @@ function ListingCompare({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={imageUrl} alt={`Sold listing photo of ${cardLine(match)}`} referrerPolicy="no-referrer" decoding="async" className="h-full w-full object-contain" />
             </div>
-            <figcaption className="mt-2 text-[13px] leading-5 text-zinc-500">{LISTING_COPY.listing}</figcaption>
+            <figcaption className="mt-2 text-[13px] leading-5 text-zinc-500 dark:text-zinc-400">{LISTING_COPY.listing}</figcaption>
           </figure>
           {scan ? (
             <figure className="m-0">
@@ -143,7 +143,7 @@ function ListingCompare({
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={scan} alt="Your scan" className="h-full w-full object-contain" />
               </div>
-              <figcaption className="mt-2 text-[13px] leading-5 text-zinc-500">{LISTING_COPY.scan}</figcaption>
+              <figcaption className="mt-2 text-[13px] leading-5 text-zinc-500 dark:text-zinc-400">{LISTING_COPY.scan}</figcaption>
             </figure>
           ) : null}
         </div>

@@ -62,7 +62,7 @@ export function SoftAsk({
         aria-label="Not now"
         tabIndex={-1}
         onClick={onDismiss}
-        className={`absolute inset-0 bg-black/40 backdrop-blur-[2px] ${FADE}`}
+        className={`glass-scrim absolute inset-0 bg-black/40 backdrop-blur-[2px] ${FADE}`}
       />
       <div
         role="dialog"
