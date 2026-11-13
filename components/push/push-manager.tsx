@@ -11,7 +11,6 @@ import {
   currentSubscription,
   deviceOptedIn,
   devicePlatform,
-  firePushFlush,
   forgetDeviceOnSignOut,
   permissionState,
   pushFeatureOn,
@@ -21,6 +20,7 @@ import {
   setAppBadge,
   subscribeDevice,
 } from "@/lib/push/client";
+import { flushAfterAction } from "@/lib/push/native-client";
 import { sameOriginPath } from "@/lib/push/payload";
 import { deviceTimeZone } from "@/lib/push/quiet-hours";
 import {
@@ -94,7 +94,8 @@ let serverAvailable: Promise<boolean> | null = null;
  * Signed-in only, loaded after the first idle. Registers the push worker,
  * sends /api/push/flush after social actions, offers the soft-ask at a good
  * moment, keeps the app badge current, and routes notification taps
- * client-side. With push off for this build it only renders nothing.
+ * client-side. With web push off for this build it renders nothing and only
+ * sends the flush (when the iPhone app's push is on).
  */
 export function PushManager({ user }: { user: Profile }) {
   const router = useRouter();
@@ -192,11 +193,10 @@ export function PushManager({ user }: { user: Profile }) {
   // After a follow, post or like, once its success UI has settled. Every
   // action also sends the pushes it caused.
   useEffect(() => {
-    if (!featureOn) return;
     const timers = new Set<number>();
     const stop = onSocialAction((action) => {
-      firePushFlush();
-      if (!ASK_ACTIONS.has(action)) return;
+      void flushAfterAction();
+      if (!featureOn || !ASK_ACTIONS.has(action)) return;
       const timer = window.setTimeout(() => {
         timers.delete(timer);
         void evaluate("action");

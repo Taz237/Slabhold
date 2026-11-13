@@ -104,8 +104,15 @@ export function NativeDeviceSection({ userId }: { userId: string }) {
 
   const sendTest = () => {
     setTesting(true);
-    void sendTestPush()
+    void (async () => {
+      // Save this iPhone's token again first, so a test also repairs a token the server lost.
+      const native = await loadNative().catch(() => null);
+      const token = await native?.nativePushToken().catch(() => null);
+      if (token) await saveApnsToken(token);
+      return sendTestPush();
+    })()
       .then((result) => setToast(result.ok ? "Test sent" : (result.error ?? "Could not send a test.")))
+      .catch(() => setToast("Could not send a test."))
       .finally(() => setTesting(false));
   };
 

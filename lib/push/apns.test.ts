@@ -6,6 +6,7 @@ import { apnsConfig } from "./apns-config";
 import {
   APNS_MAX_BYTES,
   APNS_ORIGIN,
+  APNS_SANDBOX_ORIGIN,
   JWT_MAX_AGE_MS,
   apnsBody,
   apnsJwt,
@@ -166,6 +167,10 @@ describe("APNs request", () => {
     assert.equal(JSON.parse(apnsBody(evil)).url, "/notifications");
   });
 
+  it("leaves the icon number alone on a Settings test (no badge key)", () => {
+    assert.equal("badge" in JSON.parse(apnsBody(testPayload(1))).aps, false);
+  });
+
   it("fits a long body under 4 KB", () => {
     const long: PushPayload = { ...like, body: "Prizm ".repeat(2000), title: "T".repeat(3000) };
     const json = apnsBody(long);
@@ -190,7 +195,6 @@ describe("APNs status mapping", () => {
 
   for (const answer of [
     { status: 410, reason: "Unregistered" },
-    { status: 400, reason: "BadDeviceToken" },
     { status: 400, reason: "DeviceTokenNotForTopic" },
   ]) {
     it(`marks the device gone on ${answer.status} ${answer.reason}, without retrying`, async () => {
@@ -199,6 +203,69 @@ describe("APNs status mapping", () => {
       assert.equal(calls.length, 1);
     });
   }
+
+  it("tries Apple's sandbox server when production says BadDeviceToken (an Xcode-run build)", async () => {
+    const { result, calls } = await send([{ status: 400, reason: "BadDeviceToken" }, { status: 200 }]);
+    assert.deepEqual(result, { delivered: ["d1"], gone: [], failed: [] });
+    assert.deepEqual(
+      calls.map((call) => call.origin),
+      [APNS_ORIGIN, APNS_SANDBOX_ORIGIN],
+    );
+    assert.equal(APNS_SANDBOX_ORIGIN, "https://api.sandbox.push.apple.com");
+    assert.equal(calls[1]!.path, `/3/device/${TOKEN}`);
+  });
+
+  it("marks the device gone only when both servers say BadDeviceToken", async () => {
+    const { result, calls } = await send([
+      { status: 400, reason: "BadDeviceToken" },
+      { status: 400, reason: "BadDeviceToken" },
+    ]);
+    assert.deepEqual(result, { delivered: [], gone: ["d1"], failed: [] });
+    assert.equal(calls.length, 2);
+  });
+
+  it("keeps (fails, not deletes) a token the sandbox server can't check", async () => {
+    const { result } = await send([
+      { status: 400, reason: "BadDeviceToken" },
+      { status: 403, reason: "InvalidProviderToken" },
+    ]);
+    assert.deepEqual(result, { delivered: [], gone: [], failed: ["d1"] });
+  });
+
+  it("goes straight to sandbox next time for a token that worked there, and back to production if it moves", async () => {
+    const fake = fakeTransport([{ status: 400, reason: "BadDeviceToken" }, { status: 200 }, { status: 200 }]);
+    const sender = createApnsSender(config, { transport: fake.transport, now: () => T0, log: () => {} });
+    await sender.send([{ id: "d1", token: TOKEN }], like, { sleep: noSleep });
+    await sender.send([{ id: "d1", token: TOKEN }], like, { sleep: noSleep });
+    assert.deepEqual(
+      fake.calls.map((call) => call.origin),
+      [APNS_ORIGIN, APNS_SANDBOX_ORIGIN, APNS_SANDBOX_ORIGIN],
+    );
+    // The same phone later installs the TestFlight build: sandbox turns it away, production takes it.
+    const moved = fakeTransport([{ status: 400, reason: "BadDeviceToken" }, { status: 200 }, { status: 200 }, { status: 400, reason: "BadDeviceToken" }, { status: 200 }]);
+    const again = createApnsSender(config, { transport: moved.transport, now: () => T0, log: () => {} });
+    await again.send([{ id: "d1", token: TOKEN }], like, { sleep: noSleep });
+    await again.send([{ id: "d1", token: TOKEN }], like, { sleep: noSleep });
+    const last = await again.send([{ id: "d1", token: TOKEN }], like, { sleep: noSleep });
+    assert.deepEqual(last, { delivered: ["d1"], gone: [], failed: [] });
+    assert.equal(moved.calls.at(-1)!.origin, APNS_ORIGIN);
+  });
+
+  it("logs Apple's answers as counts, never the token, key or text", async () => {
+    const lines: unknown[][] = [];
+    const fake = fakeTransport([{ status: 400, reason: "BadDeviceToken" }, { status: 200 }, "network", { status: 403, reason: "InvalidProviderToken" }]);
+    const sender = createApnsSender(config, { transport: fake.transport, now: () => T0, log: (...args) => lines.push(args) });
+    await sender.send([{ id: "d1", token: TOKEN }], like, { sleep: noSleep });
+    await sender.send([{ id: "d2", token: TOKEN2 }], like, { sleep: noSleep });
+    assert.deepEqual(lines, [
+      ["[push] apns", { "production 400 BadDeviceToken": 1, "sandbox 200": 1 }],
+      ["[push] apns", { "production network": 1, "production 403 InvalidProviderToken": 1 }],
+    ]);
+    const text = JSON.stringify(lines);
+    for (const secret of [TOKEN, TOKEN2, like.title, like.body, "KEY1234567", "TEAM765432"]) {
+      assert.equal(text.includes(secret), false);
+    }
+  });
 
   it("fails other 400s without deleting", async () => {
     const { result } = await send([{ status: 400, reason: "BadCollapseId" }]);

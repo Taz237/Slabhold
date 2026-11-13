@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { generateKeyPairSync } from "node:crypto";
 import { describe, it } from "node:test";
-import { apnsConfig, normalizePem } from "./apns-config";
+import { apnsConfig, apnsConfigProblems, normalizePem } from "./apns-config";
 
 /** A throwaway P-256 key made for this test run. Never a real key. */
 function testPem(): string {
@@ -50,5 +50,23 @@ describe("apnsConfig", () => {
     assert.ok(apnsConfig({ ...full, APNS_PRIVATE_KEY: `"${oneLine}"` }));
     assert.ok(apnsConfig({ ...full, APNS_PRIVATE_KEY: pem.replace(/\n/g, "\r\n") }));
     assert.equal(normalizePem("a\\nb\\r\\nc"), "a\nb\nc");
+  });
+
+  it("names what's wrong, by setting name only, never a value", () => {
+    assert.deepEqual(apnsConfigProblems(full), []);
+    assert.deepEqual(apnsConfigProblems({}), [
+      "APNS_KEY_ID missing",
+      "APNS_TEAM_ID missing",
+      "APNS_BUNDLE_ID missing",
+      "APNS_PRIVATE_KEY missing",
+    ]);
+    assert.deepEqual(apnsConfigProblems({ ...full, APNS_TEAM_ID: "  " }), ["APNS_TEAM_ID missing"]);
+    const bad = apnsConfigProblems({ ...full, APNS_PRIVATE_KEY: "not a key SECRETVALUE" });
+    assert.deepEqual(bad, ["APNS_PRIVATE_KEY is not a valid .p8 key"]);
+    const { privateKey } = generateKeyPairSync("ed25519");
+    const wrongType = privateKey.export({ format: "pem", type: "pkcs8" }).toString();
+    assert.deepEqual(apnsConfigProblems({ ...full, APNS_PRIVATE_KEY: wrongType }), ["APNS_PRIVATE_KEY is not a valid .p8 key"]);
+    assert.equal(JSON.stringify([bad, apnsConfigProblems({ ...full, APNS_KEY_ID: undefined })]).includes("SECRETVALUE"), false);
+    assert.equal(JSON.stringify(apnsConfigProblems({ ...full, APNS_KEY_ID: undefined })).includes(pem.slice(30, 60)), false);
   });
 });

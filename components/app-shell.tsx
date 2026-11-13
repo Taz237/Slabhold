@@ -431,9 +431,7 @@ function Shell({
       {user && mode === "supabase" && !onboardingBusy ? (
         <BadgeRevealGate userId={user.id} username={user.username} />
       ) : null}
-      {user && process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ? (
-        <PushAfterIdle key={user.id} user={user} />
-      ) : null}
+      {user ? <PushAfterIdle key={user.id} user={user} /> : null}
       {user && mode === "supabase" ? <NativePushAfterIdle key={user.id} user={user} /> : null}
     </div>
   );
