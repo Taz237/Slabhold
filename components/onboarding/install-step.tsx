@@ -43,11 +43,11 @@ const SCENE_MS = 2600;
 const RISE = "motion-safe:animate-[install-in_420ms_cubic-bezier(0.2,0.7,0.2,1)_both]";
 
 const primaryButton =
-  "flex h-14 w-full items-center justify-center gap-2 rounded-full bg-violet-600 text-[17px] font-semibold text-white transition-transform duration-150 active:scale-[0.98] motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#09090B] focus-visible:outline-none";
+  "flex h-14 w-full items-center justify-center gap-2 rounded-full bg-violet-600 text-17 font-semibold text-white transition-transform duration-150 active:scale-[0.98] motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#09090B] focus-visible:outline-none";
 const secondaryButton =
-  "flex h-12 w-full items-center justify-center gap-2 rounded-full border border-white/15 text-[16px] font-semibold text-zinc-100 focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:outline-none";
+  "flex h-12 w-full items-center justify-center gap-2 rounded-full border border-white/15 text-16 font-semibold text-zinc-100 focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:outline-none";
 const quietButton =
-  "flex min-h-11 w-full items-center justify-center rounded-full text-[15px] font-semibold text-zinc-400 hover:text-white focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:outline-none";
+  "flex min-h-11 w-full items-center justify-center rounded-full text-15 font-semibold text-zinc-400 hover:text-white focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:outline-none";
 
 export type GuidePlatform = Exclude<InstallPlatform, "installed" | "desktop">;
 
@@ -561,7 +561,7 @@ export function InstallGuide({
     >
       <header className="relative mx-auto flex w-full max-w-lg items-center justify-between px-5 pt-[max(0.75rem,env(safe-area-inset-top))]">
         <Logo className="h-8 w-8" />
-        <span className="font-mono text-[11px] font-medium text-[#A78BFA]">
+        <span className="font-mono text-11 font-medium text-[#A78BFA]">
           {variant === "onboarding" ? "Before you dive in" : "Add to Home Screen"}
         </span>
         <span aria-hidden className="h-8 w-8" />
@@ -569,10 +569,10 @@ export function InstallGuide({
 
       <div className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <div className={`mx-auto w-full max-w-lg px-5 pt-4 pb-3 ${RISE}`}>
-          <h2 id={titleId} className="text-[28px] leading-[1.1] font-semibold tracking-tight">
+          <h2 id={titleId} className="text-[1.75rem] leading-[1.1] font-semibold tracking-tight">
             {title}
           </h2>
-          <p id={leadId} className="mt-2 text-[15px] leading-6 text-zinc-400">
+          <p id={leadId} className="mt-2 text-15 leading-6 text-zinc-400">
             {lead}
           </p>
 
@@ -581,7 +581,7 @@ export function InstallGuide({
           </div>
 
           {nativePrompt ? (
-            <p className="mt-5 font-mono text-[11px] font-medium text-zinc-500">
+            <p className="mt-5 font-mono text-11 font-medium text-zinc-500">
               Or use Chrome&apos;s menu
             </p>
           ) : null}
@@ -601,7 +601,7 @@ export function InstallGuide({
                     }`}
                   >
                     <span
-                      className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full font-mono text-[12px] font-semibold transition-colors duration-200 motion-reduce:transition-none ${
+                      className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full font-mono text-12 font-semibold transition-colors duration-200 motion-reduce:transition-none ${
                         current
                           ? "bg-[#7C3AED] text-white"
                           : past
@@ -612,8 +612,8 @@ export function InstallGuide({
                       {past ? <Check aria-hidden className="h-3.5 w-3.5" /> : index + 1}
                     </span>
                     <span className="min-w-0">
-                      <span className="block text-[16px] font-semibold tracking-tight">{step.title}</span>
-                      <span className="block text-[14px] leading-5 text-zinc-400">{step.detail}</span>
+                      <span className="block text-16 font-semibold tracking-tight">{step.title}</span>
+                      <span className="block text-14 leading-5 text-zinc-400">{step.detail}</span>
                     </span>
                   </button>
                 </li>
@@ -653,7 +653,7 @@ export function InstallGuide({
         </button>
         {platform === "ios-safari" ? (
           <div data-share-arrow="" aria-hidden className="flex flex-col items-center text-[#A78BFA]">
-            <span className="font-mono text-[10px] font-medium">
+            <span className="font-mono text-10 font-medium">
               Share is in Safari&apos;s bar below
             </span>
             <ChevronDown className="install-arrow h-6 w-6" strokeWidth={2.5} />

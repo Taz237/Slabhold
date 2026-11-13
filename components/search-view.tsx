@@ -330,7 +330,7 @@ export function SearchView() {
                         className="flex min-h-12 min-w-0 flex-1 items-center gap-3 px-4 text-left"
                       >
                         <Clock className="h-5 w-5 shrink-0 text-zinc-400" />
-                        <span className="truncate text-[15px]">{term}</span>
+                        <span className="truncate text-15">{term}</span>
                       </button>
                       <button
                         type="button"
@@ -397,8 +397,8 @@ export function SearchView() {
                       className="flex min-h-[4.5rem] items-center border-b border-zinc-200 px-4 py-3 dark:border-white/10"
                     >
                       <span className="min-w-0 flex-1 space-y-2">
-                        <span className="block h-3.5 w-32 animate-pulse rounded-full bg-zinc-200/80 dark:bg-white/10" />
-                        <span className="block h-3 w-48 max-w-full animate-pulse rounded-full bg-zinc-200/70 dark:bg-white/[0.06]" />
+                        <span className="block h-3.5 w-32 skeleton-shimmer rounded-full" />
+                        <span className="block h-3 w-48 max-w-full skeleton-shimmer rounded-full" />
                       </span>
                     </li>
                   ))}
@@ -422,7 +422,7 @@ export function SearchView() {
                             name={card.playerName}
                             sport={card.sport}
                             onClick={() => remember(typed)}
-                            className="block truncate text-[15px] font-semibold hover:underline"
+                            className="block truncate text-15 font-semibold hover:underline"
                           />
                           <Link
                             href={catalogAddHref(card)}
@@ -464,7 +464,7 @@ export function SearchView() {
                           name={card.playerName}
                           sport={card.sport}
                           onClick={() => remember(typed)}
-                          className="block truncate text-[15px] font-semibold hover:underline"
+                          className="block truncate text-15 font-semibold hover:underline"
                         />
                         <Link
                           href={`/cards/${card.id}`}
@@ -500,7 +500,7 @@ export function SearchView() {
                       />
                       <span className="min-w-0">
                         <span className="flex min-w-0 items-center gap-1">
-                          <span className="truncate text-[15px] font-semibold">
+                          <span className="truncate text-15 font-semibold">
                             {profile.displayName}
                           </span>
                           <TeamBadge username={profile.username} inLink />
@@ -539,7 +539,7 @@ export function SearchView() {
                           className="h-10 w-10 shrink-0"
                         />
                         <span className="min-w-0 flex-1">
-                          <span className="flex min-w-0 items-baseline gap-1 text-[15px]">
+                          <span className="flex min-w-0 items-baseline gap-1 text-15 big:flex-wrap">
                             <span className="truncate font-semibold">{name}</span>
                             <TeamBadge username={author?.username} inLink />
                             <span className="truncate text-zinc-500">@{username}</span>
@@ -547,7 +547,7 @@ export function SearchView() {
                               <span className="shrink-0 text-zinc-500">· {stamp}</span>
                             ) : null}
                           </span>
-                          <span className="mt-0.5 line-clamp-3 block text-[15px] leading-5 whitespace-pre-wrap">
+                          <span className="mt-0.5 line-clamp-3 block text-15 leading-5 whitespace-pre-wrap">
                             {post.body}
                           </span>
                         </span>

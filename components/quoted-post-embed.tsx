@@ -106,12 +106,12 @@ export function QuotedPostEmbed({
             {relative ? <span className={QUOTE_HEADER.time}>· {relative}</span> : null}
           </div>
           {post.body ? (
-            <p className="mt-0.5 line-clamp-3 break-words text-[14px] leading-5 whitespace-pre-wrap">
+            <p className="mt-0.5 line-clamp-3 break-words text-14 leading-5 whitespace-pre-wrap">
               <MentionText text={post.body} />
             </p>
           ) : null}
           {nestedLink ? (
-            <p className="mt-1 text-[13px] text-zinc-500">
+            <p className="mt-1 text-13 text-zinc-500">
               Quoting{" "}
               <Link
                 href={nestedLink.href}
@@ -123,7 +123,7 @@ export function QuotedPostEmbed({
             </p>
           ) : null}
           {card && (price || soldHref) ? (
-            <p className="mt-1 truncate text-[13px] text-zinc-500">
+            <p className="mt-1 truncate text-13 text-zinc-500">
               <LazyPlayerNameLink
                 name={card.playerName}
                 sport={card.sport}
@@ -170,7 +170,7 @@ function EmbedThumb({
   if (card) {
     return (
       <div
-        className="grid h-14 w-14 shrink-0 place-items-center rounded-xl text-[11px] font-semibold text-white"
+        className="grid h-14 w-14 shrink-0 place-items-center rounded-xl text-11 font-semibold text-white"
         style={{ background: `linear-gradient(160deg, ${card.accent}, #18181b)` }}
       >
         {initials(card.playerName)}

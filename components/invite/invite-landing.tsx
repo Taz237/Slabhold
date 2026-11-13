@@ -15,7 +15,7 @@ import { SlabFan } from "./slab-fan";
 import { usePublicCollector } from "./use-public-collector";
 
 const primary =
-  "flex h-14 w-full items-center justify-center rounded-full bg-[#7C3AED] px-6 text-[17px] font-semibold text-white transition-transform duration-150 active:scale-[0.98] motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-[#A78BFA] focus-visible:ring-offset-2 focus-visible:ring-offset-[#09090b] focus-visible:outline-none";
+  "flex h-14 w-full items-center justify-center rounded-full bg-[#7C3AED] px-6 text-17 font-semibold text-white transition-transform duration-150 active:scale-[0.98] motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-[#A78BFA] focus-visible:ring-offset-2 focus-visible:ring-offset-[#09090b] focus-visible:outline-none";
 
 const POINTS = [
   { icon: WalletCards, text: "Track your collection with recent sold prices" },
@@ -82,11 +82,11 @@ export function InviteLanding({
         <header className="flex min-h-14 items-center justify-between">
           <Link href="/" aria-label="Slabhold home" className="flex min-h-11 items-center gap-2 rounded-full focus-visible:ring-2 focus-visible:ring-[#A78BFA] focus-visible:outline-none">
             <Logo className="h-8 w-8" />
-            <span className="text-[17px] font-semibold tracking-tight">Slabhold</span>
+            <span className="text-17 font-semibold tracking-tight">Slabhold</span>
           </Link>
           <Link
             href={loginPath(next)}
-            className="inline-flex min-h-11 items-center rounded-full px-3 text-[15px] font-semibold text-zinc-200 hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-[#A78BFA] focus-visible:outline-none"
+            className="inline-flex min-h-11 items-center rounded-full px-3 text-15 font-semibold text-zinc-200 hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-[#A78BFA] focus-visible:outline-none"
           >
             Log in
           </Link>
@@ -98,7 +98,7 @@ export function InviteLanding({
           </div>
 
           <div className="mt-6 text-center lg:mt-0 lg:text-left">
-            <p className="font-mono text-[12px] font-medium text-[#A78BFA]">You&apos;re invited</p>
+            <p className="font-mono text-12 font-medium text-[#A78BFA]">You&apos;re invited</p>
             {collector ? (
               <>
                 <div className="mt-4 flex items-center justify-center gap-3 lg:justify-start">
@@ -109,8 +109,8 @@ export function InviteLanding({
                     className="h-14 w-14 text-base ring-2 ring-[#7C3AED]/70 ring-offset-2 ring-offset-[#09090b]"
                   />
                   <div className="min-w-0 text-left">
-                    <p className="truncate text-[17px] font-semibold tracking-tight">{name}</p>
-                    <p className="truncate text-[14px] text-zinc-400">{facts.join(" · ")}</p>
+                    <p className="truncate text-17 font-semibold tracking-tight">{name}</p>
+                    <p className="truncate text-14 text-zinc-400">{facts.join(" · ")}</p>
                   </div>
                 </div>
                 <h1 className="mt-5 text-[2.25rem] leading-[1.06] font-semibold tracking-[-0.035em] text-white sm:text-5xl">
@@ -122,7 +122,7 @@ export function InviteLanding({
                 You&apos;re invited to Slabhold
               </h1>
             )}
-            <p className="mx-auto mt-3 max-w-sm text-[16px] leading-6 text-zinc-400 lg:mx-0">
+            <p className="mx-auto mt-3 max-w-sm text-16 leading-6 text-zinc-400 lg:mx-0">
               The home for your card collection, and the collectors you follow.
             </p>
 
@@ -130,7 +130,7 @@ export function InviteLanding({
               <Link href={signupPath(next)} data-invite-join="" className={primary}>
                 {collector ? `Join ${firstName(name)} on Slabhold` : "Join Slabhold"}
               </Link>
-              <p className="text-center text-[15px] text-zinc-400">
+              <p className="text-center text-15 text-zinc-400">
                 Already have an account?{" "}
                 <Link href={loginPath(next)} className="hit-44 inline-flex items-center font-semibold text-white underline underline-offset-4">
                   Log in
@@ -146,7 +146,7 @@ export function InviteLanding({
               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#7C3AED]/20 text-[#A78BFA]">
                 <Icon aria-hidden className="h-4 w-4" />
               </span>
-              <span className="text-[15px] font-medium text-zinc-200">{text}</span>
+              <span className="text-15 font-medium text-zinc-200">{text}</span>
             </li>
           ))}
         </ul>

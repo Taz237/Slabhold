@@ -6,7 +6,7 @@ import { ENABLED_PROVIDERS, OAUTH_FAILED, type OAuthProvider } from "@/lib/auth/
 import { isNativeApp } from "@/lib/ios/platform";
 
 const base =
-  "flex h-14 w-full items-center justify-center gap-2.5 rounded-full text-[17px] font-medium transition-[transform,opacity] duration-150 active:scale-[0.98] disabled:opacity-60 motion-reduce:transition-none motion-reduce:transform-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] focus-visible:outline-none";
+  "flex h-14 w-full items-center justify-center gap-2.5 rounded-full text-17 font-medium transition-[transform,opacity] duration-150 active:scale-[0.98] disabled:opacity-60 motion-reduce:transition-none motion-reduce:transform-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] focus-visible:outline-none";
 
 const BUTTONS: Record<OAuthProvider, { label: string; className: string; icon: React.ReactNode }> = {
   // Apple's white style: white, black logo and text, a light gray hairline.

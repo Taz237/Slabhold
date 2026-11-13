@@ -5,7 +5,7 @@ export const metadata: Metadata = { title: "About · Slabhold" };
 
 export default function AboutPage() {
   return (
-    <article className="space-y-4 text-[15px] leading-6">
+    <article className="space-y-4 text-15 leading-6">
       <h1 className="text-2xl font-semibold tracking-tight">About</h1>
       <p>
         Slabhold is where sports card collectors comp their cards with recent sold prices, track

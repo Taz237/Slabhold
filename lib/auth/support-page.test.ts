@@ -27,7 +27,7 @@ describe("/support", () => {
     assert.match(page, /Type DELETE to confirm/);
     assert.match(page, /href="\/terms"/);
     assert.match(page, /href="\/privacy"/);
-    assert.match(page, /<article className="space-y-4 text-\[15px\] leading-6">/);
+    assert.match(page, /<article className="space-y-4 text-15 leading-6">/);
   });
 
   it("is linked from About and Terms", () => {

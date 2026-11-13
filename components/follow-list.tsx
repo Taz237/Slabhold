@@ -168,7 +168,7 @@ export function FollowList({
                 />
                 <span className="min-w-0">
                   <span className="flex min-w-0 items-center gap-1">
-                    <span className="truncate text-[15px] font-semibold leading-5">{person.displayName}</span>
+                    <span className="truncate text-15 font-semibold leading-5">{person.displayName}</span>
                     <TeamBadge username={person.username} inLink />
                   </span>
                   <span className="block truncate text-sm text-zinc-500">@{person.username}</span>

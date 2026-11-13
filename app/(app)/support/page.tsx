@@ -22,7 +22,7 @@ function MoreGlyph() {
 
 export default function SupportPage() {
   return (
-    <article className="space-y-4 text-[15px] leading-6">
+    <article className="space-y-4 text-15 leading-6">
       <h1 className="text-2xl font-semibold tracking-tight">Support</h1>
       <p>How to reach the team, report or block a collector, and manage your account.</p>
 

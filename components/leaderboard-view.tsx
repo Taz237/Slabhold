@@ -123,7 +123,7 @@ function Avatar({ title, accent, url, size }: { title: string; accent: string; u
 function Tag({ children, tone }: { children: ReactNode; tone: "dark" | "light" }) {
   return (
     <span
-      className={`shrink-0 rounded-full px-1.5 py-0.5 text-[12px] font-medium leading-none ${
+      className={`shrink-0 rounded-full px-1.5 py-0.5 text-12 font-medium leading-none ${
         tone === "dark" ? "bg-zinc-950/85 text-white" : "bg-white/15 text-white"
       }`}
     >
@@ -212,7 +212,7 @@ function PhotoStrip({
         </span>
       ))}
       {extra > 0 ? (
-        <span className="grid h-[18px] shrink-0 place-items-center rounded-full bg-white/10 px-1.5 text-[11px] font-semibold leading-none tabular-nums text-zinc-200">
+        <span className="grid h-[18px] shrink-0 place-items-center rounded-full bg-white/10 px-1.5 text-11 font-semibold leading-none tabular-nums text-zinc-200">
           +{extra}
         </span>
       ) : null}
@@ -255,14 +255,14 @@ function PodiumPlace({ entry, boardId }: { entry: BoardRow; boardId: string }) {
         <TeamBadge username={labels.username} inLink />
       </span>
       {labels.detail ? (
-        <span className="block w-full min-w-0 truncate px-1 text-[11px] text-zinc-400">{labels.detail}</span>
+        <span className="block w-full min-w-0 truncate px-1 text-11 text-zinc-400">{labels.detail}</span>
       ) : null}
       {boardId === "most-cards-added" ? (
         <PhotoStrip photos={entry.photos ?? []} max={3} width={22} height={31} more />
       ) : null}
       <span className="mt-1 flex max-w-full items-baseline justify-center gap-1 whitespace-nowrap px-1">
         <span className="shrink-0 text-lg font-semibold leading-none tabular-nums text-white">{entry.score}</span>
-        <span className="min-w-0 truncate text-[11px] font-semibold text-zinc-400">{entry.scoreLabel}</span>
+        <span className="min-w-0 truncate text-11 font-semibold text-zinc-400">{entry.scoreLabel}</span>
       </span>
       <span
         className={`lb-banner lb-banner-${rank} relative mt-2 flex w-full flex-col items-center justify-start gap-1 overflow-hidden rounded-t-xl pt-2 text-zinc-950 ${
@@ -272,7 +272,7 @@ function PodiumPlace({ entry, boardId }: { entry: BoardRow; boardId: string }) {
         {rank === 1 ? (
           <Crown data-crown="" aria-hidden="true" className="h-5 w-5 fill-zinc-950/15" strokeWidth={2.4} />
         ) : null}
-        <span className="rounded-sm bg-zinc-950/85 px-1.5 py-[3px] font-mono text-[11px] font-semibold leading-none tracking-[0.16em] text-white">
+        <span className="rounded-sm bg-zinc-950/85 px-1.5 py-[3px] font-mono text-11 font-semibold leading-none tracking-[0.16em] text-white">
           {PLACE[rank]}
         </span>
         {entry.isNew || entry.mine ? (
@@ -297,7 +297,7 @@ function GhostPlace({ spot }: { spot: OpenSpot }) {
         {spot.title}
       </span>
       {spot.ctaLabel ? (
-        <span className="block w-full min-w-0 truncate px-1 text-[11px] font-semibold text-[#A78BFA]">{spot.ctaLabel}</span>
+        <span className="block w-full min-w-0 truncate px-1 text-11 font-semibold text-[#A78BFA]">{spot.ctaLabel}</span>
       ) : null}
       <span
         className={`mt-2 flex w-full flex-col items-center gap-1 rounded-t-xl border-2 border-b-0 border-dashed border-current pt-2 ${
@@ -312,7 +312,7 @@ function GhostPlace({ spot }: { spot: OpenSpot }) {
             <Plus className="h-3.5 w-3.5" strokeWidth={2.6} />
           </span>
         ) : null}
-        <span className="font-mono text-[11px] font-semibold leading-none tracking-[0.16em]">{PLACE[spot.rank]}</span>
+        <span className="font-mono text-11 font-semibold leading-none tracking-[0.16em]">{PLACE[spot.rank]}</span>
       </span>
     </>
   );
@@ -363,10 +363,10 @@ function OpenSpotsLine({
           ))}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[15px] font-semibold tracking-tight text-white">
+          <span className="block truncate text-15 font-semibold tracking-tight text-white">
             {count?.replace(/\.$/, "")}
           </span>
-          {join ? <span className="block truncate text-[13px] text-zinc-400">{join.replace(/\.$/, "")}</span> : null}
+          {join ? <span className="block truncate text-13 text-zinc-400">{join.replace(/\.$/, "")}</span> : null}
         </span>
         <span
           aria-hidden="true"
@@ -429,7 +429,7 @@ function LastWeekPreview({ board }: { board: LeaderboardBoard }) {
       </ol>
       <Link
         href={leaderboardHref("previous", board.id)}
-        className={`flex min-h-11 items-center rounded-xl px-2 text-[13px] font-medium text-zinc-400 transition-colors hover:text-white ${FOCUS_RING}`}
+        className={`flex min-h-11 items-center rounded-xl px-2 text-13 font-medium text-zinc-400 transition-colors hover:text-white ${FOCUS_RING}`}
       >
         See last week
       </Link>
@@ -443,10 +443,10 @@ function LastWeekLine({ row }: { row: LastWeekRow }) {
       href={row.username ? userHref(row.username) : null}
       className="flex min-h-11 min-w-0 items-center gap-2.5 rounded-xl px-2 transition-colors hover:bg-white/[0.04]"
     >
-      <span className="w-5 shrink-0 text-center text-[13px] font-medium tabular-nums text-zinc-400">{row.rank}</span>
+      <span className="w-5 shrink-0 text-center text-13 font-medium tabular-nums text-zinc-400">{row.rank}</span>
       <Avatar title={row.displayName} accent="#3f3f46" url={row.avatarUrl} size={28} />
       <span className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-200">{row.displayName}</span>
-      <span className="shrink-0 whitespace-nowrap text-[13px] tabular-nums text-zinc-400">{row.scoreText}</span>
+      <span className="shrink-0 whitespace-nowrap text-13 tabular-nums text-zinc-400">{row.scoreText}</span>
     </RowShell>
   );
 }
@@ -478,7 +478,7 @@ function RankRow({ entry, boardId }: { entry: BoardRow; boardId: string }) {
       </span>
       <span className="shrink-0 whitespace-nowrap text-right">
         <span className="text-base font-semibold tabular-nums text-white">{entry.score}</span>
-        <span className="ml-1 text-[11px] text-zinc-400">{entry.scoreLabel}</span>
+        <span className="ml-1 text-11 text-zinc-400">{entry.scoreLabel}</span>
       </span>
     </RowShell>
   );
@@ -546,7 +546,7 @@ function PinnedSpot({ you, board, week }: { you: YouRow; board: LeaderboardBoard
       ) : (
         <span aria-hidden="true" className="h-7 w-7 shrink-0 rounded-full border-2 border-dashed border-white/25" />
       )}
-      <span className="min-w-0 flex-1 break-words text-[13px] font-semibold leading-4 text-white">
+      <span className="min-w-0 flex-1 break-words text-13 font-semibold leading-4 text-white">
         {spotLine(you, board.scoreLabel, week)}
       </span>
       <span className="sr-only">{you.label}</span>
@@ -578,7 +578,7 @@ function Board({ board, week }: { board: LeaderboardBoard; week: "current" | "pr
           <Icon className="h-5 w-5" />
         </span>
         <div className="min-w-0">
-          <h2 id={`board-${board.id}-title`} className="text-[17px] font-semibold leading-tight tracking-tight text-white">
+          <h2 id={`board-${board.id}-title`} className="text-17 font-semibold leading-tight tracking-tight text-white">
             {board.label}
           </h2>
           <p className="mt-0.5 text-sm leading-5 text-zinc-400">
@@ -617,9 +617,9 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
     <div className="-mx-4 -mt-5 bg-zinc-950 text-zinc-100" data-leaderboard="">
       <style>{LEADERBOARD_STYLES}</style>
       <div className="px-4 pt-4 pb-3">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-3 big:flex-wrap">
           <div className="min-w-0">
-            <h1 className="text-[28px] font-semibold leading-tight tracking-tight text-white">{model.title}</h1>
+            <h1 className="text-[1.75rem] font-semibold leading-tight tracking-tight text-white">{model.title}</h1>
           </div>
           <ShareIconButton path={LEADERBOARD_PATH} title={model.title} label="Share" />
         </div>
@@ -627,7 +627,7 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
           <span className="whitespace-nowrap font-medium text-zinc-100">{model.weekLabel}</span>
           <span
             data-standing=""
-            className={`rounded-full px-2 py-1 text-[13px] font-medium leading-none ${
+            className={`rounded-full px-2 py-1 text-13 font-medium leading-none ${
               closed ? "bg-white/10 text-zinc-300" : "bg-violet-500/20 text-[#A78BFA]"
             }`}
           >
@@ -668,19 +668,19 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
           </summary>
           <div className="absolute inset-x-0 top-full z-20 max-h-[60vh] overflow-y-auto rounded-2xl border border-white/10 bg-[#18181B] p-4 shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
             <p className="text-sm font-semibold text-white">{RULES_SHEET_LABEL}</p>
-            <p className="mt-1 text-[13px] leading-5 text-zinc-400">{model.description}</p>
+            <p className="mt-1 text-13 leading-5 text-zinc-400">{model.description}</p>
             {model.standingNote ? (
-              <p className="mt-1 text-[13px] leading-5 text-zinc-400" data-closed-note="">
+              <p className="mt-1 text-13 leading-5 text-zinc-400" data-closed-note="">
                 {model.standingNote}
               </p>
             ) : null}
             <div className="mt-3 space-y-4">
               {model.rules.map((board) => (
                 <div key={board.id}>
-                  <p className="text-[13px] font-medium" style={{ color: boardAccent(board.id) }}>
+                  <p className="text-13 font-medium" style={{ color: boardAccent(board.id) }}>
                     {board.label}
                   </p>
-                  <ul className="mt-1.5 list-disc space-y-1 pl-4 text-[13px] leading-5 text-zinc-300">
+                  <ul className="mt-1.5 list-disc space-y-1 pl-4 text-13 leading-5 text-zinc-300">
                     {board.lines.map((line) => (
                       <li key={line}>{line}</li>
                     ))}
@@ -694,7 +694,7 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
 
       {model.status === "error" ? (
         <div className="mx-3 mt-3 mb-8 rounded-3xl border border-white/10 px-6 py-12 text-center" data-board-error="">
-          <p className="text-[17px] font-semibold tracking-tight text-white">{model.errorTitle}</p>
+          <p className="text-17 font-semibold tracking-tight text-white">{model.errorTitle}</p>
           <p className="mx-auto mt-1.5 max-w-[18rem] text-sm leading-5 text-zinc-400">{model.errorDetail}</p>
           <LeaderboardRetry />
         </div>

@@ -30,12 +30,12 @@ export function ScanAddCard({ scanId }: { scanId: string }) {
 function ScanAddSkeleton() {
   return (
     <div aria-busy="true" aria-label="Loading your card" className="mx-auto w-full max-w-lg space-y-5 py-2">
-      <div className="h-7 w-40 rounded-md bg-zinc-200 motion-safe:animate-pulse dark:bg-white/10" />
-      <div className="mx-auto aspect-[5/7] w-40 rounded-2xl bg-zinc-200 motion-safe:animate-pulse dark:bg-white/10" />
+      <div className="skeleton-shimmer h-7 w-40 rounded-md" />
+      <div className="skeleton-shimmer mx-auto aspect-[5/7] w-40 rounded-2xl" />
       <div className="space-y-3">
-        <div className="h-12 rounded-xl bg-zinc-200 motion-safe:animate-pulse dark:bg-white/10" />
-        <div className="h-12 rounded-xl bg-zinc-200 motion-safe:animate-pulse dark:bg-white/10" />
-        <div className="h-12 rounded-xl bg-zinc-200 motion-safe:animate-pulse dark:bg-white/10" />
+        <div className="skeleton-shimmer h-12 rounded-xl" />
+        <div className="skeleton-shimmer h-12 rounded-xl" />
+        <div className="skeleton-shimmer h-12 rounded-xl" />
       </div>
     </div>
   );

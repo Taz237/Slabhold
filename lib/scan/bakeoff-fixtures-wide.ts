@@ -474,6 +474,8 @@ export const WIDE_BAKEOFF_CASES: BakeoffCase[] = [
 
   // ── Brand-new products, no sales yet (Donnie's device tests) ───────────────
   {
+    // Knight is on the wider player list now (college rosters), so he is no longer "new to us".
+    // The same card with a name on no list is in bakeoff-fixtures-players.ts.
     name: "New product: Knight, 2026 Bowman U Chrome 1st Bowman /10, not in our list, SKU on the back",
     front: ["BOWMAN", "1ST", "WAYNE KNIGHT", "RB", "03/10"],
     back: [
@@ -488,13 +490,13 @@ export const WIDE_BAKEOFF_CASES: BakeoffCase[] = [
       "WWW.TOPPS.COM",
       "CMP#148134",
     ],
-    truth: { player: "Wayne Knight", year: "2026", set: "Bowman U Chrome", number: "BCP-68", parallel: "", run: 10, firstBowman: true, auto: false, playerNew: true },
+    truth: { player: "Wayne Knight", year: "2026", set: "Bowman U Chrome", number: "BCP-68", parallel: "", run: 10, firstBowman: true, auto: false, playerNew: false },
   },
   {
     name: "New product: Knight, the front name unread, the position line above the name on the back",
     front: ["1ST BOWMAN", "03/10"],
     back: ["RUNNING BACK", "WAYNE KNIGHT", "UCLA", "BCP-68", "© 2026 THE TOPPS COMPANY", "TOPPS AND BOWMAN CHROME ARE REGISTERED TRADEMARKS", "WWW.TOPPS.COM", "CMP#148134"],
-    truth: { player: "Wayne Knight", year: "2026", set: "Bowman U Chrome", number: "BCP-68", parallel: "", run: 10, firstBowman: true, auto: false, playerNew: true },
+    truth: { player: "Wayne Knight", year: "2026", set: "Bowman U Chrome", number: "BCP-68", parallel: "", run: 10, firstBowman: true, auto: false, playerNew: false },
   },
   {
     name: "New product: Lemon, 2026 Topps Inception rookie auto variation, no sales yet",

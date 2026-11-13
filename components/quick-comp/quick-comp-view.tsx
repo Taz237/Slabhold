@@ -163,11 +163,11 @@ function ManualForm({
   }
 
   const input = `${control} w-full px-3 text-base sm:text-sm placeholder:text-zinc-400 dark:placeholder:text-zinc-500`;
-  const label = `mb-1.5 block text-[13px] leading-5 font-medium ${textSecondary}`;
+  const label = `mb-1.5 block text-13 leading-5 font-medium ${textSecondary}`;
   return (
     <form data-quick-comp-state="manual" onSubmit={submit} noValidate className="flex flex-col gap-3 rounded-2xl p-4 ring-1 ring-zinc-950/10 dark:ring-white/10">
       <div className="flex h-5 items-center justify-between">
-        <h2 className="text-[15px] leading-5 font-medium">Enter the card</h2>
+        <h2 className="text-15 leading-5 font-medium">Enter the card</h2>
       </div>
       <div className="grid grid-cols-[1fr_7rem] gap-2">
         <label className="block min-w-0">
@@ -217,7 +217,7 @@ function ManualForm({
         </label>
       </div>
       {tried && (!playerOk || !yearOk) ? (
-        <p role="alert" className="text-[13px] leading-5 text-rose-700 dark:text-rose-300">
+        <p role="alert" className="text-13 leading-5 text-rose-700 dark:text-rose-300">
           {!playerOk ? "Add the player" : "Add a year like 2023 or 2023-24"}
         </p>
       ) : null}
@@ -606,7 +606,7 @@ export function QuickCompView({ userId }: { userId: string | null }) {
           <button
             type="button"
             onClick={openManual}
-            className={`-ml-1 mt-1 inline-flex min-h-11 items-center rounded-[10px] px-1 text-[13px] font-medium ${textSecondary} hover:text-zinc-950 dark:hover:text-zinc-50 ${feedback} ${focusRing}`}
+            className={`-ml-1 mt-1 inline-flex min-h-11 items-center rounded-[10px] px-1 text-13 font-medium ${textSecondary} hover:text-zinc-950 dark:hover:text-zinc-50 ${feedback} ${focusRing}`}
           >
             {MANUAL_LABEL}
           </button>
@@ -647,10 +647,10 @@ export function QuickCompView({ userId }: { userId: string | null }) {
         <section aria-labelledby="quick-comp-card" className="flex flex-col gap-4">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <h2 id="quick-comp-card" className="truncate text-[17px] leading-6 font-semibold">
+              <h2 id="quick-comp-card" className="truncate text-17 leading-6 font-semibold">
                 {picked.identity.playerName}
               </h2>
-              <p className={`truncate text-[13px] leading-5 ${textSecondary}`}>{identityLine(picked.identity)}</p>
+              <p className={`truncate text-13 leading-5 ${textSecondary}`}>{identityLine(picked.identity)}</p>
             </div>
           </div>
           <GradeControl

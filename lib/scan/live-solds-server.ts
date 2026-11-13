@@ -4,7 +4,7 @@ import { unstable_cache } from "next/cache";
 import { loadProductData } from "@/lib/cards/product-data";
 import { getCompsSource, payloadFromSales } from "@/lib/comps";
 import { fetchTrawlSold, getTrawlApiKey } from "@/lib/comps/trawl";
-import { INDEXED_DIRECTORY } from "@/lib/players/directory";
+import { SCAN_DIRECTORY } from "@/lib/players/scan-directory";
 import { loadSharedQuickComp, type CacheFn } from "@/lib/quick-comp/cache";
 import type { QuickCompPayload } from "@/lib/quick-comp/lookup";
 import { serverQuickCompLimits } from "@/lib/quick-comp/limits-server";
@@ -29,7 +29,7 @@ const devLog: LiveSoldsDeps["log"] =
 
 export const serverLiveSoldsDeps: LiveSoldsDeps = {
   log: devLog,
-  directory: INDEXED_DIRECTORY,
+  directory: SCAN_DIRECTORY,
   products: loadProductData,
   cachedTitles: searchCachedSoldTitles,
   quickCompCache: serverScanCompDeps.quickCompCache,

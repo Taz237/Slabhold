@@ -73,12 +73,12 @@ export function ReviewValue({
                   className="min-w-0 rounded-xl bg-zinc-100 px-2 py-1.5 text-center dark:bg-white/[0.05]"
                 >
                   <span className="block truncate text-sm font-semibold tabular-nums">{sale.priceText}</span>
-                  <span className="block truncate text-[11px] text-zinc-500 tabular-nums">{sale.dateText ?? "Recently"}</span>
+                  <span className="block truncate text-11 text-zinc-500 tabular-nums">{sale.dateText ?? "Recently"}</span>
                 </li>
               ))}
             </ul>
           ) : null}
-          <p className="mt-1.5 text-[11px] text-zinc-500">{view.caption}</p>
+          <p className="mt-1.5 text-11 text-zinc-500">{view.caption}</p>
         </div>
       ) : view.kind === "later" ? (
         <p className="text-sm text-zinc-500">{view.text}</p>

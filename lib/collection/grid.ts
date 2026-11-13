@@ -61,7 +61,7 @@ export function slabTone(card: GradeFields): SlabTone {
 }
 
 /** 2 columns at 390px, 3 at sm, 4 at lg, 12px gaps. */
-export const GRID_CLASS = "grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4";
+export const GRID_CLASS = "grid grid-cols-2 gap-3 big:grid-cols-1 sm:grid-cols-3 lg:grid-cols-4";
 
 export const TILE_IMAGE_SIZES =
   "(min-width: 1024px) 22vw, (min-width: 640px) 30vw, 46vw";

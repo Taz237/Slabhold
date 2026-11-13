@@ -390,14 +390,14 @@ export function ComposeView() {
                 <button
                   type="button"
                   onClick={discard}
-                  className="min-h-11 rounded-full bg-rose-600 text-[15px] font-semibold text-white active:bg-rose-700"
+                  className="min-h-11 rounded-full bg-rose-600 text-15 font-semibold text-white active:bg-rose-700"
                 >
                   Discard
                 </button>
                 <button
                   type="button"
                   onClick={() => setConfirmDiscard(false)}
-                  className="min-h-11 rounded-full border border-zinc-300 text-[15px] font-semibold active:bg-zinc-100 dark:border-white/15 dark:active:bg-white/5"
+                  className="min-h-11 rounded-full border border-zinc-300 text-15 font-semibold active:bg-zinc-100 dark:border-white/15 dark:active:bg-white/5"
                 >
                   Keep editing
                 </button>
@@ -456,7 +456,7 @@ export function ComposeView() {
                   autoFocus
                   menu="inline"
                   placeholder={quoteId ? "Add a comment" : "What's happening?"}
-                  className="block w-full resize-none overflow-hidden bg-transparent pt-2 text-[17px] leading-6 caret-[#7C3AED] outline-none placeholder:text-zinc-500"
+                  className="block w-full resize-none overflow-hidden bg-transparent pt-2 text-17 leading-6 caret-[#7C3AED] outline-none placeholder:text-zinc-500"
                 />
                 {error ? <p className="mt-3 text-sm text-rose-600 dark:text-rose-400">{error}</p> : null}
                 {photoError ? (
@@ -517,7 +517,7 @@ export function ComposeView() {
                 className="absolute inset-x-2 bottom-full mb-2 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl motion-safe:animate-[composer-in_180ms_cubic-bezier(0.2,0.7,0.2,1)_backwards] dark:border-white/10 dark:bg-zinc-900"
               >
                 <div className="flex items-center justify-between py-1 pr-1 pl-4">
-                  <p className="text-[13px] font-semibold text-zinc-500">Attach a card</p>
+                  <p className="text-13 font-semibold text-zinc-500">Attach a card</p>
                   <button
                     type="button"
                     onClick={() => setPickerOpen(false)}
@@ -605,7 +605,7 @@ export function ComposeView() {
 }
 
 const POST_PILL =
-  "hit-44 h-8 rounded-full bg-[#7C3AED] px-4 text-[15px] font-semibold text-white transition-colors active:bg-[#5B21B6] disabled:opacity-50";
+  "hit-44 h-8 rounded-full bg-[#7C3AED] px-4 text-15 font-semibold text-white transition-colors active:bg-[#5B21B6] disabled:opacity-50";
 
 const TOOL_BUTTON =
   "grid h-11 w-11 shrink-0 place-items-center rounded-full text-[#7C3AED] transition-colors active:bg-violet-500/10 disabled:opacity-40 dark:text-[#A78BFA]";
@@ -726,7 +726,7 @@ function ComposeTopRow({ onCancel, children }: { onCancel: () => void; children:
       <button
         type="button"
         onClick={onCancel}
-        className="min-h-11 rounded-full px-2 text-[15px] text-zinc-700 active:opacity-60 dark:text-zinc-300"
+        className="min-h-11 rounded-full px-2 text-15 text-zinc-700 active:opacity-60 dark:text-zinc-300"
       >
         Cancel
       </button>
@@ -752,8 +752,8 @@ export function ComposeFallback() {
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-white md:hidden dark:bg-[#09090B]">
       <div className="box-content flex h-11 shrink-0 items-center justify-between pt-[env(safe-area-inset-top)] pr-4 pl-4">
-        <span className="text-[15px] text-zinc-700 dark:text-zinc-300">Cancel</span>
-        <span className="flex h-8 items-center rounded-full bg-[#7C3AED] px-4 text-[15px] font-semibold text-white opacity-50">
+        <span className="text-15 text-zinc-700 dark:text-zinc-300">Cancel</span>
+        <span className="flex h-8 items-center rounded-full bg-[#7C3AED] px-4 text-15 font-semibold text-white opacity-50">
           Post
         </span>
       </div>

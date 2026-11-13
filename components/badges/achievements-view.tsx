@@ -109,12 +109,12 @@ function Achievements({ state }: { state: AchievementsState }) {
           <div className="flex items-center justify-between gap-2">
             <h2
               id="pinned-heading"
-              className="text-[13px] font-medium text-[#A78BFA]"
+              className="text-13 font-medium text-[#A78BFA]"
             >
               Pinned on your profile
             </h2>
             {shown.length > 0 && auto ? (
-              <span className="rounded-full bg-white/10 px-2 py-0.5 text-[12px] text-zinc-300">
+              <span className="rounded-full bg-white/10 px-2 py-0.5 text-12 text-zinc-300">
                 Auto
               </span>
             ) : null}
@@ -124,7 +124,7 @@ function Achievements({ state }: { state: AchievementsState }) {
               {shown.map((badge) => (
                 <li key={formatPin(badge)} className="flex min-w-0 flex-col items-center text-center">
                   <Badge category={badge.category} tier={badge.tier} size={72} label="" />
-                  <p className="mt-1.5 w-full truncate text-[13px] font-semibold">
+                  <p className="mt-1.5 w-full truncate text-13 font-semibold">
                     {CATEGORY_COPY[badge.category].label}
                   </p>
                   <p
@@ -238,12 +238,12 @@ function CategoryRow({ status, onOpen }: { status: CategoryStatus; onOpen: () =>
       )}
       <span className="min-w-0 flex-1">
         <span className="flex items-baseline gap-1.5">
-          <span className="truncate text-[15px] font-semibold">{copy.label}</span>
+          <span className="truncate text-15 font-semibold">{copy.label}</span>
           {current ? (
             <span className="shrink-0 text-xs text-zinc-500">{TIER_LABELS[current]}</span>
           ) : null}
         </span>
-        <span className="mt-0.5 block text-[13px] text-zinc-500 tabular-nums">{status.line}</span>
+        <span className="mt-0.5 block text-13 text-zinc-500 tabular-nums">{status.line}</span>
       </span>
       {status.next ? (
         <Badge
@@ -402,10 +402,10 @@ function TierRow({
         label={badgeLabel(category, tier, !earned)}
       />
       <div className="min-w-0 flex-1">
-        <p className={`text-[15px] font-semibold ${tier === "legendary" ? "text-violet-700 dark:text-[#A78BFA]" : ""}`}>
+        <p className={`text-15 font-semibold ${tier === "legendary" ? "text-violet-700 dark:text-[#A78BFA]" : ""}`}>
           {TIER_LABELS[tier]}
         </p>
-        <p className="text-[13px] text-zinc-500 tabular-nums">
+        <p className="text-13 text-zinc-500 tabular-nums">
           {earned ? `${target} ${unit} · ${earnedDate(earned.earnedAt)}` : `${Math.min(value, target)} / ${target} ${unit}`}
         </p>
       </div>

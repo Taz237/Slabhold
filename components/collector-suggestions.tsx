@@ -33,7 +33,7 @@ export function CollectorSuggestions({
       className={`scroll-mt-28 py-4 ${bordered ? "border-b border-zinc-200/70 dark:border-white/[0.07]" : ""}`}
     >
       <div className="mb-3 flex min-h-11 items-center justify-between gap-2 px-4 max-md:pr-20">
-        <h2 className="text-[15px] font-semibold tracking-tight">{title}</h2>
+        <h2 className="text-15 font-semibold tracking-tight">{title}</h2>
         {pending.length > 0 ? (
           <button
             type="button"
@@ -79,7 +79,7 @@ export function CollectorSuggestions({
               <TeamBadge username={profile.username} />
             </span>
             <p className="w-full truncate text-xs text-zinc-500">@{profile.username}</p>
-            <p className="mt-1 line-clamp-1 min-h-4 w-full text-[11px] text-zinc-500">
+            <p className="mt-1 line-clamp-1 min-h-4 w-full text-11 text-zinc-500">
               {profile.suggestionReason ?? ""}
             </p>
             <div className="mt-3">
@@ -100,7 +100,7 @@ export function FollowingEmpty({ profiles }: { profiles: Suggestion[] }) {
         <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full bg-violet-600/10 text-violet-600 dark:bg-violet-500/15 dark:text-[#A78BFA]">
           <Compass className="h-5 w-5" aria-hidden="true" />
         </div>
-        <p className="text-[17px] font-semibold tracking-tight">Your Following feed is quiet</p>
+        <p className="text-17 font-semibold tracking-tight">Your Following feed is quiet</p>
         <p className="mx-auto mt-1.5 max-w-[19rem] text-sm leading-5 text-zinc-500">
           Follow a few collectors and their posts, pickups and cards land here.
         </p>
@@ -140,7 +140,7 @@ export function WhoToFollowCard({ profiles: offered }: { profiles: Suggestion[] 
           <span className="grid h-7 w-7 place-items-center rounded-full bg-violet-600 text-white" aria-hidden="true">
             <UsersRound className="h-3.5 w-3.5" />
           </span>
-          <h2 className="text-[15px] font-semibold tracking-tight">Who to follow</h2>
+          <h2 className="text-15 font-semibold tracking-tight">Who to follow</h2>
         </div>
         <ul className="relative">
           {profiles.map((profile) => (
@@ -158,13 +158,13 @@ export function WhoToFollowCard({ profiles: offered }: { profiles: Suggestion[] 
                 <span className="flex min-w-0 items-center gap-1">
                   <Link
                     href={userHref(profile.username)}
-                    className="block min-w-0 truncate text-[15px] leading-5 font-semibold tracking-tight hover:underline"
+                    className="block min-w-0 truncate text-15 leading-5 font-semibold tracking-tight hover:underline"
                   >
                     {profile.displayName}
                   </Link>
                   <TeamBadge username={profile.username} />
                 </span>
-                <p className="truncate text-[13px] leading-5 text-zinc-500">
+                <p className="truncate text-13 leading-5 text-zinc-500">
                   @{profile.username}
                   {profile.suggestionReason ? ` · ${profile.suggestionReason}` : ""}
                 </p>

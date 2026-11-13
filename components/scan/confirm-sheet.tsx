@@ -167,7 +167,7 @@ function Ready({
         />
         {pick?.serialRun ? (
           <div className="mt-4">
-            <label htmlFor={serialId} className="text-[13px] font-medium text-zinc-500 dark:text-zinc-400">
+            <label htmlFor={serialId} className="text-13 font-medium text-zinc-500 dark:text-zinc-400">
               {CONFIRM_COPY.serialLabel}
             </label>
             <div className="mt-2 flex items-center gap-3">
@@ -208,9 +208,9 @@ function Ready({
 
       <OtherMatches rows={rows} onPromote={promote} photo={photo} />
 
-      <div className="flex items-center justify-center gap-2">
+      <div className="flex items-center justify-center gap-2 big:flex-col">
         <QuietButton onClick={onStepByStep}>{CONFIRM_COPY.noneOfThese}</QuietButton>
-        <span aria-hidden className="text-zinc-300 dark:text-white/20">
+        <span aria-hidden className="text-zinc-300 big:hidden dark:text-white/20">
           ·
         </span>
         <QuietButton onClick={onRetake}>{CONFIRM_COPY.retake}</QuietButton>

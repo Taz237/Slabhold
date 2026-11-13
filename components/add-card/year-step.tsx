@@ -106,7 +106,7 @@ export function YearStep({
             {catalog.length > 0 ? (
               <>
                 <p className="text-sm font-semibold">Or pick one of their cards</p>
-                <ul className="grid grid-cols-2 gap-2">
+                <ul className="grid grid-cols-2 big:grid-cols-1 gap-2">
                   {catalog.slice(0, 8).map((card) => (
                     <li key={card.id}>
                       <button
@@ -114,7 +114,7 @@ export function YearStep({
                         onClick={() => onCatalogPick(card)}
                         className={`flex min-h-20 w-full flex-col justify-between rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-left hover:border-violet-400 dark:border-white/10 dark:bg-white/[0.04] ${focusRing}`}
                       >
-                        <span className="text-[13px] text-zinc-500">
+                        <span className="text-13 text-zinc-500">
                           {card.yearLabel}
                         </span>
                         <span className="mt-1 line-clamp-2 text-sm leading-tight font-semibold">

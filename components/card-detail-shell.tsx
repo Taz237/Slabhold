@@ -50,7 +50,7 @@ export function CardTopBar({
   disabled?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3">
+    <div className="flex items-center justify-between gap-3 big:flex-wrap">
       <Link
         href="/collection"
         data-nav-back=""
@@ -59,7 +59,7 @@ export function CardTopBar({
         <ArrowLeft className="h-4 w-4" />
         Collection
       </Link>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 big:flex-wrap">
         <button
           type="button"
           className={editButtonClass}
@@ -98,7 +98,7 @@ export function CardHero({
   const [shape, onShape] = useCardShape(card.photoDataUrl);
   return (
     <section data-slot="card-hero">
-      <div className={shape === "landscape" ? "mx-auto aspect-[7/5] w-full max-w-[22rem]" : "mx-auto h-72 w-48"}>
+      <div className={shape === "landscape" ? "mx-auto aspect-[7/5] w-full max-w-[22rem]" : "mx-auto aspect-[2/3] w-48 max-w-full"}>
         <CardThumb
           card={card}
           priority
@@ -165,7 +165,7 @@ export function SalesChartPending({
         bareEstimate && priceLabel ? (
           <p className="text-3xl leading-10 font-semibold tracking-tight tabular-nums">{priceLabel}</p>
         ) : priceLabel ? (
-          <p className="max-w-full text-xl leading-[26px] font-semibold tracking-tight">
+          <p className="max-w-full text-xl leading-[1.625rem] font-semibold tracking-tight">
             <PriceFallbackText text={priceLabel} />
           </p>
         ) : undefined
@@ -199,7 +199,7 @@ export function CardTalkSkeleton({
         {Array.from({ length: 2 }, (_, i) => (
           <div
             key={i}
-            className="h-16 animate-pulse rounded-xl bg-zinc-100 dark:bg-white/5"
+            className="h-16 skeleton-shimmer rounded-xl"
           />
         ))}
       </div>
@@ -213,9 +213,9 @@ function CardDetailFallback() {
       <span className="sr-only">Loading card</span>
       <CardTopBar disabled />
       <div data-slot="card-hero">
-        <div className="mx-auto h-72 w-48 animate-pulse rounded-2xl bg-zinc-200/80 dark:bg-white/10" />
-        <div className="mx-auto mt-4 h-8 w-48 animate-pulse rounded-lg bg-zinc-200/80 dark:bg-white/10" />
-        <div className="mx-auto mt-2 h-4 w-36 animate-pulse rounded bg-zinc-200/70 dark:bg-white/5" />
+        <div className="skeleton-shimmer mx-auto aspect-[2/3] w-48 max-w-full rounded-2xl" />
+        <div className="mx-auto mt-4 h-8 w-48 skeleton-shimmer rounded-lg" />
+        <div className="mx-auto mt-2 h-4 w-36 skeleton-shimmer rounded" />
       </div>
       <SalesChartPending />
       <SalesListPending />

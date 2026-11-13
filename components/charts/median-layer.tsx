@@ -99,7 +99,7 @@ export function medianLayers(g: LayerGeom): ChartLayers {
     front: (
       <g data-chart-pill="" className={CHART.pill} pointerEvents="none">
         <rect x={x + 0.5} y={cy - PILL_H / 2} width={w - 1} height={PILL_H} rx={PILL_H / 2} strokeWidth={1} />
-        <text x={x + w / 2} y={cy} dy="0.34em" textAnchor="middle" className="text-[10.5px] font-medium tabular-nums">
+        <text x={x + w / 2} y={cy} dy="0.34em" textAnchor="middle" className="text-[0.6562rem] font-medium tabular-nums">
           {g.ref.label}
         </text>
       </g>

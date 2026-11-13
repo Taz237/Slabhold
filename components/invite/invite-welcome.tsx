@@ -110,7 +110,7 @@ export function InviteWelcomeNote({
     >
       <Avatar name={name} image={inviter.avatarUrl} expandable={false} className="mt-0.5 h-11 w-11 shrink-0" />
       <div className="min-w-0 flex-1 pt-0.5">
-        <p className="text-[14px] leading-5">
+        <p className="text-14 leading-5">
           {outcome === "mutual" ? (
             <>
               You&apos;re following <b className="font-semibold">{name}</b>, and they follow you back.
@@ -130,7 +130,7 @@ export function InviteWelcomeNote({
             <button
               type="button"
               onClick={onUndo}
-              className="-ml-3 min-h-11 rounded-full px-3 text-[14px] font-semibold text-violet-700 hover:bg-violet-600/10 focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:outline-none dark:text-[#A78BFA]"
+              className="-ml-3 min-h-11 rounded-full px-3 text-14 font-semibold text-violet-700 hover:bg-violet-600/10 focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:outline-none dark:text-[#A78BFA]"
             >
               Undo
             </button>

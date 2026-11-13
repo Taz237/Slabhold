@@ -38,7 +38,7 @@ export function CharacterRing({ length, limit }: { length: number; limit: number
         />
       </svg>
       {ring.label ? (
-        <span className="absolute text-[11px] font-medium whitespace-nowrap tabular-nums">{ring.label}</span>
+        <span className="absolute text-11 font-medium whitespace-nowrap tabular-nums">{ring.label}</span>
       ) : null}
     </span>
   );

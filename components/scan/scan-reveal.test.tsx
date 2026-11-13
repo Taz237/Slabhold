@@ -85,7 +85,7 @@ describe("scan reveal", () => {
       const dialog = view.host.querySelector('[role="dialog"]')!;
       assert.match(dialog.className, /max-h-\[94dvh\]/);
       const title = win.document.getElementById(dialog.getAttribute("aria-labelledby") ?? "");
-      assert.match(title?.className ?? "", /text-\[13px\]/);
+      assert.match(title?.className ?? "", /text-13/);
       assert.ok(view.host.querySelector('[data-reveal="scan-card"] img'), "the photo, big");
     } finally {
       view.unmount();

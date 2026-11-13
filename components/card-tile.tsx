@@ -178,14 +178,14 @@ export function CardTile({
             <p
               className={
                 compact
-                  ? "min-w-0 truncate text-[13px] leading-[18px] font-semibold tracking-tight"
+                  ? "min-w-0 truncate text-13 leading-[1.125rem] font-semibold tracking-tight"
                   : "min-w-0 truncate text-sm font-semibold tracking-tight"
               }
             >
               {card.playerName}
             </p>
             {card.isRookie ? (
-              <span className="shrink-0 rounded bg-violet-500/15 px-1 text-[12px] leading-4 font-medium text-violet-700 dark:text-[#A78BFA]">
+              <span className="shrink-0 rounded bg-violet-500/15 px-1 text-12 leading-4 font-medium text-violet-700 dark:text-[#A78BFA]">
                 RC
               </span>
             ) : null}
@@ -198,7 +198,7 @@ export function CardTile({
               />
             ) : null}
           </div>
-          <p className={compact ? "truncate text-[11px] leading-4 text-zinc-500 dark:text-zinc-400" : "truncate text-xs text-zinc-500 dark:text-zinc-400"}>
+          <p className={compact ? "truncate text-11 leading-4 text-zinc-500 dark:text-zinc-400" : "truncate text-xs text-zinc-500 dark:text-zinc-400"}>
             {yearSetLine(art)}
           </p>
           <div
@@ -206,19 +206,19 @@ export function CardTile({
           >
             {pricePending ? (
               <span
-                className="h-4 w-16 animate-pulse rounded bg-zinc-200/80 dark:bg-white/10"
+                className="h-4 w-16 skeleton-shimmer rounded"
                 aria-hidden
               />
             ) : price?.muted ? (
               <p
                 data-no-value=""
-                className={`min-w-0 truncate ${compact ? "text-[13px]" : "text-sm"} font-medium tracking-tight text-zinc-500 dark:text-zinc-400`}
+                className={`min-w-0 truncate ${compact ? "text-13" : "text-sm"} font-medium tracking-tight text-zinc-500 dark:text-zinc-400`}
               >
                 {price.text}
               </p>
             ) : (
               <p
-                className={`min-w-0 truncate ${compact ? "text-[13px]" : "text-sm"} font-semibold tracking-tight tabular-nums`}
+                className={`min-w-0 truncate ${compact ? "text-13" : "text-sm"} font-semibold tracking-tight tabular-nums`}
                 title={price?.text}
               >
                 {price?.text}
@@ -265,10 +265,10 @@ export function GainChip({
       className={`inline-flex shrink-0 items-center rounded-full ${
         large
           ? "gap-1 px-2.5 py-1 text-base font-semibold"
-          : `gap-0.5 ${compact ? "px-1" : "px-1.5"} py-0.5 text-[11px] font-semibold`
+          : `gap-0.5 ${compact ? "px-1" : "px-1.5"} py-0.5 text-11 font-semibold`
       } tabular-nums ${MOVE_PILL[gain.tone]}`}
     >
-      <MoveArrow tone={gain.tone} className={large ? "text-[12px] leading-none" : "text-[8px] leading-none"} />
+      <MoveArrow tone={gain.tone} className={large ? "text-12 leading-none" : "text-[8px] leading-none"} />
       <CountUp text={gain.pctText} run={countUp} />
     </span>
   );
@@ -286,7 +286,7 @@ function AddPhotoHint({ href, playerName }: { href: string; playerName: string }
         className={`group/hint pointer-events-auto absolute right-0 bottom-0 rounded-full p-2.5 ${tileFocusRing}`}
       >
         {/* Padding makes the tap target 44px. The pill stays small. */}
-        <span className="inline-flex items-center gap-1 rounded-full bg-black/45 px-2 py-1 text-[11px] font-semibold text-white/90 backdrop-blur-sm transition group-hover/hint:bg-black/60">
+        <span className="inline-flex items-center gap-1 rounded-full bg-black/45 px-2 py-1 text-11 font-semibold text-white/90 backdrop-blur-sm transition group-hover/hint:bg-black/60">
           <Camera className="h-3 w-3" aria-hidden />
           Add photo
         </span>
@@ -299,7 +299,7 @@ function AddPhotoHint({ href, playerName }: { href: string; playerName: string }
 function SoldRibbon() {
   return (
     <span className="pointer-events-none absolute bottom-0 left-0 h-16 w-16 overflow-hidden rounded-bl-lg" aria-hidden>
-      <span className="absolute bottom-[14px] left-[-26px] w-[100px] rotate-45 bg-violet-600 py-0.5 text-center text-[12px] leading-4 font-semibold text-white shadow-md">
+      <span className="absolute bottom-[14px] left-[-26px] w-[100px] rotate-45 bg-violet-600 py-0.5 text-center text-12 leading-4 font-semibold text-white shadow-md">
         Sold
       </span>
     </span>

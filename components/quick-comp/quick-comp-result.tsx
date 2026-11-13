@@ -60,7 +60,7 @@ function StatRow({ comps }: { comps: SavedPayload["comps"] }) {
       {cells.map((cell) => (
         <div key={cell.label} className="flex h-10 flex-col justify-between px-3 first:pl-0 last:pr-0">
           <dt className={`text-xs leading-4 ${textMuted}`}>{cell.label}</dt>
-          <dd className="text-[15px] leading-5 font-medium tabular-nums">{money(cell.value)}</dd>
+          <dd className="text-15 leading-5 font-medium tabular-nums">{money(cell.value)}</dd>
         </div>
       ))}
     </dl>
@@ -84,7 +84,7 @@ export function TrustLine({ payload }: { payload: SavedPayload }) {
     <p data-quick-comp-trust="" className={`flex min-h-5 flex-wrap items-center gap-x-2 gap-y-1 font-mono text-xs leading-5 tabular-nums ${textSecondary}`}>
       {text ? <span>{chartShowsCount ? `Sold ${text}` : text}</span> : null}
       {low ? (
-        <span className="rounded-md bg-amber-500/15 px-1.5 font-sans text-[11px] leading-5 font-medium text-amber-800 dark:text-amber-200">
+        <span className="rounded-md bg-amber-500/15 px-1.5 font-sans text-11 leading-5 font-medium text-amber-800 dark:text-amber-200">
           Low confidence
         </span>
       ) : null}
@@ -130,7 +130,7 @@ export function QuickCompResult({
   return (
     <div data-quick-comp-state={empty ? "empty" : "result"} className="flex flex-col gap-3">
       {savedAt ? (
-        <div className={`flex min-h-11 items-center justify-between gap-3 text-[13px] ${textMuted}`}>
+        <div className={`flex min-h-11 items-center justify-between gap-3 text-13 ${textMuted}`}>
           <span>{ago ? `Saved ${ago}` : "Saved on this device"}</span>
           {onRefresh ? (
             <button
@@ -191,7 +191,7 @@ export function QuickCompResult({
                 <button
                   type="button"
                   onClick={() => onAlternative(card)}
-                  className={`flex min-h-11 w-full min-w-0 items-center gap-2 rounded-[10px] px-3 py-2 text-left text-[13px] leading-5 ring-1 ring-zinc-950/10 hover:bg-zinc-950/[0.03] dark:ring-white/10 dark:hover:bg-white/[0.04] ${feedback} ${focusRing}`}
+                  className={`flex min-h-11 w-full min-w-0 items-center gap-2 rounded-[10px] px-3 py-2 text-left text-13 leading-5 ring-1 ring-zinc-950/10 hover:bg-zinc-950/[0.03] dark:ring-white/10 dark:hover:bg-white/[0.04] ${feedback} ${focusRing}`}
                 >
                   <span className="shrink-0 font-medium">{card.playerName}</span>
                   <span className={`min-w-0 truncate ${textMuted}`}>{catalogResultLine(card)}</span>

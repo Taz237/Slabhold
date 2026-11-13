@@ -425,7 +425,7 @@ export function SalesChart({
           {caption}
         </span>
         {!selected && showEstimate && lowConfidence && !noSales ? (
-          <span className="shrink-0 rounded-md bg-amber-500/15 px-1.5 text-[11px] leading-4 font-semibold text-amber-800 dark:text-amber-200">
+          <span className="shrink-0 rounded-md bg-amber-500/15 px-1.5 text-11 leading-4 font-semibold text-amber-800 dark:text-amber-200">
             Low confidence
           </span>
         ) : null}

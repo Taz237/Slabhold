@@ -65,7 +65,7 @@ export function ForgotPasswordForm() {
     <div className="mx-auto max-w-md">
       <Link href="/" className="mb-8 flex items-center gap-2">
         <Logo />
-        <span className="text-[17px] font-semibold tracking-tight">Slabhold</span>
+        <span className="text-17 font-semibold tracking-tight">Slabhold</span>
       </Link>
       <h1 className="text-2xl font-semibold tracking-tight">Forgot password</h1>
       {expired && !sent ? (

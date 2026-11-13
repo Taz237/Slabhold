@@ -140,7 +140,7 @@ export function comparableSales(
     if (card.sport && sportWord && sportWord !== card.sport.toLowerCase()) continue;
     // A player we know (in the same sport), else the name the title prints: college players
     // aren't in our list yet. Never the scanned player's own card.
-    const known = findPlayers([title], directory).filter((hit) => hit.score === 1);
+    const known = findPlayers([title], directory).filter((hit) => hit.score === 1 && !hit.more);
     if (known.length > 0 && card.sport && !known.some((hit) => hit.sport === card.sport)) continue;
     const player = known.find((hit) => !card.sport || hit.sport === card.sport)?.name ?? nameInTitle(title);
     if (!player || player.toLowerCase() === self) continue;

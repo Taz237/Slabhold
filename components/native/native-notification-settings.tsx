@@ -172,7 +172,7 @@ export function NativeDeviceCard({
                 type="button"
                 onClick={onTest}
                 disabled={!on || testing}
-                className="tap inline-flex min-h-11 items-center gap-2 rounded-full px-1 text-[15px] font-semibold text-violet-700 focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:outline-none disabled:text-zinc-400 dark:text-[#A78BFA] dark:disabled:text-zinc-600"
+                className="tap inline-flex min-h-11 items-center gap-2 rounded-full px-1 text-15 font-semibold text-violet-700 focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:outline-none disabled:text-zinc-400 dark:text-[#A78BFA] dark:disabled:text-zinc-600"
               >
                 <Send aria-hidden className="h-4 w-4" />
                 {testing ? "Sending…" : "Send a test"}

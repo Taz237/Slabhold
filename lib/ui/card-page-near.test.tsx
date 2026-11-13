@@ -105,7 +105,7 @@ describe("posts section on the card pages", () => {
     act(() => reactRoot!.render(withSocial(createElement(NearCardCollectorsSaying, props))));
     await settle();
     assert.doesNotMatch(host.innerHTML, /No posts yet/);
-    assert.match(host.innerHTML, /animate-pulse/);
+    assert.match(host.innerHTML, /skeleton-shimmer/);
     act(() => scrollNear());
     await settle();
     assert.match(host.innerHTML, /No posts yet\. Be the first\./);

@@ -103,7 +103,7 @@ export function AddCardSheet({ deps: overrides, onClose }: { deps?: Partial<AddC
           {ADD_SHEET_COPY.title}
         </h2>
         <PhotoFileInputs cameraRef={cameraRef} libraryRef={libraryRef} onPick={(file) => void onPick(file)} />
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 big:grid-cols-1 gap-3">
           <button
             type="button"
             data-add-tile="scan"
@@ -114,7 +114,7 @@ export function AddCardSheet({ deps: overrides, onClose }: { deps?: Partial<AddC
             <span className="grid size-12 place-items-center rounded-2xl bg-white/15">
               <Camera className="size-6" strokeWidth={1.75} aria-hidden />
             </span>
-            <span className="text-[17px] font-semibold tracking-tight">{ADD_SHEET_COPY.scan}</span>
+            <span className="text-17 font-semibold tracking-tight">{ADD_SHEET_COPY.scan}</span>
           </button>
           <button
             type="button"
@@ -126,7 +126,7 @@ export function AddCardSheet({ deps: overrides, onClose }: { deps?: Partial<AddC
             <span className="grid size-12 place-items-center rounded-2xl bg-zinc-900/[0.06] dark:bg-white/10">
               <ImagePlus className="size-6" strokeWidth={1.75} aria-hidden />
             </span>
-            <span className="text-[17px] font-semibold tracking-tight">{ADD_SHEET_COPY.upload}</span>
+            <span className="text-17 font-semibold tracking-tight">{ADD_SHEET_COPY.upload}</span>
           </button>
         </div>
         {error ? (

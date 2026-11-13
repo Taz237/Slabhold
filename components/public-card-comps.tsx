@@ -76,10 +76,10 @@ export function PublicCardCompsPreview({
       ) : null}
 
       {verdict.kind === "range" ? (
-        <p className="mt-3 text-[11px] text-zinc-400">{verdict.credit}</p>
+        <p className="mt-3 text-11 text-zinc-400">{verdict.credit}</p>
       ) : null}
       {verdict.kind === "insufficient" && verdict.credit ? (
-        <p className="mt-3 text-[11px] text-zinc-400">{verdict.credit}</p>
+        <p className="mt-3 text-11 text-zinc-400">{verdict.credit}</p>
       ) : null}
 
       <Link

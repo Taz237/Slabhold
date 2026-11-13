@@ -55,7 +55,7 @@ export function CardVisibilitySwitch({
         className="flex min-h-14 w-full items-center gap-3 rounded-2xl border border-zinc-200 bg-white px-4 py-2 text-left transition-colors duration-150 hover:border-violet-400/60 focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:outline-none dark:border-white/10 dark:bg-white/[0.03]"
       >
         <span
-          className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${
+          className={`grid h-9 w-9 shrink-0 place-items-center rounded-full big:hidden ${
             isPublic
               ? "bg-violet-500/15 text-violet-700 dark:text-[#A78BFA]"
               : "bg-zinc-100 text-zinc-600 dark:bg-white/10 dark:text-zinc-300"

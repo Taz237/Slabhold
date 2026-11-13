@@ -20,7 +20,7 @@ export function postCardHref({
 }
 
 /** Centered at 60% with a cap, so the card reads without taking over the feed. */
-const POST_TILE_FRAME = "isolate mx-auto mt-3 w-[60%] max-w-[260px]";
+const POST_TILE_FRAME = "isolate mx-auto mt-3 w-[60%] max-w-[260px] big:w-full";
 
 /** The card on a post: a Collection slab tile, centered, so it doesn't take over the feed. */
 export function PostCardTile({

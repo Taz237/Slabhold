@@ -110,7 +110,7 @@ export const Tweet = memo(function Tweet({
     router.push(`/posts/${post.id}#reply`);
   }
 
-  const bodyClass = variant === "detail" ? "text-[17px] leading-6" : "text-[15px] leading-[1.4]";
+  const bodyClass = variant === "detail" ? "text-17 leading-6" : "text-15 leading-[1.4]";
   const pill = postPill(post);
   const graded = Boolean(post.card && post.postType !== "mail_day" && gradedLabel(post.card));
 
@@ -126,7 +126,7 @@ export const Tweet = memo(function Tweet({
       }`}
     >
       {pinned ? (
-        <p className="flex items-center gap-3 px-4 pt-3 text-[13px] font-medium text-zinc-500 dark:text-zinc-400">
+        <p className="flex items-center gap-3 px-4 pt-3 text-13 font-medium text-zinc-500 dark:text-zinc-400">
           <span className="grid w-10 shrink-0 place-items-center">
             <Pin className="h-4 w-4" aria-hidden="true" />
           </span>
@@ -137,7 +137,7 @@ export const Tweet = memo(function Tweet({
         <Link
           prefetch={false}
           href={userHref(repostedBy.username)}
-          className="flex items-center gap-3 px-4 pt-3 text-[13px] font-medium text-zinc-500 dark:text-zinc-400"
+          className="flex items-center gap-3 px-4 pt-3 text-13 font-medium text-zinc-500 dark:text-zinc-400"
         >
           <span className="grid w-10 shrink-0 place-items-center">
             <Repeat2 className="h-4 w-4" />
@@ -264,25 +264,25 @@ function CommentPreview({ postId, comments }: { postId: string; comments: PostCo
                   name={name}
                   image={person?.avatarDataUrl}
                   accent={person?.accent}
-                  className="h-6 w-6 text-[11px]"
+                  className="h-6 w-6 text-11"
                 />
               </Link>
             ) : (
-              <Avatar name={name} className="mt-0.5 h-6 w-6 text-[11px]" />
+              <Avatar name={name} className="mt-0.5 h-6 w-6 text-11" />
             )}
             <div className="min-w-0">
               <div className="flex min-w-0 items-center gap-1">
                 {href ? (
-                  <Link prefetch={false} href={href} className="block truncate text-[13px] leading-5 font-semibold hover:underline">
+                  <Link prefetch={false} href={href} className="block truncate text-13 leading-5 font-semibold hover:underline">
                     {name}
                   </Link>
                 ) : (
-                  <p className="truncate text-[13px] leading-5 font-semibold">{name}</p>
+                  <p className="truncate text-13 leading-5 font-semibold">{name}</p>
                 )}
                 <TeamBadge username={person?.username} />
               </div>
               {comment.body ? (
-                <p className="line-clamp-2 text-[13px] leading-5 text-zinc-600 dark:text-zinc-300">
+                <p className="line-clamp-2 text-13 leading-5 text-zinc-600 dark:text-zinc-300">
                   <MentionText text={comment.body} />
                 </p>
               ) : null}
@@ -295,7 +295,7 @@ function CommentPreview({ postId, comments }: { postId: string; comments: PostCo
         <Link
           prefetch={false}
           href={`/posts/${postId}`}
-          className="inline-block text-[13px] font-medium text-violet-600 hover:underline dark:text-[#A78BFA]"
+          className="inline-block text-13 font-medium text-violet-600 hover:underline dark:text-[#A78BFA]"
         >
           View all comments
         </Link>
@@ -322,8 +322,8 @@ export function AuthorLine({
   const exact = exactTime(createdAt);
 
   return (
-    <div className="flex min-w-0 flex-1 items-baseline gap-x-1 text-[15px]">
-      <Link prefetch={false} href={href} className="max-w-[52%] truncate font-semibold tracking-tight hover:underline">
+    <div className="flex min-w-0 flex-1 items-baseline gap-x-1 text-15 big:flex-wrap">
+      <Link prefetch={false} href={href} className="max-w-[52%] truncate font-semibold tracking-tight hover:underline big:max-w-full">
         {name}
       </Link>
       {official ? (
@@ -336,12 +336,12 @@ export function AuthorLine({
       ) : (
         <TeamBadge username={username} />
       )}
-      <span className="min-w-0 truncate text-[14px] text-zinc-500 dark:text-zinc-400">@{username}</span>
+      <span className="min-w-0 truncate text-14 text-zinc-500 big:hidden dark:text-zinc-400">@{username}</span>
       {relative ? (
         <time
           dateTime={createdAt}
           title={exact || undefined}
-          className="shrink-0 text-[14px] whitespace-nowrap text-zinc-500 dark:text-zinc-400"
+          className="shrink-0 text-14 whitespace-nowrap text-zinc-500 dark:text-zinc-400"
         >
           · {relative}
         </time>
@@ -443,7 +443,7 @@ function PostMenu({ post }: { post: Post }) {
                       close();
                     });
                   }}
-                  className="block w-full px-4 py-2.5 text-left text-[15px] font-semibold hover:bg-zinc-100 disabled:opacity-60 dark:hover:bg-white/10"
+                  className="block w-full px-4 py-2.5 text-left text-15 font-semibold hover:bg-zinc-100 disabled:opacity-60 dark:hover:bg-white/10"
                 >
                   Unpin
                 </button>
@@ -460,7 +460,7 @@ function PostMenu({ post }: { post: Post }) {
                       close();
                     });
                   }}
-                  className="block w-full px-4 py-2.5 text-left text-[15px] font-semibold hover:bg-zinc-100 disabled:opacity-60 dark:hover:bg-white/10"
+                  className="block w-full px-4 py-2.5 text-left text-15 font-semibold hover:bg-zinc-100 disabled:opacity-60 dark:hover:bg-white/10"
                 >
                   Pin to profile
                 </button>
@@ -469,7 +469,7 @@ function PostMenu({ post }: { post: Post }) {
                 type="button"
                 role="menuitem"
                 onClick={() => router.push(`/compose?edit=${post.id}`)}
-                className="block w-full px-4 py-2.5 text-left text-[15px] font-semibold hover:bg-zinc-100 dark:hover:bg-white/10"
+                className="block w-full px-4 py-2.5 text-left text-15 font-semibold hover:bg-zinc-100 dark:hover:bg-white/10"
               >
                 Edit post
               </button>
@@ -477,7 +477,7 @@ function PostMenu({ post }: { post: Post }) {
                 type="button"
                 role="menuitem"
                 onClick={() => setConfirming(true)}
-                className="block w-full px-4 py-2.5 text-left text-[15px] font-semibold text-rose-600 hover:bg-zinc-100 dark:hover:bg-white/10"
+                className="block w-full px-4 py-2.5 text-left text-15 font-semibold text-rose-600 hover:bg-zinc-100 dark:hover:bg-white/10"
               >
                 Delete post
               </button>
@@ -583,7 +583,7 @@ export function Engagement({
                 if (!reposted && !reduceMotion) setRepostBurst((count) => count + 1);
                 toggleRepost(targetId);
               }}
-              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-[15px] font-semibold hover:bg-zinc-100 dark:hover:bg-white/10"
+              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-15 font-semibold hover:bg-zinc-100 dark:hover:bg-white/10"
             >
               <Repeat2 className="h-4 w-4" />
               {reposted ? "Undo repost" : "Repost"}
@@ -597,7 +597,7 @@ export function Engagement({
                 setRepostMenuOpen(false);
                 router.push(`/compose?quote=${encodeURIComponent(targetId)}`);
               }}
-              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-[15px] font-semibold hover:bg-zinc-100 disabled:opacity-40 dark:hover:bg-white/10"
+              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-15 font-semibold hover:bg-zinc-100 disabled:opacity-40 dark:hover:bg-white/10"
             >
               <Quote className="h-4 w-4" />
               Quote
@@ -736,7 +736,7 @@ function TickCount({ value, animate }: { value: number; animate: boolean }) {
   }
   if (value <= 0) return null;
   return (
-    <span className="min-w-0 overflow-hidden pr-1 text-[13px] tabular-nums">
+    <span className="min-w-0 overflow-hidden pr-1 text-13 tabular-nums">
       <span
         key={value}
         data-count=""

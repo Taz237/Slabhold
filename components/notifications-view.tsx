@@ -154,7 +154,7 @@ export function NotificationsView() {
                             name={person?.displayName ?? "Collector"}
                             image={person?.avatarDataUrl}
                             accent={person?.accent}
-                            className="h-8 w-8 text-[10px] ring-2 ring-[var(--background)]"
+                            className="h-8 w-8 text-10 ring-2 ring-[var(--background)]"
                             expandable={false}
                           />
                         );
@@ -170,7 +170,7 @@ export function NotificationsView() {
                   )}
                   <span className="min-w-0 flex-1">
                     {highlighted ? <span className="sr-only">Unread. </span> : null}
-                    <span className="block text-[15px] leading-5">
+                    <span className="block text-15 leading-5">
                       {group.kind === "want_alert" || group.kind === "deal_confirm" ? (
                         <span>{group.preview}</span>
                       ) : (

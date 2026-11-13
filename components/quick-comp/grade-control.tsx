@@ -14,7 +14,7 @@ import { feedback, focusRing, sectionLabel } from "./tokens";
 
 const OPTIONS = [...QUICK_GRADES, OTHER_GRADE] as const;
 
-const segment = `flex min-h-11 items-center justify-center rounded-lg px-2 text-[13px] font-medium tabular-nums ${feedback} ${focusRing}`;
+const segment = `flex min-h-11 items-center justify-center rounded-lg px-2 text-13 font-medium tabular-nums ${feedback} ${focusRing}`;
 const segmentOn = "bg-white text-zinc-950 ring-1 ring-violet-600/50 dark:bg-zinc-900 dark:text-zinc-50 dark:ring-violet-400/50";
 const segmentOff = "text-zinc-600 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-zinc-50";
 const select = `min-h-11 w-full rounded-[10px] bg-white px-3 text-sm ring-1 ring-zinc-950/10 dark:bg-white/[0.04] dark:ring-white/10 ${focusRing}`;
@@ -86,7 +86,7 @@ export function GradeControl({
         })}
       </div>
       {current === OTHER_GRADE ? (
-        <div className="mt-2 grid grid-cols-2 gap-2">
+        <div className="mt-2 grid grid-cols-2 big:grid-cols-1 gap-2">
           <label className="block">
             <span className="sr-only">Grading company</span>
             <select

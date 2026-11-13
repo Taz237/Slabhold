@@ -33,7 +33,7 @@ export function SetStep({
 
   return (
     <div className="space-y-5">
-      <ul className="grid grid-cols-2 gap-2">
+      <ul className="grid grid-cols-2 big:grid-cols-1 gap-2">
         {choices.map((choice) => {
           // With no answer yet, the last-used set is pre-selected: highlighted and focused.
           const selected = value.trim()
@@ -53,11 +53,11 @@ export function SetStep({
                 }`}
               >
                 <span className="flex items-start justify-between gap-2">
-                  <span className="text-[13px] font-medium text-zinc-500">
+                  <span className="text-13 font-medium text-zinc-500">
                     {choice.maker || "Set"}
                   </span>
                   {tag ? (
-                    <span className="rounded-full bg-violet-500/15 px-1.5 text-[12px] leading-4 font-medium text-violet-700 dark:text-[#A78BFA]">
+                    <span className="rounded-full bg-violet-500/15 px-1.5 text-12 leading-4 font-medium text-violet-700 dark:text-[#A78BFA]">
                       {tag}
                     </span>
                   ) : null}

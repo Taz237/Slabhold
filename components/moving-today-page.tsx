@@ -90,15 +90,15 @@ function Featured({ payload, reduced }: { payload: MovingTodayPayload; reduced: 
         className={`w-[172px] shrink-0 ${reduced ? "" : ENTER}`}
       />
       <div className="min-w-0 flex-1 pb-12">
-        <p className="text-[12px] font-medium text-[#7C3AED] dark:text-[#A78BFA]">
+        <p className="text-12 font-medium text-[#7C3AED] dark:text-[#A78BFA]">
           Top mover
         </p>
         <div className="mt-2">
           <GainChip gain={gain} large />
         </div>
         <p className="mt-3 text-2xl leading-7 font-semibold tracking-tight tabular-nums">{sale.priceLabel}</p>
-        {sale.soldLabel ? <p className="mt-0.5 text-[13px] text-zinc-500">Sold {sale.soldLabel}</p> : null}
-        <p className="mt-0.5 text-[13px] text-zinc-500">vs. recent sold prices</p>
+        {sale.soldLabel ? <p className="mt-0.5 text-13 text-zinc-500">Sold {sale.soldLabel}</p> : null}
+        <p className="mt-0.5 text-13 text-zinc-500">vs. recent sold prices</p>
       </div>
     </div>
   );
@@ -111,21 +111,21 @@ function Hero({ payload, reduced }: { payload: MovingTodayPayload; reduced: bool
     <section data-moving-hero="" className="px-4 pt-1 pb-5">
       <div className="flex items-center gap-2">
         <FreshnessDot day={day} still={reduced} />
-        <h1 className="min-w-0 truncate text-[28px] leading-9 font-semibold tracking-tight">{payload.title}</h1>
+        <h1 className="min-w-0 truncate text-[1.75rem] leading-9 font-semibold tracking-tight">{payload.title}</h1>
       </div>
-      <p className="mt-0.5 min-h-5 truncate text-[13px] leading-5 text-zinc-500">
+      <p className="mt-0.5 min-h-5 truncate text-13 leading-5 text-zinc-500">
         {payload.dateLabel ? (
-          <span className="font-mono text-[11px]">{payload.dateLabel}</span>
+          <span className="font-mono text-11">{payload.dateLabel}</span>
         ) : null}
         <Freshness payload={payload} lead={Boolean(payload.dateLabel)} />
       </p>
-      <p data-moving-count="" className="mt-0.5 text-[13px] font-medium text-zinc-700 tabular-nums dark:text-zinc-300">
+      <p data-moving-count="" className="mt-0.5 text-13 font-medium text-zinc-700 tabular-nums dark:text-zinc-300">
         {payload.totalCount} {payload.totalCount === 1 ? "card" : "cards"} · {payload.moverCount} moving
       </p>
       {featured ? (
         <Featured payload={payload} reduced={reduced} />
       ) : (
-        <p className="mt-3 text-[15px] text-zinc-600 dark:text-zinc-400">The newest cards on Slabhold</p>
+        <p className="mt-3 text-15 text-zinc-600 dark:text-zinc-400">The newest cards on Slabhold</p>
       )}
     </section>
   );
@@ -354,7 +354,7 @@ export function MovingTodayAll({
 
       {list.length === 0 ? (
         <div id="moving-grid" role="tabpanel" aria-labelledby={`moving-tab-${direction}`} className="px-4 py-14 text-center">
-          <p data-moving-no-match="" className="text-[15px] font-semibold">
+          <p data-moving-no-match="" className="text-15 font-semibold">
             {noMatchText(direction, activeSport)}
           </p>
           <button

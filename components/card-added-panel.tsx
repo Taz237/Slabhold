@@ -32,7 +32,7 @@ import type { CardValueResult } from "@/lib/value/types";
 const focusRing =
   "outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]";
 
-const mainButton = `inline-flex min-h-12 flex-1 items-center justify-center rounded-full bg-violet-600 px-5 text-[15px] font-semibold text-white transition-transform duration-150 hover:bg-violet-500 motion-safe:active:scale-[0.97] ${focusRing}`;
+const mainButton = `inline-flex min-h-12 flex-1 items-center justify-center rounded-full bg-violet-600 px-5 text-15 font-semibold text-white transition-transform duration-150 hover:bg-violet-500 motion-safe:active:scale-[0.97] ${focusRing}`;
 
 /** When the flip lands: the haptic and the confetti go off together. */
 export const ADDED_FLIP_MS = 700;
@@ -210,7 +210,7 @@ export function CardAddedPanel({
             </div>
           </div>
 
-          <h2 id={titleId} className="mt-5 flex items-center gap-2 text-[15px] font-semibold tracking-tight">
+          <h2 id={titleId} className="mt-5 flex items-center gap-2 text-15 font-semibold tracking-tight">
             <span className="grid size-5 shrink-0 place-items-center rounded-full bg-violet-600 text-white">
               <Check className="size-3" strokeWidth={3} aria-hidden />
             </span>
@@ -239,10 +239,10 @@ export function CardAddedPanel({
               <div data-slot="added-price">
                 {/* The same figure as the value line, in big type; the full line for screen readers. */}
                 <span className="sr-only">{line.text}</span>
-                <p aria-hidden className="font-mono text-[44px] leading-none font-semibold tracking-tight tabular-nums text-zinc-950 dark:text-zinc-50">
+                <p aria-hidden className="font-mono text-[2.75rem] leading-none font-semibold tracking-tight tabular-nums text-zinc-950 dark:text-zinc-50">
                   {price.amount}
                 </p>
-                <p aria-hidden className="mt-2 text-[13px] text-zinc-500 tabular-nums">
+                <p aria-hidden className="mt-2 text-13 text-zinc-500 tabular-nums">
                   {price.detail}
                 </p>
               </div>
@@ -305,7 +305,7 @@ export function CardAddedPanel({
                         </li>
                       ))}
                     </ul>
-                    <p className="mt-1.5 text-center text-[11px] text-zinc-500">{ADDED_COPY.credit}</p>
+                    <p className="mt-1.5 text-center text-11 text-zinc-500">{ADDED_COPY.credit}</p>
                   </>
                 )}
               </div>
@@ -320,7 +320,7 @@ export function CardAddedPanel({
         ) : null}
 
         {/* Thumb zone: the only two buttons. */}
-        <div data-slot="reveal-actions" className="mt-4 flex w-full gap-2">
+        <div data-slot="reveal-actions" className="mt-4 flex w-full gap-2 big:flex-col">
           <Link
             href={addAnotherPath(card)}
             onClick={(event) => {
@@ -376,7 +376,7 @@ function VisibilityPill({
         aria-checked={isPublic}
         aria-label="Public on profile"
         onClick={() => toggle(!isPublic)}
-        className={`inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 ${focusRing}`}
+        className={`inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-13 font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 ${focusRing}`}
       >
         <Icon className="size-3.5" aria-hidden />
         <span aria-hidden>{isPublic ? "Public" : "Private"}</span>
@@ -394,7 +394,7 @@ function VisibilityPill({
         </span>
       </button>
       {state === "failed" ? (
-        <span role="status" className="text-[13px] text-rose-600 dark:text-rose-400">
+        <span role="status" className="text-13 text-rose-600 dark:text-rose-400">
           Couldn&apos;t save
         </span>
       ) : null}

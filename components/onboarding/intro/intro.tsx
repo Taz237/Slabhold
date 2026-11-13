@@ -236,7 +236,7 @@ export default function OnboardingIntro({ userId, onEnd }: { userId: string; onE
         <button
           type="button"
           onClick={() => end(false)}
-          className="min-h-11 justify-self-end rounded-full px-3 text-[15px] font-medium text-zinc-400 transition-colors hover:text-white focus-visible:ring-2 focus-visible:ring-[#A78BFA] focus-visible:outline-none"
+          className="min-h-11 justify-self-end rounded-full px-3 text-15 font-medium text-zinc-400 transition-colors hover:text-white focus-visible:ring-2 focus-visible:ring-[#A78BFA] focus-visible:outline-none"
         >
           Skip
         </button>
@@ -264,10 +264,10 @@ export default function OnboardingIntro({ userId, onEnd }: { userId: string; onE
       </div>
 
       <div className="relative mx-auto w-full max-w-lg px-6 text-center" aria-live="polite">
-        <h2 id={titleId} className="text-[28px] leading-9 font-semibold tracking-[-0.02em] text-white">
+        <h2 id={titleId} className="text-[1.75rem] leading-9 font-semibold tracking-[-0.02em] text-white">
           {screen.title}
         </h2>
-        <p id={lineId} className="mx-auto mt-2 min-h-12 max-w-xs text-[16px] leading-6 text-zinc-400">
+        <p id={lineId} className="mx-auto mt-2 min-h-12 max-w-xs text-16 leading-6 text-zinc-400">
           {screen.line}
         </p>
       </div>
@@ -277,7 +277,7 @@ export default function OnboardingIntro({ userId, onEnd }: { userId: string; onE
           ref={main}
           type="button"
           onClick={primary}
-          className="flex h-[52px] w-full items-center justify-center rounded-full bg-[#7C3AED] text-[17px] font-semibold text-white transition-transform duration-150 active:scale-[0.98] motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-[#A78BFA] focus-visible:ring-offset-2 focus-visible:ring-offset-[#09090B] focus-visible:outline-none"
+          className="flex h-[52px] w-full items-center justify-center rounded-full bg-[#7C3AED] text-17 font-semibold text-white transition-transform duration-150 active:scale-[0.98] motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-[#A78BFA] focus-visible:ring-offset-2 focus-visible:ring-offset-[#09090B] focus-visible:outline-none"
         >
           {screen.button}
         </button>
@@ -285,7 +285,7 @@ export default function OnboardingIntro({ userId, onEnd }: { userId: string; onE
           <button
             type="button"
             onClick={() => end(true)}
-            className="mt-1 flex min-h-11 w-full items-center justify-center rounded-full text-[15px] font-medium text-zinc-400 hover:text-white focus-visible:ring-2 focus-visible:ring-[#A78BFA] focus-visible:outline-none"
+            className="mt-1 flex min-h-11 w-full items-center justify-center rounded-full text-15 font-medium text-zinc-400 hover:text-white focus-visible:ring-2 focus-visible:ring-[#A78BFA] focus-visible:outline-none"
           >
             Maybe later
           </button>

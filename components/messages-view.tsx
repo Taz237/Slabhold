@@ -67,7 +67,7 @@ export function MessagesView() {
   return (
     <PullToRefresh onRefresh={refresh} className="-mx-4 -mt-5">
       <div className="flex items-center justify-between gap-3 px-4 pt-4">
-        <h1 className="text-[26px] leading-8 font-semibold tracking-tight">Messages</h1>
+        <h1 className="text-[1.625rem] leading-8 font-semibold tracking-tight">Messages</h1>
         <button
           type="button"
           aria-label="New message"
@@ -91,7 +91,7 @@ export function MessagesView() {
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search messages"
               aria-label="Search messages"
-              className="min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-zinc-500"
+              className="min-w-0 flex-1 bg-transparent text-15 outline-none placeholder:text-zinc-500"
             />
           </label>
           {shown.length === 0 ? (
@@ -145,12 +145,12 @@ function ConversationRow({ conversation, viewerId }: { conversation: Conversatio
         <span className="flex items-baseline gap-1.5">
           <span
             data-conversation-name=""
-            className={`min-w-0 truncate text-[15px] tracking-tight ${fresh ? "font-semibold" : "font-medium"}`}
+            className={`min-w-0 truncate text-15 tracking-tight ${fresh ? "font-semibold" : "font-medium"}`}
           >
             {person.displayName}
           </span>
           <TeamBadge username={person.username} inLink />
-          <span className="min-w-0 shrink truncate text-[13px] text-zinc-500 dark:text-zinc-400">@{person.username}</span>
+          <span className="min-w-0 shrink truncate text-13 text-zinc-500 dark:text-zinc-400">@{person.username}</span>
           {stamp ? (
             <time
               dateTime={last.createdAt}
@@ -208,20 +208,20 @@ function InboxEmpty({ suggestions, onStart }: { suggestions: Profile[]; onStart:
   return (
     <div data-inbox-empty="" className="px-6 pt-8 pb-6 text-center">
       <InboxArt />
-      <p className="mt-5 text-[20px] leading-7 font-semibold tracking-tight">No messages yet</p>
-      <p className="mx-auto mt-1.5 max-w-[17rem] text-[15px] leading-5 text-zinc-500 dark:text-zinc-400">
+      <p className="mt-5 text-[1.25rem] leading-7 font-semibold tracking-tight">No messages yet</p>
+      <p className="mx-auto mt-1.5 max-w-[17rem] text-15 leading-5 text-zinc-500 dark:text-zinc-400">
         Talk cards, trades and pickups with other collectors.
       </p>
       <button
         type="button"
         onClick={onStart}
-        className="mt-5 inline-flex min-h-11 items-center rounded-full bg-violet-600 px-6 text-[15px] font-semibold text-white transition-transform duration-150 active:scale-95 motion-reduce:transition-none"
+        className="mt-5 inline-flex min-h-11 items-center rounded-full bg-violet-600 px-6 text-15 font-semibold text-white transition-transform duration-150 active:scale-95 motion-reduce:transition-none"
       >
         Start a conversation
       </button>
       {suggestions.length > 0 ? (
         <div className="mx-auto mt-8 max-w-sm text-left">
-          <p className="px-1 font-mono text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
+          <p className="px-1 font-mono text-11 font-semibold text-zinc-500 dark:text-zinc-400">
             Collectors to message
           </p>
           <ul className="mt-2 overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-white/10 dark:bg-white/[0.03]">
@@ -238,10 +238,10 @@ function InboxEmpty({ suggestions, onStart }: { suggestions: Profile[]; onStart:
                 </Link>
                 <span className="min-w-0 flex-1">
                   <span className="flex min-w-0 items-center gap-1">
-                    <span className="truncate text-[15px] leading-5 font-semibold tracking-tight">{person.displayName}</span>
+                    <span className="truncate text-15 leading-5 font-semibold tracking-tight">{person.displayName}</span>
                     <TeamBadge username={person.username} />
                   </span>
-                  <span className="block truncate text-[13px] leading-5 text-zinc-500 dark:text-zinc-400">@{person.username}</span>
+                  <span className="block truncate text-13 leading-5 text-zinc-500 dark:text-zinc-400">@{person.username}</span>
                 </span>
                 <Link
                   href={userHref(person.username, "messages")}

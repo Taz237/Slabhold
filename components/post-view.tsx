@@ -226,7 +226,7 @@ export function PostView({ id }: { id: string }) {
         onQuotesClick={() => setLane("quotes")}
       />
 
-      <div className="grid grid-cols-2 border-b border-zinc-200 text-[15px] dark:border-white/10">
+      <div className="grid grid-cols-2 border-b border-zinc-200 text-15 dark:border-white/10">
         <LaneTab active={lane === "replies"} onClick={() => setLane("replies")}>
           Replies{replies.length > 0 ? ` · ${replies.length}` : ""}
         </LaneTab>
@@ -296,7 +296,7 @@ export function PostView({ id }: { id: string }) {
                       />
                     )}
                   </div>
-                  <p className="text-[13px] text-zinc-500">
+                  <p className="text-13 text-zinc-500">
                     Replying to{" "}
                     <Link
                       href={userHref(author.username)}
@@ -306,7 +306,7 @@ export function PostView({ id }: { id: string }) {
                     </Link>
                   </p>
                   {reply.body ? (
-                    <p className="mt-0.5 text-[15px] leading-5 break-words whitespace-pre-wrap">
+                    <p className="mt-0.5 text-15 leading-5 break-words whitespace-pre-wrap">
                       <MentionText text={reply.body} />
                     </p>
                   ) : null}
@@ -361,7 +361,7 @@ export function PostView({ id }: { id: string }) {
               rows={1}
               menu="docked"
               placeholder="Post your reply"
-              className="max-h-32 min-h-11 w-full min-w-0 flex-1 resize-none bg-transparent py-2 text-[15px] leading-5 outline-none placeholder:text-zinc-500"
+              className="max-h-32 min-h-11 w-full min-w-0 flex-1 resize-none bg-transparent py-2 text-15 leading-5 outline-none placeholder:text-zinc-500"
             />
             {replyPhotosOn ? (
               <>
@@ -513,7 +513,7 @@ function ReplyMenu({
               type="button"
               role="menuitem"
               onClick={() => setConfirming(true)}
-              className="block w-full px-4 py-2.5 text-left text-[15px] font-semibold text-rose-600 hover:bg-zinc-100 dark:hover:bg-white/10"
+              className="block w-full px-4 py-2.5 text-left text-15 font-semibold text-rose-600 hover:bg-zinc-100 dark:hover:bg-white/10"
             >
               Delete reply
             </button>
