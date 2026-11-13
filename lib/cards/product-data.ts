@@ -1,5 +1,5 @@
 import { SETS } from "@/lib/card-options";
-import { parallelMatchKey } from "@/lib/cards/parallels";
+import { parallelMatchKey, sameParallelLoosely } from "@/lib/cards/parallels";
 import { setMatchPhrase } from "@/lib/comps/match";
 
 /**
@@ -13,6 +13,8 @@ export type ProductParallelRow = {
   serialRun: number | null;
   /** Numbered, but the run changes card to card. */
   runVaries?: boolean;
+  /** Card-number prefixes this row belongs to ("BP" for BP-27, "" for a plain 27). None: every card. */
+  cardPrefixes?: readonly string[];
 };
 
 export type ProductRecord = {
@@ -148,18 +150,38 @@ export function setNamesIn(
   return names;
 }
 
-/** Base first, then the checklist order. One row per name across subsets. */
+/** "BP-27" → "BP". "" when the number has no letters before a dash. */
+function cardPrefix(cardNumber: string): string {
+  return /^\s*([A-Za-z]+)-/.exec(cardNumber)?.[1].toUpperCase() ?? "";
+}
+
+/**
+ * The rows that can be this card. A product with paper and chrome cards in one box keeps a list
+ * per card-number prefix: BP-27 reads the BP rows, 27 reads the "" rows. A row that names no
+ * prefix (Base) is for every card. A prefix no row names gets only those: open beats wrong.
+ */
+function rowsForCard(rows: readonly ProductParallelRow[], cardNumber: string | undefined): readonly ProductParallelRow[] {
+  if (!cardNumber?.trim() || !rows.some((row) => row.cardPrefixes)) return rows;
+  const prefix = cardPrefix(cardNumber);
+  return rows.filter((row) => !row.cardPrefixes || row.cardPrefixes.some((item) => item.toUpperCase() === prefix));
+}
+
+/**
+ * Base first, then the checklist order. One row per name across subsets.
+ * With a card number, only the rows for that number's prefix.
+ */
 export function parallelsIn(
   data: readonly ProductRecord[],
   sport: string,
   yearLabel: string,
   setBrand: string,
+  cardNumber?: string,
 ): ProductParallel[] {
   const product = productForSet(data, sport, yearLabel, setBrand);
   if (!product) return [];
   const seen = new Set<string>();
   const list: ProductParallel[] = [];
-  for (const row of product.parallels) {
+  for (const row of rowsForCard(product.parallels, cardNumber)) {
     const name = displayParallelName(row.name);
     const key = parallelMatchKey(name);
     if (!key || seen.has(key)) continue;
@@ -203,6 +225,26 @@ export function serialRunIn(
   const row = parallelIn(data, sport, yearLabel, setBrand, parallel);
   const run = row?.serialRun;
   return typeof run === "number" && Number.isFinite(run) && run >= 1 ? run : null;
+}
+
+/**
+ * This parallel is the only one the checklist lists at this print run for this card, so the run
+ * alone says which card a sale is. False when two share the run, or when no checklist covers it.
+ * No sport needed: every product with this year and set name must agree.
+ */
+export function onlyParallelAtRun(
+  data: readonly ProductRecord[],
+  card: { yearLabel: string; setBrand: string; cardNumber: string; parallel: string },
+  run: number | null | undefined,
+): boolean {
+  if (!run || !card.parallel.trim()) return false;
+  const phrase = productPhrase(card.setBrand);
+  const products = data.filter((product) => sameSeason(product.yearLabel, card.yearLabel) && productPhrase(product.product) === phrase);
+  if (!phrase || products.length === 0) return false;
+  return products.every((product) => {
+    const atRun = parallelsIn([product], product.sport, product.yearLabel, product.product, card.cardNumber).filter((item) => item.serialRun === run);
+    return atRun.length === 1 && sameParallelLoosely(atRun[0].name, card.parallel);
+  });
 }
 
 export async function productSetNames(sport: string, yearLabel: string): Promise<string[]> {

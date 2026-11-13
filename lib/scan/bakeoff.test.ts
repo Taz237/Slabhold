@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { loadProductData, type ProductRecord } from "@/lib/cards/product-data";
 import { SCAN_DIRECTORY as INDEXED_DIRECTORY } from "@/lib/players/scan-directory";
 import type { TrawlSoldResult } from "@/lib/comps/types";
 import { BAKEOFF_CASES, type BakeoffCase } from "./bakeoff-fixtures";
@@ -54,8 +55,8 @@ function read(scan: BakeoffCase) {
   return scanReadFrom(captureOf(scan), INDEXED_DIRECTORY);
 }
 
-function top(scan: BakeoffCase): ScanMatch | undefined {
-  return rankScanMatches(read(scan), scan.rows ?? [], { directory: INDEXED_DIRECTORY, products: null, soldTitles: scan.titles ?? [] }).matches[0];
+function top(scan: BakeoffCase, products: readonly ProductRecord[] | null = null): ScanMatch | undefined {
+  return rankScanMatches(read(scan), scan.rows ?? [], { directory: INDEXED_DIRECTORY, products, soldTitles: scan.titles ?? [] }).matches[0];
 }
 
 const FIELDS = ["player", "year", "set", "number", "run", "parallel"] as const;
@@ -63,7 +64,9 @@ type Field = (typeof FIELDS)[number];
 type Row = Record<Field, Mark> & { name: string; shown: string };
 
 /** A base card reads right as "Base" (a slab label says so) or left open (a raw card can't tell). */
-function markParallel(got: string, truth: string): Mark {
+function markParallel(got: string, truth: string, also: readonly string[] = []): Mark {
+  // The checklist's name and the sold titles' name for one parallel are both right.
+  if (got.trim() && also.some((name) => norm(name) === norm(got))) return "right";
   if (!truth || norm(truth) === "base") return !got || norm(got) === "base" ? "right" : "wrong";
   return mark(got, truth);
 }
@@ -85,7 +88,7 @@ function marks(match: ScanMatch | undefined, scan: BakeoffCase): Record<Field, M
     set: mark(match?.setBrand ?? "", scan.truth.set),
     number: mark(match?.cardNumber ?? "", scan.truth.number),
     run: markRun(match?.serialRun, scan),
-    parallel: markParallel(match?.parallel ?? "", scan.truth.parallel),
+    parallel: markParallel(match?.parallel ?? "", scan.truth.parallel, scan.truth.parallelAlso),
   };
 }
 
@@ -174,6 +177,23 @@ describe("the scanner bake-off", () => {
         if (before[at] !== "w") assert.notEqual(now, "w", `${name}: ${field} was ${before[at] === "r" ? "right" : "open"}, now wrong: ${row.shown}`);
         if (before[at] === "r") assert.equal(now, "r", `${name}: ${field} was right, now open: ${row.shown}`);
       });
+    });
+  });
+
+  it("with the real checklist files loaded, as production loads them: the right player, and no field is wrong", async () => {
+    const products = await loadProductData();
+    const withList = ALL_CASES.map((scan): Row => {
+      const match = top(scan, products);
+      return { name: scan.name, ...marks(match, scan), shown: shownLine(match) };
+    });
+    console.log(board("All, with the checklist", withList).join("\n"));
+    withList.forEach((row, index) => {
+      const known = ALL_CASES[index].knownWrong ?? [];
+      for (const field of FIELDS) {
+        if (known.includes(field)) continue;
+        if (field === "player") assert.equal(row.player, "right", `${row.name}: ${row.shown}`);
+        else assert.notEqual(row[field], "wrong", `${row.name}: ${field}: ${row.shown}`);
+      }
     });
   });
 
@@ -271,7 +291,10 @@ function liveResults(scan: BakeoffCase): TrawlSoldResult[] {
 
 type LiveRow = Row & { rung: string; solds: string; serialRun: number | null };
 
-async function scoreLive(scan: BakeoffCase): Promise<LiveRow> {
+/** No checklist files: the scan reads the card and its sold titles alone. */
+const NO_CHECKLIST = async (): Promise<readonly ProductRecord[]> => [];
+
+async function scoreLive(scan: BakeoffCase, products: () => Promise<readonly ProductRecord[]> = NO_CHECKLIST): Promise<LiveRow> {
   let calls = 0;
   const queries: string[] = [];
   const result = await lookupLiveSolds(
@@ -279,7 +302,7 @@ async function scoreLive(scan: BakeoffCase): Promise<LiveRow> {
     "bakeoff",
     {
       directory: INDEXED_DIRECTORY,
-      products: async () => [],
+      products,
       cachedTitles: async () => scan.titles ?? [],
       quickCompCache: async () => null,
       liveSearch: async (query) => {
@@ -312,20 +335,23 @@ async function scoreLive(scan: BakeoffCase): Promise<LiveRow> {
   };
 }
 
-describe("the bake-off with live eBay solds (mocked Trawl, junk included)", () => {
+/** The live bake-off, once per checklist: none (the card and its sold titles alone), then the real files as production loads them. */
+function liveBakeoff(suite: string, boardTitle: string, products: () => Promise<readonly ProductRecord[]>) {
+  const live = (scan: BakeoffCase) => scoreLive(scan, products);
+  describe(suite, () => {
   const cases = BAKEOFF_CASES.filter((scan) => scan.live);
 
   it("prints the live scoreboard, and every case is right or open, never wrong", async () => {
-    const rows = await Promise.all(cases.map(scoreLive));
+    const rows = await Promise.all(cases.map(live));
     const total = (key: Field, value: Mark) => rows.filter((row) => row[key] === value).length;
     console.log(
       [
-        "Scanner bake-off with live solds (player set # parallel · rung · solds)",
+        `Scanner bake-off: ${boardTitle.toLowerCase()} (player set # parallel · rung · solds)`,
         ...rows.map(
           (row) =>
             `${ICON[row.player]} ${ICON[row.set]} ${ICON[row.number]} ${ICON[row.parallel]}  ${row.name.padEnd(56)} ${row.shown.padEnd(58)} ${row.rung.padEnd(36)} ${row.solds}`,
         ),
-        ...board("With live solds", rows),
+        ...board(boardTitle, rows),
         `player ${total("player", "right")}/${rows.length} · set ${total("set", "right")} right ${total("set", "wrong")} wrong · # ${total("number", "right")} right ${total("number", "wrong")} wrong · parallel ${total("parallel", "right")} right ${total("parallel", "wrong")} wrong · solds found ${rows.filter((row) => row.solds.includes("sold")).length}/${rows.filter((row) => cases.find((item) => item.name === row.name)?.live?.solds !== "none").length}`,
       ].join("\n"),
     );
@@ -344,13 +370,16 @@ describe("the bake-off with live eBay solds (mocked Trawl, junk included)", () =
       // A numbered card is never priced or labelled as Base.
       if (scan.truth.run) assert.doesNotMatch(row.solds, /\(Base\)/, row.name);
       // A price is always named by its sales' parallel: never Base for colored sales.
-      if (scan.truth.parallel && row.solds.includes("sold")) assert.match(row.solds, new RegExp(`\\(${scan.truth.parallel.replace("/", "\\/")}\\)$`), row.name);
+      if (scan.truth.parallel && row.solds.includes("sold")) {
+        const names = [scan.truth.parallel, ...(scan.truth.parallelAlso ?? [])].map((name) => name.replace("/", "\\/")).join("|");
+        assert.match(row.solds, new RegExp(`\\((?:${names})\\)$`), row.name);
+      }
     }
   });
 
   it("Miller with live solds: 2024 Bowman #BP-27, Pink/Red /299, the Pink/Red sales only", async () => {
     for (const scan of cases.filter((item) => item.truth.player === "Aidan Miller" && item.truth.parallel === "Pink/Red")) {
-      const row = await scoreLive(scan);
+      const row = await live(scan);
       assert.equal(row.set, "right", `${scan.name}: ${row.shown}`);
       assert.equal(row.number === "wrong", false, `${scan.name}: ${row.shown}`);
       assert.equal(row.parallel, "right", `${scan.name}: ${row.shown}`);
@@ -358,3 +387,7 @@ describe("the bake-off with live eBay solds (mocked Trawl, junk included)", () =
     }
   });
 });
+}
+
+liveBakeoff("the bake-off with live eBay solds (mocked Trawl, junk included)", "With live solds", NO_CHECKLIST);
+liveBakeoff("the bake-off with live eBay solds and the real checklist files, as production loads them", "With live solds and the checklist", loadProductData);

@@ -153,7 +153,7 @@ describe("rankScanMatches: raw cards", () => {
     assert.equal(result.settled, false);
   });
 
-  it("pins the parallel when the serial run fits one checklist parallel", () => {
+  it("picks the one checklist parallel the serial run fits, as likely until the card or a sold title names it", () => {
     const result = rankScanMatches(
       raw(["VICTOR WEMBANYAMA", "PRIZM", "07/10"], ["#136", "2023-24 PANINI PRIZM", "© 2024 Panini America, Inc."]),
       [WEMBY_PRIZM, WEMBY_SELECT],
@@ -164,10 +164,11 @@ describe("rankScanMatches: raw cards", () => {
     assert.equal(top?.parallel, "Gold");
     assert.equal(top?.serialRun, 10);
     assert.equal(top?.serialNo, "7");
-    assert.equal(top?.sureness.parallel, "sure");
+    assert.equal(top?.sureness.parallel, "likely");
+    assert.equal(top?.parallelSource, "run");
     assert.equal(top?.sureness.number, "sure");
     assert.equal(top?.sureness.year, "sure");
-    assert.equal(result.settled, true);
+    assert.equal(result.settled, false);
   });
 
   it("narrows the options when two parallels share a run, and a color word picks one", () => {

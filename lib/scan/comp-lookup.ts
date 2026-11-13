@@ -1,3 +1,4 @@
+import { onlyParallelAtRun, type ProductRecord } from "@/lib/cards/product-data";
 import { gradesMatchCard, isRawCard, parseGradeFromTitle, titleMatchesCard } from "@/lib/comps/match";
 import { sharedCompValue } from "@/lib/comps/shared-value";
 import type { TrawlSoldResult } from "@/lib/comps/types";
@@ -52,6 +53,8 @@ export type ScanCompDeps = {
   liveCache?: (query: string) => Promise<TrawlSoldResult[] | null>;
   /** The player directory, so a re-filtered live search groups sales by parallel like the scan did. */
   directory?: readonly IndexedDirectoryPlayer[];
+  /** The checklist files, to tell when the print run alone names the parallel (the only one at that run). */
+  products?: () => Promise<readonly ProductRecord[]>;
 };
 
 export type ScanCompOptions = {
@@ -89,13 +92,22 @@ export async function lookupScanComp(
 ): Promise<ScanCompResult> {
   let failures = 0;
   let sources = 2;
+  // The only parallel at this run: the run's clear majority of sales is this card, whatever the titles call it.
+  let runPicked = false;
+  if (deps.products && options.serialRun) {
+    try {
+      runPicked = onlyParallelAtRun(await deps.products(), identity, options.serialRun);
+    } catch {
+      runPicked = false;
+    }
+  }
 
   try {
     const cached = await deps.quickCompCache(identity);
     if (cached && !cached.sample && cached.comps.length > 0 && deps.directory) {
       // The scan's own filter, so this list matches what the scan showed for the same card.
       const results = asTrawlResults(cached.comps.filter((comp) => comp.title).map((comp) => ({ title: comp.title!, price: comp.soldPrice, soldAt: comp.soldDate })));
-      const result = cleanCompFor(identity, results, deps.directory, { serialRun: options.serialRun, asOf: cached.fetchedAt, source: "quick-comp" });
+      const result = cleanCompFor(identity, results, deps.directory, { runPicked, serialRun: options.serialRun, asOf: cached.fetchedAt, source: "quick-comp" });
       if (result.status === "ok") return result;
     }
     const comps = cached && !deps.directory ? cachedSalesFor(identity, cached.comps, deps.directory) : [];
@@ -116,7 +128,7 @@ export async function lookupScanComp(
       const results = await deps.liveCache(options.query);
       if (results) {
         if (deps.directory) {
-          const result = cleanCompFor(identity, results, deps.directory, { serialRun: options.serialRun, asOf: newestSoldAt(results.map((item) => ({ soldAt: item.date_sold }))), source: "live" });
+          const result = cleanCompFor(identity, results, deps.directory, { runPicked, serialRun: options.serialRun, asOf: newestSoldAt(results.map((item) => ({ soldAt: item.date_sold }))), source: "live" });
           return result.status === "ok" ? result : { status: "none", searched: true };
         }
         const sales = liveCardSales(identity, options, results);
@@ -137,7 +149,7 @@ export async function lookupScanComp(
       const saved = await deps.soldCache(identity.playerName);
       if (deps.directory) {
         const results = asTrawlResults(saved.map((item) => ({ title: item.title, price: Number(item.price), soldAt: item.soldAt ?? null })));
-        const result = cleanCompFor(identity, results, deps.directory, { serialRun: options.serialRun, asOf: newestSoldAt(saved.map((item) => ({ soldAt: item.soldAt ?? null }))), source: "sold-cache" });
+        const result = cleanCompFor(identity, results, deps.directory, { runPicked, serialRun: options.serialRun, asOf: newestSoldAt(saved.map((item) => ({ soldAt: item.soldAt ?? null }))), source: "sold-cache" });
         if (result.status === "ok") return result;
         throw new SkipSaved();
       }

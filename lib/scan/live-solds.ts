@@ -18,7 +18,7 @@ import {
 import { comparableSales, ESTIMATE_MAX_CALLS, ESTIMATE_MIN_SALES, estimateFrom, estimateQueries, yearAgoParallels, type ScanEstimateResult } from "./estimate";
 import { withListingPhotos } from "./listing-photo";
 import { newLookupBudget, type LookupBudget } from "./live-search";
-import { asTrawlResults, groupByParallel, groupFor, isUnnamedRunLabel, scanSalesFor, type ParallelGroup, type ScanSale, type ScanSalesResult } from "./scan-sales";
+import { asTrawlResults, groupByParallel, groupFor, groupForPick, isUnnamedRunLabel, scanSalesFor, type ParallelGroup, type ScanSale, type ScanSalesResult } from "./scan-sales";
 import { scanReadFrom, type ScanCapture } from "./session";
 
 /** One rung of the search ladder, for the dev log. Queries carry card names only, never user data. */
@@ -108,14 +108,14 @@ async function cachedComp(
     const cached = await deps.quickCompCache(identity);
     if (cached && !cached.sample && cached.comps.length > 0) {
       const results = asTrawlResults(cached.comps.filter((comp) => comp.title).map((comp) => ({ title: comp.title!, price: comp.soldPrice, soldAt: comp.soldDate })));
-      const result = cleanCompFor(identity, results, deps.directory, { serialRun: top.serialRun, asOf: cached.fetchedAt, source: "quick-comp" });
+      const result = cleanCompFor(identity, results, deps.directory, { serialRun: top.serialRun, asOf: cached.fetchedAt, source: "quick-comp", runPicked: top.parallelSource === "run" });
       if (result.status === "ok") return result;
     }
   } catch {
     // A failed cache read falls through to the saved listings, then a live search.
   }
   const saved = asTrawlResults(titles.map((item) => ({ title: item.title, price: Number(item.price), soldAt: item.soldAt ?? null })));
-  const result = cleanCompFor(identity, saved, deps.directory, { serialRun: top.serialRun, asOf: newest(titles), source: "sold-cache" });
+  const result = cleanCompFor(identity, saved, deps.directory, { serialRun: top.serialRun, asOf: newest(titles), source: "sold-cache", runPicked: top.parallelSource === "run" });
   return result.status === "ok" ? result : null;
 }
 
@@ -252,7 +252,9 @@ async function lookupSolds(
   // A colored group takes the card's parallel chip. A Base majority, or a numbered card's sales that
   // name no color ("/299, parallel not named"), leave it open.
   if (!best.parallel && leader.label !== "Base" && !isUnnamedRunLabel(leader.label)) matches = [withSalesParallel(best, leader.label), ...matches.slice(1)];
-  const group = best.parallel ? groupFor(groups, best.parallel) : leader;
+  // A parallel the print run alone picked off the checklist prices from the run's clear majority,
+  // whatever those titles call it: "Pink/Red" sales are the Fuchsia Border /299.
+  const group = best.parallel ? groupForPick(groups, best.parallel, best.parallelSource === "run" && best.serialRun != null) : leader;
   if (!group) return { matches, comp: { status: "split", groups: groups.map(groupSummary) }, query: usedQuery };
   const comp = priceScanGroup(group.sales, { asOf: fetchedAt || null, source: "live" });
   if (comp.status !== "ok") return { matches, comp: { status: "none", searched: true }, query: usedQuery };

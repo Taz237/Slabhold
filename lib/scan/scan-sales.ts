@@ -7,7 +7,7 @@ import {
   titleLooksExcluded,
   titleSerialRuns,
 } from "@/lib/comps/match";
-import { parallelMatchKey, parallelsForSet } from "@/lib/cards/parallels";
+import { parallelMatchKey, parallelsForSet, sameParallelLoosely } from "@/lib/cards/parallels";
 import type { TrawlSoldResult } from "@/lib/comps/types";
 import type { IndexedDirectoryPlayer } from "@/lib/players/types";
 import { toMatchCard, type QuickCompIdentity } from "@/lib/quick-comp/identity";
@@ -287,8 +287,33 @@ export function groupByParallel(sales: readonly ScanSale[]): ParallelGroup[] {
   return [...groups.values()].sort((a, b) => b.sales.length - a.sales.length);
 }
 
-/** The group for a picked parallel, matched by its words in any order ("Pink/Red" is "Red Pink"). */
+const groupKey = (value: string) => value.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean).sort().join(" ");
+
+/**
+ * The group for a picked parallel, matched by its words in any order ("Pink/Red" is "Red Pink").
+ * With no exact group, the one group that is the same name give or take "Border" or "Refractor".
+ */
 export function groupFor(groups: readonly ParallelGroup[], parallel: string): ParallelGroup | null {
-  const key = (value: string) => value.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean).sort().join(" ");
-  return groups.find((group) => key(group.label) === key(parallel)) ?? null;
+  const exact = groups.find((group) => groupKey(group.label) === groupKey(parallel));
+  if (exact) return exact;
+  const loose = groups.filter((group) => sameParallelLoosely(group.label, parallel));
+  return loose.length === 1 ? loose[0] : null;
+}
+
+/** Most of the sales (and at least 2) are in this group. */
+export function isMajorityGroup(group: ParallelGroup | undefined, total: number): group is ParallelGroup {
+  return Boolean(group) && group!.sales.length >= 2 && group!.sales.length * 2 > total;
+}
+
+/**
+ * The group a card's price comes from. The picked parallel's own group first. When the card's
+ * print run alone picked the parallel off the checklist (the only one at that run), every kept
+ * sale already shares that run, so the clear majority is this card whatever its titles call it
+ * ("Pink/Red" for Fuchsia Border /299).
+ */
+export function groupForPick(groups: readonly ParallelGroup[], parallel: string, runPicked: boolean): ParallelGroup | null {
+  const own = groupFor(groups, parallel);
+  if (own || !runPicked) return own;
+  const total = groups.reduce((sum, group) => sum + group.sales.length, 0);
+  return isMajorityGroup(groups[0], total) ? groups[0] : null;
 }

@@ -1,5 +1,5 @@
 import type { CatalogCard } from "@/lib/card-catalog";
-import { parallelMatchKey, parallelsForSet } from "@/lib/cards/parallels";
+import { parallelMatchKey, parallelsForSet, sameParallelLoosely } from "@/lib/cards/parallels";
 import { parallelsIn, sameSeason, type ProductParallel, type ProductRecord } from "@/lib/cards/product-data";
 import { setMatchPhrase } from "@/lib/comps/match";
 import type { IndexedDirectoryPlayer } from "@/lib/players/types";
@@ -84,8 +84,11 @@ export type ScanMatch = {
   firstBowman?: boolean;
   /** The player's name was read off the card and isn't in our player list yet. */
   playerNew?: boolean;
-  /** Where a likely parallel came from: the card's print, or sold titles that agree. */
-  parallelSource?: "card" | "sales";
+  /**
+   * Where a likely parallel came from: the card's print, sold titles that agree, or the print run
+   * alone (the only parallel on the checklist at that run, with no title naming it yet).
+   */
+  parallelSource?: "card" | "sales" | "run";
   /** The print run read off the card matched no sold title, and 2+ titles agree on a run within 2 of it: theirs is used. */
   runUnsure?: boolean;
 };
@@ -608,7 +611,7 @@ type ParallelPick = {
   sureness: FieldSureness;
   serialRun: number | null;
   options: ProductParallel[];
-  source?: "card" | "sales";
+  source?: "card" | "sales" | "run";
 };
 
 const COLOR_WORDS = new Set(["red", "pink", "magenta", "fuchsia", "purple", "blue", "aqua", "green", "yellow", "orange", "gold", "black", "silver", "bronze", "white"]);
@@ -624,9 +627,9 @@ export function parallelLabel(colorWords: readonly string[]): string {
 
 function checklistFor(
   products: readonly ProductRecord[] | null,
-  card: Pick<Candidate, "sport" | "yearLabel" | "setBrand">,
+  card: Pick<Candidate, "sport" | "yearLabel" | "setBrand" | "cardNumber">,
 ): ProductParallel[] {
-  const listed = products?.length ? parallelsIn(products, card.sport, card.yearLabel, card.setBrand) : [];
+  const listed = products?.length ? parallelsIn(products, card.sport, card.yearLabel, card.setBrand, card.cardNumber) : [];
   if (listed.length > 0) return listed;
   return parallelsForSet(card.setBrand).map((name) => ({ name, serialRun: null }));
 }
@@ -750,7 +753,12 @@ function pickParallel(
 
   const fitsRun = run == null ? checklist : checklist.filter((option) => option.serialRun === run || option.runVaries);
   if (run != null && fitsRun.length === 1) {
-    return { parallel: fitsRun[0].name, sureness: "sure", serialRun: run, options: fitsRun };
+    // The only parallel at this run. Sure once the card's print or its sold titles name it too;
+    // on the run alone it is likely, and its sales price from the run's majority.
+    const only = fitsRun[0];
+    const backed = namedBy(only, evidence.parallelWords) || (Boolean(soldColor) && sameParallelLoosely(parallelLabel([soldColor]), only.name));
+    if (backed) return { parallel: only.name, sureness: "sure", serialRun: run, options: fitsRun };
+    return { parallel: only.name, sureness: "likely", serialRun: run, options: fitsRun, source: "run" };
   }
   const named = longestNamed(fitsRun, evidence.parallelWords);
   if (named.length === 1) {
@@ -767,7 +775,13 @@ function pickParallel(
   }
   if (!printedColor && soldColor && named.length === 0) {
     const fromList = longestNamed(fitsRun.length > 0 ? fitsRun : checklist, words(soldColor));
-    const pinned = fromList.length === 1 ? fromList[0].name : parallelLabel([soldColor]);
+    const label = parallelLabel([soldColor]);
+    // Titles skip "Border" and "Refractor": "Sky Blue" is the list's Sky Blue Border when only one
+    // listed name is the same give or take those words. Never shortened, never picked from two.
+    const fuller = (fitsRun.length > 0 ? fitsRun : checklist).filter(
+      (option) => sameParallelLoosely(option.name, label) && words(option.name).length > words(label).length,
+    );
+    const pinned = fromList.length === 1 ? fromList[0].name : fuller.length === 1 ? fuller[0].name : label;
     return { parallel: pinned, sureness: "likely", serialRun: run, options: [{ name: pinned, serialRun: run }], source: "sales" };
   }
   // A numbered card is never Base, and with no checklist run that fits, any color would be a guess:
@@ -1146,7 +1160,7 @@ export function rankScanMatches(
           .map((item) => ({ ...item, colors: item.colors.map((phrase) => phrase.replace(/\bsapphire\b/gi, " ").replace(/\s+/g, " ").trim()).filter(Boolean) }))
       : card.titles;
     const lastYear = yearBefore(card.yearLabel);
-    const yearAgo = lastYear && options.products?.length ? parallelsIn(options.products, card.sport, lastYear, card.setBrand) : [];
+    const yearAgo = lastYear && options.products?.length ? parallelsIn(options.products, card.sport, lastYear, card.setBrand, card.cardNumber) : [];
     const parallel = pickParallel(evidence, checklistFor(options.products, card), titles, yearAgo);
     const inDirectory = evidence.players.some((item) => compactName(item.name) === compactName(card.playerName));
     // A slab label prints no run: when every sold title for this parallel names the same one, use it.

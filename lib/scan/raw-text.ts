@@ -107,6 +107,8 @@ const PARALLEL_WORDS = [
   "RED WHITE BLUE",
   "TIGER STRIPE",
   "CRACKED ICE",
+  // Bowman's Sky Blue Border: its own parallel, not Blue.
+  "SKY BLUE",
   "MAGENTA",
   "FUCHSIA",
   "AQUA",
