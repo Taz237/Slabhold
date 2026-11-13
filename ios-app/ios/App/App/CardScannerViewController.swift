@@ -17,6 +17,10 @@ import UIKit
 /// While the collector frames the card, the live frames are scored for sharpness and glare
 /// (FrameQuality). That only changes the hint ("Hold steady", "Tilt to cut glare") and keeps
 /// the sharpest few frames so their text can vote with the photo. It never takes a picture.
+///
+/// A phone call, another app taking the camera, or a trip to the background pauses the camera.
+/// It starts again when it can; when it won't, the scanner closes and the web side says the
+/// read failed, with Scan a card right there to try again.
 final class CardScannerViewController: UIViewController {
     enum Outcome {
         case cancelled
@@ -74,6 +78,13 @@ final class CardScannerViewController: UIViewController {
     private var noticeUntil = Date.distantPast
     static let noticeSeconds: TimeInterval = 2.5
 
+    /// True while iOS has the camera paused (a call, another app, the background). Main thread only.
+    private var interrupted = false
+    /// When the camera was last started again after an error. Main thread only.
+    private var lastRestart = Date.distantPast
+    /// A second error this soon after a restart means the camera won't come back.
+    static let restartGap: TimeInterval = 3
+
     private let captureHaptic = UIImpactFeedbackGenerator(style: .light)
     private let doneHaptic = UINotificationFeedbackGenerator()
 
@@ -97,6 +108,7 @@ final class CardScannerViewController: UIViewController {
         view.layer.addSublayer(previewLayer)
         setUpOverlay()
         configureSession()
+        observeSession()
     }
 
     override func viewDidLayoutSubviews() {
@@ -171,11 +183,82 @@ final class CardScannerViewController: UIViewController {
         guard let device, device.hasTorch, (try? device.lockForConfiguration()) != nil else { return }
         device.torchMode = on ? .on : .off
         device.unlockForConfiguration()
-        let symbol = on ? "bolt.fill" : "bolt.slash.fill"
-        DispatchQueue.main.async {
-            self.torchButton.setImage(UIImage(systemName: symbol), for: .normal)
-            self.torchButton.accessibilityValue = on ? "On" : "Off"
+        DispatchQueue.main.async { self.showTorch(on: on) }
+    }
+
+    /// The flashlight button's picture and spoken value. Main thread only.
+    private func showTorch(on: Bool) {
+        let image = UIImage(systemName: on ? "bolt.fill" : "bolt.slash.fill")
+        if torchButton.configuration != nil {
+            torchButton.configuration?.image = image
+        } else {
+            torchButton.setImage(image, for: .normal)
         }
+        torchButton.accessibilityValue = on ? "On" : "Off"
+    }
+
+    // MARK: Interruptions
+
+    /// iOS posts these on any thread, so each handler hops to the main thread.
+    private func observeSession() {
+        let center = NotificationCenter.default
+        center.addObserver(self, selector: #selector(sessionRuntimeError(_:)), name: AVCaptureSession.runtimeErrorNotification, object: session)
+        center.addObserver(self, selector: #selector(sessionWasInterrupted(_:)), name: AVCaptureSession.wasInterruptedNotification, object: session)
+        center.addObserver(self, selector: #selector(sessionInterruptionEnded(_:)), name: AVCaptureSession.interruptionEndedNotification, object: session)
+    }
+
+    /// The camera hit an error (the media services reset, say).
+    @objc private nonisolated func sessionRuntimeError(_ notification: Notification) {
+        DispatchQueue.main.async { [weak self] in self?.recoverFromError() }
+    }
+
+    /// A phone call, another app using the camera, or the app going to the background.
+    @objc private nonisolated func sessionWasInterrupted(_ notification: Notification) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.interrupted = true
+            // iOS turns the flashlight off with the camera.
+            self.showTorch(on: false)
+        }
+    }
+
+    @objc private nonisolated func sessionInterruptionEnded(_ notification: Notification) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.interrupted = false
+            self.restartSession()
+        }
+    }
+
+    /// One fresh start per error. A second error right after a restart means it won't come back.
+    private func recoverFromError() {
+        guard !finished, viewIfLoaded?.window != nil else { return }
+        showTorch(on: false)
+        guard Date().timeIntervalSince(lastRestart) > Self.restartGap else {
+            end(.failed("The camera stopped."))
+            return
+        }
+        lastRestart = Date()
+        restartSession()
+    }
+
+    /// Starts the camera again if it stopped. If it won't start, the scanner closes and the
+    /// web side shows its read-failed message.
+    private func restartSession() {
+        guard !finished, !interrupted, viewIfLoaded?.window != nil else { return }
+        sessionQueue.async { [weak self, session] in
+            if !session.isRunning { session.startRunning() }
+            let running = session.isRunning
+            DispatchQueue.main.async {
+                guard let self, !self.finished, !self.interrupted, !running else { return }
+                self.end(.failed("The camera stopped."))
+            }
+        }
+    }
+
+    /// The camera is live and can take a photo. Asking a stopped camera for one crashes.
+    private var cameraReady: Bool {
+        !interrupted && session.isRunning && photoOutput.connection(with: .video)?.isActive == true
     }
 
     // MARK: Overlay
@@ -223,9 +306,17 @@ final class CardScannerViewController: UIViewController {
         shutterButton.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(shutterButton)
 
-        skipButton.setTitle("Skip", for: .normal)
-        skipButton.setTitleColor(Self.offWhite, for: .normal)
-        skipButton.titleLabel?.font = UIFont.systemFont(ofSize: 17, weight: .semibold)
+        if #available(iOS 26.0, *) {
+            var glass = UIButton.Configuration.glass()
+            glass.title = "Skip"
+            glass.baseForegroundColor = Self.offWhite
+            glass.cornerStyle = .capsule
+            skipButton.configuration = glass
+        } else {
+            skipButton.setTitle("Skip", for: .normal)
+            skipButton.setTitleColor(Self.offWhite, for: .normal)
+            skipButton.titleLabel?.font = UIFont.systemFont(ofSize: 17, weight: .semibold)
+        }
         skipButton.accessibilityLabel = "Skip the back"
         skipButton.isHidden = true
         skipButton.addTarget(self, action: #selector(skipTapped), for: .touchUpInside)
@@ -265,13 +356,24 @@ final class CardScannerViewController: UIViewController {
         ])
     }
 
-    /// A round, see-through control over the preview, at least 44pt.
+    /// A round, see-through control over the preview, at least 44pt. The system's glass on
+    /// iOS 26 and up; the same dark circle as before below that.
     private func styleRound(_ button: UIButton, symbol: String, size: CGFloat) {
         let config = UIImage.SymbolConfiguration(pointSize: size >= Self.sideButtonSize ? 22 : 17, weight: .medium)
-        button.setImage(UIImage(systemName: symbol, withConfiguration: config), for: .normal)
-        button.tintColor = Self.offWhite
-        button.backgroundColor = UIColor.black.withAlphaComponent(0.4)
-        button.layer.cornerRadius = size / 2
+        if #available(iOS 26.0, *) {
+            var glass = UIButton.Configuration.glass()
+            glass.image = UIImage(systemName: symbol)
+            glass.preferredSymbolConfigurationForImage = config
+            glass.baseForegroundColor = Self.offWhite
+            glass.cornerStyle = .capsule
+            glass.contentInsets = .zero
+            button.configuration = glass
+        } else {
+            button.setImage(UIImage(systemName: symbol, withConfiguration: config), for: .normal)
+            button.tintColor = Self.offWhite
+            button.backgroundColor = UIColor.black.withAlphaComponent(0.4)
+            button.layer.cornerRadius = size / 2
+        }
         button.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(button)
         NSLayoutConstraint.activate([
@@ -373,6 +475,11 @@ final class CardScannerViewController: UIViewController {
 
     private func capture() {
         guard !capturing, !finished else { return }
+        // Paused by a call or another app: say so with the read-failed hint and stay open.
+        guard cameraReady else {
+            couldNotRead()
+            return
+        }
         capturing = true
         voteFrames = sharpestFrames()
         captureHaptic.impactOccurred()

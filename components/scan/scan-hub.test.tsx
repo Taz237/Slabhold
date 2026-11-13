@@ -169,6 +169,50 @@ describe("ScanHub with the native scanner", () => {
     }
   });
 
+  it("says the camera is off, with Open Settings, when camera access is denied", async () => {
+    let opened = 0;
+    const view = await mount(
+      "add",
+      nativeDeps({ scan: async () => "denied", canOpenSettings: async () => true, openSettings: async () => void opened++ }),
+    );
+    try {
+      await waitFor(() => text().includes("Camera is off for Slabhold"));
+      assert.equal(win.document.querySelector('[role="dialog"]'), null);
+      await waitFor(() => [...win.document.querySelectorAll("button")].some((node) => node.textContent?.trim() === "Open Settings"));
+      await act(async () => button("Open Settings").click());
+      assert.equal(opened, 1);
+      // The other ways in stay.
+      button("Choose a photo");
+      button("Type it instead");
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("on a build that can't open Settings, says where to go and shows no dead button", async () => {
+    const view = await mount("comp", nativeDeps({ scan: async () => "denied", canOpenSettings: async () => false }));
+    try {
+      await waitFor(() => text().includes("Camera is off for Slabhold"));
+      assert.ok(text().includes("Settings app"));
+      assert.equal([...win.document.querySelectorAll("button")].some((node) => node.textContent?.trim() === "Open Settings"), false);
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("clears the camera-off note once a scan goes through", async () => {
+    let scans = 0;
+    const view = await mount("add", nativeDeps({ scan: async () => (scans++ === 0 ? "denied" : CAPTURE), canOpenSettings: async () => true }));
+    try {
+      await waitFor(() => text().includes("Camera is off for Slabhold"));
+      await act(async () => button("Scan a card").click());
+      await waitFor(() => text().includes("Is this your card?"));
+      assert.equal(text().includes("Camera is off for Slabhold"), false);
+    } finally {
+      view.unmount();
+    }
+  });
+
   it("says offline when the search fails offline", async () => {
     const view = await mount("add", nativeDeps({ identify: async () => null, online: () => false }));
     try {

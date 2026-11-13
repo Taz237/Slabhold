@@ -146,12 +146,12 @@ describe("iPhone app push: build 4", () => {
     assert.match(entitlements, /<string>applinks:slabhold\.app<\/string>/);
   });
 
-  it("is build 4, version 1.0.1, with no background modes", () => {
+  it("is build 5, version 1.1.0, with no background modes", () => {
     const pbx = read("ios-app/ios/App/App.xcodeproj/project.pbxproj");
-    assert.equal((pbx.match(/CURRENT_PROJECT_VERSION = 4;/g) ?? []).length, 2);
-    assert.doesNotMatch(pbx, /CURRENT_PROJECT_VERSION = (?!4;)/);
-    assert.equal((pbx.match(/MARKETING_VERSION = 1\.0\.1;/g) ?? []).length, 2);
-    assert.doesNotMatch(pbx, /MARKETING_VERSION = (?!1\.0\.1;)/);
+    assert.equal((pbx.match(/CURRENT_PROJECT_VERSION = 5;/g) ?? []).length, 2);
+    assert.doesNotMatch(pbx, /CURRENT_PROJECT_VERSION = (?!5;)/);
+    assert.equal((pbx.match(/MARKETING_VERSION = 1\.1\.0;/g) ?? []).length, 2);
+    assert.doesNotMatch(pbx, /MARKETING_VERSION = (?!1\.1\.0;)/);
     assert.doesNotMatch(read("ios-app/ios/App/App/Info.plist"), /UIBackgroundModes/);
   });
 

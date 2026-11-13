@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Camera, ImagePlus, ScanLine } from "lucide-react";
+import { Camera, CameraOff, ImagePlus, ScanLine } from "lucide-react";
 import { PrimaryButton, QuietButton, focusRing } from "@/components/add-card/flow-ui";
 import { PhotoFileInputs } from "@/components/photo-file-inputs";
 import { CompSheet, type CompLookup } from "@/components/scan/comp-sheet";
 import { ConfirmSheet, type ConfirmSheetState } from "@/components/scan/confirm-sheet";
 import { saveScan, saveScanMatch } from "@/lib/capture";
 import { isNativeApp, loadNative } from "@/lib/ios/platform";
+import { CAMERA_DENIED, type ScanOutcome } from "@/lib/ios/scanner";
 import { PHOTO_READ_ERROR, readPhotoFile } from "@/lib/photos";
 import { compQueryString, type ScanCompResult } from "@/lib/scan/comp";
 import { newScanId, scanAddPath, scanHandoffFrom } from "@/lib/scan/handoff";
@@ -20,8 +21,11 @@ import { HUB_COPY, scanReadFrom, sheetStateFrom, type ScanCapture, type ScanPurp
 export type ScanHubDeps = {
   /** Async so no plugin code ships in /scan's first load. */
   scannerAvailable: () => Promise<boolean>;
-  /** The native camera. Null when cancelled. */
-  scan: () => Promise<ScanCapture | null>;
+  /** The native camera. Null when cancelled, "denied" when camera access is off. */
+  scan: () => Promise<ScanOutcome>;
+  /** This app build can open Slabhold's page in Settings (build 5 and up). */
+  canOpenSettings: () => Promise<boolean>;
+  openSettings: () => Promise<unknown>;
   /** A library photo, read the same way. */
   pickAndRead: () => Promise<ScanCapture | null>;
   /** Fills open fields from the phone's alternate readings, before anything reads the capture. */
@@ -121,6 +125,8 @@ async function defaultPickAndRead(): Promise<ScanCapture | null> {
 const defaultDeps: ScanHubDeps = {
   scannerAvailable: async () => isNativeApp() && (await loadNative()).scannerAvailable(),
   scan: async () => (await loadNative()).scanCard(),
+  canOpenSettings: async () => isNativeApp() && (await loadNative()).appSettingsAvailable(),
+  openSettings: async () => (await loadNative()).openAppSettings(),
   pickAndRead: defaultPickAndRead,
   settle: defaultSettle,
   identify: defaultIdentify,
@@ -152,6 +158,8 @@ export function ScanHub({
   const [sheet, setSheet] = useState<ConfirmSheetState | null>(null);
   const [photo, setPhoto] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Camera access is off for Slabhold. `settings`: this build can open the Settings app.
+  const [cameraOff, setCameraOff] = useState<{ settings: boolean } | null>(null);
   const run = useRef<AbortController | null>(null);
   // The scan on the sheet, as settled, so "Is this Sapphire?" can read it again.
   const lastCapture = useRef<ScanCapture | null>(null);
@@ -212,13 +220,22 @@ export function ScanHub({
   }, [identify]);
 
   const startScan = useCallback(async () => {
-    let capture: ScanCapture | null = null;
+    let capture: ScanOutcome = null;
+    setError(null);
     try {
       capture = await deps.scan();
     } catch {
+      setCameraOff(null);
       setError(HUB_COPY.readFailed);
       return;
     }
+    if (capture === CAMERA_DENIED) {
+      // Not a cancel: say why nothing opened, and how to turn it back on.
+      setSheet(null);
+      setCameraOff({ settings: await deps.canOpenSettings().catch(() => false) });
+      return;
+    }
+    setCameraOff(null);
     if (!capture) {
       setSheet(null);
       return;
@@ -300,6 +317,25 @@ export function ScanHub({
         <p className="mt-6 rounded-2xl border border-zinc-200 p-4 text-sm leading-5 text-zinc-600 dark:border-white/10 dark:text-zinc-400">
           {comp ? HUB_COPY.compReaderSoon : HUB_COPY.readerSoon}
         </p>
+      ) : null}
+
+      {cameraOff ? (
+        <div role="alert" className="mt-6 rounded-2xl border border-zinc-200 p-4 dark:border-white/10">
+          <div className="flex items-start gap-3">
+            <CameraOff className="mt-0.5 size-5 shrink-0 text-zinc-500 dark:text-zinc-400" strokeWidth={1.75} aria-hidden />
+            <div className="min-w-0">
+              <h2 className="text-[15px] font-semibold">{HUB_COPY.cameraOff}</h2>
+              <p className="mt-1 text-sm leading-5 text-zinc-600 dark:text-zinc-400">
+                {cameraOff.settings ? HUB_COPY.cameraOffBody : HUB_COPY.cameraOffManual}
+              </p>
+            </div>
+          </div>
+          {cameraOff.settings ? (
+            <QuietButton onClick={() => void deps.openSettings().catch(() => {})} className="mt-3 w-full justify-center border border-zinc-200 dark:border-white/15">
+              {HUB_COPY.openSettings}
+            </QuietButton>
+          ) : null}
+        </div>
       ) : null}
 
       {error ? (
