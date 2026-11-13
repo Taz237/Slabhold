@@ -62,7 +62,7 @@ const SCAN_GRADED = /\b(?:psa|bgs|sgc|cgc|csg|hga|tag|beckett|graded|slab(?:bed)
  * "Silver", "Refractor", "Mojo", "Cracked Ice".
  */
 const FINISH_WORDS =
-  /\b(silver|refractor|x[\s-]*fractor|holo|mojo|shimmer|wave|disco|hyper|pulsar|scope|velocity|sparkle|cracked\s+ice|blue\s+ice|ice|camo|tie[\s-]?dye|laser|lazer|neon|choice|zebra|tiger(?:\s+stripes?)?|snakeskin|nebula|no\s+huddle|kaboom|stars|vinyl|fast\s+break|prizm\s+(?:red|blue|green|gold|orange|purple|pink|black|white))\b/i;
+  /\b(silver|refractor|x[\s-]*fractor|holo|mojo|shimmer|wave|disco|hyper|pulsar|scope|velocity|sparkle|cracked\s+ice|blue\s+ice|ice|camo|tie[\s-]?dye|laser|lazer|neon|choice|zebra|tiger(?:\s+stripes?)?|snakeskin|nebula|no\s+huddle|kaboom|vinyl|fast\s+break|prizm\s+(?:red|blue|green|gold|orange|purple|pink|black|white))\b/i;
 
 /** A checklist parallel's name as a pattern: hyphens and spaces alike ("X-Fractor", "X Fractor", "Xfractor"). */
 function namePattern(name: string): RegExp {
@@ -75,10 +75,32 @@ function namePattern(name: string): RegExp {
 }
 
 /** The set's own parallels (Choice, Snakeskin, X-Fractor...), longest first, Base left out. */
-function checklistNames(setBrand: string): string[] {
-  return [...parallelsForSet(setBrand)]
-    .filter((name) => parallelMatchKey(name) !== "base")
+function checklistNames(setBrand: string, checklist?: readonly string[]): string[] {
+  return [...(checklist ?? parallelsForSet(setBrand))]
+    .filter((name) => parallelMatchKey(name) !== "base" && !BASE_LEVELS.has(parallelMatchKey(name)))
     .sort((a, b) => b.length - a.length);
+}
+
+/**
+ * Base subsets and levels, never parallels: Optic's Rated Rookie, Select's Concourse, Premier
+ * (Level), Courtside and Field Level.
+ */
+const BASE_LEVELS = new Set(["rated rookie", "rated rookies", "concourse", "premier", "premier level", "courtside", "field level"]);
+
+/**
+ * Team names with a color or finish word in them. They're taken out before the parallel is read,
+ * so "Tulane Green Wave" and "Dallas Stars" stay Base.
+ */
+const TEAM_PHRASES =
+  /\b(?:(?:tulane\s+)?green\s+wave|(?:dallas|(?:minnesota\s+)?north)\s+stars|red\s+sox|white\s+sox|blue\s+jays|red\s+wings|blue\s+jackets|golden\s+(?:knights|state|bears|gophers|eagles|hurricane)|green\s+bay|crimson\s+tide|blue\s+devils|red\s+raiders|red\s+storm|scarlet\s+knights|black\s+knights|orange\s+crush)\b/gi;
+
+/** A color phrase inside a longer one is the same parallel: "Gold Vinyl" and "Gold" are Gold Vinyl. */
+function withoutRepeats(phrases: readonly string[]): string[] {
+  const words = (phrase: string) => phrase.toUpperCase().split(/[\s/-]+/).filter(Boolean);
+  return phrases.filter(
+    (phrase, index) =>
+      !phrases.some((other, at) => at !== index && words(other).length > words(phrase).length && words(phrase).every((word) => words(other).includes(word))),
+  );
 }
 
 const YEAR_IN_TITLE = /\b(19[5-9]\d|20[0-3]\d)(?:\s*[-/]\s*(\d{2}))?\b(?!\s*\/\s*\d)/g;
@@ -108,18 +130,25 @@ export function isUnnamedRunLabel(label: string | null | undefined): boolean {
  * The parallel a sold title names, from its color and finish words and insert, then the set's own
  * checklist (Choice, Snakeskin, X-Fractor). "Base" only when the title names no parallel or finish.
  */
-export function titleParallel(title: string, directory: readonly IndexedDirectoryPlayer[], setBrand = ""): string {
+export function titleParallel(
+  rawTitle: string,
+  directory: readonly IndexedDirectoryPlayer[],
+  setBrand = "",
+  /** The set's checklist names, when known. Defaults to our own list for the set. */
+  checklist?: readonly string[],
+): string {
+  const title = rawTitle.replace(TEAM_PHRASES, " ");
   const read = readRawCardText([title], directory);
-  const colors = [...read.parallelWords].sort((a, b) => title.toUpperCase().indexOf(a) - title.toUpperCase().indexOf(b));
+  const colors = withoutRepeats([...read.parallelWords]).sort((a, b) => title.toUpperCase().indexOf(a) - title.toUpperCase().indexOf(b));
   const label = parallelLabel(colors);
   if (read.insert) return label ? `${read.insert} ${label}` : read.insert;
   if (label) {
     // In the checklist's spelling when it lists it ("X Fractor" reads "X-Fractor").
-    const same = checklistNames(setBrand).find((name) => parallelMatchKey(name) === parallelMatchKey(label));
+    const same = checklistNames(setBrand, checklist).find((name) => parallelMatchKey(name) === parallelMatchKey(label));
     return same ?? (/^x[\s-]*fractor$/i.test(label) ? "X-Fractor" : label);
   }
   // A parallel on the set's checklist, in the checklist's spelling.
-  const listed = checklistNames(setBrand).find((name) => namePattern(name).test(title));
+  const listed = checklistNames(setBrand, checklist).find((name) => namePattern(name).test(title));
   if (listed) return listed;
   // A finish the color reader doesn't know still isn't Base.
   const finish = FINISH_WORDS.exec(title)?.[1];

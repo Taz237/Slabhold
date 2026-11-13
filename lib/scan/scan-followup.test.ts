@@ -544,7 +544,8 @@ describe("5b) the Base group holds only titles naming no parallel or finish", ()
   const dart = { playerName: "Jaxson Dart", cardNumber: "332", serialRun: null, yearLabel: "2025" };
 
   it("a parallel with no color word (Choice Prizm, Zebra, Snakeskin...) is never Base", () => {
-    const names = ["Choice Prizm", "Zebra", "Tiger Stripe", "Tiger", "Snakeskin", "Nebula", "No Huddle", "Kaboom", "Stars", "Vinyl", "Fast Break", "Blue Ice", "Ice"];
+    // "Stars" counts only when the set's checklist lists it (and never "Dallas Stars"): see 5d.
+    const names = ["Choice Prizm", "Zebra", "Tiger Stripe", "Tiger", "Snakeskin", "Nebula", "No Huddle", "Kaboom", "Vinyl", "Fast Break", "Blue Ice", "Ice"];
     for (const name of names) {
       const title = `2025 Panini Prizm Jaxson Dart #332 ${name}`;
       assert.notEqual(titleParallel(title, INDEXED_DIRECTORY, "Panini Prizm"), "Base", title);
@@ -598,6 +599,55 @@ describe("5c) an X-Fractor after a one-digit card # is not '2x'", () => {
       { playerName: "Aidan Miller", cardNumber: "2", serialRun: null, yearLabel: "2024" },
       { grade: "Raw", setBrand: "Bowman Chrome" },
       [sold("2024 Bowman Chrome Aidan Miller #2 X Fractor", 15)],
+      INDEXED_DIRECTORY,
+    ).kept;
+    assert.equal(kept.length, 1);
+  });
+});
+
+describe("5d) base levels, team names and Stars are never parallels", () => {
+  const base = (title: string, set: string, checklist?: readonly string[]) => titleParallel(title, INDEXED_DIRECTORY, set, checklist);
+
+  it("Dallas Stars base is Base, even when the set's checklist lists Stars", () => {
+    assert.equal(base("2023 Upper Deck Jason Robertson Dallas Stars #55", "Upper Deck"), "Base");
+    assert.equal(base("2023 Upper Deck Jason Robertson Dallas Stars #55", "Upper Deck", ["Base", "Stars"]), "Base");
+    assert.equal(base("1990 Upper Deck Mike Modano Minnesota North Stars #46", "Upper Deck", ["Base", "Stars"]), "Base");
+  });
+
+  it("a Prizm 'Stars' parallel is non-Base when the checklist lists it", () => {
+    assert.notEqual(base("2025 Panini Prizm Jaxson Dart #332 Stars Prizm", "Panini Prizm", ["Base", "Stars", "Silver"]), "Base");
+  });
+
+  it("Optic Rated Rookie and Select's levels are Base", () => {
+    assert.equal(base("2024 Donruss Optic Rated Rookie J.J. McCarthy #203", "Donruss Optic"), "Base");
+    assert.equal(base("2024 Panini Select Premier Level Jaxson Dart #150", "Panini Select"), "Base");
+    assert.equal(base("2024 Panini Select Concourse Jaxson Dart #50", "Panini Select"), "Base");
+    assert.equal(base("2024 Panini Select Courtside Victor Wembanyama #200", "Panini Select"), "Base");
+    assert.equal(base("2024 Panini Select Field Level Jaxson Dart #250", "Panini Select"), "Base");
+    // A real parallel on a base level still isn't Base.
+    assert.notEqual(base("2024 Panini Select Premier Level Jaxson Dart #150 Zebra", "Panini Select"), "Base");
+    assert.notEqual(base("2024 Donruss Optic Rated Rookie J.J. McCarthy #203 Holo", "Donruss Optic"), "Base");
+  });
+
+  it("team names with color words aren't parallels: Tulane Green Wave, Red Sox, Green Bay", () => {
+    assert.equal(base("2025 Panini Prizm Draft Picks Tulane Green Wave Jaxson Dart #332", "Panini Prizm"), "Base");
+    assert.equal(base("2024 Topps Chrome Red Sox Roman Anthony #1", "Topps Chrome"), "Base");
+    assert.equal(base("2024 Panini Prizm Green Bay Packers Jordan Love #10", "Panini Prizm"), "Base");
+    assert.equal(base("2024 Panini Prizm Green Bay Packers Jordan Love #10 Red Wave", "Panini Prizm"), "Red Wave");
+  });
+
+  it("Gold Vinyl reads Gold Vinyl", () => {
+    assert.equal(base("2025 Panini Prizm Jaxson Dart #332 Gold Vinyl 1/1", "Panini Prizm"), "Gold Vinyl");
+  });
+
+  it("Choice, Zebra and Snakeskin are still non-Base; BCP-2 X-Fractor is still kept", () => {
+    for (const name of ["Choice Prizm", "Zebra", "Snakeskin"]) {
+      assert.notEqual(base(`2025 Panini Prizm Jaxson Dart #332 ${name}`, "Panini Prizm"), "Base", name);
+    }
+    const kept = scanSalesFor(
+      { playerName: "Aidan Miller", cardNumber: "BCP-2", serialRun: null, yearLabel: "2024" },
+      { grade: "Raw", setBrand: "Bowman Chrome" },
+      [sold("2024 Bowman Chrome Prospects Aidan Miller BCP-2 X-Fractor", 15)],
       INDEXED_DIRECTORY,
     ).kept;
     assert.equal(kept.length, 1);
