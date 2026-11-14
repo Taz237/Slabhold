@@ -309,11 +309,12 @@ describe("post photos", () => {
 
     const feed = read("components/feed-view.tsx");
     const compose = read("components/compose-view.tsx");
-    assert.match(feed, /disabled=\{photosFull\}/);
+    assert.match(feed, /disabled=\{photosFull \|\| Boolean\(gif\)\}/);
     assert.match(feed, /aria-describedby=\{photosFull \? "feed-photo-cap" : undefined\}/);
     assert.match(feed, /id="feed-photo-cap"/);
     assert.doesNotMatch(feed, /aria-label=\{photosFull/);
-    assert.match(compose, /disabled=\{photosFull\}/);
+    // A post has photos or a GIF, so a picked GIF turns the photo buttons off too.
+    assert.match(compose, /disabled=\{photosFull \|\| Boolean\(gif\)\}/);
     assert.match(compose, /aria-describedby=\{photosFull \? "compose-photo-cap" : undefined\}/);
     assert.match(compose, /id="compose-photo-cap" className="block px-1 pb-1 text-xs text-zinc-500"/);
     assert.doesNotMatch(compose, /compose-photo-cap" className="shrink-0/);

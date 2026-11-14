@@ -100,6 +100,7 @@ export function optimisticReply(input: {
   authorId: string;
   body: string;
   images?: readonly string[] | null;
+  gif?: PostComment["gif"];
   createdAt?: string;
 }): PostComment {
   const images = normalizePostPhotos(input.images ?? []);
@@ -111,6 +112,7 @@ export function optimisticReply(input: {
     createdAt: input.createdAt ?? new Date().toISOString(),
   };
   if (images.length) comment.images = images;
+  if (input.gif) comment.gif = input.gif;
   return comment;
 }
 

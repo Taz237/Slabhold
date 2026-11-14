@@ -1,3 +1,4 @@
+import { isThreadContinuation } from "./threads";
 import type { FollowEdge, Post, PostRepost, Profile } from "./types";
 
 export type TimelineItem = {
@@ -64,6 +65,11 @@ function preferRepostOnce(items: TimelineItem[]): TimelineItem[] {
   return picked.sort(byRecent);
 }
 
+/** A thread shows as its first post. The later posts are on the post page. */
+function leads(post: Post): boolean {
+  return !isThreadContinuation(post);
+}
+
 function postItem(post: Post): TimelineItem {
   return { key: timelineSortKey(post.id), post, at: post.createdAt, repostedBy: null };
 }
@@ -105,7 +111,7 @@ export function profileTimeline(
   userId: string,
 ): TimelineItem[] {
   const { postsById, profilesById } = indexes(posts, profiles);
-  const items = posts.filter((post) => post.authorId === userId).map(postItem);
+  const items = posts.filter((post) => post.authorId === userId && leads(post)).map(postItem);
   items.push(
     ...repostItems(reposts, postsById, profilesById, (repost) => repost.userId === userId),
   );
@@ -136,7 +142,7 @@ export function followingTimeline(
   const authorIds = new Set(ids);
   authorIds.add(userId);
   const { postsById, profilesById } = indexes(posts, profiles);
-  const items = posts.filter((post) => authorIds.has(post.authorId)).map(postItem);
+  const items = posts.filter((post) => authorIds.has(post.authorId) && leads(post)).map(postItem);
   items.push(
     ...repostItems(reposts, postsById, profilesById, (repost) => authorIds.has(repost.userId)),
   );
@@ -145,7 +151,7 @@ export function followingTimeline(
 
 export function publicTimeline(posts: Post[], reposts: PostRepost[], profiles: Profile[]): TimelineItem[] {
   const { postsById, profilesById } = indexes(posts, profiles);
-  const items = posts.map(postItem);
+  const items = posts.filter(leads).map(postItem);
   items.push(...repostItems(reposts, postsById, profilesById, () => true));
   return preferRepostOnce(items);
 }

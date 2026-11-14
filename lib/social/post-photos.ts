@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { cleanImageUrl } from "./link-preview";
+import type { PostGif } from "./gifs";
 import type { PublicCard } from "./types";
 
 /**
@@ -23,6 +24,8 @@ export type PostWrite = {
   quotedPostId?: string | null;
   /** Set when the post is created with a card that was just added. */
   shareOfNewCard?: boolean;
+  /** One GIPHY GIF. Not saved together with photos. */
+  gif?: PostGif | null;
 };
 
 export function postPhotoLimit(multiPhoto: boolean): number {

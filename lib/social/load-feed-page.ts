@@ -21,6 +21,15 @@ import {
   readLikeCount,
 } from "./likes";
 import { mappedPostImages } from "./post-photos";
+import { POST_EXTRA_COLUMNS, postExtrasFromRow, replyGifFromRow } from "./post-extras";
+import { gifColumnMissing } from "./gifs";
+import {
+  isThreadContinuation,
+  notePostExtrasMissing,
+  orderThread,
+  postExtrasKnownMissing,
+  threadColumnMissing,
+} from "./threads";
 import {
   COMMENT_COLUMNS_WITH_IMAGES,
   noteReplyImagesMissing,
@@ -42,6 +51,8 @@ import type {
 const POST_COLUMNS =
   "id, user_id, content, image_url, card, quoted_post_id, created_at, hidden_at, post_type, show_paid, meta";
 const POST_SELECT = `${POST_COLUMNS}, like_count`;
+/** With the GIF and thread columns. Used until a read says they are not there yet. */
+const POST_SELECT_EXTRAS = `${POST_SELECT}, ${POST_EXTRA_COLUMNS}`;
 const PROFILE_SELECT =
   "id, username, display_name, bio, avatar_url, cover_url, accent, created_at";
 
@@ -58,6 +69,9 @@ type PostRow = {
   show_paid?: boolean | null;
   meta?: unknown;
   like_count?: number | null;
+  gif?: unknown;
+  thread_id?: string | null;
+  thread_position?: number | null;
 };
 
 type ProfileRow = {
@@ -132,6 +146,7 @@ function mapPost(row: PostRow, mailDayCards: MailDayCardView[]): Post {
       : null,
     mailDayCards,
     ...likeCountField(row.like_count),
+    ...postExtrasFromRow(row),
   };
 }
 
@@ -216,6 +231,8 @@ async function selectPosts(
     mute: boolean;
     hidden: readonly string[] | null;
     ids?: string[];
+    /** Every post of one thread, first to last. */
+    threadId?: string;
   },
 ): Promise<PostRow[]> {
   const run = async (columns: string) => {
@@ -226,7 +243,12 @@ async function selectPosts(
     }
     if (options.authorIds) query = query.in("user_id", options.authorIds);
     if (options.cursor) query = query.or(keysetOrFilter(options.cursor, "posts"));
-    if (!options.ids) {
+    if (options.threadId) {
+      query = query
+        .eq("thread_id", options.threadId)
+        .order("thread_position", { ascending: true })
+        .limit(options.limit);
+    } else if (!options.ids) {
       query = query
         .order("created_at", { ascending: false })
         .order("id", { ascending: true })
@@ -234,6 +256,20 @@ async function selectPosts(
     }
     return execute(query, viewerId, options.mute, options.hidden);
   };
+  return readPostRows(run);
+}
+
+/**
+ * Post rows with every column this database has. A database without the GIF
+ * and thread columns, or without like_count, is read without them.
+ */
+async function readPostRows(run: (columns: string) => PromiseLike<QueryResult>): Promise<PostRow[]> {
+  if (!postExtrasKnownMissing()) {
+    const full = await run(POST_SELECT_EXTRAS);
+    if (!full.error) return (full.data ?? []) as PostRow[];
+    if (gifColumnMissing(full.error) || threadColumnMissing(full.error)) notePostExtrasMissing();
+    else if (!missingLikeCountColumn(full.error)) throw new Error(full.error.message);
+  }
   const first = await run(POST_SELECT);
   if (first.error && missingLikeCountColumn(first.error)) {
     const second = await run(POST_COLUMNS);
@@ -486,6 +522,11 @@ export async function loadFeedPage(
       // A later repost of this post still has to appear. Do not mark it seen.
       if (row.kind === "post" && repostedPostIds.has(row.id)) continue;
       const post = postById.get(row.id);
+      // A thread shows as its first post. The rest are on the post page.
+      if (row.kind === "post" && post && isThreadContinuation(post)) {
+        seen.add(row.id);
+        continue;
+      }
       const author = post ? profileIds.get(post.authorId) : undefined;
       const repostedBy = row.kind === "repost" ? (profileIds.get(row.userId) ?? null) : null;
       if (!post || !author || (row.kind === "repost" && !repostedBy)) {
@@ -556,6 +597,7 @@ type CommentRow = {
   body: string;
   created_at: string;
   image_urls?: unknown;
+  gif?: unknown;
 };
 
 /** Same cap as the old home window. The quotes tab stays bounded to this post. */
@@ -642,6 +684,7 @@ function mapComment(row: CommentRow): PostComment {
     authorId: row.user_id,
     body: row.body,
     ...(images.length ? { images } : {}),
+    ...replyGifFromRow(row),
     createdAt: row.created_at,
   };
 }
@@ -670,7 +713,13 @@ async function selectCommentsForPosts(
     query = query.order("created_at", { ascending: true });
     return execute(query, viewerId, true, hidden);
   };
-  let { data, error } = await run(COMMENT_COLUMNS_WITH_IMAGES);
+  let { data, error } = postExtrasKnownMissing()
+    ? await run(COMMENT_COLUMNS_WITH_IMAGES)
+    : await run(`${COMMENT_COLUMNS_WITH_IMAGES}, gif`);
+  if (error && gifColumnMissing(error)) {
+    notePostExtrasMissing();
+    ({ data, error } = await run(COMMENT_COLUMNS_WITH_IMAGES));
+  }
   if (error && replyImageColumnMissing(error)) {
     noteReplyImagesMissing();
     const retry = await run("id, post_id, user_id, body, created_at");
@@ -786,14 +835,7 @@ async function selectQuotingPosts(
       .limit(QUOTE_WINDOW) as unknown as PostExec;
     return execute(query, viewerId, false, hidden);
   };
-  const first = await run(POST_SELECT);
-  if (first.error && missingLikeCountColumn(first.error)) {
-    const second = await run(POST_COLUMNS);
-    if (second.error) throw new Error(second.error.message);
-    return (second.data ?? []) as PostRow[];
-  }
-  if (first.error) throw new Error(first.error.message);
-  return (first.data ?? []) as PostRow[];
+  return readPostRows(run);
 }
 
 async function selectRepostsFor(
@@ -990,4 +1032,54 @@ export async function loadPostById(
     ...relatedPosts.map((item) => item.authorId),
   ]);
   return { post, relatedPosts, profiles };
+}
+
+/**
+ * Every post of one thread, first to last, with what each needs on screen:
+ * quoted posts, authors, replies, reposts and the viewer's likes.
+ */
+export async function loadThread(
+  supabase: SupabaseClient,
+  threadId: string,
+  viewerId: string | null,
+): Promise<{
+  posts: Post[];
+  relatedPosts: Post[];
+  profiles: Profile[];
+  comments: PostComment[];
+  reposts: PostRepost[];
+}> {
+  const empty = { posts: [], relatedPosts: [], profiles: [], comments: [], reposts: [] };
+  if (!isUuid(threadId) || postExtrasKnownMissing()) return empty;
+  const [blocked, muted] = viewerId
+    ? await Promise.all([loadHiddenAuthorIds(supabase, false), loadHiddenAuthorIds(supabase, true)])
+    : [null, null];
+  const rows = await selectPosts(supabase, viewerId, {
+    authorIds: null,
+    cursor: null,
+    limit: 10,
+    mute: false,
+    hidden: blocked,
+    threadId,
+  });
+  const posts = orderThread(await mapRows(supabase, rows, viewerId), threadId);
+  if (posts.length === 0) return empty;
+  const relatedPosts = await loadQuoted(supabase, posts, viewerId, false, blocked);
+  const ids = posts.map((post) => post.id);
+  const [profiles, commentRows, reposts, likes] = await Promise.all([
+    loadProfiles(supabase, [...posts, ...relatedPosts].map((post) => post.authorId)),
+    selectCommentsForPosts(supabase, ids, viewerId, muted),
+    selectRepostsFor(supabase, ids, viewerId, blocked),
+    loadViewerLikes(supabase, viewerId, [...ids, ...relatedPosts.map((post) => post.id)]),
+  ]);
+  const migrated = likesMigratedFlag(viewerId);
+  const comments = commentRows.map(mapComment);
+  const people = await loadProfiles(supabase, comments.map((comment) => comment.authorId));
+  return {
+    posts: applyViewerLikes(posts, likes, viewerId, migrated),
+    relatedPosts: applyViewerLikes(relatedPosts, likes, viewerId, migrated),
+    profiles: [...profiles, ...people],
+    comments,
+    reposts,
+  };
 }

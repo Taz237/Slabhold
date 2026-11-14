@@ -42,7 +42,9 @@ import {
   type ReplyLikeState,
 } from "@/lib/social/likes";
 import { authSnapshotReload } from "@/lib/social/auth-snapshot";
-import { type LoadedPostPage, loadPostById, loadPostEngagement, loadPostPage } from "@/lib/social/load-feed-page";
+import { type LoadedPostPage, loadPostById, loadPostEngagement, loadPostPage, loadThread } from "@/lib/social/load-feed-page";
+import type { PostGif } from "@/lib/social/gifs";
+import { orderThread, postsAfterThreadDelete } from "@/lib/social/threads";
 import { loadRealtimePatch } from "@/lib/social/realtime-slices";
 import { newestReplyAt } from "@/lib/social/reply-paging";
 import {
@@ -179,9 +181,19 @@ export type SocialContextValue = {
   followersOf: (userId: string) => Profile[];
   followingOf: (userId: string) => Profile[];
   createPost: (input: PostWrite) => Promise<AuthResult & { postId?: string }>;
+  /** Two to ten posts, saved together in the order given. `postId` is the first. */
+  createThread: (inputs: readonly PostWrite[]) => Promise<AuthResult & { postId?: string }>;
+  /** The posts of one thread, first to last. Loads the ones not on this device yet. */
+  threadPosts: (threadId: string) => Post[];
+  loadThreadPosts: (threadId: string) => Promise<void>;
   updatePost: (
     postId: string,
-    input: { body: string; imageDataUrl: string | null; images?: readonly string[] | null },
+    input: {
+      body: string;
+      imageDataUrl: string | null;
+      images?: readonly string[] | null;
+      gif?: PostGif | null;
+    },
   ) => Promise<AuthResult>;
   deletePost: (postId: string) => Promise<AuthResult>;
   pinPost: (postId: string) => Promise<AuthResult>;
@@ -189,7 +201,12 @@ export type SocialContextValue = {
   deleteComment: (commentId: string) => Promise<AuthResult>;
   toggleLike: (postId: string) => void;
   toggleRepost: (postId: string) => void;
-  addComment: (postId: string, body: string, images?: readonly string[]) => Promise<AuthResult>;
+  addComment: (
+    postId: string,
+    body: string,
+    images?: readonly string[],
+    gif?: PostGif | null,
+  ) => Promise<AuthResult>;
   isLiked: (postId: string) => boolean;
   isReposted: (postId: string) => boolean;
   likeCount: (postId: string) => number;
@@ -1636,10 +1653,98 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     [commitLocal, mode, snapshot.user],
   );
 
+  const loadThreadPosts = useCallback(
+    async (threadId: string): Promise<void> => {
+      const client = supabaseRef.current;
+      if (mode !== "supabase" || !client) return;
+      const loaded = await loadOnce(inflightRef.current, `post-thread:${threadId}`, () =>
+        loadThread(client, threadId, snapshotRef.current.user?.id ?? null),
+      );
+      if (loaded.posts.length === 0) return;
+      storeRemembered(
+        rememberedRef.current,
+        [...loaded.posts, ...loaded.relatedPosts],
+        loaded.profiles,
+        new Set(snapshotRef.current.blockedIds ?? []),
+      );
+      for (const removedId of removedRef.current) forgetRememberedPost(rememberedRef.current, removedId);
+      setRemote((existing) => {
+        const next = mergeEngagement(
+          mergeRememberedSnapshot(existing, rememberedRef.current, removedRef.current),
+          loaded.posts.map((post) => post.id),
+          { comments: loaded.comments, reposts: loaded.reposts },
+          isOptimisticReply,
+        );
+        snapshotRef.current = { ...snapshotRef.current, comments: next.comments, reposts: next.reposts };
+        return next;
+      });
+    },
+    [mode],
+  );
+
+  const createThread = useCallback(
+    async (inputs: readonly PostWrite[]): Promise<AuthResult & { postId?: string }> => {
+      if (inputs.length === 1) return createPost(inputs[0]!);
+      const client = supabaseRef.current;
+      if (mode === "supabase" && client && snapshot.user) {
+        try {
+          const result = await (await loadRemote()).remoteCreateThread(client, snapshot.user.id, inputs);
+          const firstId = result.postIds?.[0];
+          if (!result.error && firstId) {
+            trackEvent("post_created");
+            pingBadgeCheck();
+            emitSocialAction("post");
+            // In place: the first post goes on top. The rest are read with the thread.
+            const loaded = await loadPostById(client, firstId, snapshot.user.id).catch(() => null);
+            if (loaded) {
+              storeRemembered(
+                rememberedRef.current,
+                [loaded.post, ...loaded.relatedPosts],
+                loaded.profiles,
+                new Set(snapshotRef.current.blockedIds ?? []),
+              );
+              setRemote((existing) =>
+                mergeRememberedSnapshot(
+                  {
+                    ...existing,
+                    posts: [loaded.post, ...existing.posts.filter((post) => post.id !== loaded.post.id)],
+                    homePosts: [loaded.post, ...(existing.homePosts ?? []).filter((post) => post.id !== loaded.post.id)],
+                  },
+                  rememberedRef.current,
+                  removedRef.current,
+                ),
+              );
+              if (loaded.post.threadId) void loadThreadPosts(loaded.post.threadId).catch(() => {});
+            }
+            if (result.notice) setStatus(result.notice);
+          }
+          return { error: result.error, notice: result.notice, postId: firstId };
+        } catch (error) {
+          return { error: friendlyError(error, "Could not publish that thread.") };
+        }
+      }
+      const current = localRef.current;
+      if (!current) return { error: NOT_READY };
+      const result = localLib().localCreateThread(current, inputs);
+      if (!result.error) {
+        commitLocal(result.db);
+        trackEvent("post_created");
+        emitSocialAction("post");
+      }
+      return { error: result.error, postId: result.postIds?.[0] };
+    },
+    [commitLocal, createPost, loadThreadPosts, mode, snapshot.user],
+  );
+
   const updatePost = useCallback(
     async (
       postId: string,
-      input: { body: string; imageDataUrl: string | null; images?: readonly string[] | null },
+      input: {
+        body: string;
+        imageDataUrl: string | null;
+        images?: readonly string[] | null;
+        gif?: PostGif | null;
+      },
     ): Promise<AuthResult> => {
       const client = supabaseRef.current;
       if (mode === "supabase" && client && snapshot.user) {
@@ -1651,8 +1756,9 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
               rememberedRef.current,
               postId,
             );
+            const gifEdit = input.gif === undefined ? {} : { gif: input.gif };
             if (known) {
-              const photos = draftPostPhotos(input);
+              const photos = input.gif ? [] : draftPostPhotos(input);
               storeRemembered(
                 rememberedRef.current,
                 [{
@@ -1660,15 +1766,18 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
                   body: input.body,
                   imageDataUrl: photos[0] ?? null,
                   images: photos,
+                  ...gifEdit,
                 }],
                 [],
                 new Set(snapshotRef.current.blockedIds ?? []),
               );
             }
             // In place: the edited text and photos on every copy of the post.
-            const photos = draftPostPhotos(input);
+            const photos = input.gif ? [] : draftPostPhotos(input);
             const edit = (post: Post) =>
-              post.id === postId ? { ...post, body: input.body, imageDataUrl: photos[0] ?? null, images: photos } : post;
+              post.id === postId
+                ? { ...post, body: input.body, imageDataUrl: photos[0] ?? null, images: photos, ...gifEdit }
+                : post;
             setRemote((existing) => ({
               ...existing,
               posts: existing.posts.map(edit),
@@ -1697,6 +1806,9 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         try {
           const result = await (await loadRemote()).remoteDeletePost(client, snapshot.user.id, postId);
           if (!result.error) {
+            // The rest of a thread stays: its later posts move up one place.
+            const kept = postsAfterThreadDelete([...rememberedRef.current.posts.values()], postId);
+            for (const post of kept) rememberedRef.current.posts.set(post.id, post);
             forgetRememberedPost(rememberedRef.current, postId);
             const removed = new Set(removedRef.current);
             removed.add(postId);
@@ -1706,8 +1818,8 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
             // In place: off every list (removedPostIds already hides it everywhere else).
             setRemote((existing) => ({
               ...existing,
-              posts: existing.posts.filter((post) => post.id !== postId),
-              homePosts: existing.homePosts?.filter((post) => post.id !== postId),
+              posts: postsAfterThreadDelete(existing.posts, postId),
+              homePosts: existing.homePosts ? postsAfterThreadDelete(existing.homePosts, postId) : existing.homePosts,
             }));
           }
           return result;
@@ -2059,11 +2171,16 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   );
 
   const addComment = useCallback(
-    async (postId: string, body: string, images?: readonly string[]): Promise<AuthResult> => {
-      const photos = draftPostPhotos({ images: images ?? [] });
+    async (
+      postId: string,
+      body: string,
+      images?: readonly string[],
+      gif?: PostGif | null,
+    ): Promise<AuthResult> => {
+      const photos = gif ? [] : draftPostPhotos({ images: images ?? [] });
       const text = body.trim();
-      if (!text && photos.length === 0) return { error: "Write a comment." };
-      const sendKey = `reply:${postId}:${text}:${photos.join("|")}`;
+      if (!text && photos.length === 0 && !gif) return { error: "Write a comment." };
+      const sendKey = `reply:${postId}:${text}:${photos.join("|")}:${gif?.id ?? ""}`;
       const inflight = inflightRef.current.get(sendKey);
       if (inflight) return inflight as Promise<AuthResult>;
       const run = (async (): Promise<AuthResult> => {
@@ -2077,6 +2194,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
             authorId: current.user.id,
             body: text,
             images: photos,
+            gif,
           });
           const replaceComments = (map: (comments: SocialSnapshot["comments"]) => SocialSnapshot["comments"]) => {
             setRemote((existing) => {
@@ -2098,6 +2216,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
               text,
               post?.authorId ?? null,
               photos,
+              gif,
             );
             if (result.error) {
               replaceComments((comments) => withoutOptimisticReply(comments, optimistic.id));
@@ -2119,7 +2238,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           }
         }
         if (!localRef.current) return { error: NOT_READY };
-        const result = localLib().localAddComment(localRef.current, postId, text, photos);
+        const result = localLib().localAddComment(localRef.current, postId, text, photos, gif);
         if (!result.error) commitLocal(result.db);
         return { error: result.error };
       })();
@@ -2694,6 +2813,14 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     async (...args: Parameters<typeof createPost>) => plainResult(await createPost(...args)),
     [createPost],
   );
+  const friendlyCreateThread = useCallback(
+    async (...args: Parameters<typeof createThread>) => plainResult(await createThread(...args)),
+    [createThread],
+  );
+  const threadPosts = useCallback(
+    (threadId: string) => orderThread(snapshot.posts, threadId),
+    [snapshot.posts],
+  );
   const friendlyUpdatePost = useCallback(
     async (...args: Parameters<typeof updatePost>) => plainResult(await updatePost(...args)),
     [updatePost],
@@ -2769,6 +2896,9 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       followersOf,
       followingOf,
       createPost: friendlyCreatePost,
+      createThread: friendlyCreateThread,
+      threadPosts,
+      loadThreadPosts,
       updatePost: friendlyUpdatePost,
       deletePost: friendlyDeletePost,
       pinPost: friendlyPinPost,
@@ -2897,6 +3027,9 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       friendlyUpdateProfile,
       friendlyToggleFollow,
       friendlyCreatePost,
+      friendlyCreateThread,
+      threadPosts,
+      loadThreadPosts,
       friendlyUpdatePost,
       friendlyDeletePost,
       friendlyPinPost,

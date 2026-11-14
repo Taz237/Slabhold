@@ -27,6 +27,7 @@ The app reads these variables from `.env.local`:
 - `NEXT_PUBLIC_SUPABASE_URL` — project URL (`https://<project-ref>.supabase.co`)
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` — the project's publishable anon key
 - `TRAWL_API_KEY` — Trawl API key for live sold listings ([console](https://trawl.dev/console/keys)); server-only
+- `GIPHY_API_KEY` — GIPHY API key for the GIF picker ([dashboard](https://developers.giphy.com/dashboard)); server-only
 - `COMPS_SOURCE` — `trawl` | `sample` | `off` (defaults to `sample` when unset)
 - `SUPABASE_SERVICE_ROLE_KEY` — required for `sold_comps_cache` writes under RLS
 

@@ -9,6 +9,8 @@ import { useCollection } from "@/components/collection-provider";
 import { useImageLightbox } from "@/components/image-lightbox";
 import { PostCardTile, postCardHref } from "@/components/post-card-tile";
 import { PostPhotoGrid } from "@/components/post-photo-grid";
+import { PostGifPlayer } from "@/components/post-gif";
+import { isInThread } from "@/lib/social/threads";
 import { ReplyPhotos } from "@/components/reply-photos";
 import { MentionText } from "@/components/mention-text";
 import { QuotedPostEmbed } from "@/components/quoted-post-embed";
@@ -51,6 +53,8 @@ export const Tweet = memo(function Tweet({
   cardValuesLoading,
   pinned = false,
   firstScreen = false,
+  threadAbove = false,
+  threadBelow = false,
 }: {
   post: Post;
   author: Profile;
@@ -67,6 +71,10 @@ export const Tweet = memo(function Tweet({
   pinned?: boolean;
   /** On the first screen: its photos load at once, at high priority. */
   firstScreen?: boolean;
+  /** On the post page: the thread's line runs in from the post above. */
+  threadAbove?: boolean;
+  /** On the post page: the thread's line runs on to the post below. */
+  threadBelow?: boolean;
 }) {
   const router = useRouter();
   const openImage = useImageLightbox();
@@ -113,13 +121,15 @@ export const Tweet = memo(function Tweet({
   const bodyClass = variant === "detail" ? "text-17 leading-6" : "text-15 leading-[1.4]";
   const pill = postPill(post);
   const graded = Boolean(post.card && post.postType !== "mail_day" && gradedLabel(post.card));
+  const inThreadView = threadAbove || threadBelow;
 
   return (
     <article
       onClick={openPost}
       onPointerDown={warmPost}
       data-nav-href={variant === "feed" ? `/posts/${post.id}` : undefined}
-      className={`border-b border-zinc-200/70 dark:border-white/[0.07] ${
+      data-thread-row={inThreadView ? "" : undefined}
+      className={`relative ${threadBelow ? "" : "border-b border-zinc-200/70 dark:border-white/[0.07]"} ${
         variant === "feed"
           ? "tap-row cursor-pointer hover:bg-zinc-900/[0.015] dark:hover:bg-white/[0.015]"
           : ""
@@ -145,8 +155,22 @@ export const Tweet = memo(function Tweet({
           <span className="truncate hover:underline">{repostedBy.displayName} reposted</span>
         </Link>
       ) : null}
+      {threadAbove ? (
+        <span
+          aria-hidden
+          data-thread-line="above"
+          className="absolute top-0 left-[35px] h-2.5 w-0.5 rounded-b-full bg-zinc-200 dark:bg-white/15"
+        />
+      ) : null}
+      {threadBelow ? (
+        <span
+          aria-hidden
+          data-thread-line="below"
+          className="absolute top-[58px] bottom-0 left-[35px] w-0.5 rounded-t-full bg-zinc-200 dark:bg-white/15"
+        />
+      ) : null}
       <div className={`flex gap-3 px-4 pb-1.5 ${pinned || repostedBy ? "pt-1" : "pt-3.5"}`}>
-      <Link prefetch={false} href={userHref(author.username)} aria-label={`${author.displayName}'s profile`} className="shrink-0">
+      <Link prefetch={false} href={userHref(author.username)} aria-label={`${author.displayName}'s profile`} className="relative shrink-0 self-start">
         <Avatar name={author.displayName} image={author.avatarDataUrl} accent={author.accent} />
       </Link>
       <div className="min-w-0 flex-1">
@@ -188,6 +212,7 @@ export const Tweet = memo(function Tweet({
                 fit={variant === "detail" ? "full" : "feed"}
               />
             ) : null}
+            {post.gif && !photos.length ? <PostGifPlayer gif={post.gif} /> : null}
             {post.card && pill ? (
               <div className="mt-3 -mb-1 flex justify-center">
                 <PostPill label={pill} solid={graded} />
@@ -232,6 +257,16 @@ export const Tweet = memo(function Tweet({
           }
         />
         {sendOpen && sendable ? <SendPostSheet post={post} onClose={() => setSendOpen(false)} /> : null}
+        {variant === "feed" && !inThreadView && isInThread(post) ? (
+          <Link
+            prefetch={false}
+            href={`/posts/${post.id}`}
+            data-show-thread=""
+            className="-mt-1 mb-1 inline-flex min-h-11 items-center text-15 font-medium text-violet-600 hover:underline dark:text-[#A78BFA]"
+          >
+            Show thread
+          </Link>
+        ) : null}
         {variant === "feed" ? <CommentPreview postId={post.id} comments={comments} /> : null}
       </div>
       </div>
@@ -287,6 +322,7 @@ function CommentPreview({ postId, comments }: { postId: string; comments: PostCo
                 </p>
               ) : null}
               <ReplyPhotos images={comment.images} />
+              {comment.gif ? <PostGifPlayer gif={comment.gif} size="reply" /> : null}
             </div>
           </div>
         );

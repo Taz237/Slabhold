@@ -13,6 +13,7 @@ export const SEEDED_SOCIAL_ACTIONS: ReadonlySet<string> = new Set([
   "toggleFollow",
   "followMany",
   "createPost",
+  "createThread",
   "updatePost",
   "deletePost",
   "pinPost",

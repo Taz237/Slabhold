@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ReadRetry } from "@/components/read-retry";
 import { usePathname, useRouter } from "next/navigation";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Compass, ImagePlus } from "lucide-react";
+import { Compass, ImagePlus, Plus } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { LazyMentionTextarea } from "@/components/mention-textarea-lazy";
 import { CharacterRing } from "@/components/character-ring";
@@ -38,6 +38,11 @@ import { loginPath, signupPath } from "@/lib/auth/safe-next";
 import { takeCompose } from "@/lib/capture";
 import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 import { ComposePhotoDrafts } from "@/components/compose-photo-drafts";
+import { GifPicker } from "@/components/gif-picker";
+import { GifDraft } from "@/components/post-gif";
+import { composeDraftKey, keepComposeDraft, threadDraftFromHome } from "@/lib/social/compose-draft";
+import type { PostGif } from "@/lib/social/gifs";
+import { postsSupportGifsAndThreads } from "@/lib/social/threads";
 import { PhotoFileInputs } from "@/components/photo-file-inputs";
 import { usePostPhotos } from "@/components/use-post-photos";
 import { PHOTO_HEIC_ERROR, readPhotoFile } from "@/lib/photos";
@@ -585,10 +590,16 @@ function SignedOutBanner() {
 }
 
 function Composer({ onPosted }: { onPosted?: () => void }) {
-  const { createPost, user } = useSocial();
+  const router = useRouter();
+  const { createPost, user, mode } = useSocial();
   const { cards, ready: cardsReady, syncError } = useCollection();
   const libraryRef = useRef<HTMLInputElement>(null);
   const [body, setBody] = useState("");
+  /** A post has photos or a GIF, not both. */
+  const [gif, setGif] = useState<PostGif | null>(null);
+  const [gifOpen, setGifOpen] = useState(false);
+  /** GIFs and threads need their database columns. Until those are there, the buttons stay hidden. */
+  const [extrasOn, setExtrasOn] = useState(mode !== "supabase");
   const [composePhoto] = useState(() => takeComposePrefill());
   const {
     images,
@@ -613,6 +624,9 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
       void postsSupportMultipleImages(supabase).then((ok) => {
         if (!cancelled) setLimit(postPhotoLimit(ok));
       });
+      void postsSupportGifsAndThreads(supabase).then((ok) => {
+        if (!cancelled) setExtrasOn(ok);
+      });
     }).catch(() => {
       // supabase-js failed to load: the photo limit stays at its default.
     });
@@ -636,18 +650,40 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
       imageDataUrl: images[0] ?? null,
       images,
       card,
+      gif,
     });
     setSending(false);
     if (result.error) {
       setError(result.error);
       return;
     }
-    setBody("");
-    replaceAll([]);
-    setCardId("");
-    setError(null);
+    clear();
     haptic("post");
     onPosted?.();
+  }
+
+  function clear() {
+    setBody("");
+    replaceAll([]);
+    setGif(null);
+    setCardId("");
+    setError(null);
+  }
+
+  const hasDraft = body.trim().length > 0 || images.length > 0 || Boolean(gif);
+
+  /**
+   * The plus button: what is written here becomes the first post of a thread,
+   * and the full composer opens on the second. This box is cleared, so the
+   * same words are never posted twice.
+   */
+  function continueAsThread() {
+    if (!hasDraft || overLimit || readingPhoto) return;
+    const key = composeDraftKey({ edit: null, quote: null, card: null });
+    if (!key) return;
+    keepComposeDraft(key, threadDraftFromHome({ body, images, cardId, gif }));
+    clear();
+    router.push("/compose");
   }
 
   return (
@@ -673,8 +709,9 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
           className="w-full resize-none bg-transparent text-15 leading-5 outline-none placeholder:text-zinc-500"
         />
         <ComposePhotoDrafts images={images} onRemove={removePhoto} />
+        {gif ? <GifDraft gif={gif} onRemove={() => setGif(null)} /> : null}
         {readingPhoto ? <p className="mt-2 text-xs text-zinc-500">Reading photo…</p> : null}
-        <div className="mt-2 flex flex-wrap items-center gap-2">
+        <div className="mt-2 flex flex-wrap items-center gap-1">
           <PhotoFileInputs
             libraryRef={libraryRef}
             libraryMultiple
@@ -683,7 +720,7 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
           />
           <button
             type="button"
-            disabled={photosFull}
+            disabled={photosFull || Boolean(gif)}
             aria-describedby={photosFull ? "feed-photo-cap" : undefined}
             onClick={() => libraryRef.current?.click()}
             className="inline-flex min-h-11 items-center gap-1 rounded-full px-2 text-sm text-zinc-500 hover:bg-zinc-100 disabled:opacity-40 dark:hover:bg-white/10"
@@ -691,6 +728,25 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
             <ImagePlus className="h-4 w-4" />
             Photo
           </button>
+          {extrasOn ? (
+            <button
+              type="button"
+              aria-label="Add a GIF"
+              disabled={Boolean(gif) || images.length > 0 || readingPhoto}
+              onClick={() => {
+                void GifPicker.preload().catch(() => {});
+                setGifOpen(true);
+              }}
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full px-2 text-zinc-500 hover:bg-zinc-100 disabled:opacity-40 dark:hover:bg-white/10"
+            >
+              <span
+                aria-hidden="true"
+                className="rounded-[5px] border-[1.5px] border-current px-[3px] font-mono text-11 leading-[15px] font-semibold"
+              >
+                GIF
+              </span>
+            </button>
+          ) : null}
           {photosFull ? (
             <span id="feed-photo-cap" className="text-xs text-zinc-500">
               {photoCapHint}
@@ -701,14 +757,14 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
               cards={cards}
               value={cardId}
               onChange={setCardId}
-              selectClassName="max-w-[180px] rounded-full border border-zinc-200 bg-transparent px-2 py-1 text-xs text-zinc-600 dark:border-white/10 dark:text-zinc-300"
+              selectClassName="max-w-[136px] rounded-full border border-zinc-200 bg-transparent px-2 py-1 text-xs text-zinc-600 dark:border-white/10 dark:text-zinc-300"
             />
           ) : (
             <select
               disabled
               value=""
               aria-label="Attach a card"
-              className="max-w-[180px] rounded-full border border-zinc-200 bg-transparent px-2 py-1 text-xs text-zinc-600 dark:border-white/10 dark:text-zinc-300"
+              className="max-w-[136px] rounded-full border border-zinc-200 bg-transparent px-2 py-1 text-xs text-zinc-600 dark:border-white/10 dark:text-zinc-300"
             >
               <option value="">Attach a card</option>
             </select>
@@ -719,10 +775,30 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
               {body.length}/{POST_LIMIT}
             </span>
           </span>
+          {extrasOn ? (
+            <button
+              type="button"
+              aria-label="Add another post"
+              disabled={!hasDraft || overLimit || readingPhoto || sending}
+              onClick={continueAsThread}
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-[#7C3AED] transition-colors hover:bg-violet-500/10 disabled:opacity-40 dark:text-[#A78BFA]"
+            >
+              <Plus className="h-5 w-5" />
+            </button>
+          ) : null}
           <button type="submit" disabled={sending || readingPhoto || overLimit} className={solidButton}>
             Post
           </button>
         </div>
+        {gifOpen ? (
+          <GifPicker
+            onPick={(picked) => {
+              setGif(picked);
+              setGifOpen(false);
+            }}
+            onClose={() => setGifOpen(false)}
+          />
+        ) : null}
         {photoError ? (
           <p className="mt-2 text-xs text-rose-600 dark:text-rose-400" role="alert">
             {photoError}
