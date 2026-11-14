@@ -4,8 +4,8 @@ import { TEAM_BADGE_USERNAMES, hasTeamBadge } from "@/lib/social/team-badge";
 
 describe("team badge list", () => {
   it("is the listed usernames only", () => {
-    assert.deepEqual([...TEAM_BADGE_USERNAMES], ["donnietaz", "slabhold", "ripsandlots", "kevstuff"]);
-    for (const name of ["donnietaz", "slabhold", "ripsandlots", "kevstuff"]) {
+    assert.deepEqual([...TEAM_BADGE_USERNAMES], ["donnietaz", "slabhold", "ripsandlots", "kevstuff", "jbills421", "jmastella"]);
+    for (const name of ["donnietaz", "slabhold", "ripsandlots", "kevstuff", "jbills421", "jmastella"]) {
       assert.equal(hasTeamBadge(name), true, name);
     }
   });
@@ -15,11 +15,14 @@ describe("team badge list", () => {
     assert.equal(hasTeamBadge(" @slabhold "), true);
     assert.equal(hasTeamBadge("RipsAndLots"), true);
     assert.equal(hasTeamBadge("@KevStuff"), true);
+    assert.equal(hasTeamBadge("JBills421"), true);
+    assert.equal(hasTeamBadge(" @JMastella "), true);
   });
 
   it("gives nobody else the badge, including look-alikes", () => {
     for (const name of ["collector", "slabholdupdates", "donnietaz2", "donnie", "slab_hold",
       "ripsandlot", "ripsandlots2", "rips_and_lots", "kevstuffs", "kev", "kev_stuff",
+      "jbills42", "jbills4210", "jbills", "j_bills421", "jmastella2", "jmastell", "j_mastella",
       "", null, undefined]) {
       assert.equal(hasTeamBadge(name), false, String(name));
     }
