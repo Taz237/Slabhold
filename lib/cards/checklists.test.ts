@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { checklistProductFrom, csvCells, parseChecklistLine, sectionsFromChecklistPage, sectionsFromMakerCsv } from "./checklist-import";
 import { CHECKLIST_INDEX, checklistFilesFor, loadChecklistsFor } from "./checklist-load";
-import { checklistFileName, checklistNumberKey, playersAt, type ChecklistProduct } from "./checklists";
+import { baseSetHits, checklistFileName, checklistNumberKey, isBaseSection, playersAt, sectionNamedOnCard, type ChecklistProduct } from "./checklists";
 
 const PAGE = `
 <h3 class="hot-title">Base Set Checklist</h3><div class="checklistdesc">300 cards.</div>
@@ -116,5 +116,47 @@ describe("the checklist store", () => {
     assert.deepEqual(checklistFilesFor({ years: ["2023"], setBrand: "Prizm" }, entries), ["a", "b"]);
     assert.deepEqual(checklistFilesFor({ years: ["2023"], setBrand: "Prizm", sport: "Basketball" }, entries), ["b"]);
     assert.deepEqual(checklistFilesFor({ years: ["2024", "2023"], setBrand: "Panini Select" }, entries), ["d"]);
+  });
+
+  it("knows the base set's sections from a variation, an autograph or an insert", () => {
+    for (const name of ["Base", "Base Rookies", "Base Paper", "Base Chrome", "Base Sapphire", "Base Prospects", "Base Chrome Prospects", "Base Young Guns", "Base Young Guns Rookies"]) assert.ok(isBaseSection(name), name);
+    for (const name of ["Base Image Variation", "Base Chrome Autographs", "Base Rookie Variations Prizms Silver", "Base RetroFractor", "Fireworks", "Prizm Autographs", "Baseball Stars Autographs", "Chrome Prospects"]) assert.ok(!isBaseSection(name), name);
+  });
+
+  it("a section's name on the card: the whole name, or the name without 'Autographs', never just the set's own words", () => {
+    assert.ok(sectionNamedOnCard("Deep Space", "Panini Prizm", "PRIZM DEEP SPACE NO. 24"));
+    assert.ok(sectionNamedOnCard("Fireworks Autographs", "Panini Prizm", "PRIZM FIREWORKS NO. 24"));
+    assert.ok(!sectionNamedOnCard("Prizm Autographs", "Panini Prizm", "PRIZM NO. 24 2025-26 PANINI - PRIZM BASKETBALL"));
+    assert.ok(!sectionNamedOnCard("Rookie Autographs", "Panini Prizm", "PRIZM RC ROOKIE NO. 24"));
+    assert.ok(!sectionNamedOnCard("Fireworks", "Panini Prizm", "PRIZM NO. 24"));
+  });
+
+  it("the 2024-and-later files: the page each came from is logged, never a file name, and the spot cards are who the page says", async () => {
+    const added = CHECKLIST_INDEX.filter((entry) => entry.source.includes("checklistinsider.com"));
+    assert.equal(added.length, 22);
+    for (const entry of CHECKLIST_INDEX) assert.doesNotMatch(entry.source, /\.csv\b/i, entry.file);
+    // Upper Deck Series 1 and Series 2 are one product, with both pages logged.
+    for (const year of ["2024-25", "2025-26"]) {
+      const deck = CHECKLIST_INDEX.find((entry) => entry.product === "Upper Deck" && entry.yearLabel === year);
+      assert.match(deck?.source ?? "", /series-1-hockey \+ https:\/\/www\.checklistinsider\.com\/.*series-2-hockey$/, year);
+    }
+    const at = async (sport: string, yearLabel: string, setBrand: string, cardNumber: string) =>
+      playersAt(await loadChecklistsFor({ years: [yearLabel], setBrand, sport }), { yearLabel, setBrand, cardNumber, sport });
+    const only = async (sport: string, yearLabel: string, setBrand: string, cardNumber: string) => [...new Set((await at(sport, yearLabel, setBrand, cardNumber)).map((hit) => hit.player))];
+    assert.deepEqual(await only("Basketball", "2025-26", "Panini Prizm", "103"), ["Labaron Philon"]);
+    assert.deepEqual(await only("Football", "2024", "Panini Prizm", "329"), ["Drake Maye"]);
+    assert.deepEqual(await only("Hockey", "2025-26", "Upper Deck", "205"), ["Ivan Demidov"]);
+    assert.deepEqual(await only("Baseball", "2025", "Bowman", "BCP-22"), ["JJ Wetherholt"]);
+    assert.deepEqual(await only("Baseball", "2025", "Topps Chrome", "221"), ["Max Muncy"]);
+    assert.deepEqual(await only("Basketball", "2025-26", "Topps Chrome", "251"), ["Cooper Flagg"]);
+
+    // 2025-26 Prizm #24: thirteen cards share the number, one is in Base.
+    const shared = await at("Basketball", "2025-26", "Panini Prizm", "24");
+    assert.equal(shared.length, 13);
+    assert.deepEqual(baseSetHits(shared, "PRIZM NO. 24").map((hit) => hit.player), ["Sion James"]);
+    // The card prints an insert's name: it may be that insert, so the base card is not offered.
+    assert.deepEqual(baseSetHits(shared, "PRIZM DEEP SPACE NO. 24"), []);
+    // No base card at the number: nobody.
+    assert.deepEqual(baseSetHits(shared.filter((hit) => hit.section !== "Base"), "PRIZM NO. 24"), []);
   });
 });

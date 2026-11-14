@@ -1,0 +1,140 @@
+{
+ "sport": "Baseball",
+ "yearLabel": "2025",
+ "product": "Topps Chrome Sapphire",
+ "manufacturer": "Topps",
+ "source": "https://www.checklistinsider.com/2025-topps-chrome-sapphire-baseball",
+ "official": false,
+ "parallels": [
+  {
+   "subset": "Base Sapphire",
+   "name": "Gold Sapphire",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base Sapphire",
+   "name": "Orange Sapphire",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Sapphire",
+   "name": "Black Sapphire",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Sapphire",
+   "name": "Red Sapphire",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Sapphire",
+   "name": "Padparadscha Sapphire",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Image Variation",
+   "name": "Gold Sapphire",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base Image Variation",
+   "name": "Orange Sapphire",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Image Variation",
+   "name": "Black Sapphire",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Image Variation",
+   "name": "Red Sapphire",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Image Variation",
+   "name": "Padparadscha Sapphire",
+   "serialRun": 1
+  },
+  {
+   "subset": "Rookie Autographs Sapphire",
+   "name": "Green Sapphire",
+   "serialRun": 99
+  },
+  {
+   "subset": "Rookie Autographs Sapphire",
+   "name": "Gold Sapphire",
+   "serialRun": 50
+  },
+  {
+   "subset": "Rookie Autographs Sapphire",
+   "name": "Orange Sapphire",
+   "serialRun": 25
+  },
+  {
+   "subset": "Rookie Autographs Sapphire",
+   "name": "Black Sapphire",
+   "serialRun": 10
+  },
+  {
+   "subset": "Rookie Autographs Sapphire",
+   "name": "Red Sapphire",
+   "serialRun": 5
+  },
+  {
+   "subset": "Rookie Autographs Sapphire",
+   "name": "Padparadscha Sapphire",
+   "serialRun": 1
+  },
+  {
+   "subset": "Sapphire Selections Autographs",
+   "name": "Gold Sapphire",
+   "serialRun": 50
+  },
+  {
+   "subset": "Sapphire Selections Autographs",
+   "name": "Orange Sapphire",
+   "serialRun": 25
+  },
+  {
+   "subset": "Sapphire Selections Autographs",
+   "name": "Black Sapphire",
+   "serialRun": 10
+  },
+  {
+   "subset": "Sapphire Selections Autographs",
+   "name": "Red Sapphire",
+   "serialRun": 5
+  },
+  {
+   "subset": "Sapphire Selections Autographs",
+   "name": "Padparadscha Sapphire",
+   "serialRun": 1
+  },
+  {
+   "subset": "Sapphire Selections",
+   "name": "Gold Sapphire",
+   "serialRun": 50
+  },
+  {
+   "subset": "Sapphire Selections",
+   "name": "Orange Sapphire",
+   "serialRun": 25
+  },
+  {
+   "subset": "Sapphire Selections",
+   "name": "Black Sapphire",
+   "serialRun": 10
+  },
+  {
+   "subset": "Sapphire Selections",
+   "name": "Red Sapphire",
+   "serialRun": 5
+  },
+  {
+   "subset": "Sapphire Selections",
+   "name": "Padparadscha Sapphire",
+   "serialRun": 1
+  }
+ ]
+}

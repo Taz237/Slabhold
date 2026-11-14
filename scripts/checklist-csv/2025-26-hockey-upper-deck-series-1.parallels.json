@@ -1,0 +1,325 @@
+{
+ "sport": "Hockey",
+ "yearLabel": "2025-26",
+ "product": "Upper Deck",
+ "manufacturer": "Upper Deck",
+ "source": "https://www.checklistinsider.com/2025-26-upper-deck-series-1-hockey",
+ "official": false,
+ "parallels": [
+  {
+   "subset": "Base",
+   "name": "Outburst",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Clear Cut",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Deluxe",
+   "serialRun": 250
+  },
+  {
+   "subset": "Base",
+   "name": "Exclusives",
+   "serialRun": 100
+  },
+  {
+   "subset": "Base",
+   "name": "Outburst Red",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base",
+   "name": "High Gloss",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base",
+   "name": "Outburst Gold",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base",
+   "name": "Printing Plates",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base",
+   "name": "Silver Foil",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Speckled Rainbow Foil",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Young Guns",
+   "name": "Outburst",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Young Guns",
+   "name": "Clear Cut",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Young Guns",
+   "name": "Deluxe",
+   "serialRun": 250
+  },
+  {
+   "subset": "Base Young Guns",
+   "name": "Exclusives",
+   "serialRun": 100
+  },
+  {
+   "subset": "Base Young Guns",
+   "name": "Outburst Red",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Young Guns",
+   "name": "High Gloss",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Young Guns",
+   "name": "Outburst Gold",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Young Guns",
+   "name": "Printing Plates",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Young Guns",
+   "name": "Silver Foil",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Young Guns",
+   "name": "Speckled Rainbow Foil",
+   "serialRun": null
+  },
+  {
+   "subset": "Bustle",
+   "name": "Speckle",
+   "serialRun": null
+  },
+  {
+   "subset": "Bustle",
+   "name": "Red",
+   "serialRun": 199
+  },
+  {
+   "subset": "Bustle",
+   "name": "Gold",
+   "serialRun": 25
+  },
+  {
+   "subset": "Bustle",
+   "name": "Printing Plates",
+   "serialRun": 1
+  },
+  {
+   "subset": "Compadres",
+   "name": "Speckle",
+   "serialRun": null
+  },
+  {
+   "subset": "Compadres",
+   "name": "Red",
+   "serialRun": 199
+  },
+  {
+   "subset": "Compadres",
+   "name": "Gold",
+   "serialRun": 25
+  },
+  {
+   "subset": "Compadres",
+   "name": "Printing Plates",
+   "serialRun": 1
+  },
+  {
+   "subset": "Compositions",
+   "name": "Speckle",
+   "serialRun": null
+  },
+  {
+   "subset": "Compositions",
+   "name": "Red",
+   "serialRun": 199
+  },
+  {
+   "subset": "Compositions",
+   "name": "Gold",
+   "serialRun": 25
+  },
+  {
+   "subset": "Compositions",
+   "name": "Printing Plates",
+   "serialRun": 1
+  },
+  {
+   "subset": "Cup Quest",
+   "name": "Speckle",
+   "serialRun": null
+  },
+  {
+   "subset": "Cup Quest",
+   "name": "Red",
+   "serialRun": 199
+  },
+  {
+   "subset": "Cup Quest",
+   "name": "Gold",
+   "serialRun": 25
+  },
+  {
+   "subset": "Cup Quest",
+   "name": "Printing Plates",
+   "serialRun": 1
+  },
+  {
+   "subset": "Encore",
+   "name": "Blue",
+   "serialRun": null
+  },
+  {
+   "subset": "Encore",
+   "name": "Red",
+   "serialRun": 199
+  },
+  {
+   "subset": "Encore",
+   "name": "Gold",
+   "serialRun": 50
+  },
+  {
+   "subset": "Goal Oriented",
+   "name": "Speckle",
+   "serialRun": null
+  },
+  {
+   "subset": "Goal Oriented",
+   "name": "Red",
+   "serialRun": 199
+  },
+  {
+   "subset": "Goal Oriented",
+   "name": "Gold",
+   "serialRun": 25
+  },
+  {
+   "subset": "Goal Oriented",
+   "name": "Printing Plates",
+   "serialRun": 1
+  },
+  {
+   "subset": "O-Pee-Chee Glossy",
+   "name": "Gold",
+   "serialRun": null
+  },
+  {
+   "subset": "Outburst Retro Young Guns",
+   "name": "Red",
+   "serialRun": 25
+  },
+  {
+   "subset": "Outburst Retro Young Guns",
+   "name": "Gold",
+   "serialRun": 1
+  },
+  {
+   "subset": "Rookie Commemorative Class",
+   "name": "Red",
+   "serialRun": null
+  },
+  {
+   "subset": "Sizzle Reel",
+   "name": "Speckle",
+   "serialRun": null
+  },
+  {
+   "subset": "Sizzle Reel",
+   "name": "Red",
+   "serialRun": 199
+  },
+  {
+   "subset": "Sizzle Reel",
+   "name": "Gold",
+   "serialRun": 25
+  },
+  {
+   "subset": "Sizzle Reel",
+   "name": "Printing Plates",
+   "serialRun": 1
+  },
+  {
+   "subset": "Tracking Systems",
+   "name": "Speckle",
+   "serialRun": null
+  },
+  {
+   "subset": "Tracking Systems",
+   "name": "Red",
+   "serialRun": 199
+  },
+  {
+   "subset": "Tracking Systems",
+   "name": "Gold",
+   "serialRun": 25
+  },
+  {
+   "subset": "Tracking Systems",
+   "name": "Printing Plates",
+   "serialRun": 1
+  },
+  {
+   "subset": "UD Canvas",
+   "name": "Black & White",
+   "serialRun": null
+  },
+  {
+   "subset": "UD Canvas",
+   "name": "Printing Plates",
+   "serialRun": 1
+  },
+  {
+   "subset": "UD Canvas Young Guns",
+   "name": "Black & White",
+   "serialRun": null
+  },
+  {
+   "subset": "UD Canvas Young Guns",
+   "name": "Printing Plates",
+   "serialRun": 1
+  },
+  {
+   "subset": "UD Portraits",
+   "name": "Speckle",
+   "serialRun": null
+  },
+  {
+   "subset": "UD Portraits",
+   "name": "Red",
+   "serialRun": 199
+  },
+  {
+   "subset": "UD Portraits",
+   "name": "Gold",
+   "serialRun": 25
+  },
+  {
+   "subset": "UD Portraits",
+   "name": "Printing Plates",
+   "serialRun": 1
+  }
+ ]
+}

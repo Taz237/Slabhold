@@ -1,0 +1,2655 @@
+{
+ "sport": "Basketball",
+ "yearLabel": "2025-26",
+ "product": "Topps Chrome",
+ "manufacturer": "Topps",
+ "source": "https://www.checklistinsider.com/2025-26-topps-chrome-basketball",
+ "official": false,
+ "parallels": [
+  {
+   "subset": "Base",
+   "name": "Base Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Skylight Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Pulsar Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "X-Fractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "RayWave Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Red/White/Blue Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Basketball Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Prism Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Negative Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Wave Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Lightboard Logos Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "1st Day Issue Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Magenta Refractor",
+   "serialRun": 399
+  },
+  {
+   "subset": "Base",
+   "name": "Teal Refractor",
+   "serialRun": 299
+  },
+  {
+   "subset": "Base",
+   "name": "Yellow Refractor",
+   "serialRun": 275
+  },
+  {
+   "subset": "Base",
+   "name": "Yellow Basketball Refractor",
+   "serialRun": 275
+  },
+  {
+   "subset": "Base",
+   "name": "RayWave Yellow Refractor",
+   "serialRun": 275
+  },
+  {
+   "subset": "Base",
+   "name": "Aqua Refractor",
+   "serialRun": 199
+  },
+  {
+   "subset": "Base",
+   "name": "Aqua Basketball Refractor",
+   "serialRun": 199
+  },
+  {
+   "subset": "Base",
+   "name": "RayWave Aqua Refractor",
+   "serialRun": 199
+  },
+  {
+   "subset": "Base",
+   "name": "Blue Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Base",
+   "name": "Blue Basketball Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Base",
+   "name": "Blue Wave Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Base",
+   "name": "RayWave Blue Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Base",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base",
+   "name": "Green Basketball Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base",
+   "name": "Green Wave Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base",
+   "name": "RayWave Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base",
+   "name": "Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Base",
+   "name": "Purple Basketball Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Base",
+   "name": "Purple Wave Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Base",
+   "name": "Pulsar Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Base",
+   "name": "RayWave Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Base",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base",
+   "name": "Gold Basketball Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base",
+   "name": "Gold Wave Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base",
+   "name": "Geometric Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base",
+   "name": "Pulsar Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base",
+   "name": "RayWave Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base",
+   "name": "Orange Basketball Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base",
+   "name": "Orange Wave Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base",
+   "name": "Geometric Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base",
+   "name": "Pulsar Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base",
+   "name": "RayWave Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base",
+   "name": "Silver 1st Day Issue Refractor",
+   "serialRun": 12
+  },
+  {
+   "subset": "Base",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base",
+   "name": "Black Basketball Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base",
+   "name": "Black Wave Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base",
+   "name": "Geometric Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base",
+   "name": "Pulsar Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base",
+   "name": "RayWave Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base",
+   "name": "Tri-Color 1st Day Issue Refractor",
+   "serialRun": 8
+  },
+  {
+   "subset": "Base",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base",
+   "name": "Red Basketball Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base",
+   "name": "Red Wave Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base",
+   "name": "Pulsar Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base",
+   "name": "RayWave Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base",
+   "name": "Geometric Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base",
+   "name": "FrozenFractor /-5",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Geometric White Refractor",
+   "serialRun": 2
+  },
+  {
+   "subset": "Base",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Variations",
+   "name": "Green Speckle Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base Variations",
+   "name": "Gold Speckle Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base Variations",
+   "name": "Orange Speckle Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Variations",
+   "name": "Black Speckle Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Variations",
+   "name": "Red Speckle Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Variations",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Variations",
+   "name": "2 Zaccharie Risacher",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "3 Tyrese Haliburton",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "25 Nikola Jokić",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "39 LaMelo Ball",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "44 Kawhi Leonard",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "49 Jayson Tatum",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "51 Jaylen Brown",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "54 James Harden",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "58 Jalen Green",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "69 Donovan Mitchell",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "88 Cade Cunningham",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "96 Anthony Davis",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "101 Jalen Brunson",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "127 LeBron James",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "137 Giannis Antetokounmpo",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "140 Paolo Banchero",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "141 Shai Gilgeous-Alexander",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "151 Anthony Edwards",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "155 Kevin Durant",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "185 Tyrese Maxey",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "195 Devin Booker",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "201 Stephen Curry",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "218 Alex Sarr",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "221 Victor Wembanyama",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "228 Stephon Castle",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "251 Cooper Flagg",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "252 Dylan Harper",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "253 VJ Edgecombe",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "254 Kon Knueppel",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "255 Ace Bailey",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "256 Tre Johnson III",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "257 Jeremiah Fears",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "258 Egor Dëmin",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "259 Collin Murray-Boyles",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "260 Khaman Maluach",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "261 Cedric Coward",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "262 Noa Essengue",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "263 Derik Queen",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "266 Yang Hansen",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "268 Walter Clayton Jr",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "269 Nolan Traore",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "270 Kasparas Jakučionis",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "271 Will Riley",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "272 Drake Powell",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "273 Asa Newell",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "274 Nique Clifford",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "275 Jase Richardson",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "277 Danny Wolf",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "278 Hugo Gonzalez",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Variations",
+   "name": "279 Liam McNeeley",
+   "serialRun": null
+  },
+  {
+   "subset": "Topps Chrome Autographs",
+   "name": "Base Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Topps Chrome Autographs",
+   "name": "Geometric Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Topps Chrome Autographs",
+   "name": "Blue Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Topps Chrome Autographs",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Topps Chrome Autographs",
+   "name": "Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Topps Chrome Autographs",
+   "name": "Geometric Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Topps Chrome Autographs",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Topps Chrome Autographs",
+   "name": "Geometric Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Topps Chrome Autographs",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Topps Chrome Autographs",
+   "name": "Geometric Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Topps Chrome Autographs",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Topps Chrome Autographs",
+   "name": "Geometric Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Topps Chrome Autographs",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Topps Chrome Autographs",
+   "name": "Geometric Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Topps Chrome Autographs",
+   "name": "Geometric White Refractor",
+   "serialRun": 2
+  },
+  {
+   "subset": "Topps Chrome Autographs",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Topps Chrome Autographs Rookies",
+   "name": "Base Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Topps Chrome Autographs Rookies",
+   "name": "Geometric Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Topps Chrome Autographs Rookies",
+   "name": "Blue Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Topps Chrome Autographs Rookies",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Topps Chrome Autographs Rookies",
+   "name": "Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Topps Chrome Autographs Rookies",
+   "name": "Geometric Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Topps Chrome Autographs Rookies",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Topps Chrome Autographs Rookies",
+   "name": "Geometric Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Topps Chrome Autographs Rookies",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Topps Chrome Autographs Rookies",
+   "name": "Geometric Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Topps Chrome Autographs Rookies",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Topps Chrome Autographs Rookies",
+   "name": "Geometric Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Topps Chrome Autographs Rookies",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Topps Chrome Autographs Rookies",
+   "name": "Geometric Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Topps Chrome Autographs Rookies",
+   "name": "Geometric White Refractor",
+   "serialRun": 2
+  },
+  {
+   "subset": "Topps Chrome Autographs Rookies",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Chromographs",
+   "name": "Base Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Chromographs",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Chromographs",
+   "name": "Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Chromographs",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Chromographs",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Chromographs",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Chromographs",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Chromographs",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Chromographs Rookies",
+   "name": "Base Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Chromographs Rookies",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Chromographs Rookies",
+   "name": "Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Chromographs Rookies",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Chromographs Rookies",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Chromographs Rookies",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Chromographs Rookies",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Chromographs Rookies",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Future Stars Autographs",
+   "name": "Base Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Future Stars Autographs",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Future Stars Autographs",
+   "name": "Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Future Stars Autographs",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Future Stars Autographs",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Future Stars Autographs",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Future Stars Autographs",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Future Stars Autographs",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Next Stop Signatures",
+   "name": "Base Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Next Stop Signatures",
+   "name": "Geometric Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Next Stop Signatures",
+   "name": "Blue Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Next Stop Signatures",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Next Stop Signatures",
+   "name": "Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Next Stop Signatures",
+   "name": "Geometric Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Next Stop Signatures",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Next Stop Signatures",
+   "name": "Geometric Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Next Stop Signatures",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Next Stop Signatures",
+   "name": "Geometric Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Next Stop Signatures",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Next Stop Signatures",
+   "name": "Geometric Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Next Stop Signatures",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Next Stop Signatures",
+   "name": "Geometric Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Next Stop Signatures",
+   "name": "Geometric White Refractor",
+   "serialRun": 2
+  },
+  {
+   "subset": "Next Stop Signatures",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Signature Style",
+   "name": "Base Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Signature Style",
+   "name": "Geometric Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Signature Style",
+   "name": "Blue Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Signature Style",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Signature Style",
+   "name": "Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Signature Style",
+   "name": "Geometric Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Signature Style",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Signature Style",
+   "name": "Geometric Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Signature Style",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Signature Style",
+   "name": "Geometric Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Signature Style",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Signature Style",
+   "name": "Geometric Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Signature Style",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Signature Style",
+   "name": "Geometric Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Signature Style",
+   "name": "Geometric White Refractor",
+   "serialRun": 2
+  },
+  {
+   "subset": "Signature Style",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "SkyWrite Signatures",
+   "name": "Base Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "SkyWrite Signatures",
+   "name": "Geometric Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "SkyWrite Signatures",
+   "name": "Blue Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "SkyWrite Signatures",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "SkyWrite Signatures",
+   "name": "Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "SkyWrite Signatures",
+   "name": "Geometric Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "SkyWrite Signatures",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "SkyWrite Signatures",
+   "name": "Geometric Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "SkyWrite Signatures",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "SkyWrite Signatures",
+   "name": "Geometric Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "SkyWrite Signatures",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "SkyWrite Signatures",
+   "name": "Geometric Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "SkyWrite Signatures",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "SkyWrite Signatures",
+   "name": "Geometric Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "SkyWrite Signatures",
+   "name": "Geometric White Refractor",
+   "serialRun": 2
+  },
+  {
+   "subset": "SkyWrite Signatures",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Stratospheric Signatures",
+   "name": "Base Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Stratospheric Signatures",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Stratospheric Signatures",
+   "name": "Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Stratospheric Signatures",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Stratospheric Signatures",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Stratospheric Signatures",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Stratospheric Signatures",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Stratospheric Signatures",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Stratospheric Signatures Rookies",
+   "name": "Base Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Stratospheric Signatures Rookies",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Stratospheric Signatures Rookies",
+   "name": "Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Stratospheric Signatures Rookies",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Stratospheric Signatures Rookies",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Stratospheric Signatures Rookies",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Stratospheric Signatures Rookies",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Stratospheric Signatures Rookies",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Topps Certified Autograph Issue",
+   "name": "Base Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Topps Certified Autograph Issue",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Topps Certified Autograph Issue",
+   "name": "Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Topps Certified Autograph Issue",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Topps Certified Autograph Issue",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Topps Certified Autograph Issue",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Topps Certified Autograph Issue",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Topps Certified Autograph Issue",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Topps Certified Autograph Issue Rookies",
+   "name": "Base Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Topps Certified Autograph Issue Rookies",
+   "name": "Geometric Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Topps Certified Autograph Issue Rookies",
+   "name": "Blue Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Topps Certified Autograph Issue Rookies",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Topps Certified Autograph Issue Rookies",
+   "name": "Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Topps Certified Autograph Issue Rookies",
+   "name": "Geometric Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Topps Certified Autograph Issue Rookies",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Topps Certified Autograph Issue Rookies",
+   "name": "Geometric Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Topps Certified Autograph Issue Rookies",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Topps Certified Autograph Issue Rookies",
+   "name": "Geometric Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Topps Certified Autograph Issue Rookies",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Topps Certified Autograph Issue Rookies",
+   "name": "Geometric Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Topps Certified Autograph Issue Rookies",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Topps Certified Autograph Issue Rookies",
+   "name": "Geometric Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Topps Certified Autograph Issue Rookies",
+   "name": "Geometric White Refractor",
+   "serialRun": 2
+  },
+  {
+   "subset": "Topps Certified Autograph Issue Rookies",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Topps Certified Autograph Issue Rookies 2",
+   "name": "Base Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Topps Certified Autograph Issue Rookies 2",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Topps Certified Autograph Issue Rookies 2",
+   "name": "Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Topps Certified Autograph Issue Rookies 2",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Topps Certified Autograph Issue Rookies 2",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Topps Certified Autograph Issue Rookies 2",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Topps Certified Autograph Issue Rookies 2",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Topps Certified Autograph Issue Rookies 2",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Activators",
+   "name": "Base Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Activators",
+   "name": "RayWave Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Activators",
+   "name": "Pulsar Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Activators",
+   "name": "Magenta Refractor",
+   "serialRun": 399
+  },
+  {
+   "subset": "Activators",
+   "name": "Teal Refractor",
+   "serialRun": 299
+  },
+  {
+   "subset": "Activators",
+   "name": "Yellow Refractor",
+   "serialRun": 275
+  },
+  {
+   "subset": "Activators",
+   "name": "Aqua Refractor",
+   "serialRun": 199
+  },
+  {
+   "subset": "Activators",
+   "name": "Blue Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Activators",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Activators",
+   "name": "Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Activators",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Activators",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Activators",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Activators",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Activators",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Advisory",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Ball of Duty",
+   "name": "Base Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Ball of Duty",
+   "name": "RayWave Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Ball of Duty",
+   "name": "Pulsar Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Ball of Duty",
+   "name": "Magenta Refractor",
+   "serialRun": 399
+  },
+  {
+   "subset": "Ball of Duty",
+   "name": "Teal Refractor",
+   "serialRun": 299
+  },
+  {
+   "subset": "Ball of Duty",
+   "name": "Yellow Refractor",
+   "serialRun": 275
+  },
+  {
+   "subset": "Ball of Duty",
+   "name": "Aqua Refractor",
+   "serialRun": 199
+  },
+  {
+   "subset": "Ball of Duty",
+   "name": "Blue Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Ball of Duty",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Ball of Duty",
+   "name": "Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Ball of Duty",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Ball of Duty",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Ball of Duty",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Ball of Duty",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Ball of Duty",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Clutch Gene",
+   "name": "Base Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Clutch Gene",
+   "name": "Geometric Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Clutch Gene",
+   "name": "Aqua Refractor",
+   "serialRun": 199
+  },
+  {
+   "subset": "Clutch Gene",
+   "name": "Blue Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Clutch Gene",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Clutch Gene",
+   "name": "Geometric Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Clutch Gene",
+   "name": "Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Clutch Gene",
+   "name": "Geometric Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Clutch Gene",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Clutch Gene",
+   "name": "Geometric Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Clutch Gene",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Clutch Gene",
+   "name": "Geometric Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Clutch Gene",
+   "name": "Geometric Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Clutch Gene",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Clutch Gene",
+   "name": "Geometric Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Clutch Gene",
+   "name": "Geometric White Refractor",
+   "serialRun": 2
+  },
+  {
+   "subset": "Clutch Gene",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Destiny",
+   "name": "Base Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Destiny",
+   "name": "Geometric Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Destiny",
+   "name": "Aqua Refractor",
+   "serialRun": 199
+  },
+  {
+   "subset": "Destiny",
+   "name": "Blue Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Destiny",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Destiny",
+   "name": "Geometric Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Destiny",
+   "name": "Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Destiny",
+   "name": "Geometric Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Destiny",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Destiny",
+   "name": "Geometric Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Destiny",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Destiny",
+   "name": "Geometric Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Destiny",
+   "name": "Geometric Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Destiny",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Destiny",
+   "name": "Geometric Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Destiny",
+   "name": "Geometric White Refractor",
+   "serialRun": 2
+  },
+  {
+   "subset": "Destiny",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Fanatical",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Fanatical",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Fanatical",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Fanatical",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Fanatical",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Generation Rising",
+   "name": "Base Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Generation Rising",
+   "name": "Geometric Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Generation Rising",
+   "name": "Aqua Refractor",
+   "serialRun": 199
+  },
+  {
+   "subset": "Generation Rising",
+   "name": "Blue Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Generation Rising",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Generation Rising",
+   "name": "Geometric Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Generation Rising",
+   "name": "Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Generation Rising",
+   "name": "Geometric Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Generation Rising",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Generation Rising",
+   "name": "Geometric Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Generation Rising",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Generation Rising",
+   "name": "Geometric Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Generation Rising",
+   "name": "Geometric Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Generation Rising",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Generation Rising",
+   "name": "Geometric Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Generation Rising",
+   "name": "Geometric White Refractor",
+   "serialRun": 2
+  },
+  {
+   "subset": "Generation Rising",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Glass Canvas",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Go Time",
+   "name": "Base Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Go Time",
+   "name": "RayWave Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Go Time",
+   "name": "Pulsar Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Go Time",
+   "name": "Magenta Refractor",
+   "serialRun": 399
+  },
+  {
+   "subset": "Go Time",
+   "name": "Teal Refractor",
+   "serialRun": 299
+  },
+  {
+   "subset": "Go Time",
+   "name": "Yellow Refractor",
+   "serialRun": 275
+  },
+  {
+   "subset": "Go Time",
+   "name": "Aqua Refractor",
+   "serialRun": 199
+  },
+  {
+   "subset": "Go Time",
+   "name": "Blue Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Go Time",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Go Time",
+   "name": "Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Go Time",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Go Time",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Go Time",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Go Time",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Go Time",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Helix",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Inspirational",
+   "name": "Base Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Inspirational",
+   "name": "RayWave Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Inspirational",
+   "name": "Pulsar Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Inspirational",
+   "name": "Magenta Refractor",
+   "serialRun": 399
+  },
+  {
+   "subset": "Inspirational",
+   "name": "Teal Refractor",
+   "serialRun": 299
+  },
+  {
+   "subset": "Inspirational",
+   "name": "Yellow Refractor",
+   "serialRun": 275
+  },
+  {
+   "subset": "Inspirational",
+   "name": "Aqua Refractor",
+   "serialRun": 199
+  },
+  {
+   "subset": "Inspirational",
+   "name": "Blue Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Inspirational",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Inspirational",
+   "name": "Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Inspirational",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Inspirational",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Inspirational",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Inspirational",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Inspirational",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Instinct",
+   "name": "Base Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Instinct",
+   "name": "Geometric Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Instinct",
+   "name": "Aqua Refractor",
+   "serialRun": 199
+  },
+  {
+   "subset": "Instinct",
+   "name": "Blue Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Instinct",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Instinct",
+   "name": "Geometric Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Instinct",
+   "name": "Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Instinct",
+   "name": "Geometric Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Instinct",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Instinct",
+   "name": "Geometric Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Instinct",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Instinct",
+   "name": "Geometric Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Instinct",
+   "name": "Geometric Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Instinct",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Instinct",
+   "name": "Geometric Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Instinct",
+   "name": "Geometric White Refractor",
+   "serialRun": 2
+  },
+  {
+   "subset": "Instinct",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Let's Go",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Loading...",
+   "name": "Base Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Loading...",
+   "name": "Geometric Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Loading...",
+   "name": "Aqua Refractor",
+   "serialRun": 199
+  },
+  {
+   "subset": "Loading...",
+   "name": "Blue Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Loading...",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Loading...",
+   "name": "Geometric Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Loading...",
+   "name": "Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Loading...",
+   "name": "Geometric Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Loading...",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Loading...",
+   "name": "Geometric Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Loading...",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Loading...",
+   "name": "Geometric Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Loading...",
+   "name": "Geometric Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Loading...",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Loading...",
+   "name": "Geometric Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Loading...",
+   "name": "Geometric White Refractor",
+   "serialRun": 2
+  },
+  {
+   "subset": "Loading...",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Paradox",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Patented",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Radiating Rookies",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Rock Stars",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Serenity",
+   "name": "Base Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Serenity",
+   "name": "RayWave Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Serenity",
+   "name": "Pulsar Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Serenity",
+   "name": "Magenta Refractor",
+   "serialRun": 399
+  },
+  {
+   "subset": "Serenity",
+   "name": "Teal Refractor",
+   "serialRun": 299
+  },
+  {
+   "subset": "Serenity",
+   "name": "Yellow Refractor",
+   "serialRun": 275
+  },
+  {
+   "subset": "Serenity",
+   "name": "Aqua Refractor",
+   "serialRun": 199
+  },
+  {
+   "subset": "Serenity",
+   "name": "Blue Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Serenity",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Serenity",
+   "name": "Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Serenity",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Serenity",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Serenity",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Serenity",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Serenity",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Sleek Finishers",
+   "name": "Base Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Sleek Finishers",
+   "name": "Geometric Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Sleek Finishers",
+   "name": "Aqua Refractor",
+   "serialRun": 199
+  },
+  {
+   "subset": "Sleek Finishers",
+   "name": "Blue Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Sleek Finishers",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Sleek Finishers",
+   "name": "Geometric Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Sleek Finishers",
+   "name": "Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Sleek Finishers",
+   "name": "Geometric Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Sleek Finishers",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Sleek Finishers",
+   "name": "Geometric Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Sleek Finishers",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Sleek Finishers",
+   "name": "Geometric Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Sleek Finishers",
+   "name": "Geometric Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Sleek Finishers",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Sleek Finishers",
+   "name": "Geometric Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Sleek Finishers",
+   "name": "Geometric White Refractor",
+   "serialRun": 2
+  },
+  {
+   "subset": "Sleek Finishers",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Tall Tales",
+   "name": "Base Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Tall Tales",
+   "name": "Geometric Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Tall Tales",
+   "name": "Aqua Refractor",
+   "serialRun": 199
+  },
+  {
+   "subset": "Tall Tales",
+   "name": "Blue Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Tall Tales",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Tall Tales",
+   "name": "Geometric Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Tall Tales",
+   "name": "Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Tall Tales",
+   "name": "Geometric Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Tall Tales",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Tall Tales",
+   "name": "Geometric Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Tall Tales",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Tall Tales",
+   "name": "Geometric Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Tall Tales",
+   "name": "Geometric Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Tall Tales",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Tall Tales",
+   "name": "Geometric Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Tall Tales",
+   "name": "Geometric White Refractor",
+   "serialRun": 2
+  },
+  {
+   "subset": "Tall Tales",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Ultraviolet",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Voices",
+   "name": "Base Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Voices",
+   "name": "Geometric Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Voices",
+   "name": "Aqua Refractor",
+   "serialRun": 199
+  },
+  {
+   "subset": "Voices",
+   "name": "Blue Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Voices",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Voices",
+   "name": "Geometric Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Voices",
+   "name": "Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Voices",
+   "name": "Geometric Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Voices",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Voices",
+   "name": "Geometric Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Voices",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Voices",
+   "name": "Geometric Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Voices",
+   "name": "Geometric Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Voices",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Voices",
+   "name": "Geometric Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Voices",
+   "name": "Geometric White Refractor",
+   "serialRun": 2
+  },
+  {
+   "subset": "Voices",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "X's & Whoa's",
+   "name": "Base Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "X's & Whoa's",
+   "name": "Geometric Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "X's & Whoa's",
+   "name": "Aqua Refractor",
+   "serialRun": 199
+  },
+  {
+   "subset": "X's & Whoa's",
+   "name": "Blue Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "X's & Whoa's",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "X's & Whoa's",
+   "name": "Geometric Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "X's & Whoa's",
+   "name": "Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "X's & Whoa's",
+   "name": "Geometric Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "X's & Whoa's",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "X's & Whoa's",
+   "name": "Geometric Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "X's & Whoa's",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "X's & Whoa's",
+   "name": "Geometric Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "X's & Whoa's",
+   "name": "Geometric Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "X's & Whoa's",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "X's & Whoa's",
+   "name": "Geometric Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "X's & Whoa's",
+   "name": "Geometric White Refractor",
+   "serialRun": 2
+  },
+  {
+   "subset": "X's & Whoa's",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "YouthQuake",
+   "name": "Base Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "YouthQuake",
+   "name": "Geometric Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "YouthQuake",
+   "name": "Aqua Refractor",
+   "serialRun": 199
+  },
+  {
+   "subset": "YouthQuake",
+   "name": "Blue Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "YouthQuake",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "YouthQuake",
+   "name": "Geometric Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "YouthQuake",
+   "name": "Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "YouthQuake",
+   "name": "Geometric Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "YouthQuake",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "YouthQuake",
+   "name": "Geometric Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "YouthQuake",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "YouthQuake",
+   "name": "Geometric Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "YouthQuake",
+   "name": "Geometric Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "YouthQuake",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "YouthQuake",
+   "name": "Geometric Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "YouthQuake",
+   "name": "Geometric White Refractor",
+   "serialRun": 2
+  },
+  {
+   "subset": "YouthQuake",
+   "name": "SuperFractor",
+   "serialRun": 1
+  }
+ ]
+}

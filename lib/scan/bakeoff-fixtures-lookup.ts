@@ -42,6 +42,18 @@ const PRIZM_NIL = checklist("Basketball", "2025-26", "Panini Prizm", {
   ],
 });
 
+/** 2025-26 Panini Prizm #24, as the checklist has it: one base card, and inserts and autographs on the same number. #7 is made up: two base sections that disagree. */
+const PRIZM_24 = checklist("Basketball", "2025-26", "Panini Prizm", {
+  Base: [["7", "Tobias Okonkwo", "Auburn Tigers"], ["24", "Sion James", "Charlotte Hornets"]],
+  "Base Rookies": [["7", "Marek Dvorsky", "Duke Blue Devils"]],
+  "Legacy Signatures": [["24", "Anfernee Hardaway", "Orlando Magic"]],
+  Penmanship: [["24", "JR Smith", "Cleveland Cavaliers"]],
+  "Prizm Autographs": [["24", "Jaden Akins", "Orlando Magic"]],
+  "Deep Space": [["24", "Cedric Coward", "Memphis Grizzlies"]],
+  Fireworks: [["24", "Neoklis Avdalas", "Virginia Tech Hokies"]],
+  Kaleidoscopic: [["24", "Magic Johnson", "Los Angeles Lakers"]],
+});
+
 /** 2023 Panini Prizm Football: rows copied from the checklist, with two inserts that reuse low numbers. */
 const PRIZM_FB = checklist("Football", "2023", "Panini Prizm", {
   Base: [
@@ -354,10 +366,40 @@ export const LOOKUP_BAKEOFF_CASES: BakeoffCase[] = [
     truth: { player: "Keon Keeley", year: "2023", set: "Bowman U Chrome", number: "43", parallel: "", run: null, firstBowman: true, playerSource: "checklist" },
   },
 
+  // ── A plain number inserts share: the base card, when nothing on the card says otherwise ──
+  {
+    name: "Shared number: 2025-26 Prizm #24, no name read: thirteen cards carry #24, one is in Base",
+    front: ["PRIZM"],
+    back: ["NO. 24", "HT: 6-5 WT: 200", PRIZM_NIL_BACK, PANINI_2025],
+    checklist: [PRIZM_24],
+    truth: { player: "Sion James", year: "2025-26", set: "Panini Prizm", number: "24", parallel: "", run: null, playerSource: "checklist" },
+  },
+  {
+    name: "Shared number: Prizm #16, no name read, nothing names an insert: the base card",
+    front: ["PRIZM"],
+    back: prizmBack("16", null),
+    checklist: [PRIZM_FB],
+    truth: { player: "Lorenzo Carter", year: "2023", set: "Panini Prizm", number: "16", parallel: "", run: null, playerSource: "checklist" },
+  },
+  {
+    name: "Shared number: Prizm Draft Picks #15, no name read: the base card, not the two inserts",
+    front: ["PRIZM", "DRAFT PICKS"],
+    back: ["NO. 15", "HT: 7-1 WT: 226", DRAFT_PICKS_BACK, PANINI_2023],
+    checklist: [DRAFT_PICKS_23],
+    truth: { player: "Aaron Bradshaw", year: "2023-24", set: "Prizm Draft Picks", number: "15", parallel: "", run: null, playerSource: "checklist" },
+  },
+  {
+    name: "Shared number: 2025-26 Prizm #24, FIREWORKS and the name read on the front: the insert's player",
+    front: ["PRIZM", "FIREWORKS", "NEOKLIS AVDALAS"],
+    back: ["NO. 24", "HT: 6-8 WT: 215", PRIZM_NIL_BACK, PANINI_2025],
+    checklist: [PRIZM_24],
+    truth: { player: "Neoklis Avdalas", year: "2025-26", set: "Panini Prizm", number: "24", parallel: "", run: null, playerSource: "checklist" },
+  },
+
   // ── Traps: nothing agrees, so the player stays open ────────────────────────
   {
-    name: "Trap: Prizm Draft Picks #15 with no name read: three players share the number, so open",
-    front: ["PRIZM", "DRAFT PICKS"],
+    name: "Trap: Prizm Draft Picks #15, no name read, FIREWORKS on the front: an insert shares the number, so open",
+    front: ["PRIZM", "DRAFT PICKS", "FIREWORKS"],
     back: ["NO. 15", "HT: 7-1 WT: 226", DRAFT_PICKS_BACK, PANINI_2023],
     checklist: [DRAFT_PICKS_23],
     truth: { player: "", year: "2023-24", set: "Prizm Draft Picks", number: "15", parallel: "", run: null },
@@ -370,11 +412,25 @@ export const LOOKUP_BAKEOFF_CASES: BakeoffCase[] = [
     truth: { player: "", set: "Bowman", number: "BP-55", parallel: "", run: null, firstBowman: true },
   },
   {
-    name: "Trap: #16 with no name read, and an insert shares the number (Carter or Hill): open",
+    name: "Trap: #16, no name read, the back names the Fireworks insert (Carter or Hill): open",
     front: ["PRIZM"],
-    back: prizmBack("16", null),
+    back: ["NO. 16", "FIREWORKS", "HT: 5-10 WT: 191", PRIZM_FB_23, PANINI_2023],
     checklist: [PRIZM_FB],
     truth: { player: "", year: "2023", set: "Panini Prizm", number: "16", parallel: "", run: null },
+  },
+  {
+    name: "Trap: #24, no name read, a signed card: the base card and three autographs share the number, so open",
+    front: ["PRIZM"],
+    back: ["NO. 24", "CERTIFIED AUTOGRAPH", PRIZM_NIL_BACK, PANINI_2025],
+    checklist: [PRIZM_24],
+    truth: { player: "", year: "2025-26", set: "Panini Prizm", number: "24", parallel: "", run: null, auto: true },
+  },
+  {
+    name: "Trap: #7, no name read, two base sections put two players on the number: open",
+    front: ["PRIZM"],
+    back: ["NO. 7", "HT: 6-5 WT: 200", PRIZM_NIL_BACK, PANINI_2025],
+    checklist: [PRIZM_24],
+    truth: { player: "", year: "2025-26", set: "Panini Prizm", number: "7", parallel: "", run: null },
   },
   {
     name: "Trap: a printed name nothing backs, and the checklist has someone else at #80: open, never Nguyen",
@@ -419,6 +475,8 @@ export const LOOKUP_BAKEOFF_CASES: BakeoffCase[] = [
       ],
     },
     liveTruth: { player: "", calls: 1 },
+    // The card is the Philon card: the store's real 2025-26 Prizm file names #103 where this case's own setup has no checklist.
+    storeTruth: { player: "Labaron Philon Jr." },
     truth: { player: "", year: "2025-26", set: "Panini Prizm", number: "103", parallel: "", run: 175 },
   },
   {
@@ -435,6 +493,8 @@ export const LOOKUP_BAKEOFF_CASES: BakeoffCase[] = [
       ],
     },
     liveTruth: { player: "", calls: 1 },
+    // The card is the Philon card: the store's real 2025-26 Prizm file names #103 where this case's own setup has no checklist.
+    storeTruth: { player: "Labaron Philon Jr." },
     truth: { player: "", year: "2025-26", set: "Panini Prizm", number: "103", parallel: "", run: 175 },
   },
   {

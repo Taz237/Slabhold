@@ -30,13 +30,6 @@ const KNIGHT_BACK = [
   "CMP#148134",
 ];
 
-/**
- * These scans call the Maye /149 "Orange". The official 2024 Prizm Football checklist lists Orange
- * at /249 and Red Wave as its only /149, so with the checklist loaded the scan reads Red Wave.
- * Both count until the fixture's own name is settled.
- */
-const MAYE_149_ON_CHECKLIST = ["Red Wave"];
-
 export const WIDE_BAKEOFF_CASES: BakeoffCase[] = [
   // ── Slab labels ────────────────────────────────────────────────────────────
   {
@@ -212,7 +205,7 @@ export const WIDE_BAKEOFF_CASES: BakeoffCase[] = [
     name: "Prizm numbered: Maye 045/149, spaced serial",
     front: ["PRIZM", "DRAKE MAYE", "PATRIOTS", "RC", "045 / 149"],
     back: ["No. 329", "DRAKE MAYE", "QUARTERBACK", "2024 PANINI - PRIZM FOOTBALL", PANINI_2024],
-    truth: { player: "Drake Maye", year: "2024", set: "Panini Prizm", number: "329", parallel: "Orange", parallelAlso: MAYE_149_ON_CHECKLIST, run: 149 },
+    truth: { player: "Drake Maye", year: "2024", set: "Panini Prizm", number: "329", parallel: "Red Wave", run: 149 },
   },
   {
     name: "Prizm: Jeanty, card read upside down (both sides reversed)",
@@ -438,7 +431,7 @@ export const WIDE_BAKEOFF_CASES: BakeoffCase[] = [
     front: ["PRIZM", "DRAKE MAYE", "PATRIOTS", "RC", "O45/l49"],
     alternates: [[], [], [], [], ["045/149"]],
     back: ["No. 329", "DRAKE MAYE", "QUARTERBACK", "2024 PANINI - PRIZM FOOTBALL", PANINI_2024],
-    truth: { player: "Drake Maye", year: "2024", set: "Panini Prizm", number: "329", parallel: "Orange", parallelAlso: MAYE_149_ON_CHECKLIST, run: 149 },
+    truth: { player: "Drake Maye", year: "2024", set: "Panini Prizm", number: "329", parallel: "Red Wave", run: 149 },
   },
   {
     name: "Alternates: Salas, the code read as '8P-1O3', the next readings agree on BP-103",
@@ -452,7 +445,7 @@ export const WIDE_BAKEOFF_CASES: BakeoffCase[] = [
     front: ["PRIZM", "DRAKE MAYE", "PATRIOTS", "RC", "O45/l49"],
     alternates: [[], [], [], [], ["045/149", "045/199"]],
     back: ["No. 329", "DRAKE MAYE", "QUARTERBACK", "2024 PANINI - PRIZM FOOTBALL", PANINI_2024],
-    truth: { player: "Drake Maye", year: "2024", set: "Panini Prizm", number: "329", parallel: "Orange", parallelAlso: MAYE_149_ON_CHECKLIST, run: 149 },
+    truth: { player: "Drake Maye", year: "2024", set: "Panini Prizm", number: "329", parallel: "Red Wave", run: 149 },
   },
   {
     name: "Alternates trap: Maye, a next reading would change a card # that read clearly",
@@ -460,7 +453,7 @@ export const WIDE_BAKEOFF_CASES: BakeoffCase[] = [
     alternates: [[], ["DRAKE MAYS"], [], [], ["045/199"]],
     back: ["No. 329", "DRAKE MAYE", "QUARTERBACK", "2024 PANINI - PRIZM FOOTBALL", PANINI_2024],
     backAlternates: [["No. 829"], [], [], [], []],
-    truth: { player: "Drake Maye", year: "2024", set: "Panini Prizm", number: "329", parallel: "Orange", parallelAlso: MAYE_149_ON_CHECKLIST, run: 149 },
+    truth: { player: "Drake Maye", year: "2024", set: "Panini Prizm", number: "329", parallel: "Red Wave", run: 149 },
   },
   {
     name: "Alternates trap: Allen, the only next reading with a number is a jersey line",

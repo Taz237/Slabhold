@@ -200,11 +200,12 @@ describe("the scanner bake-off", () => {
         const match = top(scan, products, await storeChecklists(scan));
         // A case that has no checklist of its own can still be named by the store's real file:
         // then the right answer is the player its sold titles name too.
-        const named = scan.liveTruth?.player && match?.playerName === scan.liveTruth.player;
-        return { name: scan.name, ...marks(match, named ? { ...scan, truth: { ...scan.truth, player: scan.liveTruth!.player } } : scan), shown: shownLine(match) };
+        const named = [scan.liveTruth?.player, scan.storeTruth?.player].find((player) => player && match?.playerName === player);
+        return { name: scan.name, ...marks(match, named ? { ...scan, truth: { ...scan.truth, player: named } } : scan), shown: shownLine(match) };
       }),
     );
-    console.log(board("All, with the checklist", withList).join("\n"));
+    const missed = withList.filter((row) => FIELDS.some((field) => row[field] === "wrong")).map((row) => `✗ ${FIELDS.filter((field) => row[field] === "wrong").join(", ")}: ${row.name}: ${row.shown}`);
+    console.log([...board("All, with the checklist", withList), ...missed].join("\n"));
     withList.forEach((row, index) => {
       const known = ALL_CASES[index].knownWrong ?? [];
       for (const field of FIELDS) {

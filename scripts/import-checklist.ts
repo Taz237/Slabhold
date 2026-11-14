@@ -21,6 +21,9 @@
  * and Series 2 are both "Topps"): they are read into one file, and both sources are logged.
  * `--add` does the same for a single import: it adds to the file instead of replacing it.
  *
+ * A page saved as a file (scripts/checklist-csv/): `--source <url>` logs the page it came from
+ * in place of the file name, and `--read YYYY-MM-DD` the day that page was read.
+ *
  * CHECKLIST_PAGE_CACHE=<dir>: a page already saved there as <last part of the URL>.html is read
  * from disk instead of fetched again. The URL is still what gets logged.
  */
@@ -32,7 +35,8 @@ import { checklistFileName, type ChecklistIndexEntry, type ChecklistProduct } fr
 import { SCAN_DIRECTORY } from "@/lib/players/scan-directory";
 import { nameKey } from "@/lib/scan/player-lookup";
 
-type Source = { sport: string; year: string; product: string; from: string };
+/** `source`: the page a local file was saved from, logged in its place. `read`: the day that page was read. */
+type Source = { sport: string; year: string; product: string; from: string; source?: string; read?: string };
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const storeDir = join(root, "lib", "cards", "data", "checklists");
@@ -65,7 +69,7 @@ async function readSource(from: string): Promise<string> {
 }
 
 /** A local file is logged by its name only, never a path on someone's machine. */
-const sourceLabel = (from: string) => (/^https?:\/\//i.test(from) ? from : from.split(/[\\/]/).pop()!);
+const sourceLabel = (part: Source) => part.source || (/^https?:\/\//i.test(part.from) ? part.from : part.from.split(/[\\/]/).pop()!);
 
 /** One product, from one source or from its parts. `keep`: the file's cards so far, for --add. */
 async function importOne(parts: Source[], keep = false): Promise<ChecklistIndexEntry | null> {
@@ -90,11 +94,11 @@ async function importOne(parts: Source[], keep = false): Promise<ChecklistIndexE
       if (same) same.cards.push(...fresh);
       else sections.push({ name: section.name, cards: fresh });
     }
-    if (!sources.includes(sourceLabel(part.from))) sources.push(sourceLabel(part.from));
+    if (!sources.includes(sourceLabel(part))) sources.push(sourceLabel(part));
     if (at < parts.length - 1 && /^https?:/i.test(part.from)) await sleep(PAUSE_MS);
   }
   if (sources.length === 0) return null;
-  const meta = { sport: first.sport, yearLabel: first.year, product: first.product, source: sources.join(" + "), read: new Date().toISOString().slice(0, 10) };
+  const meta = { sport: first.sport, yearLabel: first.year, product: first.product, source: sources.join(" + "), read: parts.find((part) => part.read)?.read ?? new Date().toISOString().slice(0, 10) };
   const product = checklistProductFrom(meta, sections);
   const cards = checklistCardCount(product);
   if (cards < MIN_CARDS) return null;
@@ -123,7 +127,21 @@ async function main() {
       sources = sources.filter((item) => !have.has(checklistFileName({ sport: item.sport, yearLabel: item.year, product: item.product })));
     }
   } else {
-    const one = { sport: flag("sport"), year: flag("year"), product: flag("product"), from: flag("from") };
+    const one: Source = { sport: flag("sport"), year: flag("year"), product: flag("product"), from: flag("from") };
+    if (flag("source")) {
+      if (!/^https?:\/\/\S+$/i.test(flag("source"))) {
+        console.error("--source is the URL of the page the file was saved from.");
+        process.exit(1);
+      }
+      one.source = flag("source");
+    }
+    if (flag("read")) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(flag("read"))) {
+        console.error("--read is the day the page was read, as YYYY-MM-DD.");
+        process.exit(1);
+      }
+      one.read = flag("read");
+    }
     if (!one.sport || !one.year || !one.product || !one.from) {
       console.error('Usage: npx tsx scripts/import-checklist.ts --sport Football --year 2023 --product "Panini Prizm" --from <url | page.html | checklist.csv>\n       npx tsx scripts/import-checklist.ts --all [--refresh]');
       process.exit(1);

@@ -1,0 +1,2092 @@
+{
+ "name": "Slabhold scanner hard-cards test set",
+ "version": 1,
+ "built": "2026-11-13",
+ "scoring": "right/open/wrong per field; open beats wrong; any wrong is a blocker",
+ "notes": [
+  "typical_ocr_front lines are modeled on how the printed front reads (name, team/school, stamps, serial); they are not captured from photos. Serials shown with digits come from real sold listings; \"/175\"-style lines mean the serial prefix was not recorded.",
+  "checklist = checklistinsider.com / diamondcardsonline.com; listing = SportsCardsPro product page, which shows real eBay sold titles (eBay itself blocked direct fetches).",
+  "listing_title_examples are real seller titles, kept because they show how the market words each card (including seller mistakes)."
+ ],
+ "cards": [
+  {
+   "id": "hc-001",
+   "category": "college_nil",
+   "year": "2025-26",
+   "manufacturer": "Panini",
+   "product": "Panini Prizm Basketball",
+   "card_number": "103",
+   "player": "Labaron Philon",
+   "team": "Alabama Crimson Tide",
+   "parallel": "Orange Pulsar",
+   "print_run": 175,
+   "sport": "basketball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "LABARON PHILON",
+    "ALABAMA",
+    "162/175"
+   ],
+   "why_hard": "Today's real miss: NIL player not in the directory; set/#/parallel/run all read right but name came back open. Serial 162/175 is from a real sold listing.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-26-panini-prizm-basketball",
+    "https://www.diamondcardsonline.com/blog/2025-26-panini-prizm-basketball-cards-checklist/",
+    "https://www.sportscardspro.com/game/basketball-cards-2025-panini-prizm/labaron-philon-orange-pulsar-103"
+   ],
+   "listing_title_examples": [
+    "2025-26 Panini Prizm Labaron Philon Orange Pulsar Prizm 162/175 #103",
+    "2025-26 Panini Prizm Orange Pulsar Prizm /175 LaBaron Philon NIL #103 Alabama #103"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-002",
+   "category": "college_nil",
+   "year": "2025-26",
+   "manufacturer": "Panini",
+   "product": "Panini Prizm Basketball",
+   "card_number": "100",
+   "player": "Alijah Arenas",
+   "team": "USC Trojans",
+   "parallel": "Orange Pulsar",
+   "print_run": 175,
+   "sport": "basketball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "ALIJAH ARENAS",
+    "USC",
+    "/175"
+   ],
+   "why_hard": "NIL; same set also has Gilbert Arenas at #168 (Wizards) - surname alone must not pick the player.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-26-panini-prizm-basketball",
+    "https://www.sportscardspro.com/game/basketball-cards-2025-panini-prizm/alijah-arenas-orange-pulsar-100"
+   ],
+   "listing_title_examples": [
+    "ALIJAH ARENAS 2025-26 PANINI PRIZM NIL ORANGE PULSAR ROOKIE RC /175 #100 Q4060 #100",
+    "Alijah Arenas 2025-26 Panini Prizm Basketball Orange Pulsar /175 NIL USC #100 #100"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-003",
+   "category": "college_nil",
+   "year": "2025-26",
+   "manufacturer": "Panini",
+   "product": "Panini Prizm Basketball",
+   "card_number": "118",
+   "player": "Kalek House",
+   "team": "High School",
+   "parallel": "Orange Pulsar",
+   "print_run": 175,
+   "sport": "basketball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "KALEK HOUSE",
+    "/175"
+   ],
+   "why_hard": "Kaden House is #117 in the same set; first names one letter apart (Kalek/Kaden). High-school player, no pro or college team on the checklist.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-26-panini-prizm-basketball",
+    "https://www.sportscardspro.com/game/basketball-cards-2025-panini-prizm/kalek-house-orange-pulsar-118"
+   ],
+   "listing_title_examples": [
+    "KALEK HOUSE 2025-26 PANINI PRIZM BASKETBALL ORANGE PULSAR NIL /175 #118 Q7302 #118"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-004",
+   "category": "college_nil",
+   "year": "2025-26",
+   "manufacturer": "Panini",
+   "product": "Panini Prizm Basketball",
+   "card_number": "117",
+   "player": "Kaden House",
+   "team": "High School",
+   "parallel": "Tiger Stripe",
+   "print_run": null,
+   "sport": "basketball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "KADEN HOUSE"
+   ],
+   "why_hard": "Pairs with Kalek House (#118). Sold title calls the Tiger Stripe parallel \"Tiger Skin SSP\" - vocabulary trap.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-26-panini-prizm-basketball",
+    "https://www.sportscardspro.com/game/basketball-cards-2025-panini-prizm/kaden-house-tiger-stripe-117"
+   ],
+   "listing_title_examples": [
+    "2025-26 Panini Prizm Kaden House Tiger Skin SSP NIL Top Prospect  #117"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-005",
+   "category": "college_nil",
+   "year": "2025-26",
+   "manufacturer": "Panini",
+   "product": "Panini Prizm Basketball",
+   "card_number": "110",
+   "player": "Mercy Miller",
+   "team": "Houston Cougars",
+   "parallel": null,
+   "print_run": null,
+   "sport": "basketball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "MERCY MILLER",
+    "HOUSTON"
+   ],
+   "why_hard": "Percy Miller is #134 in the same set, same school line (Houston). First names one letter off (Mercy/Percy).",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-26-panini-prizm-basketball",
+    "https://www.sportscardspro.com/game/basketball-cards-2025-panini-prizm/mercy-miller-110"
+   ],
+   "listing_title_examples": [
+    "2025-26 Panini Prizm - Mercy Miller #110 (RC) #110"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-006",
+   "category": "similar_names",
+   "year": "2025-26",
+   "manufacturer": "Panini",
+   "product": "Panini Prizm Basketball",
+   "card_number": "134",
+   "player": "Percy Miller",
+   "team": "Houston Cougars",
+   "parallel": null,
+   "print_run": null,
+   "sport": "basketball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "PERCY MILLER",
+    "HOUSTON"
+   ],
+   "why_hard": "Non-athlete on a Houston card; sellers title it \"Master P\". Pairs with Mercy Miller #110.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-26-panini-prizm-basketball",
+    "https://www.sportscardspro.com/game/basketball-cards-2025-panini-prizm/percy-miller-134"
+   ],
+   "listing_title_examples": [
+    "2025-26 Panini Prizm Basketball Percy Miller #134 Master P #134"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-007",
+   "category": "college_nil",
+   "year": "2025-26",
+   "manufacturer": "Panini",
+   "product": "Panini Prizm Basketball",
+   "card_number": "85",
+   "player": "Andrej Stojakovic",
+   "team": "Illinois Fighting Illini",
+   "parallel": null,
+   "print_run": null,
+   "sport": "basketball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "ANDREJ STOJAKOVIC",
+    "ILLINOIS"
+   ],
+   "why_hard": "Peja Stojakovic is #194 in the same set. One sold title even says \"Baseball Card\".",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-26-panini-prizm-basketball",
+    "https://www.sportscardspro.com/game/basketball-cards-2025-panini-prizm/andrej-stojakovic-85"
+   ],
+   "listing_title_examples": [
+    "Panini 2025-26 Prizm Andrej Stojakovic Illinois Fighting Illini #85 Prizm NCAA #85",
+    "2025 Andrej Stojakovic Prizm #85 Basketball Panini NM #85"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-008",
+   "category": "ocr_trap_punctuation",
+   "year": "2025-26",
+   "manufacturer": "Panini",
+   "product": "Panini Prizm Basketball",
+   "card_number": "87",
+   "player": "Nasir \"Rudy\" Anderson",
+   "team": "High School",
+   "parallel": null,
+   "print_run": null,
+   "sport": "basketball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "NASIR \"RUDY\" ANDERSON"
+   ],
+   "why_hard": "Nickname in quotes inside the printed name; quote marks often OCR as junk or get dropped.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-26-panini-prizm-basketball",
+    "https://www.sportscardspro.com/game/basketball-cards-2025-panini-prizm/nasir-%22rudy%22-anderson-87"
+   ],
+   "listing_title_examples": [
+    "Panini 2025-26 Prizm Basketball Nasir \"Rudy\" Anderson #87 Prizm #87"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-009",
+   "category": "college_nil",
+   "year": "2025-26",
+   "manufacturer": "Panini",
+   "product": "Panini Prizm Basketball",
+   "card_number": "72",
+   "player": "Darius Acuff Jr.",
+   "team": "Arkansas Razorbacks",
+   "parallel": null,
+   "print_run": null,
+   "sport": "basketball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "DARIUS ACUFF JR.",
+    "ARKANSAS"
+   ],
+   "why_hard": "NIL + Jr. suffix. One real sold title calls it \"Sacramento Kings Rookie Card\" - titles can carry a wrong team.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-26-panini-prizm-basketball",
+    "https://www.sportscardspro.com/game/basketball-cards-2025-panini-prizm/darius-acuff-jr-72"
+   ],
+   "listing_title_examples": [
+    "2025-26 Panini Prizm Basketball Darius Acuff Jr Arkansas NIL #72 #72",
+    "2025-26 Panini Prizm - Darius Acuff Jr. #72 (RC) #72"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-010",
+   "category": "ocr_trap_punctuation",
+   "year": "2025-26",
+   "manufacturer": "Panini",
+   "product": "Panini Prizm Basketball",
+   "card_number": "114",
+   "player": "A'mare Bynum",
+   "team": "Ohio State Buckeyes",
+   "parallel": null,
+   "print_run": null,
+   "sport": "basketball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "A'MARE BYNUM",
+    "OHIO STATE"
+   ],
+   "why_hard": "Apostrophe name; sold title drops it (\"Amare Bynum\"). Same set has Amar'e Stoudemire #188 - near-identical first names.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-26-panini-prizm-basketball",
+    "https://www.sportscardspro.com/game/basketball-cards-2025-panini-prizm/a%27mare-bynum-114"
+   ],
+   "listing_title_examples": [
+    "2025-26 Panini Prizm #114 Amare Bynum #114"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-011",
+   "category": "college_nil",
+   "year": "2025",
+   "manufacturer": "Topps",
+   "product": "Bowman University Chrome Football",
+   "card_number": "1",
+   "player": "John Mateer",
+   "team": "Oklahoma",
+   "parallel": null,
+   "print_run": null,
+   "sport": "football",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "JOHN MATEER",
+    "OKLAHOMA",
+    "1st BOWMAN"
+   ],
+   "why_hard": "College QB on a 1st Bowman card; a pro-only directory will not have him.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-bowman-university-chrome-football",
+    "https://www.sportscardspro.com/game/football-cards-2025-bowman-chrome-university/john-mateer-1"
+   ],
+   "listing_title_examples": [
+    "John Mateer 2025 Bowman University Chrome #1 Sooners FREE SHIPPING StackedPacks",
+    "2025 Bowman University Chrome - John Mateer #1 (RC) #1"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-012",
+   "category": "similar_names",
+   "year": "2025",
+   "manufacturer": "Topps",
+   "product": "Bowman University Chrome Football",
+   "card_number": "137",
+   "player": "Dante Moore",
+   "team": "Oregon",
+   "parallel": null,
+   "print_run": null,
+   "sport": "football",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "DANTE MOORE",
+    "OREGON"
+   ],
+   "why_hard": "Same set has DeAndre Moore Jr. #183 (Texas) - surname + initial D collide.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-bowman-university-chrome-football",
+    "https://www.sportscardspro.com/game/football-cards-2025-bowman-chrome-university/dante-moore-137"
+   ],
+   "listing_title_examples": [
+    "2025 Bowman University Chrome #137 Dante Moore Oregon Ducks #137",
+    "2025 Bowman University Chrome Dante Moore #137 Oregon Ducks #137"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-013",
+   "category": "similar_names",
+   "year": "2025",
+   "manufacturer": "Topps",
+   "product": "Bowman University Chrome Football",
+   "card_number": "183",
+   "player": "DeAndre Moore Jr.",
+   "team": "Texas",
+   "parallel": null,
+   "print_run": null,
+   "sport": "football",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "DEANDRE MOORE JR.",
+    "TEXAS",
+    "1st BOWMAN"
+   ],
+   "why_hard": "Pairs with Dante Moore #137; Jr. suffix + camel-case \"DeAndre\".",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-bowman-university-chrome-football",
+    "https://www.sportscardspro.com/game/football-cards-2025-bowman-chrome-university/deandre-moore-jr-183"
+   ],
+   "listing_title_examples": [
+    "DeAndre Moore Jr. 2025 Bowman University Chrome #183 Texas Longhorns NFL READ",
+    "DeAndre Moore Jr. 2025 Bowman University Chrome #183 Texas Longhorns #183"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-014",
+   "category": "college_nil",
+   "year": "2025",
+   "manufacturer": "Topps",
+   "product": "Bowman University Chrome Football",
+   "card_number": "196",
+   "player": "Bryce Underwood",
+   "team": "Michigan",
+   "parallel": null,
+   "print_run": null,
+   "sport": "football",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "BRYCE UNDERWOOD",
+    "MICHIGAN",
+    "1st BOWMAN"
+   ],
+   "why_hard": "Freshman college QB, 1st Bowman; high-demand NIL card.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-bowman-university-chrome-football",
+    "https://www.sportscardspro.com/game/football-cards-2025-bowman-chrome-university/bryce-underwood-196"
+   ],
+   "listing_title_examples": [
+    "2025 Bowman University Chrome #196 Bryce Underwood #196",
+    "2025 Topps Bowman Chrome University - Bryce Underwood 1st Bowman #196 Michigan #196"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-015",
+   "category": "ocr_trap_punctuation",
+   "year": "2025",
+   "manufacturer": "Topps",
+   "product": "Bowman University Chrome Football",
+   "card_number": "2",
+   "player": "Danny O'Neil",
+   "team": "Wisconsin",
+   "parallel": null,
+   "print_run": null,
+   "sport": "football",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "DANNY O'NEIL",
+    "WISCONSIN",
+    "1st BOWMAN"
+   ],
+   "why_hard": "Apostrophe surname, college player; O'Neil vs O'Neal spelling.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-bowman-university-chrome-football",
+    "https://www.sportscardspro.com/game/football-cards-2025-bowman-chrome-university/danny-o%27neil-2"
+   ],
+   "listing_title_examples": [
+    "Danny O'Neil 2025 Bowman University Chrome #2 Wisconsin Badgers Football Card #2",
+    "2025 Bowman University Chrome #2 Danny O'Neil #2"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-016",
+   "category": "similar_names",
+   "year": "2025-26",
+   "manufacturer": "Topps",
+   "product": "Bowman University Best Basketball",
+   "card_number": "69",
+   "player": "Cameron Boozer",
+   "team": "Duke",
+   "parallel": null,
+   "print_run": null,
+   "sport": "basketball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "CAMERON BOOZER",
+    "DUKE"
+   ],
+   "why_hard": "Twin brother Cayden Boozer is #97 in the same set - same school, same surname.",
+   "source_urls": [
+    "https://www.diamondcardsonline.com/blog/2025-26-bowman-university-best-basketball-card-checklist/",
+    "https://www.sportscardspro.com/game/basketball-cards-2025-bowman-university-best/cameron-boozer-69"
+   ],
+   "listing_title_examples": [
+    "Topps 2025-26 Bowman University Best Cameron Boozer RC Base #69 Duke #69",
+    "2025-26 Bowman University Best - Cameron Boozer #69 (RC) #69"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-017",
+   "category": "similar_names",
+   "year": "2025-26",
+   "manufacturer": "Topps",
+   "product": "Bowman University Best Basketball",
+   "card_number": "97",
+   "player": "Cayden Boozer",
+   "team": "Duke",
+   "parallel": null,
+   "print_run": null,
+   "sport": "basketball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "CAYDEN BOOZER",
+    "DUKE"
+   ],
+   "why_hard": "Pairs with Cameron Boozer #69. Cam/Cay prefix is easy to misread.",
+   "source_urls": [
+    "https://www.diamondcardsonline.com/blog/2025-26-bowman-university-best-basketball-card-checklist/",
+    "https://www.sportscardspro.com/game/basketball-cards-2025-bowman-university-best/cayden-boozer-97"
+   ],
+   "listing_title_examples": [
+    "CAYDEN BOOZER 2025-26 BOWMAN BEST UNIVERSITY BASKETBALL #97 DUKE Q7408 #97",
+    "2025-26 Bowman University Best - Cayden Boozer #97 (RC) #97"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-018",
+   "category": "similar_names",
+   "year": "2025-26",
+   "manufacturer": "Topps",
+   "product": "Bowman University Best Basketball",
+   "card_number": "61",
+   "player": "Cam Ward",
+   "team": "Michigan State",
+   "parallel": null,
+   "print_run": null,
+   "sport": "basketball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "CAM WARD",
+    "MICHIGAN STATE"
+   ],
+   "why_hard": "College BASKETBALL player with the same name as NFL QB Cam Ward - sport must come from set, not name.",
+   "source_urls": [
+    "https://www.diamondcardsonline.com/blog/2025-26-bowman-university-best-basketball-card-checklist/",
+    "https://www.sportscardspro.com/game/basketball-cards-2025-bowman-university-best/cam-ward-61"
+   ],
+   "listing_title_examples": [
+    "2025-26 Bowman University Best CAM WARD #61 NM #61",
+    "2025-26 Bowman Best University Cam Ward #61 #61"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-019",
+   "category": "college_nil",
+   "year": "2025-26",
+   "manufacturer": "Topps",
+   "product": "Bowman University Best Basketball",
+   "card_number": "9",
+   "player": "AJ Dybantsa",
+   "team": "BYU",
+   "parallel": null,
+   "print_run": null,
+   "sport": "basketball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "AJ DYBANTSA",
+    "BYU"
+   ],
+   "why_hard": "Top college prospect; unusual surname; one sold title adds \"Wizards\" (a guess at his pro team).",
+   "source_urls": [
+    "https://www.diamondcardsonline.com/blog/2025-26-bowman-university-best-basketball-card-checklist/",
+    "https://www.sportscardspro.com/game/basketball-cards-2025-bowman-university-best/aj-dybantsa-9"
+   ],
+   "listing_title_examples": [
+    "AJ Dybantsa 2025-26 Bowman University Best #9 RC BYU Wizards Rookie #9",
+    "2025-26 Bowman Best University AJ Dybantsa #9 Cougars"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-020",
+   "category": "suffix_jr_iii",
+   "year": "2025-26",
+   "manufacturer": "Panini",
+   "product": "Panini Prizm Basketball",
+   "card_number": "6",
+   "player": "Tre Johnson III",
+   "team": "Washington Wizards",
+   "parallel": null,
+   "print_run": null,
+   "sport": "basketball",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "TRE JOHNSON III",
+    "WIZARDS",
+    "RC"
+   ],
+   "why_hard": "III suffix can read as \"Ill\"/\"111\"; also #256 in 2025-26 Topps Chrome - same player, different product/number.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-26-panini-prizm-basketball",
+    "https://www.sportscardspro.com/game/basketball-cards-2025-panini-prizm/tre-johnson-iii-6"
+   ],
+   "listing_title_examples": [
+    "Panini Prizm 2025-26 Tre Johnson III RC #6 Washington Wizards Basketball Card #No. 6",
+    "2025-26 Panini Prizm Basketball 🏀 Tre Johnson III #6 RC 🏀 Washington Wizards  #6"
+   ],
+   "confidence": "verified",
+   "player_also": [
+    "Tre Johnson"
+   ]
+  },
+  {
+   "id": "hc-021",
+   "category": "suffix_jr_iii",
+   "year": "2025-26",
+   "manufacturer": "Topps",
+   "product": "Topps Chrome Basketball",
+   "card_number": "256",
+   "player": "Tre Johnson III",
+   "team": "Washington Wizards",
+   "parallel": null,
+   "print_run": null,
+   "sport": "basketball",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "TRE JOHNSON III",
+    "WASHINGTON WIZARDS",
+    "RC"
+   ],
+   "why_hard": "Same rookie as Prizm #6 - same player, different product and number.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-26-topps-chrome-basketball",
+    "https://www.sportscardspro.com/game/basketball-cards-2025-topps-chrome/tre-johnson-iii-256"
+   ],
+   "listing_title_examples": [
+    "2025-26 Topps Chrome Basketball Tre Johnson III RC #256 Washington Wizards #256",
+    "Tre Johnson III 2025-26 Topps Chrome #256 RC Washington Wizards 76099 #256"
+   ],
+   "confidence": "verified",
+   "player_also": [
+    "Tre Johnson"
+   ]
+  },
+  {
+   "id": "hc-022",
+   "category": "suffix_jr_iii",
+   "year": "2025-26",
+   "manufacturer": "Panini",
+   "product": "Panini Prizm Basketball",
+   "card_number": "16",
+   "player": "Walter Clayton Jr.",
+   "team": "Memphis Grizzlies",
+   "parallel": null,
+   "print_run": null,
+   "sport": "basketball",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "WALTER CLAYTON JR.",
+    "GRIZZLIES",
+    "RC"
+   ],
+   "why_hard": "2025 NBA rookie with Jr.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-26-panini-prizm-basketball",
+    "https://www.sportscardspro.com/game/basketball-cards-2025-panini-prizm/walter-clayton-jr-16"
+   ],
+   "listing_title_examples": [
+    "2025-26 Panini Prizm #16 Walter Clayton Jr. Rc Rookie Grizzlies #16",
+    "Panini 2025-26 Prizm Walter Clayton Jr. Rookie #16 Memphis Grizzlies NBA #16"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-023",
+   "category": "accented_names",
+   "year": "2025-26",
+   "manufacturer": "Panini",
+   "product": "Panini Prizm Basketball",
+   "card_number": "20",
+   "player": "Hugo Gonzalez",
+   "team": "Boston Celtics",
+   "parallel": null,
+   "print_run": null,
+   "sport": "basketball",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "HUGO GONZALEZ",
+    "CELTICS",
+    "RC"
+   ],
+   "why_hard": "Checklist prints no accent (Gonzalez); directories often store \"González\". One sold title carries a wrong trailing #166.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-26-panini-prizm-basketball",
+    "https://www.sportscardspro.com/game/basketball-cards-2025-panini-prizm/hugo-gonzalez-20"
+   ],
+   "listing_title_examples": [
+    "2025-26 Panini Prizm Hugo Gonzalez - Boston Celtics #20 Rookie RC #166",
+    "Panini Prizm Basketball Hugo Gonzalez #20 RC Boston Celtics 2025-26 #20"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-024",
+   "category": "rookies_2025_2026",
+   "year": "2025-26",
+   "manufacturer": "Topps",
+   "product": "Topps Chrome Basketball",
+   "card_number": "251",
+   "player": "Cooper Flagg",
+   "team": "Dallas Mavericks",
+   "parallel": null,
+   "print_run": null,
+   "sport": "basketball",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "COOPER FLAGG",
+    "DALLAS MAVERICKS",
+    "RC"
+   ],
+   "why_hard": "Highest-volume 2025 NBA rookie (180+ sold titles on one page); 2025-26 is Topps Chrome Basketball's first fully licensed NBA year in this era, so older set lists may lack it.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-26-topps-chrome-basketball",
+    "https://www.sportscardspro.com/game/basketball-cards-2025-topps-chrome/cooper-flagg-251"
+   ],
+   "listing_title_examples": [
+    "2025-26 Topps Chrome - Cooper Flagg #251 (RC) #251",
+    "2025-26 Topps Chrome - Cooper Flagg #251 #251"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-025",
+   "category": "similar_names",
+   "year": "2025",
+   "manufacturer": "Panini",
+   "product": "Panini Prizm Football",
+   "card_number": "352",
+   "player": "Cam Ward",
+   "team": "Tennessee Titans",
+   "parallel": null,
+   "print_run": null,
+   "sport": "football",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "CAM WARD",
+    "TITANS",
+    "RC"
+   ],
+   "why_hard": "Same set has Denzel Ward #90 and Hines Ward #102; also his own Rookie Variation at #441.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-panini-prizm-football",
+    "https://www.sportscardspro.com/game/football-cards-2025-panini-prizm/cam-ward-352"
+   ],
+   "listing_title_examples": [
+    "2025 Panini Prizm Cam Ward #352 Rookie Tennessee Titans #352",
+    "2025 Panini Prizm Cam Ward Rookie #352"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-026",
+   "category": "short_print_variation",
+   "year": "2025",
+   "manufacturer": "Panini",
+   "product": "Panini Prizm Football",
+   "card_number": "441",
+   "player": "Cam Ward",
+   "team": "Tennessee Titans",
+   "parallel": "Silver (Rookie Variation)",
+   "print_run": null,
+   "sport": "football",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "CAM WARD",
+    "TITANS",
+    "RC"
+   ],
+   "why_hard": "Rookie Variation numbered #441, not #352 - same player, two card numbers in one set; checklist lists it under \"Base Rookie Variations Silver Prizms\".",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-panini-prizm-football",
+    "https://www.sportscardspro.com/game/football-cards-2025-panini-prizm/cam-ward-rookie-variation-silver-441"
+   ],
+   "listing_title_examples": [
+    "2025 Panini Prizm - Rookie Variation Cam Ward #441 Silver Prizm (RC) #441",
+    "2025 Panini Prizm - Rookie Variation Cam Ward #441 Silver Prizm (RC) Titans #441"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-027",
+   "category": "rookies_2025_2026",
+   "year": "2025",
+   "manufacturer": "Panini",
+   "product": "Panini Prizm Football",
+   "card_number": "301",
+   "player": "Travis Hunter",
+   "team": "Jacksonville Jaguars",
+   "parallel": null,
+   "print_run": null,
+   "sport": "football",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "TRAVIS HUNTER",
+    "JAGUARS",
+    "RC"
+   ],
+   "why_hard": "Base rookie #301; his Rookie Variation is #418. Same set also has Danielle Hunter #48 and Hunter Henry #33.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-panini-prizm-football",
+    "https://www.sportscardspro.com/game/football-cards-2025-panini-prizm/travis-hunter-301"
+   ],
+   "listing_title_examples": [
+    "2025 Panini Prizm - Rookies Travis Hunter #301 Jacksonville Jaguars #301",
+    "Panini 2025 Prizm Football Travis Hunter Rookie Card Jaguars #301 NFL #301"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-028",
+   "category": "short_print_variation",
+   "year": "2025",
+   "manufacturer": "Panini",
+   "product": "Panini Prizm Football",
+   "card_number": "418",
+   "player": "Travis Hunter",
+   "team": "Jacksonville Jaguars",
+   "parallel": "Silver (Rookie Variation)",
+   "print_run": null,
+   "sport": "football",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "TRAVIS HUNTER",
+    "JAGUARS",
+    "RC"
+   ],
+   "why_hard": "Rookie Variation #418 vs base #301; sellers call it \"Image Variation\" or \"Rookie Variation\".",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-panini-prizm-football",
+    "https://www.sportscardspro.com/game/football-cards-2025-panini-prizm/travis-hunter-rookie-variation-silver-418"
+   ],
+   "listing_title_examples": [
+    "2025 Panini Prizm Travis Hunter Silver Prizm Image Variation #418 Jaguars RC #418",
+    "(RC) Travis Hunter Silver Prizm Rookie Variation 2025 Panini Prizm Jax Jags 🔥  #418"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-029",
+   "category": "rookies_2025_2026",
+   "year": "2025",
+   "manufacturer": "Panini",
+   "product": "Panini Prizm Football",
+   "card_number": "371",
+   "player": "Tre Harris",
+   "team": "Los Angeles Chargers",
+   "parallel": null,
+   "print_run": null,
+   "sport": "football",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "TRE HARRIS",
+    "CHARGERS",
+    "RC"
+   ],
+   "why_hard": "2025 NFL rookie; also has a Rookie Variation at #422. Same set has Najee Harris #32 and Marvin Harrison Jr. #28.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-panini-prizm-football",
+    "https://www.sportscardspro.com/game/football-cards-2025-panini-prizm/tre-harris-371"
+   ],
+   "listing_title_examples": [
+    "2025 Panini Prizm - Rookies Tre Harris #371 (RC) #371",
+    "2025 Panini Prizm #371 Tre Harris #371"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-030",
+   "category": "rookies_2025_2026",
+   "year": "2025",
+   "manufacturer": "Topps",
+   "product": "Topps Chrome Update Series Baseball",
+   "card_number": "USC178",
+   "player": "Nick Kurtz",
+   "team": "Athletics",
+   "parallel": null,
+   "print_run": null,
+   "sport": "baseball",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "NICK KURTZ",
+    "ATHLETICS",
+    "RC"
+   ],
+   "why_hard": "Update-only rookie (not in flagship Chrome base); also has a Rookie Debut card USC180 - same player, two numbers.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-topps-chrome-update-series-baseball",
+    "https://www.sportscardspro.com/game/baseball-cards-2025-topps-chrome-update/nick-kurtz-usc178"
+   ],
+   "listing_title_examples": [
+    "2025 Topps Chrome Update Series Nick Kurtz #USC178 Rookie Athletics RC #USC178",
+    "Nick Kurtz 2025 Topps Chrome Update #USC178 Rookie RC #USC178"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-031",
+   "category": "rookies_2025_2026",
+   "year": "2026",
+   "manufacturer": "Topps",
+   "product": "Topps Series 1 Baseball",
+   "card_number": "312",
+   "player": "Chase Burns",
+   "team": "Cincinnati Reds",
+   "parallel": null,
+   "print_run": null,
+   "sport": "baseball",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "CHASE BURNS",
+    "REDS",
+    "RC"
+   ],
+   "why_hard": "2026 rookie; first name \"Chase\" collides with hobby word \"chase\" and with Ja'Marr Chase.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2026-topps-series-1-baseball",
+    "https://www.sportscardspro.com/game/baseball-cards-2026-topps/chase-burns-312"
+   ],
+   "listing_title_examples": [
+    "Chase Burns Rookie 2026 Topps #312 Cincinnati Reds #312",
+    "Chase Burns Rookie 2026 Topps #312 Reds #312"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-032",
+   "category": "rookies_2025_2026",
+   "year": "2025-26",
+   "manufacturer": "Upper Deck",
+   "product": "Upper Deck Series 1 Hockey",
+   "card_number": "205",
+   "player": "Ivan Demidov",
+   "team": "Montreal Canadiens",
+   "parallel": null,
+   "print_run": null,
+   "sport": "hockey",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "IVAN DEMIDOV",
+    "CANADIENS",
+    "YOUNG GUNS"
+   ],
+   "why_hard": "NHL Young Guns rookie; Upper Deck hockey sets are often thin in directories. He is also on checklist card #250 (CL).",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-26-upper-deck-series-1-hockey",
+    "https://www.sportscardspro.com/game/hockey-cards-2025-upper-deck/ivan-demidov-205"
+   ],
+   "listing_title_examples": [
+    "2025 UPPER DECK SERIES 1 #205 IVAN DEMIDOV YOUNG GUNS RC ROOKIE #205",
+    "2025-26 Upper Deck Young Guns Ivan Demidov #205 Montreal Canadiens #205"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-033",
+   "category": "rookies_2025_2026",
+   "year": "2025-26",
+   "manufacturer": "Upper Deck",
+   "product": "Upper Deck Series 2 Hockey",
+   "card_number": "451",
+   "player": "Matthew Schaefer",
+   "team": "New York Islanders",
+   "parallel": null,
+   "print_run": null,
+   "sport": "hockey",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "MATTHEW SCHAEFER",
+    "ISLANDERS",
+    "YOUNG GUNS"
+   ],
+   "why_hard": "2025-26 #1 pick, Series 2 Young Guns; also has acetate/Extended versions also numbered 451 - set must not drift.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-26-upper-deck-series-2-hockey",
+    "https://www.sportscardspro.com/game/hockey-cards-2025-upper-deck-series-2/matthew-schaefer-451"
+   ],
+   "listing_title_examples": [
+    "2025 UPPER DECK SERIES 2 #451 MATTHEW SCHAEFER YOUNG GUNS RC ROOKIE #451",
+    "Pair of 2025-26 Upper Deck Series 2 Matthew Schaefer Young Guns Rookie #451 #451"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-034",
+   "category": "accented_names",
+   "year": "2025",
+   "manufacturer": "Topps",
+   "product": "Topps Chrome Baseball",
+   "card_number": "56",
+   "player": "Luisangel Acuña",
+   "team": "New York Mets",
+   "parallel": "X-Fractor",
+   "print_run": null,
+   "sport": "baseball",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "LUISANGEL ACUÑA",
+    "METS",
+    "RC"
+   ],
+   "why_hard": "Accent (ñ); Ronald Acuña Jr. is #257 in the same set - \"Acuna\" substring match must not land on Ronald.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-topps-chrome-baseball",
+    "https://www.sportscardspro.com/game/baseball-cards-2025-topps-chrome/luisangel-acuna-x-fractor-56"
+   ],
+   "listing_title_examples": [
+    "2025 Topps Chrome - Luisangel Acuna #56 X-Fractor (RC) #56",
+    "Luisangel Acuna – 2025 Topps Chrome X-Fractor – Rookie Card #56"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-035",
+   "category": "short_print_variation",
+   "year": "2025",
+   "manufacturer": "Topps",
+   "product": "Topps Chrome Baseball",
+   "card_number": "96",
+   "player": "Jacob Wilson",
+   "team": "Athletics",
+   "parallel": "Image Variation",
+   "print_run": null,
+   "sport": "baseball",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "JACOB WILSON",
+    "ATHLETICS",
+    "RC"
+   ],
+   "why_hard": "Image Variation shares #96 with the base card; only the photo differs. SSP image variation also exists at #96.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-topps-chrome-baseball",
+    "https://www.sportscardspro.com/game/baseball-cards-2025-topps-chrome/jacob-wilson-image-variation-96"
+   ],
+   "listing_title_examples": [
+    "2025 Topps Chrome Jacob Wilson #96 RC Image Variation SP Athletics",
+    "2025 Topps Chrome - Image Variation Jacob Wilson #96 (RC) #96"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-036",
+   "category": "similar_names",
+   "year": "2025",
+   "manufacturer": "Topps",
+   "product": "Topps Chrome Baseball",
+   "card_number": "221",
+   "player": "Max Muncy",
+   "team": "Athletics",
+   "parallel": null,
+   "print_run": null,
+   "sport": "baseball",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "MAX MUNCY",
+    "ATHLETICS",
+    "RC"
+   ],
+   "why_hard": "The A's rookie Max Muncy - NOT the Dodgers 3B. A real sold title for this card even says \"Los Angeles Dodgers\".",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-topps-chrome-baseball",
+    "https://www.sportscardspro.com/game/baseball-cards-2025-topps-chrome/max-muncy-221"
+   ],
+   "listing_title_examples": [
+    "2025 Topps Chrome Max Muncy RC Rookie Card #221 Los Angeles Dodgers ⚾️🔥 #221",
+    "2025 Topps Chrome #221 Max Muncy Athletics RC #221"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-037",
+   "category": "similar_names",
+   "year": "2026",
+   "manufacturer": "Topps",
+   "product": "Topps Series 1 Baseball",
+   "card_number": "252",
+   "player": "Max Muncy",
+   "team": "Los Angeles Dodgers",
+   "parallel": null,
+   "print_run": null,
+   "sport": "baseball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "MAX MUNCY",
+    "DODGERS"
+   ],
+   "why_hard": "The veteran Dodgers Max Muncy. Pair with muncyA: identical name, different players - team line is the only tell.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2026-topps-series-1-baseball",
+    "https://www.sportscardspro.com/game/baseball-cards-2026-topps/max-muncy-252"
+   ],
+   "listing_title_examples": [
+    "Max Muncy 2026 Topps Series 1 #252 Los Angeles Dodgers #252",
+    "2026 Topps #44 Max Muncy - Baseball Seams Refractor - Los Angeles Dodgers #252"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-038",
+   "category": "bowman_prospects",
+   "year": "2025",
+   "manufacturer": "Topps",
+   "product": "Bowman Baseball (paper Prospects, BP-)",
+   "card_number": "BP-22",
+   "player": "JJ Wetherholt",
+   "team": "St. Louis Cardinals",
+   "parallel": null,
+   "print_run": null,
+   "sport": "baseball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "JJ WETHERHOLT",
+    "CARDINALS",
+    "1st BOWMAN"
+   ],
+   "why_hard": "Paper BP-22 vs Chrome BCP-22 - same player, same number digits, different card. \"1st\" stamp.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-bowman-baseball",
+    "https://www.sportscardspro.com/game/baseball-cards-2025-bowman-prospects/jj-wetherholt-bp-22"
+   ],
+   "listing_title_examples": [
+    "2025 Bowman Baseball JJ Wetherholt 1st Bowman #BP-22 St. Louis Cardinals #BP-22",
+    "2025 Bowman - Prospects JJ Wetherholt #BP-22 (RC) #BP-22"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-039",
+   "category": "bowman_prospects",
+   "year": "2025",
+   "manufacturer": "Topps",
+   "product": "Bowman Baseball (Chrome Prospects, BCP-)",
+   "card_number": "BCP-22",
+   "player": "JJ Wetherholt",
+   "team": "St. Louis Cardinals",
+   "parallel": null,
+   "print_run": null,
+   "sport": "baseball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "JJ WETHERHOLT",
+    "CARDINALS",
+    "1st BOWMAN"
+   ],
+   "why_hard": "Chrome version of BP-22; prefix BCP vs BP is the only number difference.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-bowman-baseball",
+    "https://www.sportscardspro.com/game/baseball-cards-2025-bowman-chrome-prospects/jj-wetherholt-bcp-22"
+   ],
+   "listing_title_examples": [
+    "2025 Bowman JJ Wetherholt Chrome 1st Prospect #BCP-22 Cardinals",
+    "2025 Bowman - Chrome Prospects JJ Wetherholt #BCP-22 1st Chrome #BCP-22"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-040",
+   "category": "tricky_parallels",
+   "year": "2025",
+   "manufacturer": "Topps",
+   "product": "Bowman Baseball (Chrome Prospects, BCP-)",
+   "card_number": "BCP-22",
+   "player": "JJ Wetherholt",
+   "team": "St. Louis Cardinals",
+   "parallel": "Fuchsia Refractor",
+   "print_run": 199,
+   "sport": "baseball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "JJ WETHERHOLT",
+    "CARDINALS",
+    "1st BOWMAN",
+    "49/199"
+   ],
+   "why_hard": "Chrome Fuchsia is /199; paper Fuchsia BORDER is /299. Serial 49/199 from a real sold listing.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-bowman-baseball",
+    "https://www.sportscardspro.com/game/baseball-cards-2025-bowman-chrome-prospects/jj-wetherholt-fuchsia-bcp-22"
+   ],
+   "listing_title_examples": [
+    "JJ Wetherholt 2025 Bowman Chrome Prospect 1st Fuchsia Refractor /199 #BCP-22",
+    "JJ WETHERHOLT 2025 BOWMAN CHROME 1ST PROSPECT FUCHSIA REFRACTOR /199 Q4846 #BCP-22"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-041",
+   "category": "tricky_parallels",
+   "year": "2025",
+   "manufacturer": "Topps",
+   "product": "Bowman Baseball (paper Prospects, BP-)",
+   "card_number": "BP-38",
+   "player": "Luis Pena",
+   "team": "Milwaukee Brewers",
+   "parallel": "Fuchsia Border",
+   "print_run": 299,
+   "sport": "baseball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "LUIS PENA",
+    "BREWERS",
+    "/299"
+   ],
+   "why_hard": "Paper Fuchsia Border /299: sellers also call it \"Magenta /299\", and one titles it \"Fuchsia #169/175\" (that run is Pink Border). Checklist prints \"Luis Pena\" on paper but \"Luis Peña\" on Chrome BCP-239.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-bowman-baseball",
+    "https://www.sportscardspro.com/game/baseball-cards-2025-bowman-prospects/luis-pena-fuchsia-bp-38"
+   ],
+   "listing_title_examples": [
+    "2025 Bowman - Prospects Luis Pena #BP-38 Fuchsia /299 (RC) #BP-38",
+    "2025 Bowman #BP-38 Luis Pena Prospects Fuchsia #/299 #BP-38"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-042",
+   "category": "accented_names",
+   "year": "2025",
+   "manufacturer": "Topps",
+   "product": "Bowman Baseball (paper Prospects, BP-)",
+   "card_number": "BP-38",
+   "player": "Luis Pena",
+   "team": "Milwaukee Brewers",
+   "parallel": null,
+   "print_run": null,
+   "sport": "baseball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "LUIS PENA",
+    "BREWERS"
+   ],
+   "why_hard": "Checklist has no 1st tag for BP-38 but sold titles say \"1st Bowman\". Accent appears on Chrome (BCP-239 \"Peña\") but not paper (BP-38 \"Pena\") in the same checklist; Elian Peña is a different Mets prospect.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-bowman-baseball",
+    "https://www.sportscardspro.com/game/baseball-cards-2025-bowman-prospects/luis-pena-bp-38"
+   ],
+   "listing_title_examples": [
+    "Luis Pena 2025 Bowman #BP-38 Brewers FREE SHIPPING StackedPacks",
+    "2025 Bowman 1st Prospects Luis Pena BP-38 Magenta /299 Brewers 1st Bowman Paper #BP-38"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-043",
+   "category": "similar_names",
+   "year": "2025",
+   "manufacturer": "Topps",
+   "product": "Bowman Baseball (paper Prospects, BP-)",
+   "card_number": "BP-18",
+   "player": "Ichiro Cano Hernandez",
+   "team": "Cincinnati Reds",
+   "parallel": null,
+   "print_run": null,
+   "sport": "baseball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "ICHIRO CANO HERNANDEZ",
+    "REDS",
+    "1st BOWMAN"
+   ],
+   "why_hard": "First name \"Ichiro\" must not resolve to Ichiro Suzuki; three-part name.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-bowman-baseball",
+    "https://www.sportscardspro.com/game/baseball-cards-2025-bowman-prospects/ichiro-cano-hernandez-bp-18"
+   ],
+   "listing_title_examples": [
+    "Ichiro Cano Hernandez #BP-18",
+    "2025 Bowman Baseball 1st Bowman Ichiro Cano Hernandez #BP-18 Cincinnati Reds #BP-18"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-044",
+   "category": "tricky_parallels",
+   "year": "2025",
+   "manufacturer": "Topps",
+   "product": "Bowman Baseball (paper Prospects, BP-)",
+   "card_number": "BP-142",
+   "player": "Santiago Suarez",
+   "team": "Tampa Bay Rays",
+   "parallel": "Green Pattern Border",
+   "print_run": 99,
+   "sport": "baseball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "SANTIAGO SUAREZ",
+    "RAYS",
+    "1st BOWMAN",
+    "43/99"
+   ],
+   "why_hard": "Green Pattern Border /99 vs plain Green Border /99 - same run, different parallel. Surname collides with Eugenio Suárez.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-bowman-baseball",
+    "https://www.sportscardspro.com/game/baseball-cards-2025-bowman-prospects/santiago-suarez-green-pattern-bp-142"
+   ],
+   "listing_title_examples": [
+    "Santiago Suarez 2025 Bowman 1st Green Pattern Parallel /99 Prospect #BP-142 Rays #In Title",
+    "2025 Bowman #BP-142 Santiago Suarez Prospects Green Pattern Border #/99 #BP-142"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-045",
+   "category": "bowman_prospects",
+   "year": "2025",
+   "manufacturer": "Topps",
+   "product": "Bowman Baseball (Chrome Prospects, BCP-)",
+   "card_number": "BCP-86",
+   "player": "Konnor Griffin",
+   "team": "Pittsburgh Pirates",
+   "parallel": null,
+   "print_run": null,
+   "sport": "baseball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "KONNOR GRIFFIN",
+    "PIRATES"
+   ],
+   "why_hard": "Prospect with NO 1st tag on the checklist - do not mark 1st just because he is a prospect. K-spelling (Konnor).",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-bowman-baseball",
+    "https://www.sportscardspro.com/game/baseball-cards-2025-bowman-chrome-prospects/konnor-griffin-bcp-86"
+   ],
+   "listing_title_examples": [
+    "2025 Bowman Chrome Konnor Griffin Prospect #BCP-86 Pirates #BCP-86",
+    "2025 Bowman Konnor Griffin Chrome Prospects #BCP-86 Pirates"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-046",
+   "category": "sapphire",
+   "year": "2025",
+   "manufacturer": "Topps",
+   "product": "Topps Chrome Sapphire Edition Baseball",
+   "card_number": "217",
+   "player": "Roki Sasaki",
+   "team": "Los Angeles Dodgers",
+   "parallel": "Sapphire",
+   "print_run": null,
+   "sport": "baseball",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "ROKI SASAKI",
+    "DODGERS",
+    "RC"
+   ],
+   "why_hard": "Same #217 as flagship Topps Chrome; Sapphire is a separate product with its own parallels (Gold /50, Orange /25, Padparadscha 1/1).",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-topps-chrome-sapphire-baseball",
+    "https://www.sportscardspro.com/game/baseball-cards-2025-topps-chrome/roki-sasaki-sapphire-217"
+   ],
+   "listing_title_examples": [
+    "Topps 2025 Chrome Sapphire Roki Sasaki RC #217 Los Angeles Dodgers PSA 131867065 #217",
+    "2025 Topps Chrome Sapphire Edition #217 Roki Sasaki RC Rookie Dodgers 🔵 #217"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-047",
+   "category": "sapphire",
+   "year": "2025",
+   "manufacturer": "Topps",
+   "product": "Topps Chrome Update Sapphire Edition Baseball",
+   "card_number": "USC150",
+   "player": "Jacob Wilson",
+   "team": "Athletics",
+   "parallel": "Sapphire",
+   "print_run": null,
+   "sport": "baseball",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "JACOB WILSON",
+    "ATHLETICS"
+   ],
+   "why_hard": "Update Sapphire card USC150 is a \"Rookie Debut\" (RD) card, not his base #96.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-topps-chrome-update-sapphire-baseball",
+    "https://www.sportscardspro.com/game/baseball-cards-2025-topps-chrome-sapphire-update/jacob-wilson-usc150"
+   ],
+   "listing_title_examples": [
+    "Jacob Wilson 2025 Topps Chrome Update Sapphire RC Rookie #USC150 Athletics #USC150",
+    "2025 Topps Chrome Update Sapphire Jacob Wilson Rookie RC #USC150 Athletics"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-048",
+   "category": "sapphire",
+   "year": "2025",
+   "manufacturer": "Topps",
+   "product": "Bowman Chrome Sapphire Edition Baseball - Sapphire Selections",
+   "card_number": "SS-18",
+   "player": "Konnor Griffin",
+   "team": "Pittsburgh Pirates",
+   "parallel": "Sapphire Selections insert",
+   "print_run": null,
+   "sport": "baseball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "KONNOR GRIFFIN",
+    "PIRATES"
+   ],
+   "why_hard": "Sapphire-only insert (SS-), not BCP-; product must read as Bowman Chrome Sapphire.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-bowman-chrome-sapphire-baseball",
+    "https://www.sportscardspro.com/game/baseball-cards-2025-bowman-chrome-sapphire-selections/konnor-griffin-ss-18"
+   ],
+   "listing_title_examples": [
+    "2025 Bowman Chrome Sapphire Edition - Sapphire Selections Konnor Griffin #SS-18 #SS-18",
+    "KONNOR GRIFFIN 2025 BOWMAN CHROME SAPPHIRE SELECTIONS RC #SS-18 ROOKIE PIRATES #SS-18"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-049",
+   "category": "tricky_parallels",
+   "year": "2024",
+   "manufacturer": "Panini",
+   "product": "Panini Prizm Football",
+   "card_number": "329",
+   "player": "Drake Maye",
+   "team": "New England Patriots",
+   "parallel": "Red Wave",
+   "print_run": 149,
+   "sport": "football",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "DRAKE MAYE",
+    "PATRIOTS",
+    "RC",
+    "/149"
+   ],
+   "why_hard": "The open question: checklist calls the /149 \"Red Wave\" (Orange is /249, Orange Wave /60). Every sold title on the listing page (~40) says Red Wave; none say Orange. Our current wide-fixture truth \"Orange\" is wrong.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2024-panini-prizm-football",
+    "https://www.sportscardspro.com/game/football-cards-2024-panini-prizm/drake-maye-red-wave-329"
+   ],
+   "listing_title_examples": [
+    "DRAKE MAYE 2024 PANINI PRIZM ROOKIE RED WAVE RC /149 #329 PATRIOTS Q0398 #329",
+    "2024 Panini Prizm - Rookies Drake Maye #329 Red Wave Prizm /149 (RC) #329"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-050",
+   "category": "tricky_parallels",
+   "year": "2024",
+   "manufacturer": "Panini",
+   "product": "Panini Prizm Football",
+   "card_number": "329",
+   "player": "Drake Maye",
+   "team": "New England Patriots",
+   "parallel": "Orange",
+   "print_run": 249,
+   "sport": "football",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "DRAKE MAYE",
+    "PATRIOTS",
+    "RC",
+    "/249"
+   ],
+   "why_hard": "The real Orange Maye is /249. Pair with the Red Wave /149 card: run decides the parallel.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2024-panini-prizm-football",
+    "https://www.sportscardspro.com/game/football-cards-2024-panini-prizm/drake-maye-orange-329"
+   ],
+   "listing_title_examples": [
+    "2024 Panini Prizm Patriots Drake Maye RC Orange /249 #329",
+    "DRAKE MAYE 2024 PANINI PRIZM FOOTBALL ORANGE ROOKIE RC /249 #329 PATRIOTS Q7128 #329"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-051",
+   "category": "tricky_parallels",
+   "year": "2025",
+   "manufacturer": "Topps",
+   "product": "Topps Chrome Baseball",
+   "card_number": "96",
+   "player": "Jacob Wilson",
+   "team": "Athletics",
+   "parallel": "Green Speckle Refractor (Image Variation)",
+   "print_run": 99,
+   "sport": "baseball",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "JACOB WILSON",
+    "ATHLETICS",
+    "RC",
+    "23/99"
+   ],
+   "why_hard": "Speckle exists only on the Image Variation in 2025 Topps Chrome; Green Speckle /99 vs Green Refractor /99 - same run. Serial 23/99 from a real sold listing.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-topps-chrome-baseball",
+    "https://www.sportscardspro.com/game/baseball-cards-2025-topps-chrome/jacob-wilson-green-speckle-image-variation-96"
+   ],
+   "listing_title_examples": [
+    "Jacob Wilson Rookie Image Variation 2025 Topps Chrome #96 Green Speckle /99 (RC) #96",
+    "JACOB WILSON 2025 TOPPS CHROME #96 IMAGE VAR GREEN SPECKLE REFRACTOR RC 23/99 #96"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-052",
+   "category": "tricky_parallels",
+   "year": "2025-26",
+   "manufacturer": "Panini",
+   "product": "Panini Prizm Basketball",
+   "card_number": "55",
+   "player": "Toni Kukoc",
+   "team": "Chicago Bulls",
+   "parallel": "Cherry Blossom",
+   "print_run": 20,
+   "sport": "basketball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "TONI KUKOC",
+    "BULLS",
+    "5/20"
+   ],
+   "why_hard": "Retired legend; Cherry Blossom /20. Serial 5/20 from a real sold listing.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-26-panini-prizm-basketball",
+    "https://www.sportscardspro.com/game/basketball-cards-2025-panini-prizm/toni-kukoc-cherry-blossom-55"
+   ],
+   "listing_title_examples": [
+    "Toni Kukoc 2025-26 Panini Prizm Cherry Blossom 5/20 Chicago Bulls #55 #55"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-053",
+   "category": "tricky_parallels",
+   "year": "2025-26",
+   "manufacturer": "Panini",
+   "product": "Panini Prizm Basketball",
+   "card_number": "194",
+   "player": "Peja Stojakovic",
+   "team": "Sacramento Kings",
+   "parallel": "Mojo",
+   "print_run": 25,
+   "sport": "basketball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "PEJA STOJAKOVIC",
+    "KINGS",
+    "/25"
+   ],
+   "why_hard": "Mojo /25 vs Green Pulsar /25 - same run. Father of Andrej (#85).",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-26-panini-prizm-basketball",
+    "https://www.sportscardspro.com/game/basketball-cards-2025-panini-prizm/peja-stojakovic-mojo-194"
+   ],
+   "listing_title_examples": [
+    "2025-26 Prizm Peja Stojakovic Mojo #/25 #194 #194"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-054",
+   "category": "ocr_trap_punctuation",
+   "year": "2025-26",
+   "manufacturer": "Panini",
+   "product": "Panini Prizm Basketball",
+   "card_number": "188",
+   "player": "Amar'e Stoudemire",
+   "team": "Phoenix Suns",
+   "parallel": "Mojo",
+   "print_run": 25,
+   "sport": "basketball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "AMAR'E STOUDEMIRE",
+    "SUNS",
+    "/25"
+   ],
+   "why_hard": "Apostrophe mid-name (Amar'e); sold title shortens set to \"2025-26 Panini\".",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-26-panini-prizm-basketball",
+    "https://www.sportscardspro.com/game/basketball-cards-2025-panini-prizm/amar%27e-stoudemire-mojo-188"
+   ],
+   "listing_title_examples": [
+    "2025-26 Panini - Amar'e Stoudemire #188 Mojo Prizm /25 #188"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-055",
+   "category": "tricky_parallels",
+   "year": "2025-26",
+   "manufacturer": "Panini",
+   "product": "Panini Prizm Basketball",
+   "card_number": "168",
+   "player": "Gilbert Arenas",
+   "team": "Washington Wizards",
+   "parallel": "Gold Shimmer FOTL",
+   "print_run": 10,
+   "sport": "basketball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "GILBERT ARENAS",
+    "WIZARDS",
+    "8/10"
+   ],
+   "why_hard": "FOTL-only parallel; Gold Shimmer /10 vs Gold /10 vs Gold Glitter /10 - three parallels share /10. Serial 8/10 from a real sold listing.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-26-panini-prizm-basketball",
+    "https://www.sportscardspro.com/game/basketball-cards-2025-panini-prizm/gilbert-arenas-gold-shimmer-168"
+   ],
+   "listing_title_examples": [
+    "2025-2026 Prizm Basketball Gilbert Arenas Gold Shimmer /10 #168",
+    "2025-26 Panini Prizm FOTL FOTL Gold Shimmer Prizm 8/10 Gilbert Arenas #168 #168"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-056",
+   "category": "retired_legends",
+   "year": "2025-26",
+   "manufacturer": "Panini",
+   "product": "Panini Prizm Basketball",
+   "card_number": "168",
+   "player": "Gilbert Arenas",
+   "team": "Washington Wizards",
+   "parallel": "Snakeskin",
+   "print_run": null,
+   "sport": "basketball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "GILBERT ARENAS",
+    "WIZARDS"
+   ],
+   "why_hard": "Retired; sold title uses emojis and \"Snake Skin SSP\". Alijah Arenas is #100 in the same set.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-26-panini-prizm-basketball",
+    "https://www.sportscardspro.com/game/basketball-cards-2025-panini-prizm/gilbert-arenas-snakeskin-168"
+   ],
+   "listing_title_examples": [
+    "2025-26 Prizm Gilbert Arenas 🔫 SSP 🐍 Snake Skin #168 Washington #168"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-057",
+   "category": "accented_names",
+   "year": "2026",
+   "manufacturer": "Topps",
+   "product": "Topps Series 1 Baseball",
+   "card_number": "82",
+   "player": "Carlos Rodón",
+   "team": "New York Yankees",
+   "parallel": "Holo Foil",
+   "print_run": null,
+   "sport": "baseball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "CARLOS RODÓN",
+    "YANKEES"
+   ],
+   "why_hard": "Checklist prints \"Rodón\"; sold titles say \"Rodon\". Holo Foil is unnumbered.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2026-topps-series-1-baseball",
+    "https://www.sportscardspro.com/game/baseball-cards-2026-topps/carlos-rodon-holo-82"
+   ],
+   "listing_title_examples": [
+    "2026 Topps Carlos Rodon #82 Holofoil Variations New York Yankees #82",
+    "2026 Topps Series 1 Carlos Rodon Holo Foil #82 New York Yankees #82"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-058",
+   "category": "accented_names",
+   "year": "2025",
+   "manufacturer": "Topps",
+   "product": "Topps Chrome Baseball",
+   "card_number": "239",
+   "player": "Jeremy Peña",
+   "team": "Houston Astros",
+   "parallel": "Sepia Refractor",
+   "print_run": null,
+   "sport": "baseball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "JEREMY PEÑA",
+    "ASTROS"
+   ],
+   "why_hard": "ñ in print, \"Pena\" in titles; Sepia Refractor (Value Blaster) is unnumbered.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-topps-chrome-baseball",
+    "https://www.sportscardspro.com/game/baseball-cards-2025-topps-chrome/jeremy-pena-sepia-239"
+   ],
+   "listing_title_examples": [
+    "2025 Topps Chrome - Jeremy Pena #239 Sepia Refractor #239",
+    "2025 Topps Chrome Jeremy Pena Sepia Chrome Refractor #239 #1"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-059",
+   "category": "accented_names",
+   "year": "2025",
+   "manufacturer": "Topps",
+   "product": "Topps Chrome Baseball",
+   "card_number": "48",
+   "player": "Eugenio Suárez",
+   "team": "Arizona Diamondbacks",
+   "parallel": null,
+   "print_run": null,
+   "sport": "baseball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "EUGENIO SUÁREZ",
+    "DIAMONDBACKS"
+   ],
+   "why_hard": "á in print, \"Suarez\" in titles. Team changes mid-year: 2025 Chrome Update USC125 has him as a Mariner.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-topps-chrome-baseball",
+    "https://www.sportscardspro.com/game/baseball-cards-2025-topps-chrome/eugenio-suarez-48"
+   ],
+   "listing_title_examples": [
+    "2025 Topps Chrome Baseball # 48 Eugenio Suarez 1 #48",
+    "2025 Topps Chrome Eugenio Suarez Arizona Diamondbacks #48 #48"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-060",
+   "category": "accented_names",
+   "year": "2026",
+   "manufacturer": "Topps",
+   "product": "Topps Series 1 Baseball",
+   "card_number": "146",
+   "player": "Julio Rodríguez",
+   "team": "Seattle Mariners",
+   "parallel": null,
+   "print_run": null,
+   "sport": "baseball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "JULIO RODRÍGUEZ",
+    "MARINERS"
+   ],
+   "why_hard": "í accent; a Golden Mirror Legend variation of Ken Griffey Jr. is also listed at 146 in the same release.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2026-topps-series-1-baseball",
+    "https://www.sportscardspro.com/game/baseball-cards-2026-topps/julio-rodriguez-146"
+   ],
+   "listing_title_examples": [
+    "2026 Topps Series 1 - Julio Rodriguez #146 Confetti #146",
+    "2026 Topps Series 1 - Julio Rodriguez #146 Confetti Mariners #146"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-061",
+   "category": "short_print_variation",
+   "year": "2025",
+   "manufacturer": "Topps",
+   "product": "Topps Chrome Baseball",
+   "card_number": "257",
+   "player": "Ronald Acuña Jr.",
+   "team": "Atlanta Braves",
+   "parallel": "SSP (Image Variation)",
+   "print_run": null,
+   "sport": "baseball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "RONALD ACUÑA JR.",
+    "BRAVES"
+   ],
+   "why_hard": "Accent + Jr. + SSP that shares #257 with the base card; sellers describe it as \"Light Board\".",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-topps-chrome-baseball",
+    "https://www.sportscardspro.com/game/baseball-cards-2025-topps-chrome/ronald-acuna-jr-ssp-257"
+   ],
+   "listing_title_examples": [
+    "2025 Topps Chrome Ronald Acuna Jr. Super Short Prints SSP #257 Braves",
+    "2025 TOPPS CHROME VARIATION SSP REFRACTOR RONALD ACUNA JR. CARD #257 ATLANTA #257"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-062",
+   "category": "retired_legends",
+   "year": "2025",
+   "manufacturer": "Panini",
+   "product": "Panini Prizm Football",
+   "card_number": "102",
+   "player": "Hines Ward",
+   "team": "Pittsburgh Steelers",
+   "parallel": null,
+   "print_run": null,
+   "sport": "football",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "HINES WARD",
+    "STEELERS"
+   ],
+   "why_hard": "Retired legend in a modern base set; three Wards in one set (Denzel #90, Hines #102, Cam #352/#441).",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-panini-prizm-football",
+    "https://www.sportscardspro.com/game/football-cards-2025-panini-prizm/hines-ward-102"
+   ],
+   "listing_title_examples": [
+    "2025 Panini Prizm - Hines Ward #102 #102",
+    "2025 Panini Prizm Base Hines Ward Pittsburgh Steelers #102 #102"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-063",
+   "category": "similar_names",
+   "year": "2025",
+   "manufacturer": "Panini",
+   "product": "Panini Prizm Football",
+   "card_number": "90",
+   "player": "Denzel Ward",
+   "team": "Cleveland Browns",
+   "parallel": null,
+   "print_run": null,
+   "sport": "football",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "DENZEL WARD",
+    "BROWNS"
+   ],
+   "why_hard": "Part of the Ward cluster; surname-only matching would pick the wrong Ward.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-panini-prizm-football",
+    "https://www.sportscardspro.com/game/football-cards-2025-panini-prizm/denzel-ward-90"
+   ],
+   "listing_title_examples": [
+    "2025 Panini Prizm Denzel Ward #90 Cleveland Browns Football /200 #90",
+    "2025 PANINI PRIZM #90 DENZEL WARD CLEVELAND BROWNS FOOTBALL #90"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-064",
+   "category": "similar_names",
+   "year": "2025",
+   "manufacturer": "Topps",
+   "product": "Bowman Baseball (base)",
+   "card_number": "62",
+   "player": "Will Smith",
+   "team": "Los Angeles Dodgers",
+   "parallel": null,
+   "print_run": null,
+   "sport": "baseball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "WILL SMITH",
+    "DODGERS"
+   ],
+   "why_hard": "Very common name; an NHL Will Smith (Sharks) is in 2025-26 Upper Deck - see the hockey case.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-bowman-baseball",
+    "https://www.sportscardspro.com/game/baseball-cards-2025-bowman/will-smith-62"
+   ],
+   "listing_title_examples": [
+    "2025 Bowman #62 Will Smith - Los Angeles Dodgers #62",
+    "2025 Bowman - Will Smith #62 Dodgers #62"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-065",
+   "category": "similar_names",
+   "year": "2025-26",
+   "manufacturer": "Upper Deck",
+   "product": "Upper Deck Series 1 Hockey",
+   "card_number": "C-43",
+   "player": "Will Smith",
+   "team": "San Jose Sharks",
+   "parallel": "UD Canvas insert",
+   "print_run": null,
+   "sport": "hockey",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "WILL SMITH",
+    "SHARKS"
+   ],
+   "why_hard": "Hockey Will Smith - sport must come from the set (Upper Deck hockey), never from the name.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-26-upper-deck-series-1-hockey",
+    "https://www.sportscardspro.com/game/hockey-cards-2025-upper-deck-ud-canvas/will-smith-c-43"
+   ],
+   "listing_title_examples": [
+    "2025-26 Upper Deck Series 1 UD Canvas Will Smith #C-43 0q4s #C-43",
+    "2025-26 Upper Deck Series 1 Will Smith UD Canvas #C-43 Sharks #C-43"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-066",
+   "category": "ocr_trap_punctuation",
+   "year": "2025-26",
+   "manufacturer": "Panini",
+   "product": "Panini Prizm Basketball",
+   "card_number": "156",
+   "player": "Shaquille O'Neal",
+   "team": "Los Angeles Lakers",
+   "parallel": null,
+   "print_run": null,
+   "sport": "basketball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "SHAQUILLE O'NEAL",
+    "LAKERS"
+   ],
+   "why_hard": "Retired legend; apostrophe. Jermaine O'Neal is #165 in the same set.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-26-panini-prizm-basketball",
+    "https://www.sportscardspro.com/game/basketball-cards-2025-panini-prizm/shaquille-o%27neal-156"
+   ],
+   "listing_title_examples": [
+    "Shaquille O'Neal 2025-26 Panini Prizm Lakers #156",
+    "Panini 2025-26 Prizm Basketball Shaquille O'Neal Lakers #156 Prizm Parallel #156"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-067",
+   "category": "ocr_trap_punctuation",
+   "year": "2025-26",
+   "manufacturer": "Panini",
+   "product": "Panini Prizm Basketball",
+   "card_number": "165",
+   "player": "Jermaine O'Neal",
+   "team": "Indiana Pacers",
+   "parallel": "Snakeskin",
+   "print_run": null,
+   "sport": "basketball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "JERMAINE O'NEAL",
+    "PACERS"
+   ],
+   "why_hard": "Sold title uses a curly apostrophe (O’Neal) and adds FOTL - normalise quotes.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-26-panini-prizm-basketball",
+    "https://www.sportscardspro.com/game/basketball-cards-2025-panini-prizm/jermaine-o%27neal-snakeskin-165"
+   ],
+   "listing_title_examples": [
+    "Jermaine O’Neal 2025-26 Panini Prizm Snakeskin SSP #165 Indiana Pacers FOTL #165"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-068",
+   "category": "accented_names",
+   "year": "2025-26",
+   "manufacturer": "Panini",
+   "product": "Panini Prizm Basketball",
+   "card_number": "196",
+   "player": "Manu Ginobili",
+   "team": "San Antonio Spurs",
+   "parallel": null,
+   "print_run": null,
+   "sport": "basketball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "MANU GINOBILI",
+    "SPURS"
+   ],
+   "why_hard": "Checklist prints no accent; directories often store \"Ginóbili\". Retired legend.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-26-panini-prizm-basketball",
+    "https://www.sportscardspro.com/game/basketball-cards-2025-panini-prizm/manu-ginobili-196"
+   ],
+   "listing_title_examples": [
+    "2025-26 Panini Prizm Basketball Manu Ginobili Base San Antonio Spurs #196"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-069",
+   "category": "suffix_jr_iii",
+   "year": "2025",
+   "manufacturer": "Panini",
+   "product": "Panini Prizm Football",
+   "card_number": "28",
+   "player": "Marvin Harrison Jr.",
+   "team": "Arizona Cardinals",
+   "parallel": null,
+   "print_run": null,
+   "sport": "football",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "MARVIN HARRISON JR.",
+    "CARDINALS"
+   ],
+   "why_hard": "Jr. suffix must not be dropped; same set has Najee Harris #32 and Tre Harris #371.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-panini-prizm-football",
+    "https://www.sportscardspro.com/game/football-cards-2025-panini-prizm/marvin-harrison-jr-28"
+   ],
+   "listing_title_examples": [
+    "2025 Panini Prizm Marvin Harrison Jr Mosaic #28 /400 Cardinals",
+    "Panini Prizm 2025 Marvin Harrison Jr Base Set #28 Cardinals NFL Football Card #28"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-070",
+   "category": "suffix_jr_iii",
+   "year": "2025",
+   "manufacturer": "Topps",
+   "product": "Topps Chrome Baseball",
+   "card_number": "230",
+   "player": "Michael Harris II",
+   "team": "Atlanta Braves",
+   "parallel": null,
+   "print_run": null,
+   "sport": "baseball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "MICHAEL HARRIS II",
+    "BRAVES"
+   ],
+   "why_hard": "\"II\" reads as \"11\"/\"Il\"; also the 2025 Chrome has Dustin Harris #131.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-topps-chrome-baseball",
+    "https://www.sportscardspro.com/game/baseball-cards-2025-topps-chrome/michael-harris-ii-230"
+   ],
+   "listing_title_examples": [
+    "Michael Harris II 2025 Topps Chrome #230 Atlanta Braves #230",
+    "MICHAEL  HARRIS II 2025 TOPPS CHROME  #230 BRAVES OF #230"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-071",
+   "category": "ocr_trap_punctuation",
+   "year": "2025",
+   "manufacturer": "Panini",
+   "product": "Panini Prizm Football",
+   "card_number": "254",
+   "player": "Jaxon Smith-Njigba",
+   "team": "Seattle Seahawks",
+   "parallel": null,
+   "print_run": null,
+   "sport": "football",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "JAXON SMITH-NJIGBA",
+    "SEAHAWKS"
+   ],
+   "why_hard": "Hyphen + rare letter cluster \"Nj\"; line can split at the hyphen.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-panini-prizm-football",
+    "https://www.sportscardspro.com/game/football-cards-2025-panini-prizm/jaxon-smith-njigba-254"
+   ],
+   "listing_title_examples": [
+    "Panini Prizm 2025 Jaxon Smith-Njigba #254 Seattle Seahawks NFL Base #254",
+    "Panini 2025 Prizm Football Jaxon Smith-Njigba #254 Seattle Seahawks Parallel #254"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-072",
+   "category": "ocr_trap_punctuation",
+   "year": "2025",
+   "manufacturer": "Panini",
+   "product": "Panini Prizm Football",
+   "card_number": "187",
+   "player": "Amon-Ra St. Brown",
+   "team": "Detroit Lions",
+   "parallel": null,
+   "print_run": null,
+   "sport": "football",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "AMON-RA ST. BROWN",
+    "LIONS"
+   ],
+   "why_hard": "Hyphen + \"St.\" abbreviation; \"Brown\" alone collides with many players.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-panini-prizm-football",
+    "https://www.sportscardspro.com/game/football-cards-2025-panini-prizm/amon-ra-st-brown-187"
+   ],
+   "listing_title_examples": [
+    "2025 Panini Prizm Base Amon-Ra St. Brown Detroit Lions #187 #187",
+    "2025 Prizm NFL Football Detroit Lions Amon-Ra St. Brown Trading Card #187 #187"
+   ],
+   "confidence": "verified"
+  },
+  {
+   "id": "hc-073",
+   "category": "ocr_trap_punctuation",
+   "year": "2025",
+   "manufacturer": "Panini",
+   "product": "Panini Prizm Football",
+   "card_number": "208",
+   "player": "Ja'Marr Chase",
+   "team": "Cincinnati Bengals",
+   "parallel": null,
+   "print_run": null,
+   "sport": "football",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "JA'MARR CHASE",
+    "BENGALS"
+   ],
+   "why_hard": "Apostrophe; surname \"Chase\" is also a hobby word.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-panini-prizm-football",
+    "https://www.sportscardspro.com/game/football-cards-2025-panini-prizm/ja%27marr-chase-208"
+   ],
+   "listing_title_examples": [
+    "2025 Panini Prizm - Ja'Marr Chase #208 Cincinnati Bengals! #208",
+    "Ja'Marr Chase 2025 Panini Prizm #208 Bengals FREE SHIPPING StackedPacks"
+   ],
+   "confidence": "verified"
+  }
+ ]
+}

@@ -1,6 +1,6 @@
 import type { CatalogCard } from "@/lib/card-catalog";
 import { parallelMatchKey, parallelsForSet, sameParallelLoosely } from "@/lib/cards/parallels";
-import { playersAt, type ChecklistHit, type ChecklistProduct } from "@/lib/cards/checklists";
+import { baseSetHits, playersAt, type ChecklistHit, type ChecklistProduct } from "@/lib/cards/checklists";
 import { parallelsIn, sameSeason, type ProductParallel, type ProductRecord } from "@/lib/cards/product-data";
 import { setMatchPhrase } from "@/lib/comps/match";
 import type { IndexedDirectoryPlayer } from "@/lib/players/types";
@@ -363,6 +363,12 @@ function initialsOf(name: string): string {
 /** A "Bowman U" or "Bowman Chrome U" logo read. Bowman U Best and Bowman U Now are other products. */
 const BOWMAN_U_LOGO = /\bbowman\s+(?:chrome\s+)?u(?:niversity)?\b(?!\s+(?:best|now))|\bbowman\s+u(?:niversity)?\s+chrome\b/i;
 
+/** Bowman U's other products, printed in full. */
+const BOWMAN_U_OTHER = /\bbowman\s+u(?:niversity)?\s+(?:best|now)\b|\bbowman(?:'?s)?\s+(?:best|now)\s+u(?:niversity)?\b/i;
+
+/** "SAPPHIRE EDITION" printed with a Topps or Bowman set's name. */
+const SAPPHIRE_EDITION = /\bsapphire\s+edition\b/i;
+
 /** Bowman codes for Chrome prospects and prospect autos (in Bowman Chrome and in flagship Bowman), and codes only in Draft. */
 const BOWMAN_CHROME_PREFIXES = new Set(["BCP", "BCPA", "CPA"]);
 const BOWMAN_DRAFT_PREFIXES = new Set(["BD", "BDC", "CDA", "BDA"]);
@@ -378,6 +384,11 @@ function mergedSetNames(sides: readonly RawCardRead[], cardNumber: string): stri
   const sapphire = names[0] ? sapphireOf(names[0]) : null;
   if (sapphire && sides.some((side) => side.lines.some((line) => SAPPHIRE_WORD.test(line)))) {
     return [sapphire, ...names.filter((name) => name !== sapphire)];
+  }
+  // "SAPPHIRE EDITION" on a Topps or Bowman set whose Sapphire Edition isn't on our list (Topps
+  // Chrome Update): it is that other product, so the set stays open. Never the plain set.
+  if (names[0] && !sapphire && !isSapphireSet(names[0]) && /^(?:topps|bowman)\b/i.test(names[0]) && sides.some((side) => side.lines.some((line) => SAPPHIRE_EDITION.test(line)))) {
+    return [];
   }
   return names;
 }
@@ -414,6 +425,8 @@ function printedSetNames(sides: readonly RawCardRead[], cardNumber: string): str
   if (lines.some((line) => BOWMAN_U_LOGO.test(line)) || (bowman && chrome && school)) {
     return ["Bowman U Chrome", ...ordered.filter((name) => name !== "Bowman U Chrome" && name !== "Bowman" && name !== "Bowman Chrome")];
   }
+  // "BOWMAN UNIVERSITY BEST" and "BOWMAN U NOW" are their own products, not on our list: never Bowman's Best or Bowman.
+  if (lines.some((line) => BOWMAN_U_OTHER.test(line))) return ordered.filter((name) => !/^bowman/i.test(name));
   // A college Bowman card with nothing saying Chrome: Bowman U has more than one product, so the set stays open.
   if (bowman && school) return ordered.filter((name) => name !== "Bowman" && name !== "Bowman Chrome");
   if (ordered[0] === "Bowman") {
@@ -480,7 +493,10 @@ function rosterPlayer(name: string, sport: string, directory: readonly IndexedDi
  *      accents, case, Jr. and a small OCR slip aside.
  *   A + B. With no printed name agreeing, the checklist and the market naming the same player.
  *   A. With no name read at all, the one player every checklist section puts on that number,
- *      for a year the card printed.
+ *      for a year the card printed. When inserts and autographs share the number (Panini reuses
+ *      plain numbers), the one player the base sections put on it, unless the card reads as an
+ *      autograph, an insert or a variation, or prints one of those sections' names. More than
+ *      one player still possible: open. Never a pick.
  *   B. With no name read at all, the player a clear majority of 3+ sold titles for this card name.
  *
  * A name our player list already matched exactly is left alone. A printed name no source agrees
@@ -492,6 +508,8 @@ function withLookedUpPlayer(
   titles: readonly SoldTitle[],
   checklists: readonly ChecklistProduct[] | null | undefined,
   directory: readonly IndexedDirectoryPlayer[],
+  /** Everything the card printed, both sides: an insert's name on it rules the base card out. */
+  cardText = "",
 ): Evidence {
   const card = cardKeyOf(evidence);
   if (!card || evidence.players.some((hit) => hit.score === 1)) return evidence;
@@ -525,6 +543,11 @@ function withLookedUpPlayer(
   if (printed.length > 0) return evidence;
   const people = new Set(listed.map((item) => nameKey(item.player)));
   if (card.yearPrinted && people.size === 1) return named(listed[0].player, "checklist", listed[0].sport);
+  // A number inserts share: the base card's player, when nothing says the card is anything else.
+  if (card.yearPrinted && people.size > 1 && !evidence.isAuto && !evidence.subset && !evidence.insert) {
+    const base = baseSetHits(listed, cardText);
+    if (base.length > 0 && new Set(base.map((item) => nameKey(item.player))).size === 1) return named(base[0].player, "checklist", base[0].sport);
+  }
   if (market && market.votes >= MARKET_ALONE_MIN_VOTES) return named(market.name, "sales");
   return evidence;
 }
@@ -1004,6 +1027,7 @@ function titleCandidates(
   evidence: Evidence,
   titles: readonly SoldTitle[],
   directory: readonly IndexedDirectoryPlayer[],
+  checklists: readonly ChecklistProduct[] | null | undefined = null,
 ): Candidate[] {
   const playerName = bestPlayerName(evidence);
   if (!playerName) return [];
@@ -1029,9 +1053,16 @@ function titleCandidates(
     BOWMAN_ONLY_PREFIXES.has(/^([a-z]+)-/.exec(number)?.[1]?.toUpperCase() ?? "") ||
     parsed.some((item) => item.number === number && item.read.setNames.some((name) => /^bowman/i.test(name)));
   const printedSet = evidence.setNames[0] ?? "";
+  // Flagship Bowman prints the BCP Chrome Prospects, and sellers title them "Bowman Chrome Prospects".
+  // When the checklist for the Bowman the card printed has this player at this number, it is that card.
+  const inPrintedBowman =
+    printedSet === "Bowman" &&
+    Boolean(evidence.yearLabel && printedNumber && checklists?.length) &&
+    playersAt(checklists!, { yearLabel: evidence.yearLabel, setBrand: printedSet, cardNumber: evidence.cardNumber }).some((hit) => namesAgree(hit.player, playerName));
   const titleSet = (item: (typeof parsed)[number]) => {
     const set = item.read.setNames[0] ?? "";
     if (BARE_MAKER_SET.has(set) && bowmanCard(item.number || printedNumber)) return "";
+    if (inPrintedBowman && set === "Bowman Chrome") return printedSet;
     // A title for this card's product family ("Bowman U Chrome Sapphire", "Bowman Chrome U") backs the
     // set the card printed: Sapphire is settled separately, by the card or by most of the titles.
     if (printedSet && inSapphireFamily(printedSet) && inSapphireFamily(set)) return printedSet;
@@ -1245,7 +1276,13 @@ export function rankScanMatches(
   const evidence: Evidence = withVerifiedPlayer(
     withAgreedRun(
       withBackedNearPlayer(
-        withLookedUpPlayer(evidenceFrom(read, options.directory), options.soldTitles ?? [], options.checklists, options.directory),
+        withLookedUpPlayer(
+          evidenceFrom(read, options.directory),
+          options.soldTitles ?? [],
+          options.checklists,
+          options.directory,
+          read.kind === "raw" ? [...read.front.lines, ...(read.back?.lines ?? [])].join(" ") : "",
+        ),
         read,
         options.soldTitles ?? [],
         options.directory,
@@ -1258,7 +1295,7 @@ export function rankScanMatches(
   );
   // No name was read, but the year, set and card # were: the card still shows, with the player open.
   if (!bestPlayerName(evidence) && !evidence.playerOpen && cardKeyOf(evidence)) evidence.playerOpen = true;
-  const fromTitles = evidence.slab && !bestPlayerName(evidence) ? [] : titleCandidates(evidence, options.soldTitles ?? [], options.directory);
+  const fromTitles = evidence.slab && !bestPlayerName(evidence) ? [] : titleCandidates(evidence, options.soldTitles ?? [], options.directory, options.checklists);
   const merged = mergeTitleCandidates(candidatesFrom(rows, evidence), fromTitles);
   if (fromTitles.length === 0 && !(evidence.slab && !bestPlayerName(evidence))) {
     const loose = looseTitleFacts(evidence, options.soldTitles ?? [], options.directory);

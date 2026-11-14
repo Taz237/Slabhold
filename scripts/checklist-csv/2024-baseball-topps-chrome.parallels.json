@@ -1,0 +1,850 @@
+{
+ "sport": "Baseball",
+ "yearLabel": "2024",
+ "product": "Topps Chrome",
+ "manufacturer": "Topps",
+ "source": "https://www.checklistinsider.com/2024-topps-chrome-baseball",
+ "official": false,
+ "parallels": [
+  {
+   "subset": "Base",
+   "name": "Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "X-Fractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Sepia Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Pink Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Prism Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Raywave Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Negative Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Magenta Speckle",
+   "serialRun": 350
+  },
+  {
+   "subset": "Base",
+   "name": "Purple Speckle",
+   "serialRun": 299
+  },
+  {
+   "subset": "Base",
+   "name": "Purple Sonar",
+   "serialRun": 275
+  },
+  {
+   "subset": "Base",
+   "name": "Purple Refractor",
+   "serialRun": 250
+  },
+  {
+   "subset": "Base",
+   "name": "Aqua Refractor",
+   "serialRun": 199
+  },
+  {
+   "subset": "Base",
+   "name": "Aqua Lava",
+   "serialRun": 199
+  },
+  {
+   "subset": "Base",
+   "name": "Aqua Raywave",
+   "serialRun": 199
+  },
+  {
+   "subset": "Base",
+   "name": "Blue Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Base",
+   "name": "Blue Raywave",
+   "serialRun": 150
+  },
+  {
+   "subset": "Base",
+   "name": "Blue Sonar",
+   "serialRun": 125
+  },
+  {
+   "subset": "Base",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base",
+   "name": "Green Sonar",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base",
+   "name": "Green Wave",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base",
+   "name": "Green Raywave",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base",
+   "name": "Blue Wave",
+   "serialRun": 75
+  },
+  {
+   "subset": "Base",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base",
+   "name": "Gold Wave",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base",
+   "name": "Gold Raywave",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base",
+   "name": "Orange Wave",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base",
+   "name": "Orange Raywave",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base",
+   "name": "Black Raywave",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base",
+   "name": "Red Wave",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base",
+   "name": "Red Raywave",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base",
+   "name": "FrozenFractor /-5",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Superfractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base",
+   "name": "Printing Plates",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base",
+   "name": "Variations",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Big Apple Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Lightboard Team Logo",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Image Variation Refractor Short Prints SP",
+   "name": "Green Speckle",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base Image Variation Refractor Short Prints SP",
+   "name": "Gold Speckle",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base Image Variation Refractor Short Prints SP",
+   "name": "Orange Speckle",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Image Variation Refractor Short Prints SP",
+   "name": "Black Speckle",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Image Variation Refractor Short Prints SP",
+   "name": "Red Speckle",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Image Variation Refractor Short Prints SP",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Awards Winners Variation",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "Black & White Mini Diamond",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "Refractor",
+   "serialRun": 499
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "Purple Speckle",
+   "serialRun": 299
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "Purple Refractor",
+   "serialRun": 250
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "Aqua Wave",
+   "serialRun": 199
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "Blue Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "Blue Raywave",
+   "serialRun": 150
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "Gold Wave",
+   "serialRun": 50
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "Orange Wave",
+   "serialRun": 25
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "Red Wave",
+   "serialRun": 5
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "Printing Plates",
+   "serialRun": 1
+  },
+  {
+   "subset": "Chrome Legend Autographs",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Chrome Legend Autographs",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Chrome Legend Autographs",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Chrome Legend Autographs",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Chrome Legend Autographs",
+   "name": "Printing Plates",
+   "serialRun": 1
+  },
+  {
+   "subset": "Chrome All-Etch Autographs",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Chrome All-Etch Autographs",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Chrome All-Etch Autographs",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Chrome All-Etch Autographs",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Chrome All-Etch Autographs",
+   "name": "Printing Plates",
+   "serialRun": 1
+  },
+  {
+   "subset": "Chrome All-Etch Rookie Rush Autographs",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Chrome All-Etch Rookie Rush Autographs",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Chrome All-Etch Rookie Rush Autographs",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Chrome All-Etch Rookie Rush Autographs",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Chrome All-Etch Rookie Rush Autographs",
+   "name": "Printing Plates",
+   "serialRun": 1
+  },
+  {
+   "subset": "Dual Autographs",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Dual Autographs",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Future Stars Autographs",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Future Stars Autographs",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Future Stars Autographs",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Future Stars Autographs",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Future Stars Autographs",
+   "name": "Printing Plates",
+   "serialRun": 1
+  },
+  {
+   "subset": "On the Spot Die-Cut Autographs",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "On the Spot Die-Cut Autographs",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "On the Spot Die-Cut Autographs",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "On the Spot Die-Cut Autographs",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Radiating Rookies Autographs",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Seamhead Signatures",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Seamhead Signatures",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Seamhead Signatures",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Seamhead Signatures",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Seamhead Signatures",
+   "name": "SSA-BO Buster Olney",
+   "serialRun": null
+  },
+  {
+   "subset": "Seamhead Signatures",
+   "name": "SSA-DO Don Orsillo",
+   "serialRun": null
+  },
+  {
+   "subset": "Seamhead Signatures",
+   "name": "SSA-GC Gary Cohen",
+   "serialRun": null
+  },
+  {
+   "subset": "Seamhead Signatures",
+   "name": "SSA-JB Joe Buck",
+   "serialRun": null
+  },
+  {
+   "subset": "Seamhead Signatures",
+   "name": "SSA-KR Ken Rosenthal",
+   "serialRun": null
+  },
+  {
+   "subset": "Seamhead Signatures",
+   "name": "SSA-MK Michael Kay",
+   "serialRun": null
+  },
+  {
+   "subset": "Seamhead Signatures",
+   "name": "SSA-RR Ryan Ruocco",
+   "serialRun": null
+  },
+  {
+   "subset": "Ultraviolet All-Stars Autographs",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Ultraviolet All-Stars Autographs",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Ultraviolet All-Stars Autographs",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Ultraviolet All-Stars Autographs",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Ultraviolet All-Stars Autographs",
+   "name": "Printing Plates",
+   "serialRun": 1
+  },
+  {
+   "subset": "Topps Chrome Authentics",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Topps Chrome Authentics",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Topps Chrome Authentics",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Topps Chrome Authentics",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Topps Chrome Authentics",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Topps Chrome Authentics",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Chrome All-Etch",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Chrome All-Etch",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Chrome All-Etch",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Chrome All-Etch",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Chrome All-Etch",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Chrome All-Etch",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Chrome All-Etch Rookie Rush",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Chrome All-Etch Rookie Rush",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Chrome All-Etch Rookie Rush",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Chrome All-Etch Rookie Rush",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Chrome All-Etch Rookie Rush",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Chrome All-Etch Rookie Rush",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Fanatical",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Fanatical",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Fanatical",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Fanatical",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Future Stars",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Future Stars",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Future Stars",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Future Stars",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Future Stars",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Future Stars",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Helix",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Let's Go Chrome",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Let's Go Chrome",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Radiating Rookies",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Strokes",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Strokes",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Strokes",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Strokes",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Strokes",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Strokes",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Summertime in the Park",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Summertime in the Park",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Summertime in the Park",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Summertime in the Park",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Summertime in the Park",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Summertime in the Park",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Swinging for the Stars (Cosmic Chrome)",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Swinging for the Stars (Cosmic Chrome)",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Swinging for the Stars (Cosmic Chrome)",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Swinging for the Stars (Cosmic Chrome)",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Topps Chrome Expose",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Topps Chrome Expose",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Ultraviolet All-Stars",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Ultraviolet All-Stars",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Ultraviolet All-Stars",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Ultraviolet All-Stars",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Ultraviolet All-Stars",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Ultraviolet All-Stars",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Youthquake",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Youthquake",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Youthquake",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Youthquake",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Youthquake",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Youthquake",
+   "name": "SuperFractor",
+   "serialRun": 1
+  }
+ ]
+}
