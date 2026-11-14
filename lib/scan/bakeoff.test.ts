@@ -1,14 +1,17 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { loadChecklistsFor } from "@/lib/cards/checklist-load";
+import type { ChecklistProduct } from "@/lib/cards/checklists";
 import { loadProductData, type ProductRecord } from "@/lib/cards/product-data";
 import { SCAN_DIRECTORY as INDEXED_DIRECTORY } from "@/lib/players/scan-directory";
 import type { TrawlSoldResult } from "@/lib/comps/types";
 import { BAKEOFF_CASES, type BakeoffCase } from "./bakeoff-fixtures";
 import { WIDE_BAKEOFF_CASES } from "./bakeoff-fixtures-wide";
 import { PLAYER_LIST_BAKEOFF_CASES } from "./bakeoff-fixtures-players";
+import { LOOKUP_BAKEOFF_CASES } from "./bakeoff-fixtures-lookup";
 import { BAKEOFF_BASELINE } from "./bakeoff-baseline";
 import { lookupLiveSolds } from "./live-solds";
-import { rankScanMatches, type ScanMatch } from "./match";
+import { rankScanMatches, scanCardKey, type ScanMatch } from "./match";
 import { withAlternates } from "./alternates";
 import { scanReadFrom, type ScanCapture } from "./session";
 
@@ -55,8 +58,14 @@ function read(scan: BakeoffCase) {
   return scanReadFrom(captureOf(scan), INDEXED_DIRECTORY);
 }
 
-function top(scan: BakeoffCase, products: readonly ProductRecord[] | null = null): ScanMatch | undefined {
-  return rankScanMatches(read(scan), scan.rows ?? [], { directory: INDEXED_DIRECTORY, products, soldTitles: scan.titles ?? [] }).matches[0];
+function top(scan: BakeoffCase, products: readonly ProductRecord[] | null = null, checklists: readonly ChecklistProduct[] = scan.checklist ?? []): ScanMatch | undefined {
+  return rankScanMatches(read(scan), scan.rows ?? [], { directory: INDEXED_DIRECTORY, products, soldTitles: scan.titles ?? [], checklists }).matches[0];
+}
+
+/** The store's own checklist files for the year and set this scan read, as production loads them, plus the case's own rows. */
+async function storeChecklists(scan: BakeoffCase): Promise<ChecklistProduct[]> {
+  const card = scanCardKey(read(scan), INDEXED_DIRECTORY);
+  return [...(scan.checklist ?? []), ...(card ? await loadChecklistsFor(card) : [])];
 }
 
 const FIELDS = ["player", "year", "set", "number", "run", "parallel"] as const;
@@ -129,7 +138,9 @@ function board(title: string, rows: readonly Row[]): string[] {
   ];
 }
 
-const ALL_CASES: BakeoffCase[] = [...BAKEOFF_CASES, ...WIDE_BAKEOFF_CASES, ...PLAYER_LIST_BAKEOFF_CASES];
+const ALL_CASES: BakeoffCase[] = [...BAKEOFF_CASES, ...WIDE_BAKEOFF_CASES, ...PLAYER_LIST_BAKEOFF_CASES, ...LOOKUP_BAKEOFF_CASES];
+/** Where the lookup set starts. */
+const LOOKUP_START = BAKEOFF_CASES.length + WIDE_BAKEOFF_CASES.length + PLAYER_LIST_BAKEOFF_CASES.length;
 /** The scans the scoreboard had before the wider player list: checked field by field against bakeoff-baseline.ts. */
 const BASELINE_CASES = BAKEOFF_CASES.length + WIDE_BAKEOFF_CASES.length;
 const LETTER: Record<Mark, string> = { right: "r", open: "o", wrong: "w" };
@@ -138,7 +149,8 @@ describe("the scanner bake-off", () => {
   const rows = ALL_CASES.map(score);
   const first = rows.slice(0, BAKEOFF_CASES.length);
   const wide = rows.slice(BAKEOFF_CASES.length, BASELINE_CASES);
-  const playerList = rows.slice(BASELINE_CASES);
+  const playerList = rows.slice(BASELINE_CASES, LOOKUP_START);
+  const lookup = rows.slice(LOOKUP_START);
 
   it("prints the scoreboard", () => {
     const lines = [
@@ -147,6 +159,7 @@ describe("the scanner bake-off", () => {
       ...board("First set", first),
       ...board("Wide set", wide),
       ...board("Player-list set", playerList),
+      ...board("Lookup set", lookup),
       ...board("All", rows),
       `Known misses marked: ${ALL_CASES.reduce((sum, scan) => sum + (scan.knownWrong?.length ?? 0), 0)}`,
     ];
@@ -182,10 +195,15 @@ describe("the scanner bake-off", () => {
 
   it("with the real checklist files loaded, as production loads them: the right player, and no field is wrong", async () => {
     const products = await loadProductData();
-    const withList = ALL_CASES.map((scan): Row => {
-      const match = top(scan, products);
-      return { name: scan.name, ...marks(match, scan), shown: shownLine(match) };
-    });
+    const withList = await Promise.all(
+      ALL_CASES.map(async (scan): Promise<Row> => {
+        const match = top(scan, products, await storeChecklists(scan));
+        // A case that has no checklist of its own can still be named by the store's real file:
+        // then the right answer is the player its sold titles name too.
+        const named = scan.liveTruth?.player && match?.playerName === scan.liveTruth.player;
+        return { name: scan.name, ...marks(match, named ? { ...scan, truth: { ...scan.truth, player: scan.liveTruth!.player } } : scan), shown: shownLine(match) };
+      }),
+    );
     console.log(board("All, with the checklist", withList).join("\n"));
     withList.forEach((row, index) => {
       const known = ALL_CASES[index].knownWrong ?? [];
@@ -201,6 +219,32 @@ describe("the scanner bake-off", () => {
     assert.ok(PLAYER_LIST_BAKEOFF_CASES.length >= 12);
     assert.equal(tally(playerList).wrong, 0);
     for (const row of playerList) assert.equal(row.player, "right", `${row.name}: ${row.shown}`);
+  });
+
+  it("the lookup set: 20+ players our list doesn't have are named by the checklist or the card's sold titles, and every trap stays open", () => {
+    const named = LOOKUP_BAKEOFF_CASES.filter((scan) => scan.truth.player || scan.liveTruth?.player);
+    assert.ok(named.length >= 21, `${named.length} named cases`);
+    assert.ok(LOOKUP_BAKEOFF_CASES.filter((scan) => !scan.truth.player && !scan.liveTruth?.player).length >= 6);
+    assert.equal(tally(lookup).wrong, 0);
+    LOOKUP_BAKEOFF_CASES.forEach((scan, index) => {
+      const row = lookup[index];
+      assert.equal(row.player, "right", `${row.name}: ${row.shown}`);
+      const match = top(scan);
+      // Where the name came from is what the case says: the checklist, the sold titles, or neither.
+      assert.equal(match?.playerSource, scan.truth.playerSource, `${scan.name}: ${match?.playerSource ?? "no source"}`);
+      // A looked-up player is never "sure" on the scan alone: the collector confirms it.
+      if (match?.playerSource) assert.equal(match.sureness.player, "likely", scan.name);
+    });
+  });
+
+  it("the Philon card: 2025-26 Panini Prizm #103 /175, the player named, never 'Player not read'", () => {
+    const scan = LOOKUP_BAKEOFF_CASES[0];
+    const match = top(scan);
+    assert.ok(match);
+    assert.equal(match.playerName, "Labaron Philon Jr.");
+    assert.deepEqual([match.yearLabel, match.setBrand, match.cardNumber, match.serialRun, match.sport], ["2025-26", "Panini Prizm", "103", 175, "Basketball"]);
+    // Without the checklist it is today's miss: open, never a guess.
+    assert.equal(top({ ...scan, checklist: [] })?.playerName, "");
   });
 
   it("slab labels are gold: every slab reads its year, set, player and parallel off the label, with no miss", () => {
@@ -289,7 +333,7 @@ function liveResults(scan: BakeoffCase): TrawlSoldResult[] {
   }));
 }
 
-type LiveRow = Row & { rung: string; solds: string; serialRun: number | null };
+type LiveRow = Row & { rung: string; solds: string; serialRun: number | null; calls: number; playerSource?: "checklist" | "sales" };
 
 /** No checklist files: the scan reads the card and its sold titles alone. */
 const NO_CHECKLIST = async (): Promise<readonly ProductRecord[]> => [];
@@ -303,6 +347,7 @@ async function scoreLive(scan: BakeoffCase, products: () => Promise<readonly Pro
     {
       directory: INDEXED_DIRECTORY,
       products,
+      checklists: async () => scan.checklist ?? [],
       cachedTitles: async () => scan.titles ?? [],
       quickCompCache: async () => null,
       liveSearch: async (query) => {
@@ -318,7 +363,10 @@ async function scoreLive(scan: BakeoffCase, products: () => Promise<readonly Pro
   const used = result.query ? queries.indexOf(result.query) : -1;
   return {
     name: scan.name,
-    ...marks(match, scan),
+    // With live solds the titles can name a player the phone's first read left open.
+    ...marks(match, scan.liveTruth ? { ...scan, truth: { ...scan.truth, player: scan.liveTruth.player } } : scan),
+    calls,
+    playerSource: match?.playerSource,
     shown: match
       ? [match.playerName, match.yearLabel, match.setBrand, match.cardNumber ? `#${match.cardNumber}` : "", match.parallel, match.serialRun ? `/${match.serialRun}` : ""].filter(Boolean).join(" · ")
       : "(no match)",
@@ -339,7 +387,7 @@ async function scoreLive(scan: BakeoffCase, products: () => Promise<readonly Pro
 function liveBakeoff(suite: string, boardTitle: string, products: () => Promise<readonly ProductRecord[]>) {
   const live = (scan: BakeoffCase) => scoreLive(scan, products);
   describe(suite, () => {
-  const cases = BAKEOFF_CASES.filter((scan) => scan.live);
+  const cases = [...BAKEOFF_CASES, ...LOOKUP_BAKEOFF_CASES].filter((scan) => scan.live);
 
   it("prints the live scoreboard, and every case is right or open, never wrong", async () => {
     const rows = await Promise.all(cases.map(live));
@@ -363,6 +411,11 @@ function liveBakeoff(suite: string, boardTitle: string, products: () => Promise<
       assert.notEqual(row.year, "wrong", `${row.name}: ${row.shown}`);
       assert.notEqual(row.run, "wrong", `${row.name}: ${row.shown}`);
       const scan = cases.find((item) => item.name === row.name)!;
+      // The player the sold titles named, and how few searches it took.
+      if (scan.liveTruth) {
+        assert.equal(row.playerSource, scan.liveTruth.playerSource, `${row.name}: ${row.shown}`);
+        if (scan.liveTruth.calls != null) assert.ok(row.calls <= scan.liveTruth.calls, `${row.name}: ${row.calls} searches`);
+      }
       if (scan.live?.solds === "none") assert.equal(row.solds, "none (searched)", `${row.name}: searched, honestly none, never unavailable`);
       else assert.match(row.solds, /sold/, `${row.name}: the card sells, and we found it`);
       if (scan.truth.run) assert.equal(row.serialRun, scan.truth.run, `${row.name}: the print run`);

@@ -1,5 +1,6 @@
 import type { CatalogCard } from "@/lib/card-catalog";
 import { parallelMatchKey, parallelsForSet, sameParallelLoosely } from "@/lib/cards/parallels";
+import { playersAt, type ChecklistHit, type ChecklistProduct } from "@/lib/cards/checklists";
 import { parallelsIn, sameSeason, type ProductParallel, type ProductRecord } from "@/lib/cards/product-data";
 import { setMatchPhrase } from "@/lib/comps/match";
 import type { IndexedDirectoryPlayer } from "@/lib/players/types";
@@ -8,6 +9,8 @@ import { AUTO_CODE_PREFIX, findPlayers, looksLikeCatalogSku, readRawCardText, ty
 
 export { looksLikeCatalogSku };
 import type { SlabLabelRead } from "./slab-label";
+import { MARKET_ALONE_MIN_VOTES, marketPlayer, nameKey, namesAgree, surnameAgrees, withoutSuffix, type LookupCard } from "./player-lookup";
+import { TITLE_LOT, titleRuns } from "./title-facts";
 import { SAPPHIRE_WORD, inSapphireFamily, isSapphireSet, sapphireOf, sapphireOptionFor, sapphireSearchSet } from "./sapphire";
 
 /**
@@ -85,6 +88,12 @@ export type ScanMatch = {
   /** The player's name was read off the card and isn't in our player list yet. */
   playerNew?: boolean;
   /**
+   * The player was looked up, not read on its own: the checklist puts them on this year, set and
+   * card #, or most of this card's sold titles name them. Never set for a name the card and our
+   * player list already agree on.
+   */
+  playerSource?: "checklist" | "sales";
+  /**
    * Where a likely parallel came from: the card's print, sold titles that agree, or the print run
    * alone (the only parallel on the checklist at that run, with no title naming it yet).
    */
@@ -115,6 +124,8 @@ export type RankOptions = {
   products: readonly ProductRecord[] | null;
   /** Cached sold listings for the player the card names. Never a live search. */
   soldTitles?: readonly SoldTitle[] | null;
+  /** The checklists for the year and set this scan read (lib/cards/checklists.ts). None: no lookup by card #. */
+  checklists?: readonly ChecklistProduct[] | null;
 };
 
 const MAX_MATCHES = 3;
@@ -153,6 +164,8 @@ type Evidence = {
   playerUnverified?: boolean;
   /** An unverified name was dropped: the card still shows, with no player. */
   playerOpen?: boolean;
+  /** The player came from the lookup (checklist or sold titles for this year, set and card #), spelled as the source spells it. */
+  lookedUp?: { name: string; source: "checklist" | "sales" };
   /** Read on both the front and the back. */
   playerBothSides: boolean;
   /** From a team line when the player is new to us. */
@@ -411,7 +424,109 @@ function printedSetNames(sides: readonly RawCardRead[], cardNumber: string): str
 }
 
 function bestPlayerName(evidence: Evidence): string {
-  return evidence.players[0]?.name ?? (evidence.playerText ? titleCase(evidence.playerText) : "");
+  // A looked-up name keeps its source's spelling ("De'Von Achane"), never re-cased.
+  return evidence.players[0]?.name ?? evidence.lookedUp?.name ?? (evidence.playerText ? titleCase(evidence.playerText) : "");
+}
+
+/** The year, set and card # a scan read off the card: what the player lookup needs. Null when one is missing, or on a slab. */
+export type ScanCardKey = { years: string[]; yearPrinted: boolean; setBrand: string; cardNumber: string; run: number | null; sport: string };
+
+function cardKeyOf(evidence: Evidence): ScanCardKey | null {
+  if (evidence.slab) return null;
+  const setBrand = evidence.setNames[0] ?? "";
+  if (!setBrand || !evidence.cardNumber) return null;
+  // The year printed beside the brand is the card's year. A © year alone can be the year after.
+  const copyright = /^\d{4}$/.test(evidence.copyrightYear) ? evidence.copyrightYear : "";
+  const years = evidence.yearLabel ? [evidence.yearLabel] : copyright ? [copyright, String(Number(copyright) - 1)] : [];
+  if (years.length === 0) return null;
+  const run = evidence.serial ? Number(evidence.serial.run) : null;
+  return { years, yearPrinted: Boolean(evidence.yearLabel), setBrand, cardNumber: evidence.cardNumber, run: Number.isFinite(run) ? run : null, sport: evidence.sport };
+}
+
+/** The card a scan read (year, set, card #), so its checklist can be loaded before ranking. */
+export function scanCardKey(read: ScanRead, directory: readonly IndexedDirectoryPlayer[]): ScanCardKey | null {
+  return cardKeyOf(evidenceFrom(read, directory));
+}
+
+const rosterByKey = new WeakMap<readonly IndexedDirectoryPlayer[], Map<string, IndexedDirectoryPlayer[]>>();
+
+/**
+ * The one roster-file player a source's name is, accents, periods and Jr. aside ("LaBaron Philon"
+ * is our "Labaron Philon Jr.", "C.J. Stroud" is our "CJ Stroud"). Null when two share the name
+ * (a father and a son), or the sport is another: then the source's own spelling is used.
+ */
+function rosterPlayer(name: string, sport: string, directory: readonly IndexedDirectoryPlayer[]): RawPlayerHit | null {
+  let index = rosterByKey.get(directory);
+  if (!index) {
+    index = new Map();
+    for (const player of directory) {
+      if (player.more) continue;
+      const key = nameKey(player.name);
+      index.set(key, [...(index.get(key) ?? []), player]);
+    }
+    rosterByKey.set(directory, index);
+  }
+  const found = (index.get(nameKey(name)) ?? []).filter((player) => !sport || player.sport === sport);
+  if (found.length !== 1) return null;
+  const [player] = found;
+  return { name: player.name, sport: player.sport, score: 1, line: name, ...(player.team ? { team: player.team } : {}) };
+}
+
+/**
+ * The player as a lookup. With the year, set and card # read off the card:
+ *
+ *   C. A name the card printed (its name line, or the text a near match was read from) is that
+ *      player once the checklist's player at that number, or the market's, agrees with it:
+ *      accents, case, Jr. and a small OCR slip aside.
+ *   A + B. With no printed name agreeing, the checklist and the market naming the same player.
+ *   A. With no name read at all, the one player every checklist section puts on that number,
+ *      for a year the card printed.
+ *   B. With no name read at all, the player a clear majority of 3+ sold titles for this card name.
+ *
+ * A name our player list already matched exactly is left alone. A printed name no source agrees
+ * with is left to the rules below (kept when the card backs it, dropped when it doesn't), and
+ * the lookup never puts someone else in its place: open beats wrong.
+ */
+function withLookedUpPlayer(
+  evidence: Evidence,
+  titles: readonly SoldTitle[],
+  checklists: readonly ChecklistProduct[] | null | undefined,
+  directory: readonly IndexedDirectoryPlayer[],
+): Evidence {
+  const card = cardKeyOf(evidence);
+  if (!card || evidence.players.some((hit) => hit.score === 1)) return evidence;
+  const listed: ChecklistHit[] = checklists?.length
+    ? card.years.flatMap((yearLabel) => playersAt(checklists, { yearLabel, setBrand: card.setBrand, cardNumber: card.cardNumber, sport: card.sport || undefined }))
+    : [];
+  const lookup: LookupCard = { years: card.years, setBrand: card.setBrand, cardNumber: card.cardNumber, run: card.run };
+  const market = titles.length > 0 ? marketPlayer(titles.slice(0, MAX_SOLD_TITLES), lookup, directory) : null;
+  if (listed.length === 0 && !market) return evidence;
+
+  const named = (name: string, source: "checklist" | "sales", sport = ""): Evidence => {
+    // Someone our list knows (the near match itself, give or take Jr., or an exact name) keeps the list's row.
+    const known = evidence.players.find((hit) => nameKey(hit.name) === nameKey(name)) ?? rosterPlayer(name, sport || evidence.sport, directory);
+    const base = { ...evidence, playerLocked: true, playerUnverified: false, playerOpen: false, sport: evidence.sport || sport };
+    if (known) return { ...base, players: [{ ...known, score: 1, nameplate: true }], playerText: "", lookedUp: { name: known.name, source } };
+    return { ...base, players: [], playerText: name, lookedUp: { name, source } };
+  };
+
+  const printed = [evidence.playerText, ...evidence.players.filter((hit) => hit.score < 1).map((hit) => hit.line)].filter(Boolean);
+  const agrees = (text: string, name: string) => namesAgree(text, name) || surnameAgrees(text, name);
+  for (const text of printed) {
+    const hit = listed.find((item) => agrees(text, item.player));
+    if (hit) return named(hit.player, "checklist", hit.sport);
+    if (market && agrees(text, market.name)) return named(market.name, "sales");
+  }
+  if (market) {
+    const both = listed.find((item) => namesAgree(item.player, market.name));
+    if (both) return named(both.player, "checklist", both.sport);
+  }
+  // A name was read and no source agrees with it: never swapped for someone else.
+  if (printed.length > 0) return evidence;
+  const people = new Set(listed.map((item) => nameKey(item.player)));
+  if (card.yearPrinted && people.size === 1) return named(listed[0].player, "checklist", listed[0].sport);
+  if (market && market.votes >= MARKET_ALONE_MIN_VOTES) return named(market.name, "sales");
+  return evidence;
 }
 
 /** The player the card names (nameplate first), or "" when none was read. */
@@ -456,7 +571,8 @@ export function liveSearchLadder(
   directory: readonly IndexedDirectoryPlayer[],
 ): string[] {
   const evidence = evidenceFrom(read, directory);
-  const player = top?.playerName || bestPlayerName(evidence);
+  // Searched without Jr. or III: sellers often leave it off, and the title filter takes both.
+  const player = withoutSuffix(top?.playerName || bestPlayerName(evidence));
   if (!player) return [];
   const known = (field: keyof ScanMatch["sureness"]) => Boolean(top) && top!.sureness[field] !== "unsure";
   const number = top && top.sureness.number === "sure" ? top.cardNumber : !top ? evidence.cardNumber : "";
@@ -478,6 +594,23 @@ export function liveSearchLadder(
   const useful = [...new Set(rungs)].filter((query) => query !== player);
   // Nothing but the name was read: search the player once, and let the titles name the card.
   return (useful.length > 0 ? useful : [player]).slice(0, MAX_LADDER_RUNGS);
+}
+
+/**
+ * The search by the card itself, for when the player is open: the year, set, card # and print
+ * run the card printed ("2025-26 Panini Prizm 103 /175"). Its sold titles name the player when
+ * most of them agree. "" unless the card backed all three: never a search on a guess.
+ */
+export function cardSearchQuery(
+  read: ScanRead,
+  top: ScanMatch | null | undefined,
+  directory: readonly IndexedDirectoryPlayer[],
+): string {
+  const card = scanCardKey(read, directory);
+  if (!card || !card.yearPrinted || !top) return "";
+  if (top.sureness.number !== "sure" || top.sureness.set === "unsure" || top.sureness.year !== "sure") return "";
+  const run = card.run != null ? `/${top.runUnsure && top.serialRun ? top.serialRun : card.run}` : "";
+  return [top.yearLabel, top.setBrand, top.cardNumber, run].filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
 }
 
 /** The first rung of the ladder. "" with no player: no search. */
@@ -514,30 +647,9 @@ type Candidate = {
   titles?: TitleFacts[];
 };
 
-/**
- * Local title checks, kept small on purpose: lib/comps/match is shared with
- * the card pages, and pulling more of it in here grows their bundles.
- */
-const TITLE_LOT = /\b(?:lot|lots|reprint|proxy|custom|you\s+pick|complete\s+set|team\s+set)\b|\bx[2-9]\b|\b\d+\s*cards?\b/i;
-/** "/199", "#/199", "88/199". A season ("2025/26") is not a run. */
-const TITLE_RUN = /(?:(\d{1,4})(\s*))?\/\s*(\d{1,4})\b/g;
-
 function titleNamesPlayer(title: string, playerName: string): boolean {
   const name = compactName(playerName);
   return name.length > 0 && compactNorm(normInterest(title)).includes(name);
-}
-
-function titleRuns(title: string): number[] {
-  const runs: number[] = [];
-  for (const match of title.matchAll(TITLE_RUN)) {
-    const left = match[1] ? Number(match[1]) : null;
-    const right = Number(match[3]);
-    if (left != null && left >= 1900 && (right === (left + 1) % 100 || right === left + 1)) continue;
-    // "BCP-68 /10": the number before the space is the card #, and "/10" is the run. "68/10" is neither.
-    if (left != null && left > right && !match[2]) continue;
-    if (right > 0) runs.push(right);
-  }
-  return runs;
 }
 
 /** What one cached sold title says about the card. */
@@ -802,8 +914,9 @@ function sureness(evidence: Evidence, card: Candidate, parallel: ParallelPick): 
   const hit = playerHit(evidence, card.playerName);
   const inDirectory = evidence.players.some((item) => compactName(item.name) === compactName(card.playerName));
   const printedOnly = !evidence.slab && !inDirectory && !evidence.playerBothSides;
+  // A looked-up player is likely until the collector confirms: the card alone didn't say so.
   const player: FieldSureness =
-    !hit ? "unsure" : hit.score === 1 && (inDirectory || !evidence.slab) && !printedOnly ? "sure" : "likely";
+    !hit ? "unsure" : hit.score === 1 && (inDirectory || !evidence.slab) && !printedOnly && !evidence.lookedUp ? "sure" : "likely";
   const year: FieldSureness =
     evidence.yearLabel && sameSeason(card.yearLabel, evidence.yearLabel)
       ? "sure"
@@ -1129,15 +1242,22 @@ export function rankScanMatches(
   rows: readonly CatalogCard[],
   options: RankOptions,
 ): ScanMatchResult {
-  const evidence = withVerifiedPlayer(
+  const evidence: Evidence = withVerifiedPlayer(
     withAgreedRun(
-      withBackedNearPlayer(evidenceFrom(read, options.directory), read, options.soldTitles ?? [], options.directory),
+      withBackedNearPlayer(
+        withLookedUpPlayer(evidenceFrom(read, options.directory), options.soldTitles ?? [], options.checklists, options.directory),
+        read,
+        options.soldTitles ?? [],
+        options.directory,
+      ),
       options.soldTitles ?? [],
       options.directory,
     ),
     rows,
     options.soldTitles ?? [],
   );
+  // No name was read, but the year, set and card # were: the card still shows, with the player open.
+  if (!bestPlayerName(evidence) && !evidence.playerOpen && cardKeyOf(evidence)) evidence.playerOpen = true;
   const fromTitles = evidence.slab && !bestPlayerName(evidence) ? [] : titleCandidates(evidence, options.soldTitles ?? [], options.directory);
   const merged = mergeTitleCandidates(candidatesFrom(rows, evidence), fromTitles);
   if (fromTitles.length === 0 && !(evidence.slab && !bestPlayerName(evidence))) {
@@ -1195,6 +1315,7 @@ export function rankScanMatches(
       ...(!evidence.slab && !inDirectory && card.playerName && compactName(card.playerName) === compactName(evidence.playerText) ? { playerNew: true } : {}),
       ...(parallel.source ? { parallelSource: parallel.source } : {}),
       ...(evidence.runUnsure ? { runUnsure: true } : {}),
+      ...(evidence.lookedUp && compactName(card.playerName) === compactName(evidence.lookedUp.name) ? { playerSource: evidence.lookedUp.source } : {}),
     };
     return match;
   });
@@ -1229,6 +1350,8 @@ export type MatchScanDeps = {
    * A cache read only: never Trawl, never a live eBay search. Null on failure.
    */
   soldTitles?: (playerName: string, signal: AbortSignal) => Promise<SoldTitle[] | null>;
+  /** The checklists for the year and set the scan read. A failure is no lookup: the card's own read still counts. */
+  checklists?: (card: ScanCardKey) => Promise<readonly ChecklistProduct[]>;
   signal: AbortSignal;
 };
 
@@ -1258,5 +1381,15 @@ export async function matchScan(read: ScanRead, deps: MatchScanDeps): Promise<Sc
     products = null;
   }
   if (deps.signal.aborted) return null;
-  return rankScanMatches(read, [...rows.values()], { directory: deps.directory, products, soldTitles });
+  let checklists: readonly ChecklistProduct[] | null = null;
+  const card = scanCardKey(read, deps.directory);
+  if (card && deps.checklists) {
+    try {
+      checklists = await deps.checklists(card);
+    } catch {
+      checklists = null;
+    }
+    if (deps.signal.aborted) return null;
+  }
+  return rankScanMatches(read, [...rows.values()], { directory: deps.directory, products, soldTitles, checklists });
 }

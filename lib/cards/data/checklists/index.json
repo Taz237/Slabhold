@@ -1,0 +1,767 @@
+[
+ {
+  "file": "2019-20-basketball-donruss-optic",
+  "sport": "Basketball",
+  "yearLabel": "2019-20",
+  "product": "Donruss Optic",
+  "source": "https://www.cardboardconnection.com/2019-20-donruss-optic-basketball-nba-cards",
+  "read": "2026-11-14",
+  "cards": 803
+ },
+ {
+  "file": "2019-20-basketball-panini-donruss",
+  "sport": "Basketball",
+  "yearLabel": "2019-20",
+  "product": "Panini Donruss",
+  "source": "https://www.cardboardconnection.com/2019-20-donruss-basketball-nba-cards",
+  "read": "2026-11-14",
+  "cards": 1063
+ },
+ {
+  "file": "2019-20-basketball-panini-mosaic",
+  "sport": "Basketball",
+  "yearLabel": "2019-20",
+  "product": "Panini Mosaic",
+  "source": "https://www.cardboardconnection.com/2019-20-panini-mosaic-basketball-cards",
+  "read": "2026-11-14",
+  "cards": 1003
+ },
+ {
+  "file": "2019-20-basketball-panini-prizm",
+  "sport": "Basketball",
+  "yearLabel": "2019-20",
+  "product": "Panini Prizm",
+  "source": "https://www.cardboardconnection.com/2019-20-panini-prizm-basketball-nba-cards",
+  "read": "2026-11-14",
+  "cards": 1202
+ },
+ {
+  "file": "2019-20-basketball-panini-select",
+  "sport": "Basketball",
+  "yearLabel": "2019-20",
+  "product": "Panini Select",
+  "source": "https://www.cardboardconnection.com/2019-20-panini-select-basketball-nba-cards",
+  "read": "2026-11-14",
+  "cards": 734
+ },
+ {
+  "file": "2019-20-basketball-prizm-draft-picks",
+  "sport": "Basketball",
+  "yearLabel": "2019-20",
+  "product": "Prizm Draft Picks",
+  "source": "https://www.cardboardconnection.com/2019-20-panini-prizm-draft-picks-basketball-cards",
+  "read": "2026-11-14",
+  "cards": 246
+ },
+ {
+  "file": "2019-baseball-bowman",
+  "sport": "Baseball",
+  "yearLabel": "2019",
+  "product": "Bowman",
+  "source": "https://www.cardboardconnection.com/2019-bowman-baseball-cards",
+  "read": "2026-11-14",
+  "cards": 945
+ },
+ {
+  "file": "2019-baseball-bowman-chrome",
+  "sport": "Baseball",
+  "yearLabel": "2019",
+  "product": "Bowman Chrome",
+  "source": "https://www.cardboardconnection.com/2019-bowman-chrome-baseball-cards",
+  "read": "2026-11-14",
+  "cards": 538
+ },
+ {
+  "file": "2019-baseball-bowman-draft",
+  "sport": "Baseball",
+  "yearLabel": "2019",
+  "product": "Bowman Draft",
+  "source": "https://www.cardboardconnection.com/2019-bowman-draft-baseball-cards",
+  "read": "2026-11-14",
+  "cards": 687
+ },
+ {
+  "file": "2019-baseball-topps",
+  "sport": "Baseball",
+  "yearLabel": "2019",
+  "product": "Topps",
+  "source": "https://www.cardboardconnection.com/2019-topps-series-1-baseball-cards + https://www.cardboardconnection.com/2019-topps-series-2-baseball-cards",
+  "read": "2026-11-14",
+  "cards": 3890
+ },
+ {
+  "file": "2019-baseball-topps-chrome",
+  "sport": "Baseball",
+  "yearLabel": "2019",
+  "product": "Topps Chrome",
+  "source": "https://www.cardboardconnection.com/2019-topps-chrome-baseball-cards",
+  "read": "2026-11-14",
+  "cards": 533
+ },
+ {
+  "file": "2019-baseball-topps-finest",
+  "sport": "Baseball",
+  "yearLabel": "2019",
+  "product": "Topps Finest",
+  "source": "https://www.cardboardconnection.com/2019-topps-finest-baseball-mlb-cards",
+  "read": "2026-11-14",
+  "cards": 319
+ },
+ {
+  "file": "2019-baseball-topps-update",
+  "sport": "Baseball",
+  "yearLabel": "2019",
+  "product": "Topps Update",
+  "source": "https://www.cardboardconnection.com/2019-topps-update-series-baseball-cards",
+  "read": "2026-11-14",
+  "cards": 1631
+ },
+ {
+  "file": "2019-football-donruss-optic",
+  "sport": "Football",
+  "yearLabel": "2019",
+  "product": "Donruss Optic",
+  "source": "https://www.cardboardconnection.com/2019-donruss-optic-football-nfl-cards",
+  "read": "2026-11-14",
+  "cards": 753
+ },
+ {
+  "file": "2019-football-panini-donruss",
+  "sport": "Football",
+  "yearLabel": "2019",
+  "product": "Panini Donruss",
+  "source": "https://www.cardboardconnection.com/2019-donruss-football-nfl-cards",
+  "read": "2026-11-14",
+  "cards": 1642
+ },
+ {
+  "file": "2019-football-panini-prizm",
+  "sport": "Football",
+  "yearLabel": "2019",
+  "product": "Panini Prizm",
+  "source": "https://www.cardboardconnection.com/2019-panini-prizm-football-nfl-cards",
+  "read": "2026-11-14",
+  "cards": 985
+ },
+ {
+  "file": "2019-football-panini-select",
+  "sport": "Football",
+  "yearLabel": "2019",
+  "product": "Panini Select",
+  "source": "https://www.cardboardconnection.com/2019-panini-select-football-nfl-cards",
+  "read": "2026-11-14",
+  "cards": 1059
+ },
+ {
+  "file": "2019-football-prizm-draft-picks",
+  "sport": "Football",
+  "yearLabel": "2019",
+  "product": "Prizm Draft Picks",
+  "source": "https://www.cardboardconnection.com/2019-panini-prizm-draft-picks-football-cards",
+  "read": "2026-11-14",
+  "cards": 353
+ },
+ {
+  "file": "2020-21-basketball-donruss-optic",
+  "sport": "Basketball",
+  "yearLabel": "2020-21",
+  "product": "Donruss Optic",
+  "source": "https://www.cardboardconnection.com/2020-21-donruss-optic-basketball-nba-cards",
+  "read": "2026-11-14",
+  "cards": 765
+ },
+ {
+  "file": "2020-21-basketball-panini-donruss",
+  "sport": "Basketball",
+  "yearLabel": "2020-21",
+  "product": "Panini Donruss",
+  "source": "https://www.cardboardconnection.com/2020-21-donruss-basketball-nba-cards",
+  "read": "2026-11-14",
+  "cards": 1004
+ },
+ {
+  "file": "2020-21-basketball-panini-mosaic",
+  "sport": "Basketball",
+  "yearLabel": "2020-21",
+  "product": "Panini Mosaic",
+  "source": "https://www.cardboardconnection.com/2020-21-panini-mosaic-basketball-nba-cards",
+  "read": "2026-11-14",
+  "cards": 908
+ },
+ {
+  "file": "2020-21-basketball-panini-prizm",
+  "sport": "Basketball",
+  "yearLabel": "2020-21",
+  "product": "Panini Prizm",
+  "source": "https://www.cardboardconnection.com/2020-21-panini-prizm-basketball-nba-cards",
+  "read": "2026-11-14",
+  "cards": 1014
+ },
+ {
+  "file": "2020-21-basketball-panini-select",
+  "sport": "Basketball",
+  "yearLabel": "2020-21",
+  "product": "Panini Select",
+  "source": "https://www.cardboardconnection.com/2020-21-panini-select-basketball-nba-cards",
+  "read": "2026-11-14",
+  "cards": 879
+ },
+ {
+  "file": "2020-21-basketball-prizm-draft-picks",
+  "sport": "Basketball",
+  "yearLabel": "2020-21",
+  "product": "Prizm Draft Picks",
+  "source": "https://www.cardboardconnection.com/2020-21-panini-prizm-draft-picks-basketball-cards",
+  "read": "2026-11-14",
+  "cards": 247
+ },
+ {
+  "file": "2020-baseball-bowman",
+  "sport": "Baseball",
+  "yearLabel": "2020",
+  "product": "Bowman",
+  "source": "https://www.cardboardconnection.com/2020-bowman-baseball-cards",
+  "read": "2026-11-14",
+  "cards": 977
+ },
+ {
+  "file": "2020-baseball-bowman-chrome",
+  "sport": "Baseball",
+  "yearLabel": "2020",
+  "product": "Bowman Chrome",
+  "source": "https://www.cardboardconnection.com/2020-bowman-chrome-baseball-cards",
+  "read": "2026-11-14",
+  "cards": 575
+ },
+ {
+  "file": "2020-baseball-bowman-draft",
+  "sport": "Baseball",
+  "yearLabel": "2020",
+  "product": "Bowman Draft",
+  "source": "https://www.cardboardconnection.com/2020-bowman-draft-baseball-cards",
+  "read": "2026-11-14",
+  "cards": 693
+ },
+ {
+  "file": "2020-baseball-topps",
+  "sport": "Baseball",
+  "yearLabel": "2020",
+  "product": "Topps",
+  "source": "https://www.cardboardconnection.com/2020-topps-series-1-baseball-cards + https://www.cardboardconnection.com/2020-topps-series-2-baseball-cards",
+  "read": "2026-11-14",
+  "cards": 4308
+ },
+ {
+  "file": "2020-baseball-topps-chrome",
+  "sport": "Baseball",
+  "yearLabel": "2020",
+  "product": "Topps Chrome",
+  "source": "https://www.cardboardconnection.com/2020-topps-chrome-baseball-cards",
+  "read": "2026-11-14",
+  "cards": 530
+ },
+ {
+  "file": "2020-baseball-topps-update",
+  "sport": "Baseball",
+  "yearLabel": "2020",
+  "product": "Topps Update",
+  "source": "https://www.cardboardconnection.com/2020-topps-update-series-baseball-cards",
+  "read": "2026-11-14",
+  "cards": 1546
+ },
+ {
+  "file": "2020-football-donruss-optic",
+  "sport": "Football",
+  "yearLabel": "2020",
+  "product": "Donruss Optic",
+  "source": "https://www.cardboardconnection.com/2020-donruss-optic-football-nfl-cards",
+  "read": "2026-11-14",
+  "cards": 937
+ },
+ {
+  "file": "2020-football-panini-donruss",
+  "sport": "Football",
+  "yearLabel": "2020",
+  "product": "Panini Donruss",
+  "source": "https://www.cardboardconnection.com/2020-donruss-football-nfl-cards",
+  "read": "2026-11-14",
+  "cards": 1904
+ },
+ {
+  "file": "2020-football-panini-mosaic",
+  "sport": "Football",
+  "yearLabel": "2020",
+  "product": "Panini Mosaic",
+  "source": "https://www.cardboardconnection.com/2020-panini-mosaic-football-nfl-cards",
+  "read": "2026-11-14",
+  "cards": 926
+ },
+ {
+  "file": "2020-football-panini-prizm",
+  "sport": "Football",
+  "yearLabel": "2020",
+  "product": "Panini Prizm",
+  "source": "https://www.cardboardconnection.com/2020-panini-prizm-football-nfl-cards",
+  "read": "2026-11-14",
+  "cards": 1477
+ },
+ {
+  "file": "2020-football-panini-select",
+  "sport": "Football",
+  "yearLabel": "2020",
+  "product": "Panini Select",
+  "source": "https://www.cardboardconnection.com/2020-panini-select-football-cards",
+  "read": "2026-11-14",
+  "cards": 1307
+ },
+ {
+  "file": "2020-football-prizm-draft-picks",
+  "sport": "Football",
+  "yearLabel": "2020",
+  "product": "Prizm Draft Picks",
+  "source": "https://www.cardboardconnection.com/2020-panini-prizm-draft-picks-football-cards",
+  "read": "2026-11-14",
+  "cards": 355
+ },
+ {
+  "file": "2021-22-basketball-donruss-optic",
+  "sport": "Basketball",
+  "yearLabel": "2021-22",
+  "product": "Donruss Optic",
+  "source": "https://www.cardboardconnection.com/2021-22-donruss-optic-basketball-nba-cards",
+  "read": "2026-11-14",
+  "cards": 865
+ },
+ {
+  "file": "2021-22-basketball-panini-donruss",
+  "sport": "Basketball",
+  "yearLabel": "2021-22",
+  "product": "Panini Donruss",
+  "source": "https://www.cardboardconnection.com/2021-22-donruss-basketball-nba-cards",
+  "read": "2026-11-14",
+  "cards": 730
+ },
+ {
+  "file": "2021-22-basketball-panini-mosaic",
+  "sport": "Basketball",
+  "yearLabel": "2021-22",
+  "product": "Panini Mosaic",
+  "source": "https://www.cardboardconnection.com/2021-22-panini-mosaic-basketball-nba-cards",
+  "read": "2026-11-14",
+  "cards": 934
+ },
+ {
+  "file": "2021-22-basketball-panini-prizm",
+  "sport": "Basketball",
+  "yearLabel": "2021-22",
+  "product": "Panini Prizm",
+  "source": "https://www.cardboardconnection.com/2021-22-panini-prizm-basketball-nba-cards",
+  "read": "2026-11-14",
+  "cards": 1107
+ },
+ {
+  "file": "2021-22-basketball-panini-select",
+  "sport": "Basketball",
+  "yearLabel": "2021-22",
+  "product": "Panini Select",
+  "source": "https://www.cardboardconnection.com/2021-22-panini-select-basketball-nba-cards",
+  "read": "2026-11-14",
+  "cards": 923
+ },
+ {
+  "file": "2021-22-basketball-prizm-draft-picks",
+  "sport": "Basketball",
+  "yearLabel": "2021-22",
+  "product": "Prizm Draft Picks",
+  "source": "https://www.cardboardconnection.com/2021-22-panini-prizm-draft-picks-basketball-cards",
+  "read": "2026-11-14",
+  "cards": 423
+ },
+ {
+  "file": "2021-baseball-bowman",
+  "sport": "Baseball",
+  "yearLabel": "2021",
+  "product": "Bowman",
+  "source": "https://www.cardboardconnection.com/2021-bowman-baseball-cards",
+  "read": "2026-11-14",
+  "cards": 892
+ },
+ {
+  "file": "2021-baseball-bowman-chrome",
+  "sport": "Baseball",
+  "yearLabel": "2021",
+  "product": "Bowman Chrome",
+  "source": "https://www.cardboardconnection.com/2021-bowman-chrome-baseball-cards",
+  "read": "2026-11-14",
+  "cards": 523
+ },
+ {
+  "file": "2021-baseball-bowman-draft",
+  "sport": "Baseball",
+  "yearLabel": "2021",
+  "product": "Bowman Draft",
+  "source": "https://www.cardboardconnection.com/2021-bowman-draft-baseball-cards",
+  "read": "2026-11-14",
+  "cards": 645
+ },
+ {
+  "file": "2021-baseball-topps",
+  "sport": "Baseball",
+  "yearLabel": "2021",
+  "product": "Topps",
+  "source": "https://www.cardboardconnection.com/2021-topps-series-1-baseball-cards + https://www.cardboardconnection.com/2021-topps-series-2-baseball-cards",
+  "read": "2026-11-14",
+  "cards": 3902
+ },
+ {
+  "file": "2021-baseball-topps-chrome",
+  "sport": "Baseball",
+  "yearLabel": "2021",
+  "product": "Topps Chrome",
+  "source": "https://www.cardboardconnection.com/2021-topps-chrome-baseball-cards",
+  "read": "2026-11-14",
+  "cards": 568
+ },
+ {
+  "file": "2021-baseball-topps-finest",
+  "sport": "Baseball",
+  "yearLabel": "2021",
+  "product": "Topps Finest",
+  "source": "https://www.cardboardconnection.com/2021-topps-finest-baseball-cards",
+  "read": "2026-11-14",
+  "cards": 342
+ },
+ {
+  "file": "2021-baseball-topps-update",
+  "sport": "Baseball",
+  "yearLabel": "2021",
+  "product": "Topps Update",
+  "source": "https://www.cardboardconnection.com/2021-topps-update-series-baseball-cards",
+  "read": "2026-11-14",
+  "cards": 1648
+ },
+ {
+  "file": "2021-football-donruss-optic",
+  "sport": "Football",
+  "yearLabel": "2021",
+  "product": "Donruss Optic",
+  "source": "https://www.cardboardconnection.com/2021-donruss-optic-football-nfl-cards",
+  "read": "2026-11-14",
+  "cards": 1019
+ },
+ {
+  "file": "2021-football-panini-donruss",
+  "sport": "Football",
+  "yearLabel": "2021",
+  "product": "Panini Donruss",
+  "source": "https://www.cardboardconnection.com/2021-donruss-football-nfl-cards",
+  "read": "2026-11-14",
+  "cards": 2088
+ },
+ {
+  "file": "2021-football-panini-mosaic",
+  "sport": "Football",
+  "yearLabel": "2021",
+  "product": "Panini Mosaic",
+  "source": "https://www.cardboardconnection.com/2021-panini-mosaic-football-nfl-cards",
+  "read": "2026-11-14",
+  "cards": 1155
+ },
+ {
+  "file": "2021-football-panini-prizm",
+  "sport": "Football",
+  "yearLabel": "2021",
+  "product": "Panini Prizm",
+  "source": "https://www.cardboardconnection.com/2021-panini-prizm-football-nfl-cards",
+  "read": "2026-11-14",
+  "cards": 1483
+ },
+ {
+  "file": "2021-football-panini-select",
+  "sport": "Football",
+  "yearLabel": "2021",
+  "product": "Panini Select",
+  "source": "https://www.cardboardconnection.com/2021-panini-select-football-nfl-cards",
+  "read": "2026-11-14",
+  "cards": 1380
+ },
+ {
+  "file": "2021-football-prizm-draft-picks",
+  "sport": "Football",
+  "yearLabel": "2021",
+  "product": "Prizm Draft Picks",
+  "source": "https://www.cardboardconnection.com/2021-panini-prizm-draft-picks-football-cards",
+  "read": "2026-11-14",
+  "cards": 682
+ },
+ {
+  "file": "2022-23-basketball-donruss-optic",
+  "sport": "Basketball",
+  "yearLabel": "2022-23",
+  "product": "Donruss Optic",
+  "source": "https://www.cardboardconnection.com/2022-23-donruss-optic-basketball-nba-cards",
+  "read": "2026-11-14",
+  "cards": 1045
+ },
+ {
+  "file": "2022-23-basketball-panini-donruss",
+  "sport": "Basketball",
+  "yearLabel": "2022-23",
+  "product": "Panini Donruss",
+  "source": "https://www.cardboardconnection.com/2022-23-donruss-basketball-nba-cards",
+  "read": "2026-11-14",
+  "cards": 671
+ },
+ {
+  "file": "2022-23-basketball-panini-mosaic",
+  "sport": "Basketball",
+  "yearLabel": "2022-23",
+  "product": "Panini Mosaic",
+  "source": "https://www.cardboardconnection.com/2022-23-panini-mosaic-basketball-nba-cards",
+  "read": "2026-11-14",
+  "cards": 1218
+ },
+ {
+  "file": "2022-23-basketball-panini-prizm",
+  "sport": "Basketball",
+  "yearLabel": "2022-23",
+  "product": "Panini Prizm",
+  "source": "https://www.cardboardconnection.com/2022-23-panini-prizm-basketball-nba-cards",
+  "read": "2026-11-14",
+  "cards": 914
+ },
+ {
+  "file": "2022-23-basketball-panini-select",
+  "sport": "Basketball",
+  "yearLabel": "2022-23",
+  "product": "Panini Select",
+  "source": "https://www.cardboardconnection.com/2022-23-panini-select-basketball-nba-cards",
+  "read": "2026-11-14",
+  "cards": 949
+ },
+ {
+  "file": "2022-23-basketball-prizm-draft-picks",
+  "sport": "Basketball",
+  "yearLabel": "2022-23",
+  "product": "Prizm Draft Picks",
+  "source": "https://www.cardboardconnection.com/2022-23-panini-prizm-draft-picks-basketball-cards",
+  "read": "2026-11-14",
+  "cards": 507
+ },
+ {
+  "file": "2022-baseball-bowman",
+  "sport": "Baseball",
+  "yearLabel": "2022",
+  "product": "Bowman",
+  "source": "https://www.cardboardconnection.com/2022-bowman-baseball-cards",
+  "read": "2026-11-14",
+  "cards": 817
+ },
+ {
+  "file": "2022-baseball-bowman-chrome",
+  "sport": "Baseball",
+  "yearLabel": "2022",
+  "product": "Bowman Chrome",
+  "source": "https://www.cardboardconnection.com/2022-bowman-chrome-baseball-cards",
+  "read": "2026-11-14",
+  "cards": 578
+ },
+ {
+  "file": "2022-baseball-bowman-draft",
+  "sport": "Baseball",
+  "yearLabel": "2022",
+  "product": "Bowman Draft",
+  "source": "https://www.cardboardconnection.com/2022-bowman-draft-baseball-cards",
+  "read": "2026-11-14",
+  "cards": 677
+ },
+ {
+  "file": "2022-baseball-topps",
+  "sport": "Baseball",
+  "yearLabel": "2022",
+  "product": "Topps",
+  "source": "https://www.cardboardconnection.com/2022-topps-series-1-baseball-cards + https://www.cardboardconnection.com/2022-topps-series-2-baseball-cards",
+  "read": "2026-11-14",
+  "cards": 3495
+ },
+ {
+  "file": "2022-baseball-topps-chrome",
+  "sport": "Baseball",
+  "yearLabel": "2022",
+  "product": "Topps Chrome",
+  "source": "https://www.cardboardconnection.com/2022-topps-chrome-baseball-cards",
+  "read": "2026-11-14",
+  "cards": 580
+ },
+ {
+  "file": "2022-baseball-topps-finest",
+  "sport": "Baseball",
+  "yearLabel": "2022",
+  "product": "Topps Finest",
+  "source": "https://www.cardboardconnection.com/2022-topps-finest-baseball-cards",
+  "read": "2026-11-14",
+  "cards": 363
+ },
+ {
+  "file": "2022-baseball-topps-update",
+  "sport": "Baseball",
+  "yearLabel": "2022",
+  "product": "Topps Update",
+  "source": "https://www.cardboardconnection.com/2022-topps-update-series-baseball-cards",
+  "read": "2026-11-14",
+  "cards": 1676
+ },
+ {
+  "file": "2022-football-donruss-optic",
+  "sport": "Football",
+  "yearLabel": "2022",
+  "product": "Donruss Optic",
+  "source": "https://www.cardboardconnection.com/2022-donruss-optic-football-nfl-cards",
+  "read": "2026-11-14",
+  "cards": 978
+ },
+ {
+  "file": "2022-football-panini-donruss",
+  "sport": "Football",
+  "yearLabel": "2022",
+  "product": "Panini Donruss",
+  "source": "https://www.cardboardconnection.com/2022-donruss-football-nfl-cards",
+  "read": "2026-11-14",
+  "cards": 2036
+ },
+ {
+  "file": "2022-football-panini-mosaic",
+  "sport": "Football",
+  "yearLabel": "2022",
+  "product": "Panini Mosaic",
+  "source": "https://www.cardboardconnection.com/2022-panini-mosaic-football-nfl-cards",
+  "read": "2026-11-14",
+  "cards": 1181
+ },
+ {
+  "file": "2022-football-panini-prizm",
+  "sport": "Football",
+  "yearLabel": "2022",
+  "product": "Panini Prizm",
+  "source": "https://www.cardboardconnection.com/2022-panini-prizm-football-nfl-cards",
+  "read": "2026-11-14",
+  "cards": 1275
+ },
+ {
+  "file": "2022-football-panini-select",
+  "sport": "Football",
+  "yearLabel": "2022",
+  "product": "Panini Select",
+  "source": "https://www.cardboardconnection.com/2022-panini-select-football-nfl-cards",
+  "read": "2026-11-14",
+  "cards": 1477
+ },
+ {
+  "file": "2023-24-basketball-bowman-u-chrome",
+  "sport": "Basketball",
+  "yearLabel": "2023-24",
+  "product": "Bowman U Chrome",
+  "source": "https://www.cardboardconnection.com/2023-24-bowman-university-chrome-basketball-cards",
+  "read": "2026-11-14",
+  "cards": 425
+ },
+ {
+  "file": "2023-24-basketball-prizm-draft-picks",
+  "sport": "Basketball",
+  "yearLabel": "2023-24",
+  "product": "Prizm Draft Picks",
+  "source": "https://www.cardboardconnection.com/2023-24-panini-prizm-draft-picks-basketball-cards",
+  "read": "2026-11-14",
+  "cards": 546
+ },
+ {
+  "file": "2023-baseball-bowman",
+  "sport": "Baseball",
+  "yearLabel": "2023",
+  "product": "Bowman",
+  "source": "https://www.cardboardconnection.com/2023-bowman-baseball-cards",
+  "read": "2026-11-14",
+  "cards": 875
+ },
+ {
+  "file": "2023-baseball-bowman-draft",
+  "sport": "Baseball",
+  "yearLabel": "2023",
+  "product": "Bowman Draft",
+  "source": "https://www.cardboardconnection.com/2023-bowman-draft-baseball-cards",
+  "read": "2026-11-14",
+  "cards": 774
+ },
+ {
+  "file": "2023-baseball-topps",
+  "sport": "Baseball",
+  "yearLabel": "2023",
+  "product": "Topps",
+  "source": "https://www.cardboardconnection.com/2023-topps-series-1-baseball-cards + https://www.cardboardconnection.com/2023-topps-series-2-baseball-cards",
+  "read": "2026-11-14",
+  "cards": 3597
+ },
+ {
+  "file": "2023-baseball-topps-chrome",
+  "sport": "Baseball",
+  "yearLabel": "2023",
+  "product": "Topps Chrome",
+  "source": "https://www.cardboardconnection.com/2023-topps-chrome-baseball-cards",
+  "read": "2026-11-14",
+  "cards": 900
+ },
+ {
+  "file": "2023-baseball-topps-finest",
+  "sport": "Baseball",
+  "yearLabel": "2023",
+  "product": "Topps Finest",
+  "source": "https://www.cardboardconnection.com/2023-topps-finest-baseball-cards",
+  "read": "2026-11-14",
+  "cards": 392
+ },
+ {
+  "file": "2023-baseball-topps-update",
+  "sport": "Baseball",
+  "yearLabel": "2023",
+  "product": "Topps Update",
+  "source": "https://www.cardboardconnection.com/2023-topps-update-series-baseball-cards",
+  "read": "2026-11-14",
+  "cards": 1718
+ },
+ {
+  "file": "2023-football-bowman-u-chrome",
+  "sport": "Football",
+  "yearLabel": "2023",
+  "product": "Bowman U Chrome",
+  "source": "https://www.cardboardconnection.com/2023-bowman-university-chrome-football-cards",
+  "read": "2026-11-14",
+  "cards": 545
+ },
+ {
+  "file": "2023-football-panini-donruss",
+  "sport": "Football",
+  "yearLabel": "2023",
+  "product": "Panini Donruss",
+  "source": "https://www.cardboardconnection.com/2023-donruss-football-nfl-cards",
+  "read": "2026-11-14",
+  "cards": 2061
+ },
+ {
+  "file": "2023-football-panini-mosaic",
+  "sport": "Football",
+  "yearLabel": "2023",
+  "product": "Panini Mosaic",
+  "source": "https://www.cardboardconnection.com/2023-panini-mosaic-football-nfl-cards",
+  "read": "2026-11-14",
+  "cards": 1421
+ },
+ {
+  "file": "2023-football-panini-prizm",
+  "sport": "Football",
+  "yearLabel": "2023",
+  "product": "Panini Prizm",
+  "source": "https://www.cardboardconnection.com/2023-panini-prizm-football-nfl-cards",
+  "read": "2026-11-14",
+  "cards": 1074
+ }
+]

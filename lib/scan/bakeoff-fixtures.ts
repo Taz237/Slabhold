@@ -1,4 +1,5 @@
 import type { CatalogCard } from "@/lib/card-catalog";
+import type { ChecklistProduct } from "@/lib/cards/checklists";
 import type { SoldTitle } from "./match";
 
 /**
@@ -38,6 +39,8 @@ export type BakeoffTruth = {
   sapphirePick?: boolean;
   /** The set was named by most of the card's sold titles, not by its print. */
   setFromSales?: boolean;
+  /** Checked, not scored: the player was looked up from the checklist or the card's sold titles. */
+  playerSource?: "checklist" | "sales";
 };
 
 /** A mocked Trawl answer: eBay sold titles, served only at this rung of the search ladder (0 = the first). */
@@ -76,6 +79,13 @@ export type BakeoffCase = {
   knownWrong?: ("player" | "year" | "set" | "number" | "run" | "parallel")[];
   /** What a live eBay search returns, junk included. None: Trawl finds nothing on any rung. */
   live?: BakeoffLive;
+  /** The checklist rows for this card's year and set (lib/cards/checklists.ts). None: no checklist for it. */
+  checklist?: ChecklistProduct[];
+  /**
+   * With live solds, when it differs from the phone's first read: the player the sold titles
+   * name (or "" when they must name nobody), where that came from, and the most searches spent.
+   */
+  liveTruth?: { player: string; playerSource?: "checklist" | "sales"; calls?: number };
   truth: BakeoffTruth;
 };
 

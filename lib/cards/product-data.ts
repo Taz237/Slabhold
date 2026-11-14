@@ -86,7 +86,7 @@ const PHRASE_ALIASES: Record<string, string> = {
   optic: "donruss optic",
 };
 
-function productPhrase(name: string): string {
+export function productPhrase(name: string): string {
   const phrase = setMatchPhrase(name);
   return PHRASE_ALIASES[phrase] ?? phrase;
 }

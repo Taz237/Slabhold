@@ -10,6 +10,7 @@ import {
 import { parallelMatchKey, parallelsForSet, sameParallelLoosely } from "@/lib/cards/parallels";
 import type { TrawlSoldResult } from "@/lib/comps/types";
 import type { IndexedDirectoryPlayer } from "@/lib/players/types";
+import { withoutSuffix } from "./player-lookup";
 import { toMatchCard, type QuickCompIdentity } from "@/lib/quick-comp/identity";
 import { parallelLabel, type ScanMatch } from "./match";
 import { SAPPHIRE_WORD, inSapphireFamily, isSapphireSet, withoutSapphire } from "./sapphire";
@@ -223,7 +224,8 @@ export function scanSalesFor(
       dropped.junk += 1;
       continue;
     }
-    if (!titleHasPlayer(title, match.playerName)) {
+    // Sellers often leave off Jr. or III: the title still names him.
+    if (!titleHasPlayer(title, match.playerName) && !titleHasPlayer(title, withoutSuffix(match.playerName))) {
       dropped.player += 1;
       continue;
     }
