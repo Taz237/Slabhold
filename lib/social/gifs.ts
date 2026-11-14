@@ -60,32 +60,41 @@ export function sanitizeGif(value: unknown): PostGif | null {
   return { id: raw.id, mp4: raw.mp4, still: raw.still, width, height, ...(title ? { title } : {}) };
 }
 
-type GiphyRendition = { mp4?: unknown; url?: unknown; width?: unknown; height?: unknown };
+type GiphyRendition = { mp4?: unknown; url?: unknown; webp?: unknown; width?: unknown; height?: unknown };
 
 function rendition(images: Record<string, unknown>, name: string): GiphyRendition | null {
   const value = images[name];
   return value && typeof value === "object" ? (value as GiphyRendition) : null;
 }
 
-/** One GIPHY API result as a PostGif. Null when it has no mp4 or still we accept. */
+/**
+ * One GIPHY API result as a PostGif. Null when it has no mp4 or still we accept.
+ * Tries the smaller sizes first. When GIPHY sends no still frame, the size's own
+ * webp or gif stands in for it.
+ */
 export function gifFromGiphy(item: unknown): PostGif | null {
   if (!item || typeof item !== "object") return null;
   const raw = item as { id?: unknown; title?: unknown; images?: unknown };
   if (!raw.images || typeof raw.images !== "object") return null;
   const images = raw.images as Record<string, unknown>;
-  for (const [motion, still] of [
+  for (const [motionName, stillName] of [
     ["fixed_width", "fixed_width_still"],
+    ["fixed_height", "fixed_height_still"],
     ["original", "original_still"],
   ] as const) {
-    const gif = sanitizeGif({
-      id: raw.id,
-      mp4: rendition(images, motion)?.mp4,
-      still: rendition(images, still)?.url,
-      width: rendition(images, motion)?.width,
-      height: rendition(images, motion)?.height,
-      title: raw.title,
-    });
-    if (gif) return gif;
+    const motion = rendition(images, motionName);
+    if (!motion) continue;
+    for (const still of [rendition(images, stillName)?.url, motion.webp, motion.url]) {
+      const gif = sanitizeGif({
+        id: raw.id,
+        mp4: motion.mp4,
+        still,
+        width: motion.width,
+        height: motion.height,
+        title: raw.title,
+      });
+      if (gif) return gif;
+    }
   }
   return null;
 }

@@ -89,6 +89,82 @@ describe("GIF values", () => {
     assert.equal(gifFromGiphy(null), null);
   });
 
+  it("reads a real GIPHY search result", () => {
+    const base = "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExcW5xY2N4ZmE4dGJ1eXdqNWQ0b2Z6aGRqdGQ3a3B6/3o7TKSjRrfIPjeiVyM";
+    const tail = (rid: string) => `?cid=790b7611qnqccxfa8tbuywj5d4ofzhdjtd7kpz&ep=v1_gifs_search&rid=${rid}&ct=g`;
+    const item = {
+      type: "gif",
+      id: "3o7TKSjRrfIPjeiVyM",
+      url: "https://giphy.com/gifs/excited-3o7TKSjRrfIPjeiVyM",
+      title: "Excited Celebration GIF",
+      rating: "g",
+      images: {
+        original: {
+          height: "270",
+          width: "480",
+          size: "1534234",
+          url: `${base}/giphy.gif${tail("giphy.gif")}`,
+          mp4: `${base}/giphy.mp4${tail("giphy.mp4")}`,
+          webp: `${base}/giphy.webp${tail("giphy.webp")}`,
+        },
+        original_still: { height: "270", width: "480", url: `${base}/giphy_s.gif${tail("giphy_s.gif")}` },
+        fixed_height: {
+          height: "200",
+          width: "356",
+          url: `${base}/200.gif${tail("200.gif")}`,
+          mp4: `${base}/200.mp4${tail("200.mp4")}`,
+          webp: `${base}/200.webp${tail("200.webp")}`,
+        },
+        fixed_height_still: { height: "200", width: "356", url: `${base}/200_s.gif${tail("200_s.gif")}` },
+        fixed_width: {
+          height: "113",
+          width: "200",
+          url: `${base}/200w.gif${tail("200w.gif")}`,
+          mp4: `${base}/200w.mp4${tail("200w.mp4")}`,
+          webp: `${base}/200w.webp${tail("200w.webp")}`,
+        },
+        fixed_width_still: { height: "113", width: "200", url: `${base}/200w_s.gif${tail("200w_s.gif")}` },
+      },
+    };
+    assert.deepEqual(gifFromGiphy(item), {
+      id: "3o7TKSjRrfIPjeiVyM",
+      mp4: `${base}/200w.mp4${tail("200w.mp4")}`,
+      still: `${base}/200w_s.gif${tail("200w_s.gif")}`,
+      width: 200,
+      height: 113,
+      title: "Excited Celebration GIF",
+    });
+
+    // What the messaging bundle sends: no *_still renditions at all.
+    const { fixed_width_still: _a, fixed_height_still: _b, original_still: _c, ...noStills } = item.images;
+    void [_a, _b, _c];
+    assert.deepEqual(gifFromGiphy({ ...item, images: noStills }), {
+      id: "3o7TKSjRrfIPjeiVyM",
+      mp4: `${base}/200w.mp4${tail("200w.mp4")}`,
+      still: `${base}/200w.webp${tail("200w.webp")}`,
+      width: 200,
+      height: 113,
+      title: "Excited Celebration GIF",
+    });
+
+    // No webp either: the rendition's gif is the still.
+    const { webp: _w, ...fixedWidthNoWebp } = item.images.fixed_width;
+    void _w;
+    assert.equal(gifFromGiphy({ ...item, images: { fixed_width: fixedWidthNoWebp } })?.still, `${base}/200w.gif${tail("200w.gif")}`);
+
+    // Only fixed_height: that size is used.
+    const onlyHeight = gifFromGiphy({ ...item, images: { fixed_height: item.images.fixed_height } });
+    assert.equal(onlyHeight?.mp4, `${base}/200.mp4${tail("200.mp4")}`);
+    assert.equal(onlyHeight?.width, 356);
+    assert.equal(onlyHeight?.height, 200);
+
+    // A still off GIPHY's hosts is still refused.
+    assert.equal(
+      gifFromGiphy({ ...item, images: { fixed_width: { ...item.images.fixed_width, webp: "https://evil.example/x.webp", url: "https://evil.example/x.gif" } } }),
+      null,
+    );
+  });
+
   it("names a GIF for a screen reader", () => {
     assert.equal(gifLabel(GIF), "GIF: Nice pull");
     assert.equal(gifLabel({ ...GIF, title: undefined }), "GIF");

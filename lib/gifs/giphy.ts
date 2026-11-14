@@ -38,7 +38,7 @@ export async function searchGiphy(input: {
     limit: String(GIF_PAGE_SIZE),
     offset: String(input.offset),
     rating: "pg",
-    bundle: "messaging_non_clips",
+    // No `bundle`: the messaging bundles leave out the still frames we need.
   });
   if (input.query) {
     params.set("q", input.query);

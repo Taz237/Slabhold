@@ -147,6 +147,8 @@ describe("searchGiphy", () => {
     assert.equal(url.searchParams.get("q"), "big pull");
     assert.equal(url.searchParams.get("rating"), "pg");
     assert.equal(url.searchParams.get("limit"), String(GIF_PAGE_SIZE));
+    // The messaging bundle drops the still frames, so every GIF was refused.
+    assert.equal(url.searchParams.has("bundle"), false);
 
     await searchGiphy({ apiKey: KEY, query: "", offset: 0, fetch: fetcher });
     assert.equal(new URL(urls[1]!).pathname, "/v1/gifs/trending");
