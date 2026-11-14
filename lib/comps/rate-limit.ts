@@ -1,5 +1,6 @@
 import "server-only";
 
+import { makeTeamCheck } from "@/lib/social/team-check-server";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { anonymousSubject } from "./anon-subject";
 import { consumeBucketWithStore, failsClosedOnError, type BucketStore } from "./rate-limit-loop";
@@ -18,6 +19,13 @@ const CARD_VALUES_BUCKET = "card_values";
 /** Max comps API hits per user per 10-minute window. */
 export const REQUESTS_LIMIT = 20;
 export const REQUESTS_WINDOW_MS = 10 * 60 * 1000;
+
+/**
+ * Team badge holders (TEAM_BADGE_USERNAMES) get a much higher cap on the same
+ * buckets and windows. Still a cap, so a stuck loop can't run up the Trawl bill.
+ */
+export const TEAM_REQUESTS_LIMIT = 200;
+export const TEAM_TRAWL_LIMIT = 60;
 
 /** Signed-in card value reads per user per 10-minute window. */
 export const CARD_VALUES_LIMIT = 120;
@@ -176,13 +184,23 @@ export async function consumeAnonymousCardValueLimit(
   );
 }
 
-export async function consumeRequestLimit(userId: string): Promise<boolean> {
-  return consumeRateLimit(
-    userId,
-    REQUESTS_BUCKET,
-    REQUESTS_WINDOW_MS,
-    REQUESTS_LIMIT,
-  );
+/** Who counts as team, and how a bucket is spent. Swappable in tests. */
+export type CompsLimitDeps = {
+  isTeam: (userId: string) => Promise<boolean>;
+  consume: typeof consumeRateLimit;
+};
+
+const serverCompsLimitDeps: CompsLimitDeps = {
+  isTeam: makeTeamCheck(),
+  consume: consumeRateLimit,
+};
+
+export async function consumeRequestLimit(
+  userId: string,
+  deps: CompsLimitDeps = serverCompsLimitDeps,
+): Promise<boolean> {
+  const limit = (await deps.isTeam(userId)) ? TEAM_REQUESTS_LIMIT : REQUESTS_LIMIT;
+  return deps.consume(userId, REQUESTS_BUCKET, REQUESTS_WINDOW_MS, limit);
 }
 
 /** Signed-in GET /api/card-values. Does not consume the comps "requests" bucket. */
@@ -195,8 +213,12 @@ export async function consumeCardValueLimit(userId: string): Promise<boolean> {
   );
 }
 
-export async function consumeTrawlLimit(userId: string): Promise<boolean> {
-  return consumeRateLimit(userId, TRAWL_BUCKET, TRAWL_WINDOW_MS, TRAWL_LIMIT);
+export async function consumeTrawlLimit(
+  userId: string,
+  deps: CompsLimitDeps = serverCompsLimitDeps,
+): Promise<boolean> {
+  const limit = (await deps.isTeam(userId)) ? TEAM_TRAWL_LIMIT : TRAWL_LIMIT;
+  return deps.consume(userId, TRAWL_BUCKET, TRAWL_WINDOW_MS, limit);
 }
 
 /** Signed-in POST /api/wants/match. Does not consume the comps "requests" bucket. */

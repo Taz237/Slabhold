@@ -265,8 +265,12 @@ describe("one team list", () => {
   });
 
   it("uses hasTeamBadge, with no second list and no official flag", () => {
-    const source = readFileSync(join(process.cwd(), "lib/quick-comp/limits-server.ts"), "utf8");
+    const source = readFileSync(join(process.cwd(), "lib/social/team-check-server.ts"), "utf8");
     assert.match(source, /import \{ hasTeamBadge \} from "@\/lib\/social\/team-badge"/);
+    const serverSource = readFileSync(join(process.cwd(), "lib/quick-comp/limits-server.ts"), "utf8");
+    assert.match(serverSource, /from "@\/lib\/social\/team-check-server"/);
+    const rateSource = readFileSync(join(process.cwd(), "lib/comps/rate-limit.ts"), "utf8");
+    for (const username of TEAM_BADGE_USERNAMES) assert.doesNotMatch(rateSource, new RegExp(`"${username}"`, "i"));
     assert.match(source, /return hasTeamBadge\(await lookup\(userId\)\);/);
     assert.doesNotMatch(source, /official/);
     for (const username of TEAM_BADGE_USERNAMES) assert.doesNotMatch(source, new RegExp(`"${username}"`, "i"));
