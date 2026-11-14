@@ -139,6 +139,7 @@ const PARALLEL_WORDS = [
   "ATOMIC",
   "SAPPHIRE",
   "SPECKLE",
+  "PATTERN",
   "DISCO",
   "TIGER",
   "SNAKESKIN",
@@ -505,6 +506,26 @@ function printedMakers(lineWords: string[][]): Set<string> {
     if (hasPhrase([words], ["upper", "deck"])) makers.add("upper deck");
   }
   return makers;
+}
+
+/** Bowman U's other products, printed in full: never Bowman's Best, Bowman or Bowman Chrome. */
+const BOWMAN_U_OTHER = /\bbowman\s+u(?:niversity)?\s+(?:best|now)\b|\bbowman(?:'?s)?\s+(?:best|now)\s+u(?:niversity)?\b/i;
+
+/**
+ * Products our set list doesn't have, named in full on a card or in a sold title. The set stays
+ * open instead of reading as the nearest set we do have:
+ *   - "BOWMAN UNIVERSITY BEST" is not Bowman's Best;
+ *   - "TOPPS CHROME UPDATE SAPPHIRE" is not Topps Chrome Update: Sapphire right after a Topps or
+ *     Bowman set whose Sapphire Edition isn't on the list is that edition, another product.
+ */
+function withoutUnlistedProducts(names: string[], lines: readonly string[]): string[] {
+  const text = lines.join(" \n ");
+  if (BOWMAN_U_OTHER.test(text)) return names.filter((name) => !/^bowman/i.test(name));
+  const top = names[0];
+  if (!top || !/^(?:topps|bowman)\b/i.test(top) || /sapphire/i.test(top)) return names;
+  if ((SETS as readonly string[]).includes(`${top} Sapphire`)) return names;
+  const phrase = top.split(/\s+/).map((word) => word.replace(/[^a-z0-9]/gi, "")).join("[^a-z0-9\\n]+");
+  return new RegExp(`\\b${phrase}[^a-z0-9\\n]+(?:series[^a-z0-9\\n]+)?sapphire\\b`, "i").test(text) ? [] : names;
 }
 
 function readSets(lineWords: string[][], options: { back?: boolean } = {}): { names: string[]; printed: string[] } {
@@ -1000,8 +1021,9 @@ export function readRawCardText(
     lineWords.filter((_words, i) => !maker(clean[i])),
     { back: options.side === "back" },
   );
-  read.setNames = sets.names;
-  read.printedSets = sets.printed;
+  const kept = withoutUnlistedProducts(sets.names, clean);
+  read.setNames = kept;
+  read.printedSets = sets.printed.filter((name) => kept.includes(name));
   read.parallelWords = readParallelWords(colorLineWords(clean, directory, Boolean(options.side)));
   read.insert = readInsert(clean);
   read.side = readSide(clean, lineWords, read.copyrightYear);
