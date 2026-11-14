@@ -10,7 +10,8 @@ import { nameKey } from "./player-lookup";
  * To add a card, append it to the JSON's "cards" (hc-074, hc-075, …). Nothing here names a card,
  * a product or a parallel: hard-cards.test.ts scores whatever the file holds.
  *
- * Optional on a card: "parallel_also", other names for the same parallel that count as right
+ * Optional on a card: "typical_ocr_back", the back as a real photo read (else it is built);
+ * "parallel_also", other names for the same parallel that count as right
  * (the checklist's name beside the sellers' name), and "player_also", the same person as our
  * player list spells them.
  */
@@ -34,6 +35,8 @@ export type HardCard = {
   sport: string;
   is_rookie: boolean;
   typical_ocr_front: string[];
+  /** The back as read off a real photo. Without it the back is built from the card #, the year and the product. */
+  typical_ocr_back?: string[];
   why_hard: string;
   source_urls: string[];
   /** Real seller titles for the card: the mocked sold listings, never fetched. */
@@ -70,6 +73,7 @@ export function hardCardSet(product: string): string {
 
 /** A short back: the card # and the product line, as a back prints them. A plain number reads "No. 103"; a code reads as it is. */
 export function hardCardBack(card: HardCard): string[] {
+  if (card.typical_ocr_back?.length) return card.typical_ocr_back;
   const number = /^\d+$/.test(card.card_number) ? `No. ${card.card_number}` : card.card_number;
   return [number, `${card.year} ${productLine(card.product)}`.toUpperCase()];
 }
