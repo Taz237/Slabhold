@@ -1,3 +1,5 @@
+import { contentProblem } from "@/lib/safety/content-filter";
+
 /**
  * One GIPHY GIF on a post or a reply. Stored on posts.gif / comments.gif.
  * It plays as a muted, looping mp4; `still` is the frame shown before it
@@ -99,4 +101,17 @@ export function gifColumnMissing(error: { code?: string; message?: string } | nu
   const message = error.message ?? "";
   if (error.code !== "PGRST204" && error.code !== "42703" && !/column/i.test(message)) return false;
   return /\bgif\b/i.test(message);
+}
+
+/**
+ * The GIF as it is saved. GIPHY writes the title, not the poster, and the
+ * database refuses a title with a blocked word. The poster cannot edit a
+ * title, so such a title is left off and the post still saves.
+ */
+export function gifForSave(value: unknown): PostGif | null {
+  const gif = sanitizeGif(value);
+  if (!gif?.title || !contentProblem(gif.title)) return gif;
+  const { title: _dropped, ...rest } = gif;
+  void _dropped;
+  return rest;
 }

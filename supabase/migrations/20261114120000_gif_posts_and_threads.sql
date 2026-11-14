@@ -1,5 +1,11 @@
--- UNAPPLIED. Needs review before running.
+-- PR #275 GIF posts and threads -- QA Guard fixed version (2026-11-14).
+-- Paste ALL of this into the Supabase SQL Editor (Slabhold project) and press Run.
 -- Do not run supabase db push. Do not apply this with the Supabase CLI.
+-- Same as supabase/migrations/20261114120000_gif_posts_and_threads.sql at 5e20bd7d, plus two QA changes:
+--   QA 1. close_thread_gap renumbers the whole thread 0..n-1 each time, so deleting two or more
+--         posts of one thread in one statement can't leave gaps or hit a posts_thread_slot error.
+--   QA 2. A GIF title (read aloud by screen readers) goes through the same word filter as post text.
+-- Safe to run twice.
 --
 -- GIF posts and threads.
 --
@@ -103,6 +109,39 @@ alter table public.comments
       or gif is not null
     )
   );
+
+-- QA 2: the GIF title is user-supplied text (it is read aloud as "GIF: <title>"),
+-- so it gets the same word filter as post and reply text.
+create or replace function private.guard_gif_title()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if new.gif is not null
+     and (tg_op = 'INSERT' or new.gif is distinct from old.gif)
+     and private.blocked_text(new.gif ->> 'title') then
+    raise exception 'This includes words Slabhold doesn''t allow. Edit it and try again'
+      using errcode = '23514';
+  end if;
+  return new;
+end;
+$$;
+
+revoke all on function private.guard_gif_title() from public, anon, authenticated;
+
+drop trigger if exists posts_guard_gif_title on public.posts;
+create trigger posts_guard_gif_title
+  before insert or update of gif on public.posts
+  for each row
+  execute function private.guard_gif_title();
+
+drop trigger if exists comments_guard_gif_title on public.comments;
+create trigger comments_guard_gif_title
+  before insert or update of gif on public.comments
+  for each row
+  execute function private.guard_gif_title();
 
 -- ---------------------------------------------------------------------------
 -- Threads
@@ -212,16 +251,23 @@ begin
     return null;
   end if;
 
-  update public.posts
-  set thread_position = thread_position - 1
-  where thread_id = old.thread_id
-    and thread_position > old.thread_position;
-
-  update public.posts
-  set thread_id = null,
-      thread_position = null
-  where thread_id = old.thread_id
-    and (select pg_catalog.count(*) from public.posts p where p.thread_id = old.thread_id) = 1;
+  -- QA 1: number what is left of this thread 0..n-1 in one update. Running it again
+  -- (one call per deleted row) changes nothing, so a multi-row delete can't collide.
+  -- One post left: it becomes a normal post. Only rows of old.thread_id are touched.
+  with left_over as (
+    select p.id,
+           (pg_catalog.row_number() over (order by p.thread_position, p.id) - 1)::smallint as pos,
+           pg_catalog.count(*) over () as n
+    from public.posts p
+    where p.thread_id = old.thread_id
+  )
+  update public.posts t
+  set thread_id = case when l.n = 1 then null else t.thread_id end,
+      thread_position = case when l.n = 1 then null else l.pos end
+  from left_over l
+  where t.id = l.id
+    and t.thread_id = old.thread_id
+    and (l.n = 1 or t.thread_position is distinct from l.pos);
 
   return null;
 end;

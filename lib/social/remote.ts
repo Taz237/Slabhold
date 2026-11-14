@@ -48,7 +48,7 @@ import {
   noteMultiPhotoMissing,
   type PostWrite,
 } from "./post-photos";
-import { GIFS_UNAVAILABLE, gifColumnMissing, sanitizeGif, type PostGif } from "./gifs";
+import { GIFS_UNAVAILABLE, gifColumnMissing, gifForSave, type PostGif } from "./gifs";
 import { postExtrasFromRow } from "./post-extras";
 import {
   notePostExtrasMissing,
@@ -864,7 +864,7 @@ export async function remoteAddComment(
   gifInput?: PostGif | null,
 ): Promise<AuthResult> {
   const text = body.trim().slice(0, COMMENT_LIMIT);
-  const gif = sanitizeGif(gifInput);
+  const gif = gifForSave(gifInput);
   // A reply has photos or a GIF, not both.
   const photos = gif ? [] : draftPostPhotos({ images: images ?? [] });
   if (!text && photos.length === 0 && !gif) return { error: "Write a comment." };
@@ -1028,7 +1028,7 @@ async function preparePost(
   input: PostWrite,
 ): Promise<{ error: string } | { post: PreparedPost }> {
   const body = input.body.trim();
-  const gif = sanitizeGif(input.gif);
+  const gif = gifForSave(input.gif);
   // A post has photos or a GIF, not both.
   const photos = gif ? [] : draftPostPhotos(input);
   const quotedPostId = input.quotedPostId?.trim() || null;
@@ -1220,7 +1220,7 @@ export async function remoteUpdatePost(
   if (body.length > 280) return { error: "Keep it to 280 characters." };
   const bodyProblem = contentProblem(body);
   if (bodyProblem) return { error: bodyProblem };
-  const gif = input.gif === undefined ? undefined : sanitizeGif(input.gif);
+  const gif = input.gif === undefined ? undefined : gifForSave(input.gif);
   const photos = gif ? [] : draftPostPhotos(input);
   const uploaded = await uploadPostImages(supabase, authorId, photos);
   if (uploaded.error) return { error: uploaded.error };

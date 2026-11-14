@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, it } from "node:test";
-import { gifColumnMissing, gifFromGiphy, gifLabel, isGiphyMediaUrl, sanitizeGif } from "./gifs";
+import { BLOCKED_ENTRIES } from "@/lib/safety/content-filter";
+import { gifColumnMissing, gifForSave, gifFromGiphy, gifLabel, isGiphyMediaUrl, sanitizeGif } from "./gifs";
 
 const MP4 = "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3/abc123/200w.mp4?cid=790b7611&ep=v1_gifs_search&rid=200w.mp4&ct=g";
 const STILL = "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3/abc123/200w_s.gif?cid=790b7611&rid=200w_s.gif&ct=g";
@@ -97,5 +100,21 @@ describe("GIF values", () => {
     assert.equal(gifColumnMissing({ code: "42703", message: "column posts.meta does not exist" }), false);
     assert.equal(gifColumnMissing({ code: "23514", message: "violates check constraint posts_gif_ok" }), false);
     assert.equal(gifColumnMissing(null), false);
+  });
+
+  it("leaves a title with a blocked word off the saved GIF, so the post still saves", () => {
+    const blocked = BLOCKED_ENTRIES.find((entry): entry is string => typeof entry === "string")!;
+    assert.deepEqual(gifForSave({ ...GIF, title: `so ${blocked} here` }), {
+      id: GIF.id,
+      mp4: MP4,
+      still: STILL,
+      width: 200,
+      height: 113,
+    });
+    assert.deepEqual(gifForSave(GIF), GIF, "a clean title is kept");
+    assert.equal(gifForSave({ ...GIF, mp4: "https://evil.example/x.mp4" }), null);
+    const remote = readFileSync(join(process.cwd(), "lib/social/remote.ts"), "utf8");
+    assert.equal(remote.match(/gifForSave\(/g)?.length, 3, "posts, replies and edits all save through it");
+    assert.doesNotMatch(remote, /sanitizeGif\(/);
   });
 });
