@@ -133,6 +133,24 @@ describe("the card's sport", () => {
   });
 });
 
+describe("Topps Resurgence is a set of its own", () => {
+  it("a listing that names it is never plain Topps", () => {
+    assert.deepEqual(readRawCardText(["2025 Topps Resurgence James Cook Auto /15 #11 Bills"], SCAN_DIRECTORY).setNames.slice(0, 1), ["Topps Resurgence"]);
+  });
+
+  it("James Cook listings name the set, the year and the card #", () => {
+    const titles = [{ title: "2025 Topps Resurgence James Cook Auto /15 #11 Bills" }, { title: "James Cook 2025 Topps Resurgence Football Autograph 05/15 #11" }];
+    for (const read of [raw(FRONT), raw(FRONT, BACK)]) {
+      const [top] = rank(read, titles);
+      assert.equal(top.playerName, "James Cook");
+      assert.equal(top.setBrand, "Topps Resurgence");
+      assert.equal(top.yearLabel, "2025");
+      assert.equal(top.cardNumber, "11");
+      assert.equal(top.serialRun, 15);
+    }
+  });
+});
+
 describe("what the card doesn't confirm stays open", () => {
   it("CERTIFIED AUTOGRAPH ISSUE is not the set", () => {
     assert.deepEqual(readRawCardText(FRONT, SCAN_DIRECTORY, { side: "front" }).setNames, []);

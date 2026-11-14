@@ -11,6 +11,7 @@ import { nameKey } from "./player-lookup";
  * a product or a parallel: hard-cards.test.ts scores whatever the file holds.
  *
  * Optional on a card: "typical_ocr_back", the back as a real photo read (else it is built);
+ * "parallel_unconfirmed" and "listing_titles_modeled" (see the file's notes);
  * "parallel_also", other names for the same parallel that count as right
  * (the checklist's name beside the sellers' name), and "player_also", the same person as our
  * player list spells them.
@@ -30,6 +31,8 @@ export type HardCard = {
   /** null: a base card. */
   parallel: string | null;
   parallel_also?: string[];
+  /** A parallel whose name no checklist confirms (parallel is null): nothing shown is open, any name is wrong. */
+  parallel_unconfirmed?: boolean;
   /** null: not numbered. */
   print_run: number | null;
   sport: string;
@@ -41,6 +44,8 @@ export type HardCard = {
   source_urls: string[];
   /** Real seller titles for the card: the mocked sold listings, never fetched. */
   listing_title_examples: string[];
+  /** The titles are written to match a sale the app showed, not copied from real listings. */
+  listing_titles_modeled?: boolean;
   confidence: string;
 };
 
@@ -124,6 +129,8 @@ function parallelName(name: string): string {
  */
 export function markParallel(got: string, card: HardCard): Mark {
   const shown = parallelName(got);
+  // No checklist names this card's parallel: there is nothing to be right about. Open beats a guess.
+  if (card.parallel_unconfirmed) return shown && shown !== "base" ? "wrong" : "open";
   const truths = [card.parallel ?? "", ...(card.parallel_also ?? [])].map(parallelName).filter(Boolean);
   const named = Boolean(shown) && truths.some((truth) => sameParallelLoosely(truth, shown));
   const productWords = new Set(words(card.product));

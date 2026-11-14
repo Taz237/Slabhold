@@ -7,7 +7,8 @@
   "typical_ocr_front lines are modeled on how the printed front reads (name, team/school, stamps, serial); they are not captured from photos. Serials shown with digits come from real sold listings; \"/175\"-style lines mean the serial prefix was not recorded.",
   "checklist = checklistinsider.com / diamondcardsonline.com; listing = SportsCardsPro product page, which shows real eBay sold titles (eBay itself blocked direct fetches).",
   "listing_title_examples are real seller titles, kept because they show how the market words each card (including seller mistakes).",
-  "A card may carry \"typical_ocr_back\": the back as read off a real photo, used in place of the built one (hc-074)."
+  "A card may carry \"typical_ocr_back\": the back as read off a real photo, used in place of the built one (hc-074).",
+  "\"parallel_unconfirmed\": the card is a parallel whose name no checklist confirms: showing nothing is open, showing any name is wrong. \"listing_titles_modeled\": the titles are written to match a sale the app showed, not copied from real listings (hc-074: the James Wood sale the wrong answer came from)."
  ],
  "cards": [
   {
@@ -2101,7 +2102,8 @@
     "James Cook III"
    ],
    "team": "Buffalo Bills",
-   "parallel": "Yellow Refractor",
+   "parallel": null,
+   "parallel_unconfirmed": true,
    "print_run": 15,
    "sport": "football",
    "is_rookie": false,
@@ -2136,7 +2138,7 @@
     "TOPPS IS A REGISTERED TRADEMARK OF THE TOPPS COMPANY, INC.",
     "WWW.TOPPS.COM. CMP138988"
    ],
-   "why_hard": "Device miss (Nov 14): read as James Wood, 2025 Topps #CCS-JW Green, a baseball card. \"JAMES COOK\" is two letters from our list's James Wood (our list has him as James Cook III), the sold search ran on that guess, and a James Wood listing backed it. The card prints no set name (an R logo) and no year: only © 2026, with stats through 2024. Front and back lines are read off the collector's photos. The parallel's name is not confirmed by a checklist; set, year and parallel may stay open.",
+   "why_hard": "Device miss (Nov 14): read as James Wood, 2025 Topps #CCS-JW Green, a baseball card. \"JAMES COOK\" is two letters from our list's James Wood (our list has him as James Cook III), the sold search ran on that guess, and a James Wood listing backed it. The card prints no set name (an R logo) and no year: only © 2026, with stats through 2024. Front and back lines are read off the collector's photos. The /15 parallel's name is not confirmed by a checklist, so it has no truth here: it must stay open. The year may stay open.",
    "source_urls": [
     "https://www.beckett.com/news/2025-topps-resurgence-football-cards/",
     "https://www.checklistinsider.com/2025-topps-resurgence-football"
@@ -2145,7 +2147,8 @@
     "2025 Topps James Wood RC Auto Green /15 #CCS-JW Nationals",
     "2025 Topps Chrome James Wood Rookie Auto Green Refractor 5/15 CCS-JW"
    ],
-   "confidence": "player, team, card # and run verified from the card and the checklist; listing titles are modeled on the wrong sale the app showed (James Wood), not captured"
+   "listing_titles_modeled": true,
+   "confidence": "player, team, card # and run verified from the card and the checklist; parallel unconfirmed; listing titles modeled, not captured"
   }
  ]
 }

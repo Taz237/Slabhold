@@ -51,6 +51,7 @@ export const SETS = [
   "Topps Finest",
   "Topps Allen & Ginter",
   "Topps Inception",
+  "Topps Resurgence",
   "Bowman",
   "Bowman Chrome",
   "Bowman Chrome Sapphire",
