@@ -1,4 +1,5 @@
 import type { CatalogCard } from "@/lib/card-catalog";
+import type { ChecklistProduct } from "@/lib/cards/checklists";
 import type { ProductRecord } from "@/lib/cards/product-data";
 import { sharedCompValue } from "@/lib/comps/shared-value";
 import type { CleanedSale, TrawlSoldResult } from "@/lib/comps/types";
@@ -9,9 +10,13 @@ import { compIdentityFromMatch, scanCompGrade, type ScanCompResult } from "./com
 import { type QuickCompCachedSale } from "./comp-lookup";
 import { cleanCompFor, priceScanGroup } from "./clean-sales";
 import {
+  MAX_LADDER_RUNGS,
+  cardSearchQuery,
   liveSearchLadder,
   rankScanMatches,
+  scanCardKey,
   scanPlayerName,
+  type ScanCardKey,
   type ScanMatch,
   type SoldTitle,
 } from "./match";
@@ -43,6 +48,13 @@ export type LadderLog =
  *    run, and raw vs graded (a raw card never shows graded sales, a PSA 9 only
  *    PSA 9). They're stored in Quick Comp's shared cache for the next scan.
  *
+ * The player is a lookup once the card's year, set and # are read: the checklist
+ * (no search at all), then the sold titles for that year, set and # when most of
+ * them name one player. With the player still open, that one search by the card
+ * itself ("2025-26 Panini Prizm 103 /175") runs on the same caps and the same
+ * shared 6-hour cache as any other, keyed by set and card #, so the next scan of
+ * that card by anyone spends nothing. Its results are the card's sales too.
+ *
  * Never a made-up price: no matching sale is an honest "none", a cap is the
  * cap message, a Trawl failure is "unavailable". The identity shows either way.
  */
@@ -55,6 +67,8 @@ export type LiveSearchResult =
 export type LiveSoldsDeps = {
   directory: readonly IndexedDirectoryPlayer[];
   products: () => Promise<readonly ProductRecord[]>;
+  /** The checklists for the year and set the scan read. Bundled files: never a search. */
+  checklists?: (card: ScanCardKey) => Promise<readonly ChecklistProduct[]>;
   /** Saved sold listings (sold_comps_cache) naming this player. */
   cachedTitles: (player: string) => Promise<SoldTitle[]>;
   /** Quick Comp's shared cache for this exact card and grade. Null on a miss; never fetches. */
@@ -161,20 +175,35 @@ async function lookupSolds(
   } catch {
     products = null;
   }
+  let checklists: readonly ChecklistProduct[] | null = null;
+  const card = scanCardKey(read, deps.directory);
+  if (card && deps.checklists) {
+    try {
+      checklists = await deps.checklists(card);
+    } catch {
+      checklists = null;
+    }
+  }
   const rank = (soldTitles: readonly SoldTitle[]) =>
-    rankScanMatches(read, input.rows, { directory: deps.directory, products, soldTitles }).matches;
+    rankScanMatches(read, input.rows, { directory: deps.directory, products, soldTitles, checklists }).matches;
 
-  // No player read: no search, ever.
-  if (!player) return { matches: rank([]), comp: { status: "none" }, query: null };
-
+  // The name the card printed, or the one the checklist puts on this card #.
+  const named = player || rank([])[0]?.playerName || "";
   let saved: SoldTitle[] = [];
-  try {
-    saved = await deps.cachedTitles(player);
-  } catch {
-    saved = [];
+  if (named) {
+    try {
+      saved = await deps.cachedTitles(named);
+    } catch {
+      saved = [];
+    }
   }
   const first = rank(saved);
   const top = first[0];
+  // The search by the card itself (year, set, #): only while the player is open.
+  const byCard = top && !top.playerName ? cardSearchQuery(read, top, deps.directory) : "";
+
+  // No player read and no card to look one up by: no search, ever.
+  if (!named && !byCard) return { matches: first, comp: { status: "none" }, query: null };
 
   // 1. Cache first, only for a card the scan pinned down.
   if (confident(top)) {
@@ -186,14 +215,23 @@ async function lookupSolds(
   }
 
   // 2. The search ladder, built from what we know: stop at the first rung that finds this card's sales.
-  const ladder = liveSearchLadder(read, top, deps.directory);
-  if (ladder.length === 0) return { matches: first, comp: { status: "none" }, query: null };
+  // With the player open, the search by the card goes first: one precise search whose titles can
+  // name the player and are this card's sales. A name nothing backs yet keeps its ladder after it.
+  const ladder = named ? liveSearchLadder(read, top, deps.directory) : [];
+  let queue = byCard ? [byCard, ...ladder] : ladder;
+  if (queue.length === 0) return { matches: first, comp: { status: "none" }, query: null };
   const budget = newLookupBudget();
   let fetchedAt = "";
   let usedQuery: string | null = null;
   let matches = first;
   let found: ScanSalesResult = { kept: [], dropped: emptyDropped() };
-  for (const [index, query] of ladder.entries()) {
+  const tried = new Set<string>();
+  let searchedAs = top?.playerName || named;
+  while (queue.length > 0 && tried.size < MAX_LADDER_RUNGS) {
+    const query = queue.shift()!;
+    if (tried.has(query)) continue;
+    const index = tried.size;
+    tried.add(query);
     const live = await deps.liveSearch(query, userId, budget).catch((): LiveSearchResult => ({ ok: false, reason: "unavailable" }));
     if (!live.ok) {
       deps.log?.({ rung: index, query, ok: false, reason: live.reason });
@@ -215,6 +253,11 @@ async function lookupSolds(
     found = best?.playerName ? scanSalesFor(best, { grade: scanCompGrade(best), setBrand: best.setBrand, parallel: best.parallel }, results, deps.directory) : found;
     deps.log?.({ rung: index, query, ok: true, results: live.results.length, kept: found.kept.length, dropped: found.dropped });
     if (found.kept.length > 0) break;
+    // The titles just named the player: the rest of the ladder searches by that name.
+    if (best?.playerName && best.playerName !== searchedAs) {
+      searchedAs = best.playerName;
+      queue = liveSearchLadder(read, best, deps.directory);
+    }
   }
 
   if (!usedQuery) return { matches, comp: { status: "unavailable" }, query: null };

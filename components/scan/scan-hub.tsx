@@ -51,11 +51,12 @@ async function defaultSettle(capture: ScanCapture): Promise<ScanCapture> {
 }
 
 async function defaultIdentify(capture: ScanCapture, signal: AbortSignal): Promise<ScanMatchResult | null> {
-  const [{ SCAN_DIRECTORY }, { searchCatalogRemote }, { loadProductData }, { matchScan }] = await Promise.all([
+  const [{ SCAN_DIRECTORY }, { searchCatalogRemote }, { loadProductData }, { matchScan }, { loadChecklistsFor }] = await Promise.all([
     import("@/lib/players/scan-directory"),
     import("@/lib/catalog/search-remote"),
     import("@/lib/cards/product-data"),
     import("@/lib/scan/match"),
+    import("@/lib/cards/checklist-load"),
   ]);
   const read = scanReadFrom(capture, SCAN_DIRECTORY);
   return matchScan(read, {
@@ -63,6 +64,7 @@ async function defaultIdentify(capture: ScanCapture, signal: AbortSignal): Promi
     directory: SCAN_DIRECTORY,
     search: searchCatalogRemote,
     products: loadProductData,
+    checklists: loadChecklistsFor,
     signal,
   });
 }

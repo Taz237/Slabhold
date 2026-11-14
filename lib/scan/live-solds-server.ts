@@ -1,6 +1,7 @@
 import "server-only";
 
 import { unstable_cache } from "next/cache";
+import { loadChecklistsFor } from "@/lib/cards/checklist-load";
 import { loadProductData } from "@/lib/cards/product-data";
 import { getCompsSource, payloadFromSales } from "@/lib/comps";
 import { fetchTrawlSold, getTrawlApiKey } from "@/lib/comps/trawl";
@@ -31,6 +32,7 @@ export const serverLiveSoldsDeps: LiveSoldsDeps = {
   log: devLog,
   directory: SCAN_DIRECTORY,
   products: loadProductData,
+  checklists: loadChecklistsFor,
   cachedTitles: searchCachedSoldTitles,
   quickCompCache: serverScanCompDeps.quickCompCache,
   liveSearch: makeLiveSearch({
