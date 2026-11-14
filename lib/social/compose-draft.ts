@@ -1,3 +1,6 @@
+import type { PostGif } from "./gifs";
+import { segmentIsEmpty, type ThreadSegment } from "./threads";
+
 /**
  * A composer draft kept in memory when the composer closes by Back (the
  * browser button, the iOS swipe, Android Back). Those can't wait for a
@@ -10,7 +13,15 @@ export type ComposeDraft = {
   images: string[];
   cardId: string;
   quoteId: string | null;
+  /** The GIF on the first post. */
+  gif?: PostGif | null;
+  /** The later posts of a thread being written. */
+  more?: ThreadSegment[];
 };
+
+function hasMore(draft: ComposeDraft): boolean {
+  return (draft.more ?? []).some((segment) => !segmentIsEmpty(segment));
+}
 
 let held: { key: string; draft: ComposeDraft } | null = null;
 
@@ -26,7 +37,7 @@ export function composeDraftKey(params: {
 }
 
 function isEmpty(draft: ComposeDraft): boolean {
-  return !draft.body.trim() && draft.images.length === 0 && !draft.cardId;
+  return !draft.body.trim() && draft.images.length === 0 && !draft.cardId && !draft.gif && !hasMore(draft);
 }
 
 /** Keep the draft for this mode. An empty one drops what was held for it. */

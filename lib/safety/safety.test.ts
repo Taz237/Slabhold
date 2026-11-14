@@ -306,7 +306,8 @@ describe("notification inserts ignore mutes", () => {
 
   it("maps a quote insert blocked by row-level security to a plain message", () => {
     const source = readFileSync(join(process.cwd(), "lib/social/remote.ts"), "utf8");
-    const fn = source.slice(source.indexOf("export async function remoteCreatePost"));
+    // preparePost builds the row that remoteCreatePost and remoteCreateThread insert.
+    const fn = source.slice(source.indexOf("async function preparePost"));
     assert.match(fn, /quoted_post_id: quotedPostId/);
     assert.match(fn, /rlsBlocked\(error\) \? BLOCKED_INTERACTION/);
   });

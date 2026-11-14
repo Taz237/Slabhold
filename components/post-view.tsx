@@ -16,6 +16,10 @@ import { MentionTextarea } from "@/components/mention-textarea";
 import { CharacterRing } from "@/components/character-ring";
 import { PhotoFileInputs } from "@/components/photo-file-inputs";
 import { ReplyPhotos } from "@/components/reply-photos";
+import { GifPicker } from "@/components/gif-picker";
+import { GifDraft, PostGifPlayer } from "@/components/post-gif";
+import type { PostGif } from "@/lib/social/gifs";
+import { postsSupportGifsAndThreads } from "@/lib/social/threads";
 import { SafetyMenu } from "@/components/safety-menu";
 import { AuthorLine, Engagement, Tweet } from "@/components/tweet";
 import { usePostPhotos } from "@/components/use-post-photos";
@@ -50,6 +54,8 @@ export function PostView({ id }: { id: string }) {
     loadingPostId,
     postLoadFailedId,
     retryPost,
+    threadPosts,
+    loadThreadPosts,
   } = useSocial();
   const post = posts.find((item) => item.id === id);
   const loadingPost = mode === "supabase" && !post && loadingPostId === id;
@@ -62,6 +68,22 @@ export function PostView({ id }: { id: string }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [replyPhotosOn, setReplyPhotosOn] = useState(mode !== "supabase");
+  const [replyGifsOn, setReplyGifsOn] = useState(mode !== "supabase");
+  const [gif, setGif] = useState<PostGif | null>(null);
+  const [gifOpen, setGifOpen] = useState(false);
+  const threadId = post?.threadId ?? null;
+  const thread = threadId ? threadPosts(threadId) : [];
+  const place = thread.findIndex((item) => item.id === id);
+  const before = place > 0 ? thread.slice(0, place) : [];
+  const after = place >= 0 ? thread.slice(place + 1) : [];
+
+  // The rest of the thread, when this post is all that is on the device.
+  useEffect(() => {
+    if (!threadId || mode !== "supabase") return;
+    void loadThreadPosts(threadId).catch(() => {
+      // The post itself is on screen. The rest loads on the next visit.
+    });
+  }, [loadThreadPosts, mode, threadId]);
   const keyboardOffset = useKeyboardInset();
   const {
     images,
@@ -100,6 +122,9 @@ export function PostView({ id }: { id: string }) {
       if (!supabase || cancelled) return;
       void commentsSupportReplyImages(supabase).then((ok) => {
         if (!cancelled) setReplyPhotosOn(ok);
+      });
+      void postsSupportGifsAndThreads(supabase).then((ok) => {
+        if (!cancelled) setReplyGifsOn(ok);
       });
     }).catch(() => {
       // supabase-js failed to load: reply photos stay off.
@@ -149,7 +174,7 @@ export function PostView({ id }: { id: string }) {
       return;
     }
     setPending(true);
-    const result = await addComment(id, draft, replyPhotosOn ? images : []);
+    const result = await addComment(id, draft, replyPhotosOn ? images : [], replyGifsOn ? gif : null);
     // Your own reply lands at the end: show every page, so it is on screen.
     if (!result.error) setReplyPages(Number.POSITIVE_INFINITY);
     setPending(false);
@@ -159,6 +184,7 @@ export function PostView({ id }: { id: string }) {
     }
     setDraft("");
     replaceAll([]);
+    setGif(null);
     setError(result.notice ?? null);
     if (replyRef.current) {
       replyRef.current.style.height = "auto";
@@ -201,7 +227,7 @@ export function PostView({ id }: { id: string }) {
   return (
     <div
       className={`-mx-4 -mt-5 ${
-        images.length > 0
+        images.length > 0 || gif
           ? "pb-[calc(18rem+env(safe-area-inset-bottom))] min-[391px]:pb-40"
           : "pb-[calc(10rem+env(safe-area-inset-bottom))] min-[391px]:pb-24"
       }`}
@@ -215,16 +241,24 @@ export function PostView({ id }: { id: string }) {
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
-        <h1 className="text-lg font-semibold">Post</h1>
+        <h1 className="text-lg font-semibold">{thread.length > 1 ? "Thread" : "Post"}</h1>
       </div>
 
+      {before.map((item, index) => (
+        <Tweet key={item.id} post={item} author={author} threadAbove={index > 0} threadBelow />
+      ))}
       <Tweet
         post={post}
         author={author}
         variant="detail"
         onReply={() => focusReply()}
         onQuotesClick={() => setLane("quotes")}
+        threadAbove={before.length > 0}
+        threadBelow={after.length > 0}
       />
+      {after.map((item, index) => (
+        <Tweet key={item.id} post={item} author={author} threadAbove threadBelow={index < after.length - 1} />
+      ))}
 
       <div className="grid grid-cols-2 border-b border-zinc-200 text-15 dark:border-white/10">
         <LaneTab active={lane === "replies"} onClick={() => setLane("replies")}>
@@ -311,6 +345,7 @@ export function PostView({ id }: { id: string }) {
                     </p>
                   ) : null}
                   <ReplyPhotos images={reply.images} />
+                  {reply.gif ? <PostGifPlayer gif={reply.gif} size="reply" /> : null}
                   {isOptimisticReply(reply.id) ? null : (
                     <Engagement
                       targetId={reply.id}
@@ -345,12 +380,14 @@ export function PostView({ id }: { id: string }) {
           {replyPhotosOn ? (
             <ReplyPhotoDrafts images={images} onRemove={removePhoto} />
           ) : null}
+          {gif ? <GifDraft gif={gif} size="reply" onRemove={() => setGif(null)} /> : null}
           <div className="flex min-w-0 items-end gap-2">
+            {/* With the GIF button a 390px bar is full, so the avatar steps aside while a reply is being written. */}
             <Avatar
               name={user.displayName}
               image={user.avatarDataUrl}
               accent={user.accent}
-              className="mb-1 h-8 w-8"
+              className={`mb-1 h-8 w-8 ${replyGifsOn && (draft || gif || images.length > 0) ? "max-[430px]:hidden" : ""}`}
             />
             <MentionTextarea
               ref={replyRef}
@@ -375,7 +412,7 @@ export function PostView({ id }: { id: string }) {
                 />
                 <button
                   type="button"
-                  disabled={photosFull}
+                  disabled={photosFull || Boolean(gif)}
                   aria-label="Add photos"
                   aria-describedby={photosFull ? "reply-photo-cap" : undefined}
                   onClick={() => {
@@ -388,7 +425,26 @@ export function PostView({ id }: { id: string }) {
                 </button>
               </>
             ) : null}
-            <span className="mb-1 flex min-h-11 shrink-0 items-center">
+            {replyGifsOn ? (
+              <button
+                type="button"
+                disabled={Boolean(gif) || images.length > 0 || readingPhoto}
+                aria-label="Add a GIF"
+                onClick={() => {
+                  void GifPicker.preload().catch(() => {});
+                  setGifOpen(true);
+                }}
+                className="mb-1 -ml-2 inline-flex h-11 w-11 min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full text-violet-700 disabled:opacity-40 dark:text-violet-300"
+              >
+                <span
+                  aria-hidden="true"
+                  className="rounded-[5px] border-[1.5px] border-current px-[3px] font-mono text-11 leading-[15px] font-semibold"
+                >
+                  GIF
+                </span>
+              </button>
+            ) : null}
+            <span className={`mb-1 flex min-h-11 shrink-0 items-center ${replyGifsOn && !draft ? "hidden" : ""}`}>
               <CharacterRing length={draft.length} limit={COMMENT_LIMIT} />
               <span className="sr-only" aria-live="polite">
                 {draft.length}/{COMMENT_LIMIT}
@@ -400,7 +456,7 @@ export function PostView({ id }: { id: string }) {
                 pending ||
                 readingPhoto ||
                 isOverLimit(draft, COMMENT_LIMIT) ||
-                (!draft.trim() && images.length === 0)
+                (!draft.trim() && images.length === 0 && !gif)
               }
               className={`${solidButton} mb-1 min-h-11`}
             >
@@ -415,6 +471,16 @@ export function PostView({ id }: { id: string }) {
           {readingPhoto ? <p className="mt-1 pl-10 text-xs text-zinc-500">Reading photo…</p> : null}
           {photoError ? <p className="mt-1 pl-10 text-xs text-rose-600 dark:text-rose-400">{photoError}</p> : null}
           {error ? <p className="mt-1 pl-10 text-xs text-rose-600 dark:text-rose-400">{error}</p> : null}
+          {gifOpen ? (
+            <GifPicker
+              onPick={(picked) => {
+                setGif(picked);
+                setGifOpen(false);
+                requestAnimationFrame(() => replyRef.current?.focus());
+              }}
+              onClose={() => setGifOpen(false)}
+            />
+          ) : null}
         </form>
       ) : !user && lane === "replies" ? (
         <div className="flex items-center justify-between gap-3 border-t border-zinc-200 px-4 py-3 dark:border-white/10">

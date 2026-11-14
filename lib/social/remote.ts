@@ -48,6 +48,15 @@ import {
   noteMultiPhotoMissing,
   type PostWrite,
 } from "./post-photos";
+import { GIFS_UNAVAILABLE, gifColumnMissing, sanitizeGif, type PostGif } from "./gifs";
+import { postExtrasFromRow } from "./post-extras";
+import {
+  notePostExtrasMissing,
+  THREAD_MAX,
+  threadColumnMissing,
+  THREADS_UNAVAILABLE,
+  threadSlots,
+} from "./threads";
 import { BLOCKED_INTERACTION } from "@/lib/safety/block";
 import { contentProblem, usernameProblem } from "@/lib/safety/content-filter";
 import { canNotify, supabaseSafety } from "@/lib/safety/can-notify";
@@ -115,6 +124,9 @@ type PostRow = {
   show_paid?: boolean | null;
   meta?: unknown;
   like_count?: number | null;
+  gif?: unknown;
+  thread_id?: string | null;
+  thread_position?: number | null;
 };
 
 type FollowRow = {
@@ -203,6 +215,7 @@ function mapPost(row: PostRow, mailDayCards: MailDayCardView[]): Post {
       : null,
     mailDayCards,
     ...likeCountField(row.like_count),
+    ...postExtrasFromRow(row),
   };
 }
 
@@ -848,10 +861,13 @@ export async function remoteAddComment(
   body: string,
   postAuthorId: string | null,
   images?: readonly string[] | null,
+  gifInput?: PostGif | null,
 ): Promise<AuthResult> {
   const text = body.trim().slice(0, COMMENT_LIMIT);
-  const photos = draftPostPhotos({ images: images ?? [] });
-  if (!text && photos.length === 0) return { error: "Write a comment." };
+  const gif = sanitizeGif(gifInput);
+  // A reply has photos or a GIF, not both.
+  const photos = gif ? [] : draftPostPhotos({ images: images ?? [] });
+  if (!text && photos.length === 0 && !gif) return { error: "Write a comment." };
   const textProblem = contentProblem(text);
   if (textProblem) return { error: textProblem };
   if (photos.length > 0 && replyImagesKnownMissing()) return { error: REPLY_PHOTOS_UNAVAILABLE };
@@ -866,15 +882,20 @@ export async function remoteAddComment(
     ? await uploadPostImages(supabase, authorId, photos)
     : { urls: [] as string[], createdPaths: [] as string[] };
   if (uploaded.error) return { error: uploaded.error };
-  const row: { post_id: string; user_id: string; body: string; image_urls?: string[] } = {
+  const row: { post_id: string; user_id: string; body: string; image_urls?: string[]; gif?: PostGif } = {
     post_id: postId,
     user_id: authorId,
     body: text,
   };
   if (uploaded.urls.length) row.image_urls = uploaded.urls;
+  if (gif) row.gif = gif;
   const { error } = await supabase.from("comments").insert(row);
   if (error) {
     await discardPostImages(supabase, uploaded.createdPaths);
+    if (gif && gifColumnMissing(error)) {
+      notePostExtrasMissing();
+      return { error: GIFS_UNAVAILABLE };
+    }
     if (replyImageColumnMissing(error)) {
       noteReplyImagesMissing();
       return { error: REPLY_PHOTOS_UNAVAILABLE };
@@ -901,7 +922,7 @@ export async function remoteAddComment(
         actor_id: authorId,
         kind: "comment",
         post_id: postId,
-        preview: replyNoticePreview(text, noticeImages),
+        preview: replyNoticePreview(text, noticeImages) ?? (gif ? "GIF" : null),
       });
       if (noteError && !missingTable(noteError)) notice = noteError.message;
     }
@@ -983,22 +1004,42 @@ async function uploadPostImages(
   return { urls, createdPaths };
 }
 
-export async function remoteCreatePost(
+type PreparedPost = {
+  row: {
+    user_id: string;
+    content: string;
+    image_url: string | null;
+    card: PublicCard | null;
+    quoted_post_id: string | null;
+  };
+  meta: Record<string, unknown> | null;
+  gif: PostGif | null;
+  body: string;
+  hasCard: boolean;
+  shareOfNewCard: boolean;
+  imagePaths: string[];
+  cardPath: string | null;
+};
+
+/** Check one post and upload what it carries. Nothing is inserted here. */
+async function preparePost(
   supabase: SupabaseClient,
   authorId: string,
   input: PostWrite,
-): Promise<AuthResult & { postId?: string }> {
+): Promise<{ error: string } | { post: PreparedPost }> {
   const body = input.body.trim();
-  const photos = draftPostPhotos(input);
+  const gif = sanitizeGif(input.gif);
+  // A post has photos or a GIF, not both.
+  const photos = gif ? [] : draftPostPhotos(input);
   const quotedPostId = input.quotedPostId?.trim() || null;
   if (quotedPostId) {
     const quoteError = validateQuoteContent({
       body,
-      imageDataUrl: photos[0] ?? null,
+      imageDataUrl: photos[0] ?? gif?.still ?? null,
       card: input.card,
     });
     if (quoteError) return { error: quoteError };
-  } else if (!body && photos.length === 0 && !input.card) {
+  } else if (!body && photos.length === 0 && !input.card && !gif) {
     return { error: "Write something, add a photo, or attach a card." };
   }
   if (body.length > 280) return { error: "Keep it to 280 characters." };
@@ -1022,14 +1063,45 @@ export async function remoteCreatePost(
     await discardPostImages(supabase, uploaded.createdPaths);
     return { error: card.error };
   }
-  const base = {
-    user_id: authorId,
-    content: body,
-    image_url: uploaded.urls[0] ?? null,
-    card: card.card,
-    quoted_post_id: quotedPostId,
+  return {
+    post: {
+      row: {
+        user_id: authorId,
+        content: body,
+        image_url: uploaded.urls[0] ?? null,
+        card: card.card,
+        quoted_post_id: quotedPostId,
+      },
+      meta: metaWithImages(null, uploaded.urls),
+      gif,
+      body,
+      hasCard: Boolean(input.card),
+      shareOfNewCard: Boolean(input.shareOfNewCard),
+      imagePaths: uploaded.createdPaths,
+      cardPath: card.createdPath ?? null,
+    },
   };
-  const meta = metaWithImages(null, uploaded.urls);
+}
+
+async function discardPrepared(supabase: SupabaseClient, posts: readonly PreparedPost[]) {
+  for (const post of posts) {
+    await discardPostImages(supabase, post.imagePaths);
+    if (post.cardPath) await removeUploadedMedia(supabase, "card-photos", post.cardPath);
+  }
+}
+
+export async function remoteCreatePost(
+  supabase: SupabaseClient,
+  authorId: string,
+  input: PostWrite,
+): Promise<AuthResult & { postId?: string }> {
+  const prepared = await preparePost(supabase, authorId, input);
+  if ("error" in prepared) return { error: prepared.error };
+  const { post } = prepared;
+  // The gif key is only sent with a GIF, so posts save as before on a
+  // database that has no gif column yet.
+  const base = post.gif ? { ...post.row, gif: post.gif } : post.row;
+  const meta = post.meta;
   let created: { id: string } | null = null;
   let error: { message?: string; code?: string } | null = null;
   if (meta) {
@@ -1048,34 +1120,108 @@ export async function remoteCreatePost(
     error = inserted.error;
   }
   if (error || !created) {
-    await discardPostImages(supabase, uploaded.createdPaths);
-    if (card.createdPath) await removeUploadedMedia(supabase, "card-photos", card.createdPath);
+    await discardPrepared(supabase, [post]);
+    if (post.gif && gifColumnMissing(error)) {
+      notePostExtrasMissing();
+      return { error: GIFS_UNAVAILABLE };
+    }
     return {
       error: rlsBlocked(error) ? BLOCKED_INTERACTION : (error?.message ?? "Could not save that post."),
     };
   }
 
   // Adding a card already alerts once. Skip the post alert for that share.
-  if (input.card && !input.shareOfNewCard) postWantAlerts.ping("post", created.id);
+  if (post.hasCard && !post.shareOfNewCard) postWantAlerts.ping("post", created.id);
 
   // Quote notifications are created by a DB trigger on posts insert.
   // Mentions stay client-side so edit/sync can add/remove them.
-  const mentionProblem = await syncMentionNotifications(supabase, authorId, created.id, body);
+  const mentionProblem = await syncMentionNotifications(supabase, authorId, created.id, post.body);
   if (mentionProblem) return { notice: mentionProblem, postId: created.id };
   return { postId: created.id };
+}
+
+/**
+ * A thread: 2 to 10 posts saved in one insert, so they all land or none do.
+ * `postIds` come back first to last. One post is saved as a normal post.
+ */
+export async function remoteCreateThread(
+  supabase: SupabaseClient,
+  authorId: string,
+  inputs: readonly PostWrite[],
+  /** Swappable so a test gets a known thread id. */
+  newThreadId: () => string = () => crypto.randomUUID(),
+): Promise<AuthResult & { postIds?: string[] }> {
+  if (inputs.length === 0) return { error: "Write something, add a photo, or attach a card." };
+  if (inputs.length > THREAD_MAX) return { error: "A thread can have up to 10 posts." };
+  if (inputs.length === 1) {
+    const single = await remoteCreatePost(supabase, authorId, inputs[0]!);
+    return { error: single.error, notice: single.notice, postIds: single.postId ? [single.postId] : undefined };
+  }
+
+  const prepared: PreparedPost[] = [];
+  for (const input of inputs) {
+    const next = await preparePost(supabase, authorId, input);
+    if ("error" in next) {
+      await discardPrepared(supabase, prepared);
+      const place = prepared.length + 1;
+      return { error: `Post ${place} of ${inputs.length}: ${next.error}` };
+    }
+    prepared.push(next.post);
+  }
+
+  const slots = threadSlots(prepared.length, newThreadId());
+  // Every row carries the same keys: one insert, in thread order.
+  const rows = prepared.map((post, index) => ({
+    ...post.row,
+    meta: post.meta,
+    gif: post.gif,
+    thread_id: slots[index]!.threadId,
+    thread_position: slots[index]!.threadPosition,
+  }));
+  const { data, error } = await supabase.from("posts").insert(rows).select("id, thread_position");
+  if (error || !data || data.length !== rows.length) {
+    await discardPrepared(supabase, prepared);
+    if (threadColumnMissing(error) || gifColumnMissing(error)) {
+      notePostExtrasMissing();
+      return { error: THREADS_UNAVAILABLE };
+    }
+    return {
+      error: rlsBlocked(error) ? BLOCKED_INTERACTION : (error?.message ?? "Could not save that thread."),
+    };
+  }
+  const saved = [...(data as { id: string; thread_position: number | null }[])].sort(
+    (a, b) => (a.thread_position ?? 0) - (b.thread_position ?? 0),
+  );
+  const postIds = saved.map((row) => row.id);
+
+  let notice: string | undefined;
+  for (const [index, post] of prepared.entries()) {
+    const postId = postIds[index]!;
+    if (post.hasCard && !post.shareOfNewCard) postWantAlerts.ping("post", postId);
+    const mentionProblem = await syncMentionNotifications(supabase, authorId, postId, post.body);
+    if (mentionProblem) notice = mentionProblem;
+  }
+  return notice ? { notice, postIds } : { postIds };
 }
 
 export async function remoteUpdatePost(
   supabase: SupabaseClient,
   authorId: string,
   postId: string,
-  input: { body: string; imageDataUrl: string | null; images?: readonly string[] | null },
+  input: {
+    body: string;
+    imageDataUrl: string | null;
+    images?: readonly string[] | null;
+    /** Left out: the GIF stays as it is. Null takes it off. */
+    gif?: PostGif | null;
+  },
 ): Promise<AuthResult> {
   const body = input.body.trim();
   if (body.length > 280) return { error: "Keep it to 280 characters." };
   const bodyProblem = contentProblem(body);
   if (bodyProblem) return { error: bodyProblem };
-  const photos = draftPostPhotos(input);
+  const gif = input.gif === undefined ? undefined : sanitizeGif(input.gif);
+  const photos = gif ? [] : draftPostPhotos(input);
   const uploaded = await uploadPostImages(supabase, authorId, photos);
   if (uploaded.error) return { error: uploaded.error };
   const forgetUploads = async (message: string): Promise<AuthResult> => {
@@ -1088,7 +1234,12 @@ export async function remoteUpdatePost(
     .eq("id", postId)
     .eq("user_id", authorId)
     .maybeSingle();
-  const base = { content: body, image_url: uploaded.urls[0] ?? null };
+  const base: { content: string; image_url: string | null; gif?: PostGif | null } = {
+    content: body,
+    image_url: uploaded.urls[0] ?? null,
+  };
+  // Only sent when the editor changed it, so an edit saves on a database with no gif column.
+  if (gif !== undefined) base.gif = gif;
   if (prior.error && metaColumnMissing(prior.error)) {
     noteMultiPhotoMissing();
     const { error } = await supabase

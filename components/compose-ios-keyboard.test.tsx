@@ -74,6 +74,9 @@ const fixtureUser = {
   avatarDataUrl: null,
 };
 
+/** Bodies of every thread the composer posted, in the order it sent them. */
+const threadCalls: string[][] = [];
+
 let ComposeView: ComponentType;
 
 before(async () => {
@@ -94,6 +97,10 @@ function Harness({ children }: { children?: ReactNode }) {
     blockedIds: [],
     followingOf: () => [],
     createPost: async () => ({ error: null, postId: "post-1" }),
+    createThread: async (inputs: { body: string }[]) => {
+      threadCalls.push(inputs.map((input) => input.body));
+      return { error: null, postId: "post-1" };
+    },
     updatePost: async () => ({ error: null }),
   };
   const collection = { ready: true, loaded: true, cards: [], syncError: null };
@@ -282,15 +289,18 @@ describe("composer layout, like X", () => {
     }
   });
 
-  it("only shows tools we have: photo library, camera, attach a card", async () => {
+  it("only shows tools we have: photo library, camera, GIF, attach a card, add a post", async () => {
     fakeViewport(0);
     const view = await mount();
     try {
       const labels = [...toolbar().querySelectorAll("button")].map((button) => button.getAttribute("aria-label"));
-      assert.deepEqual(labels, ["Photo library", "Camera", "Attach a card"]);
+      assert.deepEqual(labels, ["Photo library", "Camera", "Add a GIF", "Attach a card", "Add another post"]);
+      for (const button of toolbar().querySelectorAll("button")) {
+        assert.match(button.className, /\bh-11 w-11\b/, "every tool is a 44px target");
+      }
       const text = win.document.querySelector('[role="dialog"]')?.textContent ?? "";
       assert.doesNotMatch(text, /Everyone can reply/, "no reply setting exists, so no fake control");
-      assert.doesNotMatch(text, /GIF|Poll/);
+      assert.doesNotMatch(text, /Poll|Video/, "no poll or video yet");
     } finally {
       view.unmount();
     }
@@ -312,6 +322,98 @@ describe("composer layout, like X", () => {
       assert.match(ring()!.className, /text-rose-500/);
       assert.equal(postButton().disabled, true, "over the limit can't post");
       assert.equal(field().value.length, 285, "the text is never cut");
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("chains posts with the plus button and posts the thread in the order written", async () => {
+    fakeViewport(0);
+    threadCalls.length = 0;
+    const view = await mount();
+    const tool = (label: string) => {
+      const button = toolbar().querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
+      assert.ok(button, label);
+      return button;
+    };
+    const rows = () => [...win.document.querySelectorAll('[role="dialog"] [data-thread-post]')];
+    try {
+      assert.equal(tool("Add another post").disabled, true, "nothing to follow yet");
+      await type("First");
+      assert.equal(tool("Add another post").disabled, false);
+      await act(async () => tool("Add another post").click());
+      await frames();
+      assert.equal(rows().length, 2);
+      assert.equal(field().value, "", "the new post is the one being written");
+      assert.equal(field().getAttribute("placeholder"), "Add another post");
+      assert.equal(postButton().textContent, "Post all");
+      assert.ok(win.document.querySelector('[role="dialog"] [data-thread-line]'), "a line joins the posts");
+      assert.equal(toolbar().querySelector('button[aria-label="Attach a card"]'), null, "a card goes on the first post");
+
+      await type("Second");
+      await act(async () => tool("Add another post").click());
+      await frames();
+      await type("Third");
+      assert.equal(rows().length, 3);
+
+      // Going back to the first post keeps what was written in the others.
+      const edit = win.document.querySelector<HTMLButtonElement>('button[aria-label="Edit post 1"]');
+      assert.ok(edit);
+      assert.match(edit.className, /\bmin-h-11\b/);
+      await act(async () => edit.click());
+      await frames();
+      assert.equal(field().value, "First");
+
+      await act(async () => postButton().click());
+      await waitFor(() => threadCalls.length === 1, "the thread is posted");
+      assert.deepEqual(threadCalls[0], ["First", "Second", "Third"]);
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("removes one post from a thread being written and leaves the others in order", async () => {
+    fakeViewport(0);
+    threadCalls.length = 0;
+    const view = await mount();
+    const add = () => toolbar().querySelector<HTMLButtonElement>('button[aria-label="Add another post"]')!;
+    try {
+      await type("One");
+      await act(async () => add().click());
+      await frames();
+      await type("Two");
+      await act(async () => add().click());
+      await frames();
+      await type("Three");
+      const remove = win.document.querySelector<HTMLButtonElement>('button[aria-label="Remove post 2"]');
+      assert.ok(remove);
+      assert.match(remove.className, /\bh-11 w-11\b/);
+      await act(async () => remove.click());
+      await frames();
+      assert.equal(win.document.querySelectorAll('[role="dialog"] [data-thread-post]').length, 2);
+      await act(async () => postButton().click());
+      await waitFor(() => threadCalls.length === 1, "the thread is posted");
+      assert.deepEqual(threadCalls[0], ["One", "Three"]);
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("stops adding posts at 10", async () => {
+    fakeViewport(0);
+    const view = await mount();
+    const add = () => toolbar().querySelector<HTMLButtonElement>('button[aria-label="Add another post"]')!;
+    try {
+      for (let index = 0; index < 10; index += 1) {
+        await type(`Post ${index + 1}`);
+        if (index < 9) {
+          await act(async () => add().click());
+          await frames(1);
+        }
+      }
+      assert.equal(win.document.querySelectorAll('[role="dialog"] [data-thread-post]').length, 10);
+      assert.equal(add().disabled, true);
+      assert.match(toolbar().textContent ?? "", /A thread can have up to 10 posts\./);
     } finally {
       view.unmount();
     }
