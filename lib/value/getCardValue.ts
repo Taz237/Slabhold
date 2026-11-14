@@ -560,13 +560,13 @@ async function selectPage<T>(
 
 /** cards columns the refresh queue reads to leave out cards a lookup cannot help. */
 const REFRESH_QUEUE_CARD_COLUMNS =
-  "id, card_number, no_number, grade, grader, condition_type, sell_price, sell_date, sold_at";
+  "id, player, year, year_label, set, set_name, parallel, card_number, no_number, grade, grader, condition_type, sell_price, sell_date, sold_at";
 
 /**
  * Cards a lookup can use, valued or not. matched_at is the last attempt (null if never checked).
  * Ordering is applied by takeRefreshBatch: oldest first, nulls first.
- * Sold cards, cards with no card number, and graded cards whose grade does
- * not parse are left out (trawlSkipReason), so they never spend the daily
+ * Sold cards, cards with no card number (unless they name an insert like
+ * Color Blast), and graded cards whose grade does not parse are left out (trawlSkipReason), so they never spend the daily
  * Trawl budget. They are not marked checked; they are simply not queued.
  */
 export async function listRefreshQueue(): Promise<RefreshQueueCard[]> {

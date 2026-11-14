@@ -91,6 +91,71 @@ const SET_FAMILIES: { family: string; members: string[] }[] = [
 ];
 
 /**
+ * Sets that print the same insert. Sellers title a Color Blast from Prizm
+ * Draft Picks as "Prizm" or "Prizm Draft Picks", and people save it under
+ * either name. The two sets count as one only when the saved card is that
+ * insert and the title names it too. Every other rule still has to pass.
+ */
+const INSERT_RELATED_SETS: { sets: readonly string[]; inserts: readonly string[] }[] = [
+  { sets: ["prizm", "prizm draft picks"], inserts: ["color blast"] },
+];
+
+/**
+ * Inserts a card with no card number can still be searched by. Same names as
+ * POPULAR_INSERTS (lib/cards/data/popular-inserts.ts imports this file, so
+ * the list is repeated here and a test keeps the two equal).
+ */
+export const NAMED_INSERTS = ["kaboom", "downtown", "color blast"] as const;
+
+function insertWords(value: string): string[] {
+  return value.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+}
+
+function wordsContainPhrase(words: readonly string[], phrase: string): boolean {
+  return ` ${words.join(" ")} `.includes(` ${phrase} `);
+}
+
+/** The named insert in this card's parallel field, or null. */
+export function namedInsertOf(parallel?: string): string | null {
+  const words = insertWords(parallel ?? "");
+  return NAMED_INSERTS.find((name) => wordsContainPhrase(words, name)) ?? null;
+}
+
+/**
+ * Other set names that count as this card's set for this title: the saved
+ * parallel is a shared insert and the title names that insert.
+ */
+function insertRelatedSets(title: string, setBrand?: string, parallel?: string): string[] {
+  const cardSet = normalizeSetToken(setBrand ?? "");
+  if (!cardSet) return [];
+  const cardWords = insertWords(parallel ?? "");
+  const titleWords = insertWords(title);
+  const out: string[] = [];
+  for (const group of INSERT_RELATED_SETS) {
+    if (!group.sets.includes(cardSet)) continue;
+    const shared = group.inserts.some(
+      (insert) => wordsContainPhrase(cardWords, insert) && wordsContainPhrase(titleWords, insert),
+    );
+    if (!shared) continue;
+    for (const name of group.sets) if (name !== cardSet) out.push(name);
+  }
+  return out;
+}
+
+/** The longest related set name a title prints, for telling two lines apart. */
+function relatedSetLine(title: string, setBrand?: string): string {
+  const cardSet = normalizeSetToken(setBrand ?? "");
+  let line = "";
+  for (const group of INSERT_RELATED_SETS) {
+    if (!group.sets.includes(cardSet)) continue;
+    for (const name of group.sets) {
+      if (name.length > line.length && tokensInOrder(title, setNameTokens(name))) line = name;
+    }
+  }
+  return line;
+}
+
+/**
  * Product names that are not the plain base set.
  * Used only when the saved set is that base (Fleer, not Fleer Ultra).
  */
@@ -383,6 +448,15 @@ export function titleHasPlayer(title: string, playerName: string): boolean {
   return re.test(title);
 }
 
+/** The whole name, not just the last name. Used when there is no card number to lean on. */
+export function titleHasFullPlayer(title: string, playerName: string): boolean {
+  const name = playerName.trim();
+  if (!name) return false;
+  const pattern = name.split(/\s+/).map((part) => escapeRegExp(part)).join("\\s+");
+  if (new RegExp(`(?<![a-z0-9])${pattern}(?![a-z0-9])`, "i").test(title)) return true;
+  return lettersAlignWithWords(title, name);
+}
+
 export function titleHasYear(title: string, card: MatchCard): boolean {
   const start = startYearOf(card);
   const season = yearLabelOf(card);
@@ -496,9 +570,13 @@ export function titleNamesWrongSet(
 ): boolean {
   const cardSet = normalizeSetToken(setBrand ?? "");
   const lower = title.toLowerCase();
+  // "Prizm Draft Picks" on a Prizm Color Blast is the same insert, not another set.
+  const related = insertRelatedSets(lower, setBrand, parallel);
+  const isRelated = (name: string) => related.includes(normalizeSetToken(name));
 
   for (const keyword of SET_KEYWORDS) {
     if (cardSet.includes(keyword)) continue;
+    if (isRelated(keyword)) continue;
     const re = new RegExp(
       `\\b${escapeRegExp(keyword).replace(/\s+/g, "\\s+")}\\b`,
       "i",
@@ -527,6 +605,7 @@ export function titleNamesWrongSet(
     if (!cardIsBaseFamily) continue;
     for (const member of members) {
       if (cardSet.includes(member)) continue;
+      if (isRelated(member)) continue;
       if (sportIsWnba(sport) && /\bwnba\b/.test(member)) continue;
       const re = new RegExp(
         `\\b${escapeRegExp(member).replace(/\s+/g, "\\s+")}\\b`,
@@ -540,6 +619,7 @@ export function titleNamesWrongSet(
   if (base) {
     for (const sub of SET_SUB_BRANDS[base]) {
       if (sub === "wnba" && sportIsWnba(sport)) continue;
+      if (isRelated(`${base} ${sub}`)) continue;
       if (base === "donruss" && sub === "optic" && opticOnlyInPreview(lower, parallel)) continue;
       if (titleHasSubBrand(lower, sub)) return true;
     }
@@ -549,6 +629,7 @@ export function titleNamesWrongSet(
     for (const name of knownSetNames()) {
       const normalized = normalizeSetToken(name);
       if (!normalized.startsWith(`${cardSet} `)) continue;
+      if (isRelated(normalized)) continue;
       if (sportIsWnba(sport) && /\bwnba\b/.test(normalized)) continue;
       if (
         isPlainDonruss(cardSet) &&
@@ -962,6 +1043,39 @@ export function gradesMatch(
   );
 }
 
+/**
+ * A card saved with no card number that can still be searched: it has a
+ * player, a year, a set and a named insert ("Color Blast"). The search is
+ * player + year + brand + insert, and matchComps keeps the titles only when
+ * they all point at one card.
+ */
+export function isWideInsertCard(
+  card: Pick<MatchCard, "playerName" | "year" | "yearLabel" | "setBrand" | "cardNumber" | "parallel">,
+): boolean {
+  if (normalizeCardNumber(card.cardNumber)) return false;
+  if ((card.playerName ?? "").trim().length < 2) return false;
+  if (!(card.setBrand ?? "").trim()) return false;
+  if (!(card.yearLabel ?? "").trim() && !(Number(card.year) > 0)) return false;
+  return namedInsertOf(card.parallel) != null;
+}
+
+/**
+ * Open beats wrong. With no card number to check, the kept titles have to
+ * agree: one card number between them, and one product line. Two numbers, or
+ * "Prizm" beside "Prizm Draft Picks", is two cards, so nothing is kept.
+ */
+function agreeOnOneCard(card: MatchCard, sales: CleanedSale[]): CleanedSale[] {
+  const numbers = new Set<string>();
+  const lines = new Set<string>();
+  for (const sale of sales) {
+    const tokens = titleHashCardNumbers(sale.title);
+    if (tokens.length) numbers.add(tokens.join(" "));
+    lines.add(relatedSetLine(sale.title, card.setBrand));
+  }
+  if (numbers.size > 1 || lines.size > 1) return [];
+  return sales;
+}
+
 export function titleMatchesCard(title: string, card: MatchCard): boolean {
   if (titleLooksExcluded(title)) return false;
   if (card.playerName.trim() && !titleHasPlayer(title, card.playerName)) {
@@ -973,16 +1087,25 @@ export function titleMatchesCard(title: string, card: MatchCard): boolean {
   ) {
     return false;
   }
-  if (!titleHasSetName(title, card.setBrand)) return false;
   const parallelName =
     canonicalParallelName(card.setBrand, card.parallel ?? "") || card.parallel;
+  if (
+    !titleHasSetName(title, card.setBrand) &&
+    !insertRelatedSets(title, card.setBrand, parallelName).some((name) => titleHasSetName(title, name))
+  ) {
+    return false;
+  }
   // Optic Preview and a color sitting in front of Prizm are parallels, not other sets.
   if (titleNamesWrongSet(title, card.setBrand, card.sport, parallelName)) {
     return false;
   }
 
   const num = normalizeCardNumber(card.cardNumber);
-  if (!card.noNumber) {
+  if (isWideInsertCard(card)) {
+    // No number to check: the full name has to be there, and matchComps then
+    // keeps the titles only if they agree on one card.
+    if (!titleHasFullPlayer(title, card.playerName)) return false;
+  } else if (!card.noNumber) {
     if (!num) return false;
     if (!titleHasCardNumber(title, num)) return false;
   }
@@ -1160,7 +1283,8 @@ export function matchComps(
     });
   }
 
-  return dedupeSales(sales);
+  const kept = dedupeSales(sales);
+  return isWideInsertCard(card) ? agreeOnOneCard(card, kept) : kept;
 }
 
 /**
