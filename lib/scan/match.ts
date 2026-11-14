@@ -1,6 +1,6 @@
 import type { CatalogCard } from "@/lib/card-catalog";
 import { parallelMatchKey, parallelsForSet, sameParallelLoosely } from "@/lib/cards/parallels";
-import { playersAt, type ChecklistHit, type ChecklistProduct } from "@/lib/cards/checklists";
+import { baseSetHits, playersAt, type ChecklistHit, type ChecklistProduct } from "@/lib/cards/checklists";
 import { parallelsIn, sameSeason, type ProductParallel, type ProductRecord } from "@/lib/cards/product-data";
 import { setMatchPhrase } from "@/lib/comps/match";
 import type { IndexedDirectoryPlayer } from "@/lib/players/types";
@@ -480,7 +480,10 @@ function rosterPlayer(name: string, sport: string, directory: readonly IndexedDi
  *      accents, case, Jr. and a small OCR slip aside.
  *   A + B. With no printed name agreeing, the checklist and the market naming the same player.
  *   A. With no name read at all, the one player every checklist section puts on that number,
- *      for a year the card printed.
+ *      for a year the card printed. When inserts and autographs share the number (Panini reuses
+ *      plain numbers), the one player the base sections put on it, unless the card reads as an
+ *      autograph, an insert or a variation, or prints one of those sections' names. More than
+ *      one player still possible: open. Never a pick.
  *   B. With no name read at all, the player a clear majority of 3+ sold titles for this card name.
  *
  * A name our player list already matched exactly is left alone. A printed name no source agrees
@@ -492,6 +495,8 @@ function withLookedUpPlayer(
   titles: readonly SoldTitle[],
   checklists: readonly ChecklistProduct[] | null | undefined,
   directory: readonly IndexedDirectoryPlayer[],
+  /** Everything the card printed, both sides: an insert's name on it rules the base card out. */
+  cardText = "",
 ): Evidence {
   const card = cardKeyOf(evidence);
   if (!card || evidence.players.some((hit) => hit.score === 1)) return evidence;
@@ -525,6 +530,11 @@ function withLookedUpPlayer(
   if (printed.length > 0) return evidence;
   const people = new Set(listed.map((item) => nameKey(item.player)));
   if (card.yearPrinted && people.size === 1) return named(listed[0].player, "checklist", listed[0].sport);
+  // A number inserts share: the base card's player, when nothing says the card is anything else.
+  if (card.yearPrinted && people.size > 1 && !evidence.isAuto && !evidence.subset && !evidence.insert) {
+    const base = baseSetHits(listed, cardText);
+    if (base.length > 0 && new Set(base.map((item) => nameKey(item.player))).size === 1) return named(base[0].player, "checklist", base[0].sport);
+  }
   if (market && market.votes >= MARKET_ALONE_MIN_VOTES) return named(market.name, "sales");
   return evidence;
 }
@@ -1245,7 +1255,13 @@ export function rankScanMatches(
   const evidence: Evidence = withVerifiedPlayer(
     withAgreedRun(
       withBackedNearPlayer(
-        withLookedUpPlayer(evidenceFrom(read, options.directory), options.soldTitles ?? [], options.checklists, options.directory),
+        withLookedUpPlayer(
+          evidenceFrom(read, options.directory),
+          options.soldTitles ?? [],
+          options.checklists,
+          options.directory,
+          read.kind === "raw" ? [...read.front.lines, ...(read.back?.lines ?? [])].join(" ") : "",
+        ),
         read,
         options.soldTitles ?? [],
         options.directory,

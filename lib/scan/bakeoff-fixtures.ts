@@ -86,6 +86,11 @@ export type BakeoffCase = {
    * name (or "" when they must name nobody), where that came from, and the most searches spent.
    */
   liveTruth?: { player: string; playerSource?: "checklist" | "sales"; calls?: number };
+  /**
+   * A case set up with no checklist, for a card the store's real files do list: the player those
+   * files name. Only the "as production loads them" run reads it.
+   */
+  storeTruth?: { player: string };
   truth: BakeoffTruth;
 };
 

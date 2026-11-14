@@ -51,42 +51,66 @@ added, skipped or failed.
 
 ## What is in the store today
 
-85 products, 94,812 cards, read 2026-11-14:
+107 products, 115,310 cards. `index.json` has each one's source and the day it was read.
 
 | Sport | Product | Years |
 | --- | --- | --- |
-| Baseball | Bowman | 2019, 2020, 2021, 2022, 2023 |
-| Baseball | Bowman Chrome | 2019, 2020, 2021, 2022 |
-| Baseball | Bowman Draft | 2019, 2020, 2021, 2022, 2023 |
-| Baseball | Topps | 2019, 2020, 2021, 2022, 2023 |
-| Baseball | Topps Chrome | 2019, 2020, 2021, 2022, 2023 |
+| Baseball | Bowman | 2019, 2020, 2021, 2022, 2023, 2024, 2025 |
+| Baseball | Bowman Chrome | 2019, 2020, 2021, 2022, 2024, 2025 |
+| Baseball | Bowman Chrome Sapphire | 2025 |
+| Baseball | Bowman Draft | 2019, 2020, 2021, 2022, 2023, 2025 |
+| Baseball | Topps | 2019, 2020, 2021, 2022, 2023, 2026 |
+| Baseball | Topps Chrome | 2019, 2020, 2021, 2022, 2023, 2024, 2025 |
+| Baseball | Topps Chrome Sapphire | 2025 |
+| Baseball | Topps Chrome Update | 2025 |
 | Baseball | Topps Finest | 2019, 2021, 2022, 2023 |
 | Baseball | Topps Update | 2019, 2020, 2021, 2022, 2023 |
-| Basketball | Bowman U Chrome | 2023-24 |
+| Basketball | Bowman | 2025-26 |
+| Basketball | Bowman U Chrome | 2023-24, 2024-25 |
 | Basketball | Donruss Optic | 2019-20, 2020-21, 2021-22, 2022-23 |
 | Basketball | Panini Donruss | 2019-20, 2020-21, 2021-22, 2022-23 |
 | Basketball | Panini Mosaic | 2019-20, 2020-21, 2021-22, 2022-23 |
-| Basketball | Panini Prizm | 2019-20, 2020-21, 2021-22, 2022-23 |
+| Basketball | Panini Prizm | 2019-20, 2020-21, 2021-22, 2022-23, 2024-25, 2025-26 |
 | Basketball | Panini Select | 2019-20, 2020-21, 2021-22, 2022-23 |
 | Basketball | Prizm Draft Picks | 2019-20, 2020-21, 2021-22, 2022-23, 2023-24 |
-| Football | Bowman U Chrome | 2023 |
+| Basketball | Topps Chrome | 2025-26 |
+| Football | Bowman U Chrome | 2023, 2024, 2025 |
 | Football | Donruss Optic | 2019, 2020, 2021, 2022 |
 | Football | Panini Donruss | 2019, 2020, 2021, 2022, 2023 |
 | Football | Panini Mosaic | 2020, 2021, 2022, 2023 |
-| Football | Panini Prizm | 2019, 2020, 2021, 2022, 2023 |
+| Football | Panini Prizm | 2019, 2020, 2021, 2022, 2023, 2024, 2025 |
 | Football | Panini Select | 2019, 2020, 2021, 2022 |
 | Football | Prizm Draft Picks | 2019, 2020, 2021 |
+| Hockey | Upper Deck | 2024-25, 2025-26 |
 
-Read from Cardboard Connection's product pages, the same source as the 2024 Bowman parallels
-above. Those pages carry a full player checklist for products through 2023. Their 2024 and later
-pages are reviews with no player list, so those years are not in the store yet: they need the
-makers' own files. Panini's CSV download reads as it comes. A Topps checklist reads the same way
-once it is saved as a CSV with player, team and card number columns. Until a product is in the store, the scanner falls back to the sold titles for that year,
-set and card # (below).
+Products through 2023 were read from Cardboard Connection's product pages (2026-11-14), the same
+source as the 2024 Bowman parallels above. Its 2024 and later pages are reviews with no player
+list.
 
-Also not in the store, because no page with a player list was found for them: hockey (none of
-these product lines had one), Topps Chrome basketball and football, Bowman U before 2023, the
-2023 Select and Optic football sets, and the 2023-24 NBA sets other than Prizm Draft Picks.
+The 22 products from 2024 on, and Upper Deck hockey, were read from Checklist Insider pages on
+2026-11-13 and saved as CSVs in `scripts/checklist-csv/` (one per page, 24 in all: Upper Deck
+Series 1 and Series 2 are one product). `scripts/checklist-csv/SOURCES.md` lists each file's
+page, sport, year and product. Each was imported from its file, with the page logged as the source:
+
+```
+npx tsx scripts/import-checklist.ts --sport Basketball --year 2025-26 --product "Panini Prizm" \
+  --from scripts/checklist-csv/2025-26-basketball-panini-prizm.csv \
+  --source https://www.checklistinsider.com/2025-26-panini-prizm-basketball --read 2026-11-13
+```
+
+- `--source` logs the page a saved file came from, in place of the file's name.
+- `--read` logs the day that page was read, in place of today.
+- The Series 2 files were imported with `--add`. 2026 Topps is Series 1 only so far.
+
+The `*.parallels.json` files beside the CSVs are that site's parallel lists. They are kept there
+for later and are not loaded by the app: the parallel files above are still the only ones used.
+
+Until a product is in the store, the scanner falls back to the sold titles for that year, set and
+card # (below).
+
+Still not in the store, because no page with a player list was found for them: Bowman U before
+2023, the 2023 Select and Optic football sets, the 2023-24 NBA sets other than Prizm Draft Picks,
+and hockey before 2024-25.
 
 Left out on purpose, so a row is always one player on one card: cards with two or more players,
 team cards, league leaders, checklists and empty slots.
@@ -100,6 +124,10 @@ Only once the card's own year, set and card # are read. Then, in order:
 2. With no name read at all, the checklist names the player only when every section of the
    product puts the same player on that number, and the year was printed on the card (a © year
    alone can be the year after).
+   Panini inserts and autographs reuse plain numbers (2025-26 Prizm #24 is thirteen cards). When
+   sections disagree, the base sections ("Base", "Base Rookies" and the like) are preferred, but
+   only when the card doesn't read as an autograph, an insert or a variation and prints none of
+   the other sections' names. If more than one player is still possible, the player stays open.
 3. Otherwise the sold titles for that year, set and card # can name the player, when a clear
    majority of them agree.
 

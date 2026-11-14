@@ -763,5 +763,203 @@
   "source": "https://www.cardboardconnection.com/2023-panini-prizm-football-nfl-cards",
   "read": "2026-11-14",
   "cards": 1074
+ },
+ {
+  "file": "2024-25-basketball-bowman-u-chrome",
+  "sport": "Basketball",
+  "yearLabel": "2024-25",
+  "product": "Bowman U Chrome",
+  "source": "https://www.checklistinsider.com/2024-25-bowman-university-chrome-basketball",
+  "read": "2026-11-13",
+  "cards": 520
+ },
+ {
+  "file": "2024-25-basketball-panini-prizm",
+  "sport": "Basketball",
+  "yearLabel": "2024-25",
+  "product": "Panini Prizm",
+  "source": "https://www.checklistinsider.com/2024-25-panini-prizm-basketball",
+  "read": "2026-11-13",
+  "cards": 928
+ },
+ {
+  "file": "2024-25-hockey-upper-deck",
+  "sport": "Hockey",
+  "yearLabel": "2024-25",
+  "product": "Upper Deck",
+  "source": "https://www.checklistinsider.com/2024-25-upper-deck-series-1-hockey + https://www.checklistinsider.com/2024-25-upper-deck-series-2-hockey",
+  "read": "2026-11-13",
+  "cards": 1679
+ },
+ {
+  "file": "2024-baseball-bowman",
+  "sport": "Baseball",
+  "yearLabel": "2024",
+  "product": "Bowman",
+  "source": "https://www.checklistinsider.com/2024-bowman-baseball",
+  "read": "2026-11-13",
+  "cards": 925
+ },
+ {
+  "file": "2024-baseball-bowman-chrome",
+  "sport": "Baseball",
+  "yearLabel": "2024",
+  "product": "Bowman Chrome",
+  "source": "https://www.checklistinsider.com/2024-bowman-chrome-baseball",
+  "read": "2026-11-13",
+  "cards": 668
+ },
+ {
+  "file": "2024-baseball-topps-chrome",
+  "sport": "Baseball",
+  "yearLabel": "2024",
+  "product": "Topps Chrome",
+  "source": "https://www.checklistinsider.com/2024-topps-chrome-baseball",
+  "read": "2026-11-13",
+  "cards": 919
+ },
+ {
+  "file": "2024-football-bowman-u-chrome",
+  "sport": "Football",
+  "yearLabel": "2024",
+  "product": "Bowman U Chrome",
+  "source": "https://www.checklistinsider.com/2024-bowman-university-chrome-football",
+  "read": "2026-11-13",
+  "cards": 626
+ },
+ {
+  "file": "2024-football-panini-prizm",
+  "sport": "Football",
+  "yearLabel": "2024",
+  "product": "Panini Prizm",
+  "source": "https://www.checklistinsider.com/2024-panini-prizm-football",
+  "read": "2026-11-13",
+  "cards": 890
+ },
+ {
+  "file": "2025-26-basketball-bowman",
+  "sport": "Basketball",
+  "yearLabel": "2025-26",
+  "product": "Bowman",
+  "source": "https://www.checklistinsider.com/2025-26-bowman-basketball",
+  "read": "2026-11-13",
+  "cards": 1493
+ },
+ {
+  "file": "2025-26-basketball-panini-prizm",
+  "sport": "Basketball",
+  "yearLabel": "2025-26",
+  "product": "Panini Prizm",
+  "source": "https://www.checklistinsider.com/2025-26-panini-prizm-basketball",
+  "read": "2026-11-13",
+  "cards": 720
+ },
+ {
+  "file": "2025-26-basketball-topps-chrome",
+  "sport": "Basketball",
+  "yearLabel": "2025-26",
+  "product": "Topps Chrome",
+  "source": "https://www.checklistinsider.com/2025-26-topps-chrome-basketball",
+  "read": "2026-11-13",
+  "cards": 1208
+ },
+ {
+  "file": "2025-26-hockey-upper-deck",
+  "sport": "Hockey",
+  "yearLabel": "2025-26",
+  "product": "Upper Deck",
+  "source": "https://www.checklistinsider.com/2025-26-upper-deck-series-1-hockey + https://www.checklistinsider.com/2025-26-upper-deck-series-2-hockey",
+  "read": "2026-11-13",
+  "cards": 1861
+ },
+ {
+  "file": "2025-baseball-bowman",
+  "sport": "Baseball",
+  "yearLabel": "2025",
+  "product": "Bowman",
+  "source": "https://www.checklistinsider.com/2025-bowman-baseball",
+  "read": "2026-11-13",
+  "cards": 902
+ },
+ {
+  "file": "2025-baseball-bowman-chrome",
+  "sport": "Baseball",
+  "yearLabel": "2025",
+  "product": "Bowman Chrome",
+  "source": "https://www.checklistinsider.com/2025-bowman-chrome-baseball",
+  "read": "2026-11-13",
+  "cards": 725
+ },
+ {
+  "file": "2025-baseball-bowman-chrome-sapphire",
+  "sport": "Baseball",
+  "yearLabel": "2025",
+  "product": "Bowman Chrome Sapphire",
+  "source": "https://www.checklistinsider.com/2025-bowman-chrome-sapphire-baseball",
+  "read": "2026-11-13",
+  "cards": 263
+ },
+ {
+  "file": "2025-baseball-bowman-draft",
+  "sport": "Baseball",
+  "yearLabel": "2025",
+  "product": "Bowman Draft",
+  "source": "https://www.checklistinsider.com/2025-bowman-draft-baseball",
+  "read": "2026-11-13",
+  "cards": 746
+ },
+ {
+  "file": "2025-baseball-topps-chrome",
+  "sport": "Baseball",
+  "yearLabel": "2025",
+  "product": "Topps Chrome",
+  "source": "https://www.checklistinsider.com/2025-topps-chrome-baseball",
+  "read": "2026-11-13",
+  "cards": 1024
+ },
+ {
+  "file": "2025-baseball-topps-chrome-sapphire",
+  "sport": "Baseball",
+  "yearLabel": "2025",
+  "product": "Topps Chrome Sapphire",
+  "source": "https://www.checklistinsider.com/2025-topps-chrome-sapphire-baseball",
+  "read": "2026-11-13",
+  "cards": 372
+ },
+ {
+  "file": "2025-baseball-topps-chrome-update",
+  "sport": "Baseball",
+  "yearLabel": "2025",
+  "product": "Topps Chrome Update",
+  "source": "https://www.checklistinsider.com/2025-topps-chrome-update-series-baseball",
+  "read": "2026-11-13",
+  "cards": 1092
+ },
+ {
+  "file": "2025-football-bowman-u-chrome",
+  "sport": "Football",
+  "yearLabel": "2025",
+  "product": "Bowman U Chrome",
+  "source": "https://www.checklistinsider.com/2025-bowman-university-chrome-football",
+  "read": "2026-11-13",
+  "cards": 670
+ },
+ {
+  "file": "2025-football-panini-prizm",
+  "sport": "Football",
+  "yearLabel": "2025",
+  "product": "Panini Prizm",
+  "source": "https://www.checklistinsider.com/2025-panini-prizm-football",
+  "read": "2026-11-13",
+  "cards": 1021
+ },
+ {
+  "file": "2026-baseball-topps",
+  "sport": "Baseball",
+  "yearLabel": "2026",
+  "product": "Topps",
+  "source": "https://www.checklistinsider.com/2026-topps-series-1-baseball",
+  "read": "2026-11-13",
+  "cards": 1246
  }
 ]

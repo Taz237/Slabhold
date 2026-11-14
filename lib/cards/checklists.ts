@@ -72,6 +72,48 @@ export function sameChecklistProduct(
   return Boolean(phrase) && sameSeason(entry.yearLabel, card.yearLabel) && productPhrase(entry.product) === phrase;
 }
 
+/** Words a base section's name can carry after "Base": the base set under its own name, never a variation or an autograph. */
+const BASE_SECTION = /^base(?:\s+(?:set|rookies?|paper|chrome|sapphire|prospects|young|guns))*$/i;
+
+/** "Base", "Base Rookies", "Base Paper", "Base Young Guns": the base set. "Base Image Variation" and "Fireworks" are not. */
+export function isBaseSection(name: string): boolean {
+  return BASE_SECTION.test(name.trim());
+}
+
+const plainKey = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
+/** Words on the end of a section's name that the card itself doesn't print: "Fireworks Autographs" prints FIREWORKS. */
+const SECTION_TAIL = /\s+(?:autographs?|autos?|signatures?|prizms?|refractors?|variations?|inserts?)$/;
+
+/**
+ * The card's own text names this section: "FIREWORKS" on a card that could be the Fireworks
+ * insert. The name without its last word counts too ("Fireworks Autographs"), unless what is left
+ * is only words every card of the product prints (the set's own name, "Rookie", "Base").
+ */
+export function sectionNamedOnCard(section: string, product: string, cardText: string): boolean {
+  const text = ` ${plainKey(cardText)} `;
+  const full = plainKey(section);
+  if (!full) return false;
+  if (text.includes(` ${full} `)) return true;
+  const short = full.replace(SECTION_TAIL, "");
+  if (!short || short === full) return false;
+  const common = new Set([...plainKey(product).split(" "), "base", "rookie", "rookies", "prospects", "chrome"]);
+  if (short.split(" ").every((word) => common.has(word))) return false;
+  return text.includes(` ${short} `);
+}
+
+/**
+ * The base card at a number inserts and autographs share (Panini reuses plain numbers: 2025-26
+ * Prizm #24 is thirteen cards). The hits in the base sections, when nothing the card printed
+ * names one of the other sections. Empty: the card may be an insert, so it names nobody.
+ */
+export function baseSetHits(hits: readonly ChecklistHit[], cardText: string): ChecklistHit[] {
+  const base = hits.filter((hit) => isBaseSection(hit.section));
+  if (base.length === 0) return [];
+  const others = hits.filter((hit) => !isBaseSection(hit.section));
+  return others.some((hit) => sectionNamedOnCard(hit.section, hit.product, cardText)) ? [] : base;
+}
+
 /**
  * Everyone the loaded checklists put on this card number, for this year and set (any sport when
  * the scan has none). A card with two players on it is skipped: it names nobody on its own.

@@ -1,0 +1,865 @@
+{
+ "sport": "Baseball",
+ "yearLabel": "2024",
+ "product": "Bowman",
+ "manufacturer": "Topps",
+ "source": "https://www.checklistinsider.com/2024-bowman-baseball",
+ "official": false,
+ "parallels": [
+  {
+   "subset": "Base Paper",
+   "name": "Sky Blue Border",
+   "serialRun": 499
+  },
+  {
+   "subset": "Base Paper",
+   "name": "Neon Green Border",
+   "serialRun": 399
+  },
+  {
+   "subset": "Base Paper",
+   "name": "Fuchsia Border",
+   "serialRun": 299
+  },
+  {
+   "subset": "Base Paper",
+   "name": "Purple Border",
+   "serialRun": 250
+  },
+  {
+   "subset": "Base Paper",
+   "name": "Purple Pattern",
+   "serialRun": 199
+  },
+  {
+   "subset": "Base Paper",
+   "name": "Pink Border",
+   "serialRun": 175
+  },
+  {
+   "subset": "Base Paper",
+   "name": "Blue Border",
+   "serialRun": 150
+  },
+  {
+   "subset": "Base Paper",
+   "name": "Blue Pattern",
+   "serialRun": 150
+  },
+  {
+   "subset": "Base Paper",
+   "name": "Green Border",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base Paper",
+   "name": "Green Pattern",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base Paper",
+   "name": "Yellow Border",
+   "serialRun": 75
+  },
+  {
+   "subset": "Base Paper",
+   "name": "Gold Border",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base Paper",
+   "name": "Orange Border",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Paper",
+   "name": "Black Pattern",
+   "serialRun": 15
+  },
+  {
+   "subset": "Base Paper",
+   "name": "Red Border",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Paper",
+   "name": "Platinum Border Rainbow Foil",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Paper",
+   "name": "Printing Plates",
+   "serialRun": 1
+  },
+  {
+   "subset": "Paper Prospects",
+   "name": "Sky Blue Border",
+   "serialRun": 499
+  },
+  {
+   "subset": "Paper Prospects",
+   "name": "Neon Green Border",
+   "serialRun": 399
+  },
+  {
+   "subset": "Paper Prospects",
+   "name": "Fuchsia Border",
+   "serialRun": 299
+  },
+  {
+   "subset": "Paper Prospects",
+   "name": "Purple Border",
+   "serialRun": 250
+  },
+  {
+   "subset": "Paper Prospects",
+   "name": "Purple Pattern",
+   "serialRun": 199
+  },
+  {
+   "subset": "Paper Prospects",
+   "name": "Pink Border",
+   "serialRun": 175
+  },
+  {
+   "subset": "Paper Prospects",
+   "name": "Blue Border",
+   "serialRun": 150
+  },
+  {
+   "subset": "Paper Prospects",
+   "name": "Blue Pattern",
+   "serialRun": 150
+  },
+  {
+   "subset": "Paper Prospects",
+   "name": "Green Border",
+   "serialRun": 99
+  },
+  {
+   "subset": "Paper Prospects",
+   "name": "Green Pattern",
+   "serialRun": 99
+  },
+  {
+   "subset": "Paper Prospects",
+   "name": "Yellow Border",
+   "serialRun": 75
+  },
+  {
+   "subset": "Paper Prospects",
+   "name": "Gold Border",
+   "serialRun": 50
+  },
+  {
+   "subset": "Paper Prospects",
+   "name": "Orange Border",
+   "serialRun": 25
+  },
+  {
+   "subset": "Paper Prospects",
+   "name": "Chartreuse Border",
+   "serialRun": 15
+  },
+  {
+   "subset": "Paper Prospects",
+   "name": "Red Border",
+   "serialRun": 5
+  },
+  {
+   "subset": "Paper Prospects",
+   "name": "Platinum Border",
+   "serialRun": 1
+  },
+  {
+   "subset": "Paper Prospects",
+   "name": "Printing Plates",
+   "serialRun": 1
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Lunar Glow",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Mini Diamond Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Pearl Refractor SSP",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Base Refractor",
+   "serialRun": 499
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Lava Refractor",
+   "serialRun": 399
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Speckle Refractor",
+   "serialRun": 299
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Purple Refractor",
+   "serialRun": 250
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Purple RayWave Refractor",
+   "serialRun": 250
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Fuchsia Refractor",
+   "serialRun": 199
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Fuchsia Lunar Refractor",
+   "serialRun": 199
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Blue Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Blue RayWave Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Blue Shimmer Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Aqua Lunar Refractor",
+   "serialRun": 125
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Aqua Shimmer Refractor",
+   "serialRun": 125
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Green Grass Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Green Shimmer Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Yellow Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Yellow Lunar Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Gold Shimmer Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Orange Shimmer Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Rose Gold Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Rose Gold Mini Diamond",
+   "serialRun": 5
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Red Lava Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Printing Plates",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Chrome RetroFractor Variation",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base Chrome RetroFractor Variation",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Chrome RetroFractor Variation",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Chrome RetroFractor Variation",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Chrome RetroFractor Variation Autograph",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Chrome RetroFractor Variation Autograph",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Chrome RetroFractor Variation Autograph",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Base Refractor",
+   "serialRun": 499
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Speckle Refractor",
+   "serialRun": 299
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Purple Refractor",
+   "serialRun": 250
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Blue Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Blue Lunar Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Mini-Diamond Refractor",
+   "serialRun": 100
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Green Grass Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Green Shimmer Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Yellow Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Gold Shimmer Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Orange Shimmer Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Pearl Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Red Lava Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Printing Plates",
+   "serialRun": 1
+  },
+  {
+   "subset": "Paper Prospect Retail Autographs",
+   "name": "Purple Border",
+   "serialRun": 250
+  },
+  {
+   "subset": "Paper Prospect Retail Autographs",
+   "name": "Blue Border",
+   "serialRun": 150
+  },
+  {
+   "subset": "Paper Prospect Retail Autographs",
+   "name": "Green Border",
+   "serialRun": 99
+  },
+  {
+   "subset": "Paper Prospect Retail Autographs",
+   "name": "Gold Border",
+   "serialRun": 50
+  },
+  {
+   "subset": "Paper Prospect Retail Autographs",
+   "name": "Orange Border",
+   "serialRun": 25
+  },
+  {
+   "subset": "Paper Prospect Retail Autographs",
+   "name": "Red Border",
+   "serialRun": 5
+  },
+  {
+   "subset": "Paper Prospect Retail Autographs",
+   "name": "Platinum Border",
+   "serialRun": 1
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "Base Refractor",
+   "serialRun": 499
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "Blue Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "Mini-Diamond Refractor",
+   "serialRun": 100
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "Yellow Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "Printing Plates",
+   "serialRun": 1
+  },
+  {
+   "subset": "Dual Bowman Prospect Autographs",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Bowman Scouts' Top 100 Autographs",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Bowman Scouts' Top 100 Autographs",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Bowman Scouts' Top 100 Autographs",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Gladiators of the Diamond Autographs",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Gladiators of the Diamond Autographs",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Gladiators of the Diamond Autographs",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Gladiators of the Diamond Autographs",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Prospect Power-Up Autographs",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Rising Infernos Autographs",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Rising Infernos Autographs",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Rising Infernos Autographs",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Rookie of the Year ROY Favorites Autographs",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Rookie of the Year ROY Favorites Autographs",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Rookie of the Year ROY Favorites Autographs",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Rookie of the Year ROY Favorites Autographs",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Bowman A.I.",
+   "name": "Mini-Diamond Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Bowman A.I.",
+   "name": "Aqua Refractor",
+   "serialRun": 125
+  },
+  {
+   "subset": "Bowman A.I.",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Bowman A.I.",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Bowman A.I.",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Bowman A.I.",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Bowman A.I.",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Bowman Scouts' Top 100",
+   "name": "Mini-Diamond Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Bowman Scouts' Top 100",
+   "name": "Aqua Refractor",
+   "serialRun": 125
+  },
+  {
+   "subset": "Bowman Scouts' Top 100",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Bowman Scouts' Top 100",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Bowman Scouts' Top 100",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Bowman Scouts' Top 100",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Bowman Scouts' Top 100",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Bowman Spotlight",
+   "name": "Mini-Diamond Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Bowman Spotlight",
+   "name": "Aqua Refractor",
+   "serialRun": 125
+  },
+  {
+   "subset": "Bowman Spotlight",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Bowman Spotlight",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Bowman Spotlight",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Bowman Spotlight",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Bowman Spotlight",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Gladiators of the Diamond",
+   "name": "Mini-Diamond Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Gladiators of the Diamond",
+   "name": "Aqua Refractor",
+   "serialRun": 125
+  },
+  {
+   "subset": "Gladiators of the Diamond",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Gladiators of the Diamond",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Gladiators of the Diamond",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Gladiators of the Diamond",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Prospect Power-Up",
+   "name": "Mini-Diamond Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Prospect Power-Up",
+   "name": "Aqua Refractor",
+   "serialRun": 125
+  },
+  {
+   "subset": "Prospect Power-Up",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Prospect Power-Up",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Prospect Power-Up",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Prospect Power-Up",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Prospect Power-Up",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Rising Infernos",
+   "name": "Mini-Diamond Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Rising Infernos",
+   "name": "Aqua Refractor",
+   "serialRun": 125
+  },
+  {
+   "subset": "Rising Infernos",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Rising Infernos",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Rising Infernos",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Rising Infernos",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Rookie of the Year ROY Favorites",
+   "name": "Mini-Diamond Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Rookie of the Year ROY Favorites",
+   "name": "Aqua Refractor",
+   "serialRun": 125
+  },
+  {
+   "subset": "Rookie of the Year ROY Favorites",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Rookie of the Year ROY Favorites",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Rookie of the Year ROY Favorites",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Rookie of the Year ROY Favorites",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Rookie of the Year ROY Favorites",
+   "name": "SuperFractor",
+   "serialRun": 1
+  }
+ ]
+}
