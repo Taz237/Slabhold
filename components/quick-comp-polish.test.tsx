@@ -80,7 +80,9 @@ const comps: CompListing[] = [
 describe("quick comp: one comp card", () => {
   it("shows the value exactly once", () => {
     const html = chart({});
-    assert.equal(count(html, "$35.00"), 1);
+    // The small "Last sold" line is its own read (here the newest sale is also $35).
+    const headline = html.replace(/<p data-last-sold=""[\s\S]*?<\/p>/, "");
+    assert.equal(count(headline, "$35.00"), 1);
     assert.equal(count(html, "data-comp-value"), 1);
     assert.match(html, /Based on 6 sales/);
   });

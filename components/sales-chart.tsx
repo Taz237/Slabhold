@@ -18,7 +18,7 @@ import {
 } from "@/components/comp-basis";
 import { formatPct, pctTone, rangeStart, type RangeId } from "@/lib/chart/range";
 import { middleFifty } from "@/lib/comps/stats";
-import { saleTrend, splitOutliers, vsDaysAgo, type ChartSale } from "@/lib/chart/sales";
+import { headlineRange, latestSale, saleTrend, splitOutliers, vsDaysAgo, type ChartSale } from "@/lib/chart/sales";
 import { snapshotDateInNewYork } from "@/lib/collection/totals-shared";
 import { money } from "@/lib/format";
 import { NOT_ENOUGH_SALES_LABEL } from "@/lib/value/format";
@@ -155,6 +155,16 @@ export function saleMeta(sale: ChartSale, today?: string): string {
     .join(" · ");
 }
 
+/** "Last sold $24.50 · Nov 12": the newest sale, under an estimate headline. */
+export function lastSoldLine(sale: ChartSale, today?: string): string {
+  return [`Last sold ${money(sale.price)}`, saleDate(sale.date, today)].filter(Boolean).join(" · ");
+}
+
+/** "Sold $36.00 · PSA 10 · Oct 9 · eBay": a tapped sale, in the same small line. */
+export function tappedSaleLine(sale: ChartSale, today?: string): string {
+  return [`Sold ${money(sale.price)}`, saleMeta(sale, today)].filter(Boolean).join(" · ");
+}
+
 /** The comp chart's zoom ranges. All is the default and always today's read. */
 export const COMP_RANGES: { id: Extract<RangeId, "30d" | "90d" | "all">; label: string; days: number | null; phrase: string }[] = [
   { id: "30d", label: "30D", days: 30, phrase: "past 30 days" },
@@ -231,8 +241,9 @@ function HeroMoney({ value }: { value: number }) {
 /**
  * The card page's one comp read: the label and freshness, the value with its
  * 30-day chip, the middle-half range, and every sale as a dot on one shared
- * <ValueChart>. Tap a dot (or a row in Recent sales) and the hero shows that
- * sale. Outliers are hollow and left off the trend.
+ * <ValueChart>. The hero is always the median the Low/High bar is built from.
+ * The newest sale is a small "Last sold" line; tap a dot (or a row in Recent
+ * sales) and that line shows the tapped sale. Outliers are hollow and left off the trend.
  */
 export function SalesChart({
   card,
@@ -348,7 +359,8 @@ export function SalesChart({
     () => (refValue != null ? { value: refValue, label: `Median ${money(refValue)}` } : null),
     [refValue],
   );
-  const showRange = estimateShown && displayMedian != null && displayP25 != null && displayP75 != null;
+  const bar = estimateShown ? headlineRange(displayMedian, displayP25, displayP75) : null;
+  const newest = useMemo(() => latestSale(allSales), [allSales]);
   const inlierPrices = split.inliers.map((sale) => sale.price);
   const ariaLabel = showSample
     ? "Sample price history"
@@ -359,14 +371,14 @@ export function SalesChart({
   const ago = usingLive ? shortAgo(fetchedAt) : "";
   const freshness = showSample ? "Sample" : ago ? `Recent sold · ${ago}` : null;
   const fewSales = split.inliers.length < TREND_MIN_SALES;
-  const chip = !selected && estimateShown && !fewSales && vs != null;
+  const chip = estimateShown && !fewSales && vs != null;
   // The USD line sits under real sold prices, and stays while a sale is tapped. Never on sample data.
   const basisShown = estimateShown && usingLive;
   // One tone for the line, its fill, its dots and the chip: the 30-day trend when the chip shows, else purple.
   const lineTone = chip ? vsTone : "brand";
   const chartBand = useMemo(
-    () => (showRange && !fewSales && displayP25 != null && displayP75 != null ? { low: displayP25, high: displayP75 } : null),
-    [showRange, fewSales, displayP25, displayP75],
+    () => (bar && !fewSales ? { low: bar.low, high: bar.high } : null),
+    [bar, fewSales],
   );
   const phrase = COMP_RANGES.find((item) => item.id === range)?.phrase ?? "";
 
@@ -378,7 +390,8 @@ export function SalesChart({
     return <CompCardSkeleton range={showEstimate} />;
   }
 
-  const caption = selected ? (
+  // An estimate keeps its headline; the tapped sale moves to the small line under it.
+  const caption = selected && !estimateShown ? (
     saleMeta(selected, today)
   ) : showSample ? (
     "Sample history from recent months"
@@ -400,7 +413,7 @@ export function SalesChart({
       </div>
 
       <div className="mt-1 flex min-h-10 items-baseline gap-2">
-        {selected ? (
+        {selected && !estimateShown ? (
           <p key={`sale-${selected.id}`} data-comp-value="" className={`comp-fade ${compHeroValue}`}>
             {money(selected.price)}
           </p>
@@ -421,22 +434,29 @@ export function SalesChart({
       </div>
 
       <p className={`mt-2 flex min-h-4 min-w-0 items-center gap-1.5 leading-4 ${compCaption}`}>
-        <span key={selected ? `c-${selected.id}` : "c"} className="comp-fade min-w-0 truncate tabular-nums">
+        <span key={selected && !estimateShown ? `c-${selected.id}` : "c"} className="comp-fade min-w-0 truncate tabular-nums">
           {caption}
         </span>
-        {!selected && showEstimate && lowConfidence && !noSales ? (
+        {(!selected || estimateShown) && showEstimate && lowConfidence && !noSales ? (
           <span className="shrink-0 rounded-md bg-amber-500/15 px-1.5 text-11 leading-4 font-semibold text-amber-800 dark:text-amber-200">
             Low confidence
           </span>
         ) : null}
       </p>
+      {estimateShown && newest ? (
+        <p data-last-sold="" className={`mt-1 h-4 min-w-0 truncate leading-4 tabular-nums ${compCaption}`}>
+          <span key={selected ? `s-${selected.id}` : "last"} className="comp-fade">
+            {selected ? tappedSaleLine(selected, today) : lastSoldLine(newest, today)}
+          </span>
+        </p>
+      ) : null}
       {basisShown ? <p className={`mt-1 leading-4 ${compCaption}`}>{PRICE_BASIS_LINE}</p> : null}
 
-      {showRange && displayMedian != null && displayP25 != null && displayP75 != null ? (
+      {bar ? (
         <RangeBar
-          low={displayP25}
-          high={displayP75}
-          median={displayMedian}
+          low={bar.low}
+          high={bar.high}
+          median={bar.value}
           min={inlierPrices.length ? Math.min(...inlierPrices) : null}
           max={inlierPrices.length ? Math.max(...inlierPrices) : null}
         />
