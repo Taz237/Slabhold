@@ -178,6 +178,11 @@ type Evidence = {
   border: string | null;
   yearLabel: string;
   copyrightYear: string;
+  /**
+   * The © year is the only year, and the back's stats stop two seasons before it: last year's
+   * product printed late, or this year's. The lookups try both; the sheet shows neither.
+   */
+  yearOpen?: boolean;
   setNames: string[];
   /** A slab's printed set when it isn't one of SETS. */
   setText: string;
@@ -263,8 +268,13 @@ function evidenceFrom(read: ScanRead, directory: readonly IndexedDirectoryPlayer
     };
   }
   const sides = [read.front, read.back].filter((side): side is RawCardRead => Boolean(side));
+  // The sport the card itself gives: a team line, a position line, a league mark, the product line.
+  const cardSports = sides.flatMap((side) => [side.team?.sport ?? "", side.sportHint ?? "", side.baseballSign ? "Baseball" : ""]).filter(Boolean);
   let players: RawPlayerHit[] = [];
-  for (const hit of sides.flatMap((side) => side.players)) {
+  // A near name (one or two letters off) from a sport the card rules out is nobody: a Bills card
+  // reading "JAMES COOK" is never the Nationals' James Wood.
+  const otherSport = (hit: RawPlayerHit) => hit.score < 1 && cardSports.length > 0 && !cardSports.includes(hit.sport);
+  for (const hit of sides.flatMap((side) => side.players).filter((item) => !otherSport(item))) {
     const seen = players.find((item) => item.name === hit.name && item.sport === hit.sport);
     if (!seen) players.push({ ...hit });
     else {
@@ -295,7 +305,6 @@ function evidenceFrom(read: ScanRead, directory: readonly IndexedDirectoryPlayer
     // A wider-list name (retired, college, prospects) only confirms the name the card printed: the
     // same line the card is read by without it. And never against the card's own sport.
     const confirmed = printed ? players.find((hit) => hit.more && hit.nameplate && compactName(hit.name) === compactName(printed)) : undefined;
-    const cardSports = sides.flatMap((side) => [side.team?.sport ?? "", side.sportHint ?? "", side.baseballSign ? "Baseball" : ""]).filter(Boolean);
     players = players.filter((hit) => !hit.more);
     if (confirmed && (cardSports.length === 0 || cardSports.every((sport) => sport === confirmed.sport))) {
       players = [confirmed];
@@ -320,6 +329,10 @@ function evidenceFrom(read: ScanRead, directory: readonly IndexedDirectoryPlayer
   const cardNumber = backNumber || read.front.cardNumber || initialCode;
   const setNames = mergedSetNames(sides, cardNumber);
   const numberPrefix = /^([A-Z]+)-/.exec(cardNumber)?.[1] ?? "";
+  const yearLabel = sides.map((side) => side.yearLabel).find(Boolean) ?? "";
+  const copyrightYear = sides.map((side) => side.copyrightYear).find(Boolean) ?? "";
+  const statSeason = sides.map((side) => side.statSeason ?? "").find(Boolean) ?? "";
+  const yearOpen = !yearLabel && /^\d{4}$/.test(copyrightYear) && Boolean(statSeason) && Number(copyrightYear) - Number(statSeason) === 2;
   const parallelWords: string[] = [];
   // In a set with a Sapphire Edition, "Sapphire" names the product, never the parallel.
   const sapphireProduct = Boolean(setNames[0]) && inSapphireFamily(setNames[0]);
@@ -340,8 +353,9 @@ function evidenceFrom(read: ScanRead, directory: readonly IndexedDirectoryPlayer
     insert: sides.map((side) => side.insert).find(Boolean) ?? "",
     subset: sides.map((side) => side.subset ?? "").find(Boolean) ?? "",
     border: read.border ?? null,
-    yearLabel: sides.map((side) => side.yearLabel).find(Boolean) ?? "",
-    copyrightYear: sides.map((side) => side.copyrightYear).find(Boolean) ?? "",
+    yearLabel,
+    copyrightYear,
+    ...(yearOpen ? { yearOpen: true } : {}),
     setNames,
     setText: "",
     cardNumber,
@@ -670,6 +684,24 @@ type Candidate = {
   titles?: TitleFacts[];
 };
 
+/** The sport a listing's own words give (a team, a league, "Baseball"). "" when it says nothing. */
+function titleSport(read: RawCardRead): string {
+  return read.team?.sport || read.sportHint || (read.baseballSign ? "Baseball" : "");
+}
+
+/** A listing from a sport the card rules out is another card, whatever name, run or code it shares. */
+function otherSportTitle(read: RawCardRead, sport: string): boolean {
+  const said = titleSport(read);
+  return Boolean(sport) && Boolean(said) && said !== sport;
+}
+
+/** "CCS-JW" for a player whose initials aren't JW. Only two-letter endings and two-word names: "CPA-JDL" and "De La Cruz" are left alone. */
+function otherPlayerCode(cardNumber: string, playerName: string): boolean {
+  const ending = /^[A-Z]{2,5}-([A-Z]{2})$/.exec(cardNumber.toUpperCase())?.[1];
+  const name = withoutSuffix(playerName).replace(/[^a-z\s]/gi, "").split(/\s+/).filter(Boolean);
+  return Boolean(ending) && name.length === 2 && ending !== initialsOf(name.join(" "));
+}
+
 function titleNamesPlayer(title: string, playerName: string): boolean {
   const name = compactName(playerName);
   return name.length > 0 && compactNorm(normInterest(title)).includes(name);
@@ -959,7 +991,7 @@ function synthesized(evidence: Evidence): Candidate | null {
   if (!playerName && !evidence.playerOpen) return null;
   const setBrand = evidence.setNames[0] ?? (evidence.setText ? titleCase(evidence.setText) : "");
   // No year on the front: the back's © year is usually the card's year (marked likely, not sure).
-  const year = evidence.yearLabel || (evidence.slab ? "" : evidence.copyrightYear);
+  const year = evidence.yearLabel || (evidence.slab || evidence.yearOpen ? "" : evidence.copyrightYear);
   // A clearly printed name with a print run still shows the player, with the set and number open.
   if (!year && !setBrand && !evidence.cardNumber && !(evidence.playerLocked && evidence.serial)) return null;
   const sport = evidence.players[0]?.sport ?? evidence.sport;
@@ -1044,6 +1076,9 @@ function titleCandidates(
       const read = readRawCardText([title], directory);
       return { title, read, number: cardNumberKey(read.cardNumber), runs: titleRuns(title) };
     })
+    .filter((item) => !otherSportTitle(item.read, sport))
+    // An autograph code ends in its player's initials: CCS-JW is never a James Cook card.
+    .filter((item) => !otherPlayerCode(item.read.cardNumber, playerName))
     .filter((item) => (!printedNumber || !item.number || item.number === printedNumber))
     .filter((item) => printedRun == null || item.runs.length === 0 || item.runs.includes(printedRun));
 
@@ -1089,7 +1124,7 @@ function titleCandidates(
   if (groups.size === 0) return [];
   return [...groups.values()].map((group) => {
     // The year most titles give; titles that skip it still count toward everything else.
-    const year = [...group.years.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? (evidence.yearLabel || evidence.copyrightYear);
+    const year = [...group.years.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? (evidence.yearLabel || (evidence.yearOpen ? "" : evidence.copyrightYear));
     const number = cardNumberKey(group.number);
     // Agreement is counted across ALL matching titles for this card: no year, no set, or a maker's
     // bare name on a Bowman card all count; a title naming another set doesn't.
@@ -1232,11 +1267,12 @@ function withBackedNearPlayer(
     .map((title) => ({ title, read: readRawCardText([title], directory) }));
   const titled = (name: string) =>
     parsed.some((item) => {
-      if (!titleNamesPlayer(item.title, name)) return false;
+      if (!titleNamesPlayer(item.title, name) || otherSportTitle(item.read, evidence.sport)) return false;
       const number = cardNumberKey(item.read.cardNumber);
       if (printedNumber && number) return number === printedNumber;
       const set = item.read.setNames[0] ?? "";
-      if (!printedSet || !set || !sameSet(set, printedSet)) return false;
+      // A maker's bare name ("Topps") is on every card it makes: it never says this is the card.
+      if (!printedSet || !set || BARE_MAKER_SET.has(printedSet) || !sameSet(set, printedSet)) return false;
       return !evidence.yearLabel || !item.read.yearLabel || sameSeason(item.read.yearLabel, evidence.yearLabel);
     });
   const backed = (hit: RawPlayerHit) => hit.score === 1 || (Boolean(hit.team) && cardTeams.includes(hit.team!)) || titled(hit.name);
