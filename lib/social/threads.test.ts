@@ -3,6 +3,14 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  clearComposeDraft,
+  composeDraftKey,
+  draftThread,
+  keepComposeDraft,
+  takeComposeDraft,
+  threadDraftFromHome,
+} from "./compose-draft";
 import { localCreateThread, localDeletePost, type LocalDb } from "./local-db";
 import { postExtrasFromRow } from "./post-extras";
 import { remoteCreateThread } from "./remote";
@@ -339,5 +347,52 @@ describe("writing a thread in the composer", () => {
     assert.match(composer, /const TOOL_BUTTON =\s+"grid h-11 w-11/);
     assert.match(composer, /style=\{\{ bottom: entered \? inset : 0 \}\}/);
     assert.match(composer, /createThread\(inputs\)/);
+  });
+});
+
+describe("the plus button on Home's composer", () => {
+  const gif = {
+    id: "abc123",
+    mp4: "https://media2.giphy.com/media/abc123/200w.mp4",
+    still: "https://media2.giphy.com/media/abc123/200w_s.gif",
+    width: 200,
+    height: 113,
+  };
+
+  it("hands what was written to the full composer as post 1, and opens on post 2", () => {
+    clearComposeDraft();
+    const key = composeDraftKey({ edit: null, quote: null, card: null })!;
+    keepComposeDraft(key, threadDraftFromHome({ body: "First", images: [], cardId: "card-1", gif }));
+    const kept = takeComposeDraft(key);
+    assert.ok(kept, "the draft is kept even though post 2 is still empty");
+    assert.equal(kept.cardId, "card-1");
+    const held = draftThread(kept, { body: kept.body, images: kept.images });
+    assert.deepEqual(held.segments, [
+      { body: "First", images: [], gif },
+      { body: "", images: [], gif: null },
+    ]);
+    assert.equal(held.active, 1);
+    assert.equal(takeComposeDraft(key), null, "taken once");
+  });
+
+  it("opens an ordinary kept draft on its first post, and never past the end", () => {
+    const plain = { body: "Just one", images: ["data:image/png;base64,AAAA"], cardId: "", quoteId: null };
+    assert.deepEqual(draftThread(plain, plain), {
+      segments: [{ body: "Just one", images: plain.images, gif: null }],
+      active: 0,
+    });
+    assert.equal(draftThread({ ...plain, active: 7 }, plain).active, 0);
+  });
+
+  it("is on Home with the GIF button, clears the box, and stays hidden without the columns", () => {
+    const feed = readFileSync(join(process.cwd(), "components/feed-view.tsx"), "utf8");
+    const composer = feed.slice(feed.indexOf("function Composer("), feed.indexOf("export function FeedLoadError"));
+    assert.match(composer, /aria-label="Add a GIF"/);
+    assert.match(composer, /aria-label="Add another post"/);
+    assert.match(composer, /keepComposeDraft\(key, threadDraftFromHome\(\{ body, images, cardId, gif \}\)\);\s+clear\(\);\s+router\.push\("\/compose"\)/);
+    assert.match(composer, /postsSupportGifsAndThreads\(supabase\)/);
+    assert.equal(composer.match(/\{extrasOn \? \(/g)?.length, 2, "both buttons wait for the database columns");
+    assert.match(composer, /disabled=\{!hasDraft \|\| overLimit \|\| readingPhoto \|\| sending\}/);
+    assert.match(composer, /createPost\(\{[^}]*\bgif,/);
   });
 });

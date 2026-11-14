@@ -17,6 +17,8 @@ export type ComposeDraft = {
   gif?: PostGif | null;
   /** The later posts of a thread being written. */
   more?: ThreadSegment[];
+  /** Which post the composer opens on, 0 first. Set by Home's plus button. */
+  active?: number;
 };
 
 function hasMore(draft: ComposeDraft): boolean {
@@ -38,6 +40,32 @@ export function composeDraftKey(params: {
 
 function isEmpty(draft: ComposeDraft): boolean {
   return !draft.body.trim() && draft.images.length === 0 && !draft.cardId && !draft.gif && !hasMore(draft);
+}
+
+/**
+ * Home's plus button: what is written there becomes the first post of a
+ * thread, and the full composer opens on a new second post.
+ */
+export function threadDraftFromHome(start: { body: string; images: readonly string[]; cardId: string; gif: PostGif | null }): ComposeDraft {
+  return {
+    body: start.body,
+    images: [...start.images],
+    cardId: start.cardId,
+    quoteId: null,
+    gif: start.gif,
+    more: [{ body: "", images: [], gif: null }],
+    active: 1,
+  };
+}
+
+/** The posts a kept draft holds, and the one to open on. */
+export function draftThread(
+  draft: ComposeDraft,
+  first: { body: string; images: string[] },
+): { segments: ThreadSegment[]; active: number } {
+  const segments = [{ body: first.body, images: first.images, gif: first.images.length ? null : (draft.gif ?? null) }, ...(draft.more ?? [])];
+  const wanted = Number.isInteger(draft.active) ? (draft.active as number) : 0;
+  return { segments, active: Math.min(Math.max(0, wanted), segments.length - 1) };
 }
 
 /** Keep the draft for this mode. An empty one drops what was held for it. */

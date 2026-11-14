@@ -309,7 +309,7 @@ describe("post photos", () => {
 
     const feed = read("components/feed-view.tsx");
     const compose = read("components/compose-view.tsx");
-    assert.match(feed, /disabled=\{photosFull\}/);
+    assert.match(feed, /disabled=\{photosFull \|\| Boolean\(gif\)\}/);
     assert.match(feed, /aria-describedby=\{photosFull \? "feed-photo-cap" : undefined\}/);
     assert.match(feed, /id="feed-photo-cap"/);
     assert.doesNotMatch(feed, /aria-label=\{photosFull/);

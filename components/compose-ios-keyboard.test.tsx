@@ -418,4 +418,43 @@ describe("composer layout, like X", () => {
       view.unmount();
     }
   });
+
+  it("opens on the second post of a thread handed over from Home, and posts both in order", async () => {
+    fakeViewport(0);
+    threadCalls.length = 0;
+    const { clearComposeDraft, composeDraftKey, keepComposeDraft, threadDraftFromHome } = await import(
+      "@/lib/social/compose-draft"
+    );
+    const view = await mount();
+    view.unmount();
+    clearComposeDraft();
+    keepComposeDraft(
+      composeDraftKey({ edit: null, quote: null, card: null })!,
+      threadDraftFromHome({ body: "Written on Home", images: [], cardId: "", gif: null }),
+    );
+    const { createRoot } = await import("react-dom/client");
+    const host = win.document.createElement("div");
+    win.document.body.appendChild(host);
+    const root = createRoot(host);
+    await act(async () => {
+      root.render(createElement(Harness, null, createElement(ComposeView)));
+    });
+    await frames();
+    try {
+      assert.equal(win.document.querySelectorAll('[role="dialog"] [data-thread-post]').length, 2);
+      assert.equal(field().value, "", "the second post is the one being written");
+      assert.equal(field().getAttribute("placeholder"), "Add another post");
+      assert.match(
+        win.document.querySelector('button[aria-label="Edit post 1"]')?.textContent ?? "",
+        /Written on Home/,
+      );
+      await type("Written in the composer");
+      await act(async () => postButton().click());
+      await waitFor(() => threadCalls.length === 1, "the thread is posted");
+      assert.deepEqual(threadCalls[0], ["Written on Home", "Written in the composer"]);
+    } finally {
+      act(() => root.unmount());
+      host.remove();
+    }
+  });
 });

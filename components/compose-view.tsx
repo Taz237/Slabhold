@@ -29,6 +29,7 @@ import { takeCompose } from "@/lib/capture";
 import {
   clearComposeDraft,
   composeDraftKey,
+  draftThread,
   keepComposeDraft,
   takeComposeDraft,
   type ComposeDraft,
@@ -157,16 +158,21 @@ export function ComposeView() {
     // Post it after Add card: a starter caption for that card, only when nothing was typed yet.
     const store = !kept?.body && !quoteParam && attachCardParam ? shareSessionStore() : null;
     const starter = store ? takeComposeCaption(store, attachCardParam) : null;
-    if (kept) {
-      setBody(kept.body || starter || "");
-      if (kept.cardId) setCardId(kept.cardId);
-      if (kept.gif) setGif(kept.gif);
-      if (kept.more?.length) setSegments([{ ...EMPTY_SEGMENT }, ...kept.more]);
-    } else if (starter) {
-      setBody(starter);
-    }
     const captured = takeCompose();
     const restored = [...(kept?.images ?? []), ...(captured ? [captured] : [])];
+    if (kept) {
+      if (kept.cardId) setCardId(kept.cardId);
+      // A kept thread opens on the post that was being written.
+      const held = draftThread(kept, { body: kept.body || starter || "", images: restored });
+      const open = held.segments[held.active] ?? EMPTY_SEGMENT;
+      setSegments(held.segments);
+      setActive(held.active);
+      setBody(open.body);
+      setGif(open.gif);
+      if (open.images.length) replaceAll(open.images);
+      return;
+    }
+    if (starter) setBody(starter);
     if (restored.length) replaceAll(restored);
   }, [attachCardParam, draftKey, editId, posts, quoteParam, ready, replaceAll, user]);
 
@@ -179,6 +185,7 @@ export function ComposeView() {
       quoteId,
       gif: first.gif,
       more: thread.slice(1),
+      active,
     };
   });
 
