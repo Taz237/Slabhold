@@ -9,8 +9,10 @@ import { BAKEOFF_CASES, type BakeoffCase } from "./bakeoff-fixtures";
 import { WIDE_BAKEOFF_CASES } from "./bakeoff-fixtures-wide";
 import { PLAYER_LIST_BAKEOFF_CASES } from "./bakeoff-fixtures-players";
 import { LOOKUP_BAKEOFF_CASES } from "./bakeoff-fixtures-lookup";
+import { ERA_BAKEOFF_CASES } from "./bakeoff-fixtures-era";
 import { BAKEOFF_BASELINE } from "./bakeoff-baseline";
 import { lookupLiveSolds } from "./live-solds";
+import { nameKey } from "./player-lookup";
 import { rankScanMatches, scanChecklistKey, type ScanMatch } from "./match";
 import { withAlternates } from "./alternates";
 import { scanReadFrom, type ScanCapture } from "./session";
@@ -138,9 +140,11 @@ function board(title: string, rows: readonly Row[]): string[] {
   ];
 }
 
-const ALL_CASES: BakeoffCase[] = [...BAKEOFF_CASES, ...WIDE_BAKEOFF_CASES, ...PLAYER_LIST_BAKEOFF_CASES, ...LOOKUP_BAKEOFF_CASES];
+const ALL_CASES: BakeoffCase[] = [...BAKEOFF_CASES, ...WIDE_BAKEOFF_CASES, ...PLAYER_LIST_BAKEOFF_CASES, ...LOOKUP_BAKEOFF_CASES, ...ERA_BAKEOFF_CASES];
 /** Where the lookup set starts. */
 const LOOKUP_START = BAKEOFF_CASES.length + WIDE_BAKEOFF_CASES.length + PLAYER_LIST_BAKEOFF_CASES.length;
+/** Where the era set starts. */
+const ERA_START = LOOKUP_START + LOOKUP_BAKEOFF_CASES.length;
 /** The scans the scoreboard had before the wider player list: checked field by field against bakeoff-baseline.ts. */
 const BASELINE_CASES = BAKEOFF_CASES.length + WIDE_BAKEOFF_CASES.length;
 const LETTER: Record<Mark, string> = { right: "r", open: "o", wrong: "w" };
@@ -150,7 +154,8 @@ describe("the scanner bake-off", () => {
   const first = rows.slice(0, BAKEOFF_CASES.length);
   const wide = rows.slice(BAKEOFF_CASES.length, BASELINE_CASES);
   const playerList = rows.slice(BASELINE_CASES, LOOKUP_START);
-  const lookup = rows.slice(LOOKUP_START);
+  const lookup = rows.slice(LOOKUP_START, ERA_START);
+  const era = rows.slice(ERA_START);
 
   it("prints the scoreboard", () => {
     const lines = [
@@ -160,6 +165,7 @@ describe("the scanner bake-off", () => {
       ...board("Wide set", wide),
       ...board("Player-list set", playerList),
       ...board("Lookup set", lookup),
+      ...board("Era set", era),
       ...board("All", rows),
       `Known misses marked: ${ALL_CASES.reduce((sum, scan) => sum + (scan.knownWrong?.length ?? 0), 0)}`,
     ];
@@ -236,6 +242,25 @@ describe("the scanner bake-off", () => {
       // A looked-up player is never "sure" on the scan alone: the collector confirms it.
       if (match?.playerSource) assert.equal(match.sureness.player, "likely", scan.name);
     });
+  });
+
+  it("the era set: every truth is on the store's checklist where the store has the set, and with it loaded the card # and year read right", async () => {
+    let checked = 0;
+    for (const scan of ERA_BAKEOFF_CASES) {
+      if (!scan.truth.number || !scan.truth.player) continue;
+      const files = await loadChecklistsFor({ years: [scan.truth.year], setBrand: scan.truth.set });
+      if (files.length === 0) continue;
+      const at = files.flatMap((product) => product.sections.flatMap((section) => section.cards.filter(([number]) => number.toLowerCase() === scan.truth.number.toLowerCase()).map(([, player]) => player)));
+      assert.ok(at.some((player) => nameKey(player) === nameKey(scan.truth.player)), `${scan.name}: the checklist has ${at.join(", ") || "nobody"} at #${scan.truth.number}`);
+      checked += 1;
+    }
+    assert.ok(checked >= 2, `${checked} era truths checked against the store`);
+    const products = await loadProductData();
+    for (const scan of ERA_BAKEOFF_CASES.filter((item) => item.kind !== "slab" && item.truth.number)) {
+      const match = top(scan, products, await storeChecklists(scan));
+      assert.equal(match?.cardNumber, scan.truth.number, `${scan.name}: ${shownLine(match)}`);
+      assert.equal(match?.yearLabel, scan.truth.year, `${scan.name}: ${shownLine(match)}`);
+    }
   });
 
   it("the Philon card: 2025-26 Panini Prizm #103 /175, the player named, never 'Player not read'", () => {
