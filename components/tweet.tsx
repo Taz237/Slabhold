@@ -459,7 +459,7 @@ function PostMenu({ post }: { post: Post }) {
       {open && mine ? (
         <div
           role="menu"
-          className="absolute top-9 right-0 z-30 w-52 overflow-hidden rounded-2xl border border-zinc-200 bg-[var(--background)] py-1 shadow-lg dark:border-white/10"
+          className="menu-pop origin-top-right absolute top-9 right-0 z-30 w-52 overflow-hidden rounded-2xl border border-zinc-200 bg-[var(--background)] py-1 shadow-lg dark:border-white/10"
         >
           {confirming ? (
             <div className="px-3 py-2.5">
@@ -637,7 +637,7 @@ export function Engagement({
         {repostMenuOpen ? (
           <div
             role="menu"
-            className="absolute bottom-10 left-0 z-30 w-44 overflow-hidden rounded-2xl border border-zinc-200 bg-[var(--background)] py-1 shadow-lg dark:border-white/10"
+            className="menu-pop origin-bottom-left absolute bottom-10 left-0 z-30 w-44 overflow-hidden rounded-2xl border border-zinc-200 bg-[var(--background)] py-1 shadow-lg dark:border-white/10"
           >
             <button
               type="button"

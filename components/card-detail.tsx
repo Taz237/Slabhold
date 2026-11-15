@@ -1,5 +1,6 @@
 "use client";
 
+import { scrollBehavior } from "@/lib/ui/scroll-behavior";
 import { ActionError, useActionRetry } from "@/components/action-error";
 import { ReadRetry } from "@/components/read-retry";
 import Link from "next/link";
@@ -245,12 +246,12 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
 
   useEffect(() => {
     if (!editing) return;
-    editorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    editorRef.current?.scrollIntoView({ behavior: scrollBehavior(), block: "start" });
   }, [editing]);
 
   useEffect(() => {
     if (!menuOpen) return;
-    menuRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    menuRef.current?.scrollIntoView({ behavior: scrollBehavior(), block: "start" });
   }, [menuOpen]);
 
   if (!ready) return <CardDetailPending id={id} />;

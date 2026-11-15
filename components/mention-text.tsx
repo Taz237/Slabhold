@@ -1,3 +1,4 @@
+import { scrollBehavior } from "@/lib/ui/scroll-behavior";
 import Link from "next/link";
 import { splitPostText, type PostTextPart } from "@/lib/social/post-text";
 import { userHref } from "@/lib/social/user-href";
@@ -95,7 +96,7 @@ function PostTextPiece({
         const target = document.getElementById("get-started");
         if (!target) return;
         event.preventDefault();
-        target.scrollIntoView({ behavior: "smooth", block: "start" });
+        target.scrollIntoView({ behavior: scrollBehavior(), block: "start" });
       }}
     >
       {part.text}

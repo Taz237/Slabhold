@@ -65,7 +65,7 @@ export function MessagesView() {
   }
 
   return (
-    <PullToRefresh onRefresh={refresh} className="-mx-4 -mt-5">
+    <PullToRefresh onRefresh={refreshInbox} className="-mx-4 -mt-5">
       <div className="flex items-center justify-between gap-3 px-4 pt-4">
         <h1 className="text-[1.625rem] leading-8 font-semibold tracking-tight">Messages</h1>
         <button

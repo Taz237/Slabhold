@@ -38,7 +38,8 @@ describe("sheet motion", () => {
     for (const file of ["components/deal-sheet.tsx", "components/profile-edit-sheet.tsx", "components/share-sheet-view.tsx"]) {
       const source = read(file);
       assert.match(source, /backdrop-in/, file);
-      assert.match(source, /sheet-up/, file);
+      // The bottom sheets slide the whole way up (sheet-slide); the full-screen editor keeps the short rise.
+      assert.match(source, /sheet-up|sheet-slide/, file);
     }
   });
 

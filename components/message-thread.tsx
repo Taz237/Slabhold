@@ -11,7 +11,6 @@ import { DealThreadPanel } from "@/components/deal-response";
 import { MentionText } from "@/components/mention-text";
 import { MessageAttachments } from "@/components/message-attachments";
 import { CardMessagePreviewCard } from "@/components/open-to-offers";
-import { useReducedMotion } from "@/components/timeline-ui";
 import { MARK_SOLD_LABEL } from "@/lib/deals/state";
 import { EmptyState, LoadingRows } from "@/components/status";
 import { useLoadMore } from "@/components/load-more";
@@ -32,7 +31,7 @@ import { userHref } from "@/lib/social/user-href";
 import { MESSAGE_LIMIT, type DirectMessage } from "@/lib/social/types";
 import { TeamBadge } from "@/components/team-badge";
 import { useKeyboardInset } from "@/lib/ui/use-keyboard-inset";
-import { threadHeight } from "@/lib/ui/thread-height";
+import { followsNewMessage, threadAtBottom, threadHeight } from "@/lib/ui/thread-height";
 
 /**
  * Keys that showed up after the list first had content. The first batch is
@@ -111,12 +110,13 @@ export function MessageThread({ username }: { username: string }) {
   /** Just confirmed. Their saved copy slides in without a second rise. */
   const [settled, setSettled] = useState<readonly string[]>([]);
   const [openTime, setOpenTime] = useState<string | null>(null);
-  const reduceMotion = useReducedMotion();
   const scroller = useRef<HTMLDivElement>(null);
   const fieldRef = useRef<HTMLTextAreaElement>(null);
   // The keyboard's height, from the iOS app's events or Safari's visual viewport.
   const keyboardInset = useKeyboardInset();
   const scrolledOnce = useRef(false);
+  /** The reader is at the newest message, so new content keeps it in view. */
+  const pinned = useRef(true);
   const thread = partner
     ? messages.filter(
         (message) =>
@@ -173,20 +173,55 @@ export function MessageThread({ username }: { username: string }) {
   // Keyed on the newest message, so older ones loading above don't move it.
   const newestId = shownThread[shownThread.length - 1]?.id ?? null;
   const oldestId = shownThread[0]?.id ?? null;
-  useEffect(() => {
+  // Before paint, so the thread never shows its top for a frame. The new
+  // bubble rises in on its own (bubble-in), so the list itself does not glide.
+  const newestOwn = shownThread[shownThread.length - 1]?.senderId === user?.id;
+  useLayoutEffect(() => {
     const node = scroller.current;
     if (!node) return;
-    const glide = scrolledOnce.current && !reduceMotion && typeof node.scrollTo === "function";
+    const first = !scrolledOnce.current;
     scrolledOnce.current = true;
-    if (glide) node.scrollTo({ top: node.scrollHeight, behavior: "smooth" });
-    else node.scrollTop = node.scrollHeight;
-  }, [newestId, partner?.id, reduceMotion]);
+    if (!followsNewMessage({ first, pinned: pinned.current, own: newestOwn })) return;
+    node.scrollTop = node.scrollHeight;
+    pinned.current = true;
+  }, [newestId, newestOwn, partner?.id]);
 
-  // The keyboard opened: the thread got shorter, so keep the newest message in view.
+  // The keyboard opened or closed: the thread changed height. If the newest
+  // message was in view it stays in view, in the same frame.
+  useLayoutEffect(() => {
+    const node = scroller.current;
+    if (node && pinned.current) node.scrollTop = node.scrollHeight;
+    // iOS can scroll the whole page to reveal the box. The thread already
+    // ends at the keyboard, so put the page back: the header never jumps.
+    if (keyboardInset > 0 && window.scrollY !== 0) window.scrollTo(0, 0);
+  }, [keyboardInset]);
+
+  // Stay pinned while the reader is at the bottom: a shared post or card that
+  // fills in, a photo that loads or the deal panel changing height never
+  // leaves the newest message under the composer.
+  const threadShown = Boolean(partner) && ready;
   useEffect(() => {
     const node = scroller.current;
-    if (node && keyboardInset > 0) node.scrollTop = node.scrollHeight;
-  }, [keyboardInset]);
+    if (!node || !threadShown) return;
+    const repin = () => {
+      if (pinned.current) node.scrollTop = node.scrollHeight;
+    };
+    const onScroll = () => {
+      pinned.current = threadAtBottom(node);
+    };
+    const grown = typeof MutationObserver === "function" ? new MutationObserver(repin) : null;
+    grown?.observe(node, { childList: true, subtree: true });
+    const resized = typeof ResizeObserver === "function" ? new ResizeObserver(repin) : null;
+    resized?.observe(node);
+    node.addEventListener("load", repin, true);
+    node.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      grown?.disconnect();
+      resized?.disconnect();
+      node.removeEventListener("load", repin, true);
+      node.removeEventListener("scroll", onScroll);
+    };
+  }, [threadShown]);
 
   // Older messages landed above: keep what was on screen where it was.
   useLayoutEffect(() => {

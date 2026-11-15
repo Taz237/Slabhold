@@ -1,3 +1,4 @@
+import { SHEET_SETTLE_MS } from "@/lib/ui/sheet-drag";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -91,6 +92,12 @@ describe("Add card sheet", () => {
       assert.match(backdrop?.className ?? "", /backdrop-blur/);
       assert.match(backdrop?.className ?? "", /bg-zinc-950\/55/);
       await act(async () => backdrop!.click());
+      // A tap slides the sheet away first, then closes it.
+      assert.equal(view.closed(), 0);
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, SHEET_SETTLE_MS + 60));
+      });
+      assert.equal(view.closed(), 1);
       await act(async () => {
         win.dispatchEvent(new win.KeyboardEvent("keydown", { key: "Escape" }));
       });
@@ -165,7 +172,8 @@ describe("Add card sheet", () => {
 
   it("pops up with motion, fades under reduced motion, and keeps 44px+ targets", () => {
     const sheet = read("components/add-card/add-card-sheet.tsx");
-    assert.match(sheet, /motion-safe:animate-\[sheet-up/);
+    // The whole sheet slides up on the spring (.sheet-slide is motion-safe in globals.css).
+    assert.match(sheet, /sheet-slide motion-reduce:animate-\[backdrop-in/);
     assert.match(sheet, /motion-reduce:animate-\[backdrop-in/);
     assert.match(sheet, /motion-safe:animate-\[add-tile-in/);
     assert.doesNotMatch(sheet, /teal|font-bold|animate-spin|\bAI\b|\bbest\b|\bfree\b/i);
