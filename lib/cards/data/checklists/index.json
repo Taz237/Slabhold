@@ -90,6 +90,24 @@
   "cards": 331
  },
  {
+  "file": "1955-baseball-topps",
+  "sport": "Baseball",
+  "yearLabel": "1955",
+  "product": "Topps",
+  "source": "https://www.cardboardconnection.com/1955-topps-baseball-cards",
+  "read": "2026-11-15",
+  "cards": 206
+ },
+ {
+  "file": "1956-baseball-topps",
+  "sport": "Baseball",
+  "yearLabel": "1956",
+  "product": "Topps",
+  "source": "https://www.cardboardconnection.com/1956-topps-baseball-cards",
+  "read": "2026-11-15",
+  "cards": 340
+ },
+ {
   "file": "1964-baseball-topps",
   "sport": "Baseball",
   "yearLabel": "1964",
