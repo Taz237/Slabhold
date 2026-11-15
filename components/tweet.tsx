@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { memo, startTransition, useRef, useState } from "react";
-import { BadgeCheck, Ellipsis, Heart, MessageCircle, Pin, Quote, Repeat2, Send } from "lucide-react";
+import { BadgeCheck, Ellipsis, Heart, MessageCircle, Pencil, Pin, PinOff, Quote, Repeat2, Send, Trash2 } from "lucide-react";
+import { MenuSheet, MenuSheetIcon, menuSheetItem } from "@/components/menu-sheet";
 import { Avatar } from "@/components/avatar";
 import { useCollection } from "@/components/collection-provider";
 import { useImageLightbox, type LightboxOptions } from "@/components/image-lightbox";
@@ -424,8 +425,6 @@ function PostMenu({ post }: { post: Post }) {
     setConfirming(false);
   }
 
-  useCloseOnOutsideTap(open, rootRef, close);
-
   if (!user) return null;
   if (!mine) {
     if (!author) return null;
@@ -457,14 +456,11 @@ function PostMenu({ post }: { post: Post }) {
         <Ellipsis className="h-5 w-5" />
       </button>
       {open && mine ? (
-        <div
-          role="menu"
-          className="menu-pop origin-top-right absolute top-9 right-0 z-30 w-52 overflow-hidden rounded-2xl border border-zinc-200 bg-[var(--background)] py-1 shadow-lg dark:border-white/10"
-        >
+        <MenuSheet label="Post options" onClose={close} cancel={!confirming}>
           {confirming ? (
-            <div className="px-3 py-2.5">
-              <p className="text-sm font-semibold">Delete this post?</p>
-              <div className="mt-2.5 flex gap-2">
+            <div className="px-5 pt-2 pb-2">
+              <p className="text-base font-semibold">Delete this post?</p>
+              <div className="mt-3 flex gap-2">
                 <button
                   type="button"
                   onClick={() => {
@@ -473,14 +469,14 @@ function PostMenu({ post }: { post: Post }) {
                       if (!result.error && pathname === `/posts/${post.id}`) router.replace("/");
                     });
                   }}
-                  className="hit-44 flex-1 rounded-full bg-rose-600 py-1.5 text-sm font-semibold text-white"
+                  className="tap min-h-12 flex-1 rounded-full bg-rose-600 text-base font-semibold text-white"
                 >
                   Delete
                 </button>
                 <button
                   type="button"
                   onClick={() => setConfirming(false)}
-                  className="hit-44 flex-1 rounded-full border border-zinc-300 py-1.5 text-sm font-semibold dark:border-white/20"
+                  className="tap min-h-12 flex-1 rounded-full border border-zinc-300 text-base font-semibold dark:border-white/20"
                 >
                   Cancel
                 </button>
@@ -501,8 +497,9 @@ function PostMenu({ post }: { post: Post }) {
                       close();
                     });
                   }}
-                  className="block w-full px-4 py-2.5 text-left text-15 font-semibold hover:bg-zinc-100 disabled:opacity-60 dark:hover:bg-white/10"
+                  className={menuSheetItem}
                 >
+                  <MenuSheetIcon icon={PinOff} />
                   Unpin
                 </button>
               ) : post.hiddenAt ? null : (
@@ -518,30 +515,36 @@ function PostMenu({ post }: { post: Post }) {
                       close();
                     });
                   }}
-                  className="block w-full px-4 py-2.5 text-left text-15 font-semibold hover:bg-zinc-100 disabled:opacity-60 dark:hover:bg-white/10"
+                  className={menuSheetItem}
                 >
+                  <MenuSheetIcon icon={Pin} />
                   Pin to profile
                 </button>
               )}
               <button
                 type="button"
                 role="menuitem"
-                onClick={() => router.push(`/compose?edit=${post.id}`)}
-                className="block w-full px-4 py-2.5 text-left text-15 font-semibold hover:bg-zinc-100 dark:hover:bg-white/10"
+                onClick={() => {
+                  close();
+                  router.push(`/compose?edit=${post.id}`);
+                }}
+                className={menuSheetItem}
               >
+                <MenuSheetIcon icon={Pencil} />
                 Edit post
               </button>
               <button
                 type="button"
                 role="menuitem"
                 onClick={() => setConfirming(true)}
-                className="block w-full px-4 py-2.5 text-left text-15 font-semibold text-rose-600 hover:bg-zinc-100 dark:hover:bg-white/10"
+                className={`${menuSheetItem} text-rose-600 dark:text-rose-400`}
               >
+                <MenuSheetIcon icon={Trash2} />
                 Delete post
               </button>
             </>
           )}
-        </div>
+        </MenuSheet>
       ) : null}
     </div>
   );

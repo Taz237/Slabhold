@@ -88,6 +88,7 @@ describe("bottom sheet motion", () => {
   it("pops the post menus open from their corner", () => {
     assert.match(css, /@keyframes menu-pop \{\s*from \{\s*opacity: 0;\s*transform: scale\(0\.94\);/);
     const tweet = read("components/tweet.tsx");
-    assert.equal((tweet.match(/role="menu"\s+className="menu-pop /g) ?? []).length, 2);
+    // The repost menu. The ⋯ menu is a bottom sheet now (components/menu-sheet.tsx).
+    assert.equal((tweet.match(/role="menu"\s+className="menu-pop /g) ?? []).length, 1);
   });
 });

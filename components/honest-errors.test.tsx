@@ -151,7 +151,8 @@ function text() {
 }
 
 function button(name: RegExp) {
-  const found = [...host.querySelectorAll<HTMLButtonElement>("button")].find((node) =>
+  // The whole page: the ⋯ menu is a bottom sheet drawn at the end of <body>.
+  const found = [...document.querySelectorAll<HTMLButtonElement>("button")].find((node) =>
     name.test(node.getAttribute("aria-label") ?? node.textContent ?? ""),
   );
   assert.ok(found, `button ${name}`);
