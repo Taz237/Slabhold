@@ -118,7 +118,8 @@ export function SearchView() {
   const catalogRequest = useRef(0);
   if (catalogFor !== typed) {
     setCatalogFor(typed);
-    setCatalogCards([]);
+    // Still searching: the last results stay up until the new ones land.
+    if (!wantsCatalogSearch(typed)) setCatalogCards([]);
     setCatalogTrouble(false);
     setCatalogLoading(wantsCatalogSearch(typed));
   }
@@ -389,7 +390,7 @@ export function SearchView() {
               <h2 className="px-4 pt-4 pb-1 text-xl font-semibold tracking-tight">Cards</h2>
               {catalogLoading ? <span className="sr-only">Searching cards</span> : null}
               {catalogTrouble ? <CatalogTrouble onRetry={retryCatalog} /> : null}
-              {catalogLoading ? (
+              {catalogLoading && catalogCards.length === 0 ? (
                 <ul aria-hidden="true">
                   {Array.from({ length: 3 }, (_, row) => (
                     <li
@@ -404,7 +405,7 @@ export function SearchView() {
                   ))}
                 </ul>
               ) : (
-                <ul>
+                <ul className={`transition-opacity duration-150 motion-reduce:transition-none ${catalogLoading ? "opacity-60" : ""}`}>
                   {catalogCards.map((card) => {
                     const page = catalogSecondaryLink(card, {
                       ownCards: cards,

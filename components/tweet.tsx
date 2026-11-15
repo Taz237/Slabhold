@@ -645,6 +645,7 @@ export function Engagement({
               onClick={() => {
                 setRepostMenuOpen(false);
                 if (!reposted && !reduceMotion) setRepostBurst((count) => count + 1);
+                if (!reposted) haptic("like");
                 toggleRepost(targetId);
               }}
               className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-15 font-semibold hover:bg-zinc-100 dark:hover:bg-white/10"

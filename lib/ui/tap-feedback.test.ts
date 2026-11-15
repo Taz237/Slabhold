@@ -21,6 +21,7 @@ beforeEach(() => {
       <a id="author" href="/u/sam">Sam</a>
       <a id="me" href="/u/maya">Maya</a>
       <button id="like" type="button"><span id="heart">Like</span></button>
+      <button id="off" type="button" disabled><span id="off-inner">Post</span></button>
     </article>
     <button id="back" type="button" data-nav-href="/posts/p2">Back</button>
     <a id="plain" href="/leaderboard">Leaderboard</a>
@@ -62,6 +63,20 @@ describe("tap feedback", () => {
     assert.equal(el("plain").hasAttribute("data-pressed"), true);
     pointer("pointercancel", el("plain"));
     assert.equal(el("plain").hasAttribute("data-pressed"), false);
+  });
+
+  it("marks a pressed button too, and not the post row around it", () => {
+    pointer("pointerdown", el("heart"));
+    assert.equal(el("like").hasAttribute("data-pressed"), true);
+    assert.equal(el("row").hasAttribute("data-pressed"), false);
+    pointer("pointerup", el("heart"));
+    assert.equal(el("like").hasAttribute("data-pressed"), false);
+  });
+
+  it("leaves a disabled button alone", () => {
+    pointer("pointerdown", el("off-inner"));
+    assert.equal(el("off").hasAttribute("data-pressed"), false);
+    assert.equal(el("row").hasAttribute("data-pressed"), false);
   });
 
   it("lets go when the finger moves off into a scroll", () => {

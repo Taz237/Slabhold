@@ -54,7 +54,7 @@ export function Avatar({
           loading="lazy"
           decoding="async"
           onError={failed}
-          className="h-full w-full rounded-full object-cover"
+          className="h-full w-full rounded-full bg-zinc-200 object-cover dark:bg-white/10"
         />
       </button>
     );
@@ -70,7 +70,7 @@ export function Avatar({
         loading="lazy"
         decoding="async"
         onError={failed}
-        className={`tap rounded-full object-cover ${className}`}
+        className={`tap rounded-full bg-zinc-200 object-cover dark:bg-white/10 ${className}`}
       />
     );
   }

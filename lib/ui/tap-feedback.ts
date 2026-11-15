@@ -54,7 +54,10 @@ export function clearPendingNav(doc: Document): boolean {
 function pressable(target: EventTarget | null): HTMLElement | null {
   const node = target as Element | null;
   if (!node || typeof node.closest !== "function") return null;
-  return node.closest<HTMLElement>("a[href], [data-nav-href]");
+  // The nearest control wins: a button inside a post row presses the button, not the row.
+  const hit = node.closest<HTMLElement>("a[href], button, [data-nav-href]");
+  if (hit?.tagName === "BUTTON" && (hit as HTMLButtonElement).disabled) return null;
+  return hit;
 }
 
 /** Anything a tap lands on that acts on its own. A post row opens only when the tap missed all of these. */

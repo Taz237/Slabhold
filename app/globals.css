@@ -430,6 +430,21 @@ html[data-photo-viewer] [data-app-chrome] {
   }
 }
 
+/* A lazy photo stays clear over its frame's placeholder until it loads, then fades in. Opacity only. */
+img[data-fade] {
+  transition: opacity 180ms ease-out;
+}
+
+img[data-fade]:not([data-loaded]) {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  img[data-fade] {
+    transition: none;
+  }
+}
+
 /*
  * Home feed rows: off screen, a row skips style, layout and paint. Its last
  * real height is kept (contain-intrinsic-size: auto, set per row), so the
@@ -1154,6 +1169,11 @@ a[data-pressed]:not(.tap, .tap-row, [data-tile] a, .tap-row a),
   opacity: 0.7;
 }
 
+/* Every button answers a press on the same frame. Ones with their own press style keep it. */
+button[data-pressed]:not(.tap, .tap-row, .tap-fade) {
+  opacity: 0.7;
+}
+
 /*
  * A card tile tap shows the card skeleton at once (NavPendingSkeleton), with
  * the same slide a pushed screen gets. The page then swaps in place.
@@ -1193,13 +1213,14 @@ html[data-nav-pending="profile"] [data-pending-kind="profile"] {
   transition: background-color 120ms ease-out;
 }
 
-.tap-row:active {
+/* Not while a button or link inside it is the thing being pressed. */
+.tap-row:active:not(:has(button:active, a:active)) {
   background-color: rgb(24 24 27 / 0.045);
   transition-delay: 60ms;
 }
 
 @media (prefers-color-scheme: dark) {
-  .tap-row:active {
+  .tap-row:active:not(:has(button:active, a:active)) {
     background-color: rgb(255 255 255 / 0.045);
   }
 }

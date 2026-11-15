@@ -136,7 +136,7 @@ export function NotificationsView() {
               <li key={group.key} className={highlighted ? "bg-violet-500/10 dark:bg-violet-400/15" : undefined}>
                 <Link
                   href={href}
-                  className="relative flex w-full min-w-0 items-start gap-3 px-4 py-3"
+                  className="tap-row relative flex w-full min-w-0 items-start gap-3 px-4 py-3"
                 >
                   {highlighted ? (
                     <span
