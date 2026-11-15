@@ -1,16 +1,19 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, type MouseEvent } from "react";
 import { clearPendingNav, installTapFeedback } from "@/lib/ui/tap-feedback";
 import { isNativeApp } from "@/lib/ios/platform";
 import {
   RESTORE_TIMEOUT_MS,
+  arrivalScroll,
+  backPops,
   canGoBack,
   edgeBackdrop,
   edgeReleaseGoesBack,
   edgeSwipeAllowed,
   edgeSwipeClaims,
+  isRootScreen,
   navKind,
   querySync,
   restoreStep,
@@ -86,6 +89,25 @@ function restoreScroll(target: number, current: { current: (() => void) | null }
 /** Set while goBackWithMotion waits for the router to draw the page it went back to. */
 let manualBack: (() => void) | null = null;
 
+/** The in-app back stack, mirrored here so a back arrow anywhere can ask about it. */
+let liveStack: NavStack | null = null;
+
+/**
+ * Set when a back arrow moves through history. The route effect then reads
+ * the change as Back even though a link was tapped (no Navigation API on
+ * older iOS to say so).
+ */
+let forcedBack = false;
+let forcedBackTimer = 0;
+
+function forceBack() {
+  forcedBack = true;
+  window.clearTimeout(forcedBackTimer);
+  forcedBackTimer = window.setTimeout(() => {
+    forcedBack = false;
+  }, 1000);
+}
+
 /**
  * history.back() with the slide-back motion. The router draws a popped page
  * outside React's view transitions, so this starts one by hand: the current
@@ -93,6 +115,7 @@ let manualBack: (() => void) | null = null;
  * names the page it lands on. Falls back to a plain Back without the API.
  */
 export function goBackWithMotion(back: () => void) {
+  forceBack();
   const start = (document as Document & {
     startViewTransition?: (update: () => Promise<void>) => { finished: Promise<void> };
   }).startViewTransition?.bind(document);
@@ -121,6 +144,29 @@ export function goBackWithMotion(back: () => void) {
   });
 }
 
+/**
+ * A back arrow. Goes back in history when the page behind is the one the
+ * arrow names (`to`), or any page when it names none, so that screen comes
+ * back at the spot you left. Otherwise opens `to` (or Home): the post or
+ * card was opened cold, or from somewhere else.
+ */
+export function goBack({ to, push }: { to?: string; push: (href: string) => void }) {
+  if (liveStack && backPops(liveStack, to) && window.history.length > 1) {
+    goBackWithMotion(() => window.history.back());
+    return;
+  }
+  push(to ?? "/");
+}
+
+/** onClick for a back arrow that is a link to its parent page. A plain tap goes back in history when it can. */
+export function backLinkClick(event: MouseEvent<HTMLElement>, href: string) {
+  if (event.defaultPrevented || event.button !== 0) return;
+  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  if (!liveStack || !backPops(liveStack, href) || window.history.length <= 1) return;
+  event.preventDefault();
+  goBackWithMotion(() => window.history.back());
+}
+
 /** A sheet or menu is open. Closed ones stay mounted but inert or hidden. */
 function modalOpen() {
   return [...document.querySelectorAll<HTMLElement>("[role='dialog'][aria-modal='true']")].some(
@@ -129,7 +175,7 @@ function modalOpen() {
 }
 
 /** An in-app link or post row the tap is about to open, or null. */
-function tappedHref(event: MouseEvent): string | null {
+function tappedHref(event: globalThis.MouseEvent): string | null {
   if (event.defaultPrevented || event.button !== 0) return null;
   if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return null;
   const target = event.target instanceof Element ? event.target : null;
@@ -159,7 +205,10 @@ export function NavMotion({ ownUsername = null }: { ownUsername?: string | null 
   const stackRef = useRef<NavStack | null>(null);
   const currentRef = useRef<string | null>(null);
   /** How the next route change started: a tap, or what the Navigation API reported. */
-  const intent = useRef<{ type: NavIntent; href: string | null; back?: boolean }>({ type: null, href: null });
+  const intent = useRef<{ type: NavIntent; href: string | null; back?: boolean; tab?: boolean }>({
+    type: null,
+    href: null,
+  });
   const positions = useRef(new Map<string, number>());
   const snapshots = useRef(new Map<string, Snapshot>());
   const swipeDone = useRef(false);
@@ -182,14 +231,19 @@ export function NavMotion({ ownUsername = null }: { ownUsername?: string | null 
     const pending = clearPendingNav(document);
     if (!stackRef.current || previous === null) {
       stackRef.current = startStack(next);
+      liveStack = stackRef.current;
       return;
     }
     if (previous === next) return;
     const said = intent.current;
     intent.current = { type: null, href: null };
-    const type = said.href === null || said.href === next ? said.type : null;
+    const tapped = said.href === null || said.href === next ? said.type : null;
+    // A back arrow that moved through history is a Back, whatever was tapped.
+    const type = forcedBack ? "traverse" : tapped;
+    forcedBack = false;
     const step = routeStep(stackRef.current, next, swipeDone.current ? "traverse" : type);
     stackRef.current = step.stack;
+    liveStack = step.stack;
     const pop = step.direction !== "push";
     // A back arrow that links to the parent page still slides back.
     const direction = said.back && type === "push" ? "back" : step.direction;
@@ -207,7 +261,13 @@ export function NavMotion({ ownUsername = null }: { ownUsername?: string | null 
 
     cleanupSwipe.current?.();
     cleanupSwipe.current = null;
-    if (pop) restoreScroll(positions.current.get(next) ?? 0, stopRestore);
+    const spot = arrivalScroll({
+      pop,
+      tab: Boolean(said.tab) && type === "push",
+      toRoot: isRootScreen(next, ownRef.current),
+      saved: positions.current.get(next),
+    });
+    if (spot !== null) restoreScroll(spot, stopRestore);
     // The skeleton sat at the top of the screen, so the page it hands over to does too.
     else if (pending) window.scrollTo(0, 0);
     // A Back started by goBackWithMotion: name the new page and let the transition capture it.
@@ -233,6 +293,7 @@ export function NavMotion({ ownUsername = null }: { ownUsername?: string | null 
       const synced = querySync(stack, current, here);
       if (!synced) return;
       stackRef.current = synced;
+      liveStack = synced;
       currentRef.current = here;
     }
 
@@ -266,17 +327,26 @@ export function NavMotion({ ownUsername = null }: { ownUsername?: string | null 
       }
       // The router also rewrites history state in place; that is not a move.
       if (navigationType !== "traverse" && href === hereHref()) return;
-      intent.current = { type: navigationType, href: navigationType === "traverse" ? null : href };
+      // The tap that started this already said whether it was a back arrow or a tab.
+      const tapped = navigationType !== "traverse" && intent.current.href === href ? intent.current : null;
+      intent.current = {
+        type: navigationType,
+        href: navigationType === "traverse" ? null : href,
+        back: tapped?.back,
+        tab: tapped?.tab,
+      };
     }
 
-    function onClick(event: MouseEvent) {
+    function onClick(event: globalThis.MouseEvent) {
       syncCurrent();
       const to = tappedHref(event);
       const from = currentRef.current;
       if (!to || from === null || to === from) return;
       positions.current.set(from, window.scrollY);
       const back = event.target instanceof Element && Boolean(event.target.closest("[data-nav-back]"));
-      intent.current = { type: "push", href: to, back };
+      // A tab on the bottom bar or the header: that screen opens where you left it.
+      const tab = event.target instanceof Element && Boolean(event.target.closest("[data-app-chrome]"));
+      intent.current = { type: "push", href: to, back, tab };
       setNav(navKind({ from, to, direction: back ? "back" : "push", ownUsername: ownRef.current }));
       if (!isStandalone()) return;
       const page = document.querySelector<HTMLElement>(PAGE_SELECTOR);
@@ -295,7 +365,10 @@ export function NavMotion({ ownUsername = null }: { ownUsername?: string | null 
     }
 
     // Press state and the card skeleton, straight from the DOM events.
-    const uninstallTaps = installTapFeedback(window);
+    const uninstallTaps = installTapFeedback(window, {
+      // A tab, your own profile included, cross-fades: no pushed skeleton.
+      skip: (path) => isRootScreen(path, ownRef.current),
+    });
 
     // iOS only paints :active press states when the page listens for touches.
     const noop = () => {};

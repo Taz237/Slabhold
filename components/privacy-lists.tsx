@@ -83,6 +83,7 @@ export function PrivacyLists({
       <div className="flex items-center gap-3 border-b border-zinc-200 px-2 py-2 dark:border-white/10">
         <Link
           href={MENU_OPEN_HREF}
+          data-nav-back=""
           aria-label="Back"
           className="hit-44 grid h-9 w-9 place-items-center rounded-full hover:bg-zinc-100 dark:hover:bg-white/10"
         >

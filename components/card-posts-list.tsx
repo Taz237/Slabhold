@@ -1,5 +1,6 @@
 "use client";
 
+import { backLinkClick } from "@/components/nav-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -189,6 +190,7 @@ export function CardPostsList({ cardId }: { cardId: string }) {
           <Link
             href={backHref}
             data-nav-back=""
+            onClick={(event) => backLinkClick(event, backHref)}
             aria-label="Back to card"
             className="hit-44 grid h-9 w-9 place-items-center rounded-full text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/10"
           >

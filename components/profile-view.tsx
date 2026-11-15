@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { MessageCircle, WalletCards } from "lucide-react";
+import { ArrowLeft, MessageCircle, WalletCards } from "lucide-react";
+import { goBack } from "@/components/nav-motion";
 import { Avatar } from "@/components/avatar";
 import { outlineButton, solidButton } from "@/components/button-styles";
 import { OpenToOffersFilter } from "@/components/open-to-offers";
@@ -400,7 +401,19 @@ export function ProfileView({
       className="-mx-4 -mt-5"
     >
     <div inert={editing ? true : undefined} className="min-w-0 overflow-x-hidden">
-      <div className="h-40 overflow-hidden bg-zinc-200 dark:bg-zinc-800">
+      <div className="relative h-40 overflow-hidden bg-zinc-200 dark:bg-zinc-800">
+        {!isOwn ? (
+          <button
+            type="button"
+            onClick={() => goBack({ push: () => router.push("/") })}
+            aria-label="Back"
+            className="tap absolute top-1 left-1 z-[1] grid h-11 w-11 place-items-center rounded-full focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none"
+          >
+            <span className="grid h-9 w-9 place-items-center rounded-full bg-zinc-950/60 text-white">
+              <ArrowLeft className="h-5 w-5" />
+            </span>
+          </button>
+        ) : null}
         {profile.coverDataUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={profile.coverDataUrl} alt="" className="h-full w-full object-cover" />

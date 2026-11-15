@@ -1,6 +1,7 @@
 "use client";
 
-import { goBackWithMotion } from "@/components/nav-motion";
+import { PostPageSkeleton } from "@/components/post-skeleton";
+import { goBack } from "@/components/nav-motion";
 import { ReadRetry } from "@/components/read-retry";
 import { visibleReplies } from "@/lib/social/reply-paging";
 import Link from "next/link";
@@ -8,7 +9,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Ellipsis, ImagePlus } from "lucide-react";
 import { Avatar } from "@/components/avatar";
-import { EmptyState, LoadingRows } from "@/components/status";
+import { EmptyState } from "@/components/status";
 import { solidButton } from "@/components/button-styles";
 import { ReplyPhotoDrafts } from "@/components/compose-photo-drafts";
 import { MentionText } from "@/components/mention-text";
@@ -201,13 +202,7 @@ export function PostView({ id }: { id: string }) {
     });
   }
 
-  if (!ready || (loadingPost && !post)) {
-    return (
-      <div className="-mx-4 -mt-5">
-        <LoadingRows count={2} />
-      </div>
-    );
-  }
+  if (!ready || (loadingPost && !post)) return <PostPageSkeleton />;
 
   // The read failed: the post may be fine, so never call it gone.
   if (!post && postLoadFailedId === id) {
@@ -235,7 +230,7 @@ export function PostView({ id }: { id: string }) {
       <div className="flex items-center gap-3 border-b border-zinc-200 px-2 py-2 dark:border-white/10">
         <button
           type="button"
-          onClick={() => goBackWithMotion(() => router.back())}
+          onClick={() => goBack({ push: () => router.push("/") })}
           aria-label="Back"
           className="hit-44 grid h-9 w-9 place-items-center rounded-full hover:bg-zinc-100 dark:hover:bg-white/10"
         >

@@ -137,6 +137,35 @@ export function canGoBack(stack: NavStack): boolean {
   return stack.index > 0;
 }
 
+/**
+ * Whether a back arrow should go back in history. With a page named, only
+ * when that page is the one behind (same path, any query), so the arrow
+ * still lands where its label says and that screen keeps its scroll. With
+ * none, whenever there is a page behind.
+ */
+export function backPops(stack: NavStack, href?: string): boolean {
+  if (!canGoBack(stack)) return false;
+  if (href === undefined) return true;
+  return cleanPath(stack.entries[stack.index - 1] ?? "") === cleanPath(href);
+}
+
+/**
+ * Where to put the scroll when a screen opens, or null for the top. Back
+ * returns to the saved spot. A tab tapped from the bar does too, so each tab
+ * keeps its place. Every other push opens at the top.
+ */
+export function arrivalScroll(input: {
+  pop: boolean;
+  /** The tap was on the bottom bar or the header. */
+  tab: boolean;
+  toRoot: boolean;
+  saved: number | undefined;
+}): number | null {
+  if (input.pop) return input.saved ?? 0;
+  if (input.tab && input.toRoot && input.saved) return input.saved;
+  return null;
+}
+
 /** Touches that start this close to the left edge can swipe back. */
 export const EDGE_START_PX = 20;
 

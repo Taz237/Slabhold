@@ -1,5 +1,6 @@
 "use client";
 
+import { backLinkClick } from "@/components/nav-motion";
 import Link from "next/link";
 import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import { ArrowLeft } from "lucide-react";
@@ -60,6 +61,7 @@ function TopRow({ payload }: { payload: MovingTodayPayload }) {
       <Link
         href="/"
         data-nav-back=""
+        onClick={(event) => backLinkClick(event, "/")}
         aria-label="Back to Home"
         className={`grid h-11 w-11 shrink-0 place-items-center rounded-full hover:bg-zinc-900/[0.05] dark:hover:bg-white/10 ${tileFocusRing}`}
       >

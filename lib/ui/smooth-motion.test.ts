@@ -86,7 +86,8 @@ describe("smooth motion wiring", () => {
     ]) {
       assert.match(read(file), /data-nav-back=""/, file);
     }
-    assert.match(read("components/post-view.tsx"), /goBackWithMotion\(\(\) => router\.back\(\)\)/);
+    assert.match(read("components/post-view.tsx"), /goBack\(\{ push: \(\) => router\.push\("\/"\) \}\)/);
+    assert.match(read("components/nav-motion.tsx"), /goBackWithMotion\(\(\) => window\.history\.back\(\)\)/);
     assert.match(read("app/globals.css"), /::view-transition-group\(page-back-old\)/);
   });
 });
