@@ -488,19 +488,58 @@ function bestPlayerName(evidence: Evidence): string {
 /** The year, set and card # a scan read off the card: what the player lookup needs. Null when one is missing, or on a slab. */
 export type ScanCardKey = { years: string[]; yearPrinted: boolean; setBrand: string; cardNumber: string; run: number | null; sport: string };
 
+/** The years a card's checklist can be under: the printed year, or the © year and the one before it. */
+function cardYears(evidence: Evidence): string[] {
+  // The year printed beside the brand is the card's year. A © year alone can be the year after.
+  const copyright = /^\d{4}$/.test(evidence.copyrightYear) ? evidence.copyrightYear : "";
+  return evidence.yearLabel ? [evidence.yearLabel] : copyright ? [copyright, String(Number(copyright) - 1)] : [];
+}
+
 function cardKeyOf(evidence: Evidence): ScanCardKey | null {
   if (evidence.slab) return null;
   const setBrand = evidence.setNames[0] ?? "";
   if (!setBrand || !evidence.cardNumber) return null;
-  // The year printed beside the brand is the card's year. A © year alone can be the year after.
-  const copyright = /^\d{4}$/.test(evidence.copyrightYear) ? evidence.copyrightYear : "";
-  const years = evidence.yearLabel ? [evidence.yearLabel] : copyright ? [copyright, String(Number(copyright) - 1)] : [];
+  const years = cardYears(evidence);
   if (years.length === 0) return null;
   const run = evidence.serial ? Number(evidence.serial.run) : null;
   return { years, yearPrinted: Boolean(evidence.yearLabel), setBrand, cardNumber: evidence.cardNumber, run: Number.isFinite(run) ? run : null, sport: evidence.sport };
 }
 
 /** The card a scan read (year, set, card #), so its checklist can be loaded before ranking. */
+/** Which checklist files a scan needs: its year and set. */
+export type ScanChecklistKey = { years: string[]; setBrand: string; sport: string };
+
+/**
+ * The year and set to load checklists for. The card # isn't needed here: with a player read and a
+ * bare number on the back, the checklist is what can tell that number is the card # (withChecklistNumber).
+ */
+export function scanChecklistKey(read: ScanRead, directory: readonly IndexedDirectoryPlayer[]): ScanChecklistKey | null {
+  const card = scanCardKey(read, directory);
+  if (card) return card;
+  const evidence = evidenceFrom(read, directory);
+  const setBrand = evidence.setNames[0] ?? "";
+  const years = cardYears(evidence);
+  if (evidence.slab || !setBrand || years.length === 0 || evidence.backNumbers.length === 0 || !bestPlayerName(evidence)) return null;
+  return { years, setBrand, sport: evidence.sport };
+}
+
+/**
+ * No card # read, but the back has bare numbers and the card names its player: a number is the card
+ * # when the checklist for the year and set the card read has this player at it. Exactly one such
+ * number, or the # stays open. A jersey or an age the checklist doesn't put him at never counts.
+ */
+function withChecklistNumber(evidence: Evidence, checklists: readonly ChecklistProduct[] | null | undefined): Evidence {
+  if (evidence.cardNumber || evidence.backNumbers.length === 0 || !checklists?.length) return evidence;
+  const name = bestPlayerName(evidence);
+  const setBrand = evidence.setNames[0] ?? "";
+  const years = cardYears(evidence);
+  if (!name || !setBrand || years.length === 0) return evidence;
+  const his = evidence.backNumbers.filter((number) =>
+    years.some((yearLabel) => playersAt(checklists, { yearLabel, setBrand, cardNumber: number, sport: evidence.sport || undefined }).some((hit) => namesAgree(hit.player, name))),
+  );
+  return his.length === 1 ? { ...evidence, cardNumber: his[0] } : evidence;
+}
+
 export function scanCardKey(read: ScanRead, directory: readonly IndexedDirectoryPlayer[]): ScanCardKey | null {
   return cardKeyOf(evidenceFrom(read, directory));
 }
@@ -1411,7 +1450,7 @@ export function rankScanMatches(
     withAgreedRun(
       withBackedNearPlayer(
         withLookedUpPlayer(
-          evidenceFrom(read, options.directory),
+          withChecklistNumber(evidenceFrom(read, options.directory), options.checklists),
           options.soldTitles ?? [],
           options.checklists,
           options.directory,
@@ -1522,7 +1561,7 @@ export type MatchScanDeps = {
    */
   soldTitles?: (playerName: string, signal: AbortSignal) => Promise<SoldTitle[] | null>;
   /** The checklists for the year and set the scan read. A failure is no lookup: the card's own read still counts. */
-  checklists?: (card: ScanCardKey) => Promise<readonly ChecklistProduct[]>;
+  checklists?: (card: ScanChecklistKey) => Promise<readonly ChecklistProduct[]>;
   signal: AbortSignal;
 };
 
@@ -1553,7 +1592,7 @@ export async function matchScan(read: ScanRead, deps: MatchScanDeps): Promise<Sc
   }
   if (deps.signal.aborted) return null;
   let checklists: readonly ChecklistProduct[] | null = null;
-  const card = scanCardKey(read, deps.directory);
+  const card = scanChecklistKey(read, deps.directory);
   if (card && deps.checklists) {
     try {
       checklists = await deps.checklists(card);

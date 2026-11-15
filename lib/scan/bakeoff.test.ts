@@ -11,7 +11,7 @@ import { PLAYER_LIST_BAKEOFF_CASES } from "./bakeoff-fixtures-players";
 import { LOOKUP_BAKEOFF_CASES } from "./bakeoff-fixtures-lookup";
 import { BAKEOFF_BASELINE } from "./bakeoff-baseline";
 import { lookupLiveSolds } from "./live-solds";
-import { rankScanMatches, scanCardKey, type ScanMatch } from "./match";
+import { rankScanMatches, scanChecklistKey, type ScanMatch } from "./match";
 import { withAlternates } from "./alternates";
 import { scanReadFrom, type ScanCapture } from "./session";
 
@@ -64,7 +64,7 @@ function top(scan: BakeoffCase, products: readonly ProductRecord[] | null = null
 
 /** The store's own checklist files for the year and set this scan read, as production loads them, plus the case's own rows. */
 async function storeChecklists(scan: BakeoffCase): Promise<ChecklistProduct[]> {
-  const card = scanCardKey(read(scan), INDEXED_DIRECTORY);
+  const card = scanChecklistKey(read(scan), INDEXED_DIRECTORY);
   return [...(scan.checklist ?? []), ...(card ? await loadChecklistsFor(card) : [])];
 }
 

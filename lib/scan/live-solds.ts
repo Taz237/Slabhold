@@ -14,9 +14,9 @@ import {
   cardSearchQuery,
   liveSearchLadder,
   rankScanMatches,
-  scanCardKey,
+  scanChecklistKey,
   scanPlayerName,
-  type ScanCardKey,
+  type ScanChecklistKey,
   type ScanMatch,
   type SoldTitle,
 } from "./match";
@@ -68,7 +68,7 @@ export type LiveSoldsDeps = {
   directory: readonly IndexedDirectoryPlayer[];
   products: () => Promise<readonly ProductRecord[]>;
   /** The checklists for the year and set the scan read. Bundled files: never a search. */
-  checklists?: (card: ScanCardKey) => Promise<readonly ChecklistProduct[]>;
+  checklists?: (card: ScanChecklistKey) => Promise<readonly ChecklistProduct[]>;
   /** Saved sold listings (sold_comps_cache) naming this player. */
   cachedTitles: (player: string) => Promise<SoldTitle[]>;
   /** Quick Comp's shared cache for this exact card and grade. Null on a miss; never fetches. */
@@ -176,7 +176,7 @@ async function lookupSolds(
     products = null;
   }
   let checklists: readonly ChecklistProduct[] | null = null;
-  const card = scanCardKey(read, deps.directory);
+  const card = scanChecklistKey(read, deps.directory);
   if (card && deps.checklists) {
     try {
       checklists = await deps.checklists(card);

@@ -7,7 +7,7 @@ import { SCAN_DIRECTORY } from "@/lib/players/scan-directory";
 import hardCards from "./hard-cards-v1.json";
 import { HARD_FIELDS, hardCardBack, hardCardSet, markParallel, markPlayer, markRun, markSet, markText, type HardCard, type HardField, type Mark } from "./hard-cards";
 import { lookupLiveSolds } from "./live-solds";
-import { rankScanMatches, scanCardKey, type ScanMatch } from "./match";
+import { rankScanMatches, scanChecklistKey, type ScanMatch } from "./match";
 import { scanReadFrom } from "./session";
 
 /**
@@ -45,7 +45,7 @@ const capture = (card: HardCard) => ({ lines: card.typical_ocr_front, backLines:
 
 async function scanAlone(card: HardCard): Promise<Row> {
   const read = scanReadFrom({ ...capture(card), image: null, alternates: null, backAlternates: null, cert: null }, SCAN_DIRECTORY);
-  const key = scanCardKey(read, SCAN_DIRECTORY);
+  const key = scanChecklistKey(read, SCAN_DIRECTORY);
   const checklists = key ? await loadChecklistsFor(key) : [];
   return row(card, rankScanMatches(read, [], { directory: SCAN_DIRECTORY, products: await loadProductData(), soldTitles: [], checklists }).matches[0]);
 }
