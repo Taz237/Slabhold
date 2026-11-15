@@ -7,6 +7,7 @@ import { createRoot, type Root } from "react-dom/client";
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import type { Post, PostComment, Profile } from "@/lib/social/types";
 import type { CompListing } from "@/lib/types";
+import { SHEET_SETTLE_MS } from "@/lib/ui/sheet-drag";
 
 const require = createRequire(import.meta.url);
 const serverOnlyId = require.resolve("server-only");
@@ -197,7 +198,19 @@ async function mount(node: ReactNode) {
       });
     },
     menu() {
-      return host.querySelector("[role=menu]");
+      // In the row for the small popovers, or the ⋯ bottom sheet at the end of <body>.
+      return host.querySelector("[role=menu]") ?? win.document.querySelector("[data-menu-sheet] [role=menu]");
+    },
+    /** Tap the dark area above the ⋯ sheet, and wait for it to slide away. */
+    async tapBackdrop() {
+      const backdrop = win.document.querySelector("[data-menu-sheet]");
+      assert.ok(backdrop, "the ⋯ sheet is open");
+      await act(async () => {
+        backdrop.dispatchEvent(new win.MouseEvent("click", { bubbles: true, cancelable: true }));
+      });
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, SHEET_SETTLE_MS + 60));
+      });
     },
     async destroy() {
       await act(async () => {
@@ -236,7 +249,7 @@ describe("outside tap closes the menu only", () => {
     await view.click(more);
     assert.ok(view.menu());
 
-    await view.tap(body);
+    await view.tapBackdrop();
     assert.equal(view.menu(), null);
     assert.deepEqual(pushes, []);
     assert.equal(hits, 1);
@@ -346,7 +359,7 @@ describe("outside tap closes the menu only", () => {
     await view.click(more);
     assert.ok(view.menu());
 
-    await view.tap(body);
+    await view.tapBackdrop();
     assert.equal(view.menu(), null);
     assert.equal(hits, 0);
 
@@ -388,7 +401,7 @@ describe("outside tap closes the menu only", () => {
     await view.click(more);
     assert.ok(view.menu());
 
-    await view.tap(body);
+    await view.tapBackdrop();
     assert.equal(view.menu(), null);
     assert.equal(hits, 1);
 

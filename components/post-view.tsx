@@ -7,7 +7,8 @@ import { visibleReplies } from "@/lib/social/reply-paging";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Ellipsis, ImagePlus } from "lucide-react";
+import { ArrowLeft, Ellipsis, ImagePlus, Trash2 } from "lucide-react";
+import { MenuSheet, MenuSheetIcon, menuSheetItem } from "@/components/menu-sheet";
 import { Avatar } from "@/components/avatar";
 import { EmptyState } from "@/components/status";
 import { solidButton } from "@/components/button-styles";
@@ -35,7 +36,6 @@ import { commentsSupportReplyImages, isOptimisticReply } from "@/lib/social/repl
 import { COMMENT_LIMIT, type AuthResult, type PostComment } from "@/lib/social/types";
 import { isOverLimit } from "@/lib/ui/compose-limit";
 import { useKeyboardInset } from "@/lib/ui/use-keyboard-inset";
-import { useCloseOnOutsideTap } from "@/lib/ui/menu-outside-tap";
 
 const PAGE_SIZE = 20;
 
@@ -519,8 +519,6 @@ function ReplyMenu({
     setConfirming(false);
   }
 
-  useCloseOnOutsideTap(open, rootRef, close);
-
   return (
     <div ref={rootRef} className="relative -mt-1 shrink-0">
       <button
@@ -537,14 +535,11 @@ function ReplyMenu({
         <Ellipsis className="h-5 w-5" />
       </button>
       {open ? (
-        <div
-          role="menu"
-          className="absolute top-9 right-0 z-30 w-52 overflow-hidden rounded-2xl border border-zinc-200 bg-[var(--background)] py-1 shadow-lg dark:border-white/10"
-        >
+        <MenuSheet label="Reply options" onClose={close}>
           {confirming ? (
-            <div className="px-3 py-2.5">
-              <p className="text-sm font-semibold">Delete this reply?</p>
-              <div className="mt-2.5 flex gap-2">
+            <div className="px-5 pt-2 pb-1">
+              <p className="text-base font-semibold">Delete this reply?</p>
+              <div className="mt-3 flex gap-2">
                 <button
                   type="button"
                   onClick={() => {
@@ -556,16 +551,16 @@ function ReplyMenu({
                       onResult(result);
                     });
                   }}
-                  className="hit-44 flex-1 rounded-full bg-rose-600 py-1.5 text-sm font-semibold text-white"
+                  className="tap min-h-12 flex-1 rounded-full bg-rose-600 text-base font-semibold text-white"
                 >
                   Delete
                 </button>
                 <button
                   type="button"
                   onClick={() => setConfirming(false)}
-                  className="hit-44 flex-1 rounded-full border border-zinc-300 py-1.5 text-sm font-semibold dark:border-white/20"
+                  className="tap min-h-12 flex-1 rounded-full border border-zinc-300 text-base font-semibold dark:border-white/20"
                 >
-                  Cancel
+                  Keep
                 </button>
               </div>
             </div>
@@ -574,12 +569,13 @@ function ReplyMenu({
               type="button"
               role="menuitem"
               onClick={() => setConfirming(true)}
-              className="block w-full px-4 py-2.5 text-left text-15 font-semibold text-rose-600 hover:bg-zinc-100 dark:hover:bg-white/10"
+              className={`${menuSheetItem} text-rose-600 dark:text-rose-400`}
             >
+              <MenuSheetIcon icon={Trash2} />
               Delete reply
             </button>
           )}
-        </div>
+        </MenuSheet>
       ) : null}
     </div>
   );
