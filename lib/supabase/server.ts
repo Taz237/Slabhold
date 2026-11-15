@@ -2,6 +2,7 @@ import "server-only";
 
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { cache } from "react";
 import { getSupabaseConfig } from "./client";
 
 /**
@@ -32,15 +33,19 @@ export async function createSupabaseServer() {
   });
 }
 
-/** Verified auth user. createdAt is auth.users.created_at, not profiles.created_at. */
-export async function getAuthUser(): Promise<{ id: string; createdAt: string | null } | null> {
+/**
+ * Verified auth user. createdAt is auth.users.created_at, not profiles.created_at.
+ * getUser is a network call to Supabase Auth, so one render asks once: the
+ * page, its metadata and every loader share the answer.
+ */
+export const getAuthUser = cache(async (): Promise<{ id: string; createdAt: string | null } | null> => {
   const supabase = await createSupabaseServer();
   if (!supabase) return null;
 
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user?.id) return null;
   return { id: data.user.id, createdAt: data.user.created_at ?? null };
-}
+});
 
 /** Verified user id, or null if logged out / Supabase unconfigured. */
 export async function getAuthUserId(): Promise<string | null> {

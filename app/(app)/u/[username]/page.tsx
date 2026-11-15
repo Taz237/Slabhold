@@ -18,8 +18,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function PublicProfilePage({ params }: Props) {
   const { username } = await params;
-  await requireProfile(username);
-  const viewerId = await getAuthUserId();
+  // The profile check and the session check don't depend on each other.
+  const [, viewerId] = await Promise.all([requireProfile(username), getAuthUserId()]);
   const [badges, cardCount] = await Promise.all([
     loadProfileBadges({ username }, viewerId),
     loadProfileCardCount({ username }, viewerId),
