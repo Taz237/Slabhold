@@ -213,9 +213,13 @@ type Evidence = {
   grade: ScanGrade | null;
 };
 
-/** Every 1-4 digit number alone on a line of the back, as a card # key. */
+/** More bare numbers than this on one back is a stat table read cell by cell: none of them is trusted. */
+const MAX_LONE_NUMBERS = 2;
+
+/** Every 1-4 digit number alone on a line of the back, as a card # key. None when the back has many. */
 function loneNumbers(back: RawCardRead | null | undefined): string[] {
-  return [...new Set((back?.lines ?? []).map((line) => line.trim()).filter((line) => /^\d{1,4}$/.test(line)).map(cardNumberKey))];
+  const numbers = [...new Set((back?.lines ?? []).map((line) => line.trim()).filter((line) => /^\d{1,4}$/.test(line)).map(cardNumberKey))];
+  return numbers.length > MAX_LONE_NUMBERS ? [] : numbers;
 }
 
 function words(text: string): string[] {

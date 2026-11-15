@@ -49,6 +49,11 @@ describe("a bare number on the back, checked against the checklist", () => {
     assert.equal((await top(["PACKERS", "SELECT"], ["47", "QUARTERBACK", "© 2020 Panini America, Inc."]))?.cardNumber ?? "", "");
   });
 
+  it("a stat table read cell by cell (many bare numbers): none of them counts, even one that is his", async () => {
+    const match = await top(FRONT, ["JORDAN LOVE", "QUARTERBACK", "13", "47", "293", "3402", "© 2020 Panini America, Inc."]);
+    assert.equal(match?.cardNumber, "");
+  });
+
   it("two bare numbers that are both his (47 and 11): open, never a pick", async () => {
     const match = await top(FRONT, ["47", "JORDAN LOVE", "11", "QUARTERBACK", "© 2020 Panini America, Inc."]);
     assert.equal(match?.cardNumber, "");
