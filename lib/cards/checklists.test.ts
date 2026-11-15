@@ -143,9 +143,17 @@ describe("the checklist store", () => {
     assert.deepEqual(checklistFilesFor({ years: ["2023"], setBrand: "Prizm" }, entries), ["a", "b"]);
     assert.deepEqual(checklistFilesFor({ years: ["2023"], setBrand: "Prizm", sport: "Basketball" }, entries), ["b"]);
     assert.deepEqual(checklistFilesFor({ years: ["2024", "2023"], setBrand: "Panini Select" }, entries), ["d"]);
-    // No year read: every year of the set in that sport, and never across sports.
-    assert.deepEqual(checklistFilesFor({ years: [], setBrand: "Prizm", sport: "Basketball" }, entries), ["b"]);
-    assert.deepEqual(checklistFilesFor({ years: [], setBrand: "Prizm" }, entries), []);
+    // No year read: every year of the set up to 1980 in that sport, and never across sports.
+    const vintage = [
+      { file: "t52", sport: "Baseball", yearLabel: "1952", product: "Topps", source: "s", read: "2026-11-15", cards: 1 },
+      { file: "t80", sport: "Baseball", yearLabel: "1980", product: "Topps", source: "s", read: "2026-11-15", cards: 1 },
+      { file: "t81", sport: "Baseball", yearLabel: "1981", product: "Topps", source: "s", read: "2026-11-15", cards: 1 },
+      { file: "f61", sport: "Basketball", yearLabel: "1961-62", product: "Fleer", source: "s", read: "2026-11-15", cards: 1 },
+    ];
+    assert.deepEqual(checklistFilesFor({ years: [], setBrand: "Topps", sport: "Baseball" }, vintage), ["t52", "t80"]);
+    assert.deepEqual(checklistFilesFor({ years: [], setBrand: "Fleer", sport: "Basketball" }, vintage), ["f61"]);
+    assert.deepEqual(checklistFilesFor({ years: [], setBrand: "Topps" }, vintage), []);
+    assert.deepEqual(checklistFilesFor({ years: [], setBrand: "Prizm", sport: "Basketball" }, entries), []);
   });
 
   it("knows the base set's sections from a variation, an autograph or an insert", () => {
