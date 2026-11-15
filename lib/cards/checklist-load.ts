@@ -1,5 +1,6 @@
 import index from "@/lib/cards/data/checklists/index.json";
 import { sameChecklistProduct, type ChecklistIndexEntry, type ChecklistProduct } from "./checklists";
+import { productPhrase } from "./product-data";
 
 /**
  * Loads checklist files on demand, the way product-data.ts loads the parallel lists: a dynamic
@@ -28,12 +29,25 @@ function loadFile(file: string): Promise<ChecklistProduct | null> {
 
 /** Most files one scan loads: a set name a few sports share in one year. */
 const MAX_FILES = 6;
+/** No year read at all (a vintage card): every year of the set in its sport, up to this many. */
+const MAX_ANY_YEAR_FILES = 80;
 
-/** The files for a year (or years) and a set, from the index. No file is read here. */
+/**
+ * The files for a year (or years) and a set, from the index. No file is read here. No years: every
+ * year of that set, but only in a known sport (Topps is a set in four of them).
+ */
 export function checklistFilesFor(
   card: { years: readonly string[]; setBrand: string; sport?: string },
   entries: readonly ChecklistIndexEntry[] = CHECKLIST_INDEX,
 ): string[] {
+  if (card.years.length === 0) {
+    if (!card.sport) return [];
+    const phrase = productPhrase(card.setBrand);
+    return entries
+      .filter((entry) => Boolean(phrase) && productPhrase(entry.product) === phrase && entry.sport.toLowerCase() === card.sport!.toLowerCase())
+      .map((entry) => entry.file)
+      .slice(0, MAX_ANY_YEAR_FILES);
+  }
   return entries
     .filter((entry) => card.years.some((yearLabel) => sameChecklistProduct(entry, { yearLabel, setBrand: card.setBrand })))
     .filter((entry) => !card.sport || entry.sport.toLowerCase() === card.sport.toLowerCase())

@@ -143,6 +143,9 @@ describe("the checklist store", () => {
     assert.deepEqual(checklistFilesFor({ years: ["2023"], setBrand: "Prizm" }, entries), ["a", "b"]);
     assert.deepEqual(checklistFilesFor({ years: ["2023"], setBrand: "Prizm", sport: "Basketball" }, entries), ["b"]);
     assert.deepEqual(checklistFilesFor({ years: ["2024", "2023"], setBrand: "Panini Select" }, entries), ["d"]);
+    // No year read: every year of the set in that sport, and never across sports.
+    assert.deepEqual(checklistFilesFor({ years: [], setBrand: "Prizm", sport: "Basketball" }, entries), ["b"]);
+    assert.deepEqual(checklistFilesFor({ years: [], setBrand: "Prizm" }, entries), []);
   });
 
   it("knows the base set's sections from a variation, an autograph or an insert", () => {

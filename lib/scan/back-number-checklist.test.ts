@@ -69,3 +69,19 @@ describe("no year printed: last season's stats, checked against the checklist", 
     assert.equal(match?.yearLabel ?? "", "");
   });
 });
+
+describe("no year anywhere on the card: every year of its set in the store", () => {
+  const MANTLE_FRONT = ["MICKEY MANTLE", "NEW YORK YANKEES"];
+  const tcg = (number: string) => [number, "MICKEY MANTLE", "Outfield: New York Yankees", "T.C.G. PRINTED IN U.S.A."];
+
+  it("1952 Topps #311 Mantle (T.C.G., No. 311, no year): only 1952 Topps has him at #311, so 1952", async () => {
+    const match = (await top(MANTLE_FRONT, tcg("No. 311")))!;
+    assert.equal(match.setBrand, "Topps");
+    assert.equal(match.cardNumber, "311");
+    assert.equal(match.yearLabel, "1952");
+  });
+
+  it("a # no Topps year has him at: the year stays open", async () => {
+    assert.equal((await top(MANTLE_FRONT, tcg("No. 999")))?.yearLabel ?? "", "");
+  });
+});

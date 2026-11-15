@@ -1,6 +1,6 @@
 import type { CatalogCard } from "@/lib/card-catalog";
 import { parallelMatchKey, parallelsForSet, sameParallelLoosely } from "@/lib/cards/parallels";
-import { baseSetHits, playersAt, type ChecklistHit, type ChecklistProduct } from "@/lib/cards/checklists";
+import { baseSetHits, isBaseSection, playersAt, type ChecklistHit, type ChecklistProduct } from "@/lib/cards/checklists";
 import { parallelsIn, sameSeason, type ProductParallel, type ProductRecord } from "@/lib/cards/product-data";
 import { setMatchPhrase } from "@/lib/comps/match";
 import type { IndexedDirectoryPlayer } from "@/lib/players/types";
@@ -498,6 +498,31 @@ function cardYears(evidence: Evidence): string[] {
   return evidence.yearLabel ? [evidence.yearLabel] : copyright ? [copyright, String(Number(copyright) - 1)] : [];
 }
 
+/**
+ * No year printed, no © year and no stats: the year of the set whose checklist has this player at
+ * this # (the card's own, or one bare number on its back). Exactly one year and #, or nothing changes.
+ */
+function withYearFromChecklists(evidence: Evidence, checklists: readonly ChecklistProduct[], name: string, setBrand: string): Evidence {
+  if (!evidence.sport) return evidence;
+  const numbers = evidence.cardNumber ? [evidence.cardNumber] : evidence.backNumbers;
+  // Base-set hits first: a later year's insert can reuse the number (2026 Topps' Mantle #311 tribute).
+  const found = { base: new Set<string>(), any: new Set<string>() };
+  for (const product of checklists) {
+    if (product.sport.toLowerCase() !== evidence.sport.toLowerCase()) continue;
+    for (const number of numbers) {
+      for (const hit of playersAt([product], { yearLabel: product.yearLabel, setBrand, cardNumber: number, sport: evidence.sport })) {
+        if (!namesAgree(hit.player, name)) continue;
+        found.any.add(`${product.yearLabel}|${number}`);
+        if (isBaseSection(hit.section)) found.base.add(`${product.yearLabel}|${number}`);
+      }
+    }
+  }
+  const pick = found.base.size === 1 ? found.base : found.base.size === 0 && found.any.size === 1 ? found.any : null;
+  if (!pick) return evidence;
+  const [yearLabel, cardNumber] = [...pick][0].split("|");
+  return { ...evidence, yearLabel, cardNumber };
+}
+
 /** The year a card with no printed or © year is, by its stats: the season after the last one listed. Only ever checked against a checklist. */
 function statYear(evidence: Evidence): string {
   return !evidence.yearLabel && !evidence.copyrightYear && /^\d{4}$/.test(evidence.statSeason ?? "") ? String(Number(evidence.statSeason) + 1) : "";
@@ -534,7 +559,9 @@ export function scanChecklistKey(read: ScanRead, directory: readonly IndexedDire
   const evidence = evidenceFrom(read, directory);
   const setBrand = evidence.setNames[0] ?? "";
   const years = checklistYears(evidence);
-  if (evidence.slab || !setBrand || years.length === 0 || !bestPlayerName(evidence)) return null;
+  if (evidence.slab || !setBrand || !bestPlayerName(evidence)) return null;
+  // No year at all: every year of the set, in the sport the card names, to find the one with him at this #.
+  if (years.length === 0) return evidence.sport && (evidence.cardNumber || evidence.backNumbers.length > 0) ? { years: [], setBrand, sport: evidence.sport } : null;
   // Worth a load only when the checklist can settle something: a bare back number, or a year by the stats.
   if (evidence.backNumbers.length === 0 && !(statYear(evidence) && evidence.cardNumber)) return null;
   return { years, setBrand, sport: evidence.sport };
@@ -550,7 +577,8 @@ function withChecklistNumber(evidence: Evidence, checklists: readonly ChecklistP
   const name = bestPlayerName(evidence);
   const setBrand = evidence.setNames[0] ?? "";
   const years = checklistYears(evidence);
-  if (!name || !setBrand || years.length === 0) return evidence;
+  if (!name || !setBrand) return evidence;
+  if (years.length === 0) return withYearFromChecklists(evidence, checklists, name, setBrand);
   const his = (number: string) =>
     years.some((yearLabel) => playersAt(checklists, { yearLabel, setBrand, cardNumber: number, sport: evidence.sport || undefined }).some((hit) => namesAgree(hit.player, name)));
   let next = evidence;
