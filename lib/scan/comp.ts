@@ -112,6 +112,11 @@ export type SoldsState =
   | { status: "looking" }
   | { status: "done"; comp: ScanCompResult; query: string | null; similar?: ScanEstimateResult };
 
+/** How many sales a price stands on, the way the price line says it: "1 sold", "3 sold". */
+export function soldCount(nSales: number): string {
+  return `${nSales} sold`;
+}
+
 /** The newest sale, for the one-line "Last sold" on the Add card sheet. */
 export function lastSale(result: ScanCompResult): ScanCompSale | null {
   return result.status === "ok" && !result.unclean ? (result.sales[0] ?? null) : null;

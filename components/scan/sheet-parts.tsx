@@ -5,7 +5,7 @@ import { ChevronRight, X } from "lucide-react";
 import { Chip, RunBadge, SectionLabel, SwatchDot, focusRing } from "@/components/add-card/flow-ui";
 import { money } from "@/lib/format";
 import { quickCompLimitMessage } from "@/lib/quick-comp/respond";
-import { COMP_COPY, lastSale, type SoldsState } from "@/lib/scan/comp";
+import { COMP_COPY, lastSale, soldCount, type SoldsState } from "@/lib/scan/comp";
 import { CONFIRM_COPY, gradeLabel, maskCert, matchLine, type ParallelPick } from "@/lib/scan/confirm";
 import type { FieldSureness, ScanMatch } from "@/lib/scan/match";
 import type { ProductParallel } from "@/lib/cards/product-data";
@@ -547,6 +547,13 @@ export function OtherGroups({ groups, onPick }: { groups: readonly { label: stri
   );
 }
 
+/** Under the price: the day it sold and how many sales the line stands on ("Nov 10 · 3 sold"). */
+function SaleMeta({ day, nSales }: { day: string; nSales: number }) {
+  const parts = [day, nSales > 0 ? soldCount(nSales) : ""].filter(Boolean);
+  if (parts.length === 0) return null;
+  return <span className="block font-mono text-xs text-zinc-500 dark:text-zinc-400 tabular-nums">{parts.join(" · ")}</span>;
+}
+
 /**
  * The card's last eBay sold, one line under the match on the Add card sheet.
  * Looking while the live search runs, then the price and day, or plainly why
@@ -590,7 +597,7 @@ export function LastSold({
           </div>
           <p className="shrink-0 text-right">
             <span className="font-mono text-17 font-semibold tabular-nums">{money(picked.lastPriceCents / 100)}</span>
-            {day ? <span className="block font-mono text-xs text-zinc-500 dark:text-zinc-400 tabular-nums">{day}</span> : null}
+            <SaleMeta day={day} nSales={picked.nSales} />
           </p>
         </div>
       );
@@ -615,7 +622,7 @@ export function LastSold({
         </div>
         <p className="shrink-0 text-right">
           <span className="font-mono text-17 font-semibold tabular-nums">{money(sale.priceCents / 100)}</span>
-          {day ? <span className="block font-mono text-xs text-zinc-500 dark:text-zinc-400 tabular-nums">{day}</span> : null}
+          <SaleMeta day={day} nSales={comp.status === "ok" ? comp.nSales : 0} />
         </p>
       </div>
     );
