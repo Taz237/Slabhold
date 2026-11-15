@@ -142,7 +142,7 @@ const TITLE_SUPPORT = 6;
 const TITLE_SUPPORT_MAX = 18;
 
 /** Label words that mark an autograph or rookie, not a parallel. */
-const FLAG_WORDS = new Set(["rookie", "rc", "auto", "autos", "autograph", "autographs", "autographed"]);
+const FLAG_WORDS = new Set(["rookie", "rc", "auto", "autos", "autograph", "autographs", "autographed", "card", "cards"]);
 /** Label words that name a subset of the set (Prospects, Rookie Ticket, Young Guns), never a parallel. */
 const SLAB_SUBSET_WORDS = new Set(["prospect", "prospects", "ticket", "young", "guns", "rated", "1st"]);
 

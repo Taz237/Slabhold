@@ -72,3 +72,25 @@ describe("vintage backs", () => {
     assert.notEqual(match.yearLabel, "1978-79");
   });
 });
+
+describe("slab labels from older and merged reads", () => {
+  it("'1952 TOPPS MICKEY MANTLE #311' read as one line: the name between the set and the # is the player", () => {
+    const match = top(["1952 TOPPS MICKEY MANTLE #311", "NM 7", "PSA", "12345678"], null, "slab");
+    assert.equal(match?.playerName, "Mickey Mantle");
+    assert.equal(match.setBrand, "Topps");
+    assert.equal(match.cardNumber, "311");
+    assert.equal(match.yearLabel, "1952");
+  });
+
+  it("'2018 PANINI PRIZM LUKA DONCIC #280' with SILVER PRIZM under it: Doncic, Silver", () => {
+    const match = top(["2018 PANINI PRIZM LUKA DONCIC #280", "SILVER PRIZM", "GEM MT 10", "PSA", "12345670"], null, "slab");
+    assert.equal(match?.playerName, "Luka Doncic");
+    assert.equal(match.cardNumber, "280");
+    assert.equal(match.parallel, "Silver");
+  });
+
+  it("ROOKIE CARD on the label is a flag, never a parallel named 'Card'", () => {
+    const match = top(["2000 BOWMAN #236", "TOM BRADY", "ROOKIE CARD", "MINT 9", "PSA", "22345678"], null, "slab");
+    assert.doesNotMatch(match.parallel, /card/i);
+  });
+});

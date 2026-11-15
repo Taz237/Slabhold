@@ -506,6 +506,16 @@ function readCardLines(read: SlabLabelRead, lines: string[], options: SlabLabelO
         read.cardNumber = bare[2];
         setRest = bare[1].trim();
       }
+      // The label read as one line ("1952 TOPPS MICKEY MANTLE #311"): with no player line of its
+      // own, a name after the set is the player.
+      const namedHere = Boolean(setRest) && (score ? score(setRest) > 0 : looksLikeName(setRest));
+      const nobodyElse = !read.playerText || (score ? score(read.playerText) === 0 : false);
+      if (namedHere && nobodyElse) {
+        // A line taken for the player only because nothing else was ("SILVER PRIZM") goes back to the variety.
+        if (read.playerText) variety.push(read.playerText);
+        read.playerText = setRest.replace(ROOKIE_TAIL, "").trim() || setRest;
+        setRest = "";
+      }
       if (setRest) variety.push(setRest);
     }
   }
