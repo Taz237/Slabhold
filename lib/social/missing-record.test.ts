@@ -99,7 +99,8 @@ describe("missing record 404", () => {
 
   it("dynamic card, post, and profile pages call notFound before rendering a miss", () => {
     callsBefore("app/(app)/posts/[id]/page.tsx", "await requirePost(id)", "<PostView");
-    callsBefore("app/(app)/u/[username]/page.tsx", "await requireProfile(username)", "<ProfileView");
+    // Awaited together with the session check, still before anything renders.
+    callsBefore("app/(app)/u/[username]/page.tsx", "await Promise.all([requireProfile(username)", "<ProfileView");
     callsBefore(
       "app/(app)/u/[username]/cards/[id]/page.tsx",
       "requirePublicCard(username, id)",

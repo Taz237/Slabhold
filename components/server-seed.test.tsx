@@ -347,9 +347,10 @@ describe("server-drawn signed-in screens", () => {
     assert.match(page, /loadCollectionSeed\(viewer\)/);
     assert.match(page, /upsertTodaysCollectionSnapshot\(userId\)/);
     const seedLoad = read("lib/collection/load-viewer-seed.ts");
-    // Card values go through the same rate limit and owner/public filter as /api/card-values.
-    assert.match(seedLoad, /consumeCardValueLimit\(userId\)/);
-    assert.match(seedLoad, /lookupAllowedIds\(batch, userId\)/);
+    // Prices don't hold the first screen: the browser reads them from
+    // /api/card-values, with its rate limit and owner/public filter.
+    assert.doesNotMatch(seedLoad, /readCardValues|consumeCardValueLimit/);
+    assert.match(seedLoad, /values: null/);
     const route = read("app/api/card-values/route.ts");
     assert.match(route, /readCardValues\(allowedIds, userId\)/);
     assert.match(route, /await lookupAllowedIds\(parsed\.ids, userId\)/);

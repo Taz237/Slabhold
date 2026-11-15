@@ -23,9 +23,10 @@ function saveTodaysSnapshot(userId: string | null) {
 }
 
 /**
- * A full page load streams the viewer's collection, its values, and the
- * chart's history, read per request and never cached. A visit from inside
- * the app already has them in the browser and renders as before.
+ * A full page load streams the viewer's collection and the chart's history,
+ * read per request and never cached. Prices load in the browser right after,
+ * so the screen never waits on them. A visit from inside the app already has
+ * the collection in the browser and renders as before.
  */
 export default async function CollectionPage() {
   if (await isRouterRequest()) {

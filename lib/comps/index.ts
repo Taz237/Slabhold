@@ -1,5 +1,6 @@
 import "server-only";
 
+import { runAfterResponse } from "@/lib/server/after-response";
 import { mockValueHistory } from "@/lib/value-history";
 import { notifyMatchedSales } from "@/lib/wants/dispatch";
 import { fairLowFromPrices } from "@/lib/wants/effective-target";
@@ -252,18 +253,19 @@ export async function getSoldComps(
         (sale) => sale.itemId && sale.itemId !== "__empty__" && !previousIds.has(sale.itemId),
       );
       if (fresh.length > 0) {
-        try {
-          await notifyMatchedSales(
-            card,
-            fresh,
-            fairLowFromPrices(sales.map((sale) => sale.price)),
-          );
-        } catch (err) {
-          console.warn(
-            "[want_alerts]",
-            err instanceof Error ? err.message : "sale alerts failed",
-          );
-        }
+        // Alerts loop over every fresh sale and every want. The sold prices
+        // don't need them, so they go out after the response.
+        const fairLow = fairLowFromPrices(sales.map((sale) => sale.price));
+        await runAfterResponse(async () => {
+          try {
+            await notifyMatchedSales(card, fresh, fairLow);
+          } catch (err) {
+            console.warn(
+              "[want_alerts]",
+              err instanceof Error ? err.message : "sale alerts failed",
+            );
+          }
+        });
       }
     }
 
