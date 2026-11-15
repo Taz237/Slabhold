@@ -278,6 +278,7 @@ function Shell({
       {!chromeless ? (
         <header
           style={{ viewTransitionName: "app-header" }}
+          data-app-chrome=""
           data-attached-tabs={attachedTabs ? "" : undefined}
           className={`glass sticky top-0 z-20 bg-[var(--chrome-bg)] pt-[env(safe-area-inset-top)] backdrop-blur-xl backdrop-saturate-150 ${
             attachedTabs ? "" : HEADER_HAIRLINE
@@ -346,6 +347,7 @@ function Shell({
       {showNav && !chromeless ? (
         <nav
           style={{ viewTransitionName: "app-nav" }}
+          data-app-chrome=""
           className="glass fixed inset-x-0 bottom-0 z-30 border-t border-zinc-200 bg-[color-mix(in_oklab,var(--background)_92%,transparent)] backdrop-blur-xl dark:border-white/10">
           <div className="mx-auto flex max-w-lg items-end justify-between px-1 pt-1 pb-[max(0.45rem,env(safe-area-inset-bottom))]">
             {tabs.map((tab) => {

@@ -6,7 +6,7 @@ import { memo, startTransition, useRef, useState } from "react";
 import { BadgeCheck, Ellipsis, Heart, MessageCircle, Pin, Quote, Repeat2, Send } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { useCollection } from "@/components/collection-provider";
-import { useImageLightbox } from "@/components/image-lightbox";
+import { useImageLightbox, type LightboxOptions } from "@/components/image-lightbox";
 import { PostCardTile, postCardHref } from "@/components/post-card-tile";
 import { PostPhotoGrid } from "@/components/post-photo-grid";
 import { PostGifPlayer } from "@/components/post-gif";
@@ -118,6 +118,28 @@ export const Tweet = memo(function Tweet({
     router.push(`/posts/${post.id}#reply`);
   }
 
+  /** The photo viewer shows this post's actions along the bottom, like X. */
+  function openPhoto(src: string, alt: string, gallery?: readonly string[], options?: LightboxOptions) {
+    openImage(src, alt, gallery, {
+      ...options,
+      footer: (close) => (
+        <Engagement
+          media
+          targetId={post.id}
+          replyCount={comments.length}
+          onReply={() => {
+            close();
+            openReplies();
+          }}
+          sharePath={`/posts/${post.id}`}
+          shareTitle={shareTitleForPost(post)}
+          shareText={post.body}
+          quoteAvailable={quoteAvailable}
+        />
+      ),
+    });
+  }
+
   const bodyClass = variant === "detail" ? "text-17 leading-6" : "text-15 leading-[1.4]";
   const pill = postPill(post);
   const graded = Boolean(post.card && post.postType !== "mail_day" && gradedLabel(post.card));
@@ -207,8 +229,8 @@ export const Tweet = memo(function Tweet({
             {photos.length ? (
               <PostPhotoGrid
                 images={photos}
-                onOpen={openImage}
-                eager={firstScreen}
+                onOpen={openPhoto}
+                eager={firstScreen || variant === "detail"}
                 fit={variant === "detail" ? "full" : "feed"}
               />
             ) : null}
@@ -535,6 +557,7 @@ export function Engagement({
   quoteAvailable = true,
   onQuotesClick,
   onSend,
+  media = false,
 }: {
   targetId: string;
   replyCount?: number;
@@ -547,6 +570,8 @@ export function Engagement({
   onQuotesClick?: () => void;
   /** Opens the Send in a DM sheet. Left out when the post can't be sent. */
   onSend?: () => void;
+  /** Over a fullscreen photo: light icons on black. */
+  media?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname() || "/";
@@ -586,7 +611,10 @@ export function Engagement({
   }
 
   return (
-    <div data-engagement="" className="mt-0.5 -ml-2.5 flex min-w-0 items-center text-zinc-500 dark:text-zinc-400">
+    <div
+      data-engagement=""
+      className={`mt-0.5 -ml-2.5 flex min-w-0 items-center ${media ? "text-white/85" : "text-zinc-500 dark:text-zinc-400"}`}
+    >
       <ActionButton label="Reply" count={replyCount} active={false} tone="violet" onClick={onReply}>
         <MessageCircle className="h-[18px] w-[18px]" />
       </ActionButton>
