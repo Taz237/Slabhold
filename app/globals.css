@@ -383,6 +383,20 @@ textarea {
   }
 }
 
+/* The photo viewer is fullscreen: the header and tab bar fade out under it, and back as it closes. */
+[data-app-chrome] {
+  transition: opacity 200ms ease-out;
+}
+html[data-photo-viewer] [data-app-chrome] {
+  opacity: 0;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-app-chrome] {
+    transition: none;
+  }
+}
+
 @keyframes lightbox-fade {
   from {
     opacity: 0;
