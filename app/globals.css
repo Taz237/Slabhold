@@ -1158,13 +1158,22 @@ a[data-pressed]:not(.tap, .tap-row, [data-tile] a, .tap-row a),
  * A card tile tap shows the card skeleton at once (NavPendingSkeleton), with
  * the same slide a pushed screen gets. The page then swaps in place.
  */
-[data-nav-pending-skeleton] {
+[data-nav-pending-skeleton],
+[data-pending-kind] {
   display: none;
 }
 
-html[data-nav-pending="card"] [data-nav-pending-skeleton] {
+html[data-nav-pending="card"] [data-nav-pending-skeleton],
+html[data-nav-pending="post"] [data-nav-pending-skeleton],
+html[data-nav-pending="profile"] [data-nav-pending-skeleton] {
   display: block;
   animation: var(--page-slide) var(--page-ease) both page-from-right;
+}
+
+html[data-nav-pending="card"] [data-pending-kind="card"],
+html[data-nav-pending="post"] [data-pending-kind="post"],
+html[data-nav-pending="profile"] [data-pending-kind="profile"] {
+  display: block;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1174,7 +1183,7 @@ html[data-nav-pending="card"] [data-nav-pending-skeleton] {
     opacity: 0.75;
   }
 
-  html[data-nav-pending="card"] [data-nav-pending-skeleton] {
+  html[data-nav-pending] [data-nav-pending-skeleton] {
     animation: none;
   }
 }

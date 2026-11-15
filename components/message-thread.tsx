@@ -1,5 +1,6 @@
 "use client";
 
+import { goBack } from "@/components/nav-motion";
 import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, SendHorizontal, X } from "lucide-react";
@@ -303,7 +304,7 @@ export function MessageThread({ username }: { username: string }) {
       <div className="flex shrink-0 items-center gap-2 border-b border-zinc-200/80 glass bg-[color-mix(in_oklab,var(--background)_88%,transparent)] px-2 py-1.5 backdrop-blur-xl dark:border-white/[0.08]">
         <button
           type="button"
-          onClick={() => router.push("/messages")}
+          onClick={() => goBack({ to: "/messages", push: (href) => router.push(href) })}
           data-nav-href="/messages"
           data-nav-back=""
           aria-label="Back to messages"

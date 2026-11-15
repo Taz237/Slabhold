@@ -48,3 +48,29 @@ export function TimelineSkeleton() {
     </div>
   );
 }
+
+/**
+ * The post page before its post: the back row, the post and its first
+ * replies, in the page's own boxes. loading.tsx, the page's own wait
+ * and the shell's tap-time skeleton (NavPendingSkeleton) all draw it.
+ */
+export function PostPageSkeleton() {
+  return (
+    <div className="-mx-4 -mt-5" aria-busy="true" aria-live="polite">
+      <span className="sr-only">Loading post</span>
+      <div aria-hidden="true">
+        <div className="flex items-center gap-3 border-b border-zinc-200 px-2 py-2 dark:border-white/10">
+          <div className="grid h-9 w-9 place-items-center">
+            <div className="skeleton-shimmer h-4 w-4 rounded-full" />
+          </div>
+          <div className="flex h-7 items-center">
+            <div className="skeleton-shimmer h-4 w-14 rounded-full" />
+          </div>
+        </div>
+        <PostSkeleton />
+        <PostSkeleton />
+        <PostSkeleton />
+      </div>
+    </div>
+  );
+}

@@ -31,6 +31,7 @@ export default async function ProfileBadgesPage({ params }: Props) {
     <div>
       <Link
         href={userHref(badges.username)}
+        data-nav-back=""
         className="-ml-2 inline-flex min-h-11 items-center gap-1 rounded-full pr-3 pl-1 text-sm font-medium text-zinc-500"
       >
         <ChevronLeft aria-hidden className="h-5 w-5" />@{badges.username}

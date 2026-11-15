@@ -1,5 +1,6 @@
 "use client";
 
+import { backLinkClick } from "@/components/nav-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ComponentType } from "react";
@@ -344,6 +345,7 @@ function PublicCardAnalytics({
       <Link
         href={backHref}
         data-nav-back=""
+        onClick={(event) => backLinkClick(event, backHref)}
         className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-zinc-600 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-white"
       >
         <ArrowLeft className="h-4 w-4" />

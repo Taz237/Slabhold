@@ -96,6 +96,10 @@ function NativePushAfterIdle({ user }: { user: Profile }) {
   return idle ? <NativePushManager user={user} /> : null;
 }
 
+function reducedMotion() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
 /** The avatar's room while the menu's chunk loads. */
 function AccountSlot() {
   return <span aria-hidden className="h-11 w-11" />;
@@ -270,6 +274,28 @@ function Shell({
         ? "pb-[calc(5.25rem+env(safe-area-inset-bottom))]"
         : "pb-[max(1.5rem,env(safe-area-inset-bottom))]";
 
+  /** A tap on the tab (or the logo) for the screen you are on: scroll to the top, or refresh when already there. */
+  const onTabClick = (event: React.MouseEvent<HTMLAnchorElement>, href: BottomNavTab["href"]) => {
+    if (
+      keepsBrowserTabGesture({
+        metaKey: event.metaKey,
+        ctrlKey: event.ctrlKey,
+        shiftKey: event.shiftKey,
+      })
+    ) {
+      return;
+    }
+    if (!isCurrentTabScreen(pathname, href, user?.username ?? null)) return;
+    event.preventDefault();
+    const top = window.scrollY || document.documentElement.scrollTop || 0;
+    const action = activeTabAction({ onThisScreen: true, scrollTop: top });
+    if (action === "scroll-top") {
+      window.scrollTo({ top: 0, behavior: reducedMotion() ? "auto" : "smooth" });
+      return;
+    }
+    if (!requestPageRefresh()) router.refresh();
+  };
+
   return (
     <div
       data-pending-shell={pending ? "" : undefined}
@@ -290,6 +316,7 @@ function Shell({
             <Link
               href="/"
               aria-label="Slabhold home"
+              onClick={(event) => onTabClick(event, "/")}
               className="grid h-11 w-11 place-items-center rounded-full focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:outline-none"
             >
               <Logo className="h-8 w-8" />
@@ -353,26 +380,6 @@ function Shell({
             {tabs.map((tab) => {
               const active = isActive(pathname, tab.href, user);
               const Icon = tab.icon;
-              const onTabClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
-                if (
-                  keepsBrowserTabGesture({
-                    metaKey: event.metaKey,
-                    ctrlKey: event.ctrlKey,
-                    shiftKey: event.shiftKey,
-                  })
-                ) {
-                  return;
-                }
-                if (!isCurrentTabScreen(pathname, tab.href, user?.username ?? null)) return;
-                event.preventDefault();
-                const top = window.scrollY || document.documentElement.scrollTop || 0;
-                const action = activeTabAction({ onThisScreen: true, scrollTop: top });
-                if (action === "scroll-top") {
-                  window.scrollTo({ top: 0, behavior: "smooth" });
-                  return;
-                }
-                if (!requestPageRefresh()) router.refresh();
-              };
               if (tab.href === "/cards/new") {
                 return (
                   <Link
@@ -401,7 +408,7 @@ function Shell({
                 <Link
                   key={tab.href}
                   href={tab.href}
-                  onClick={onTabClick}
+                  onClick={(event) => onTabClick(event, tab.href)}
                   data-tour={tab.tour}
                   aria-label={
                     messageBadge > 0 ? `Messages, ${messageBadge} unread` : tab.label
