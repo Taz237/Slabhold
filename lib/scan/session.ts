@@ -42,7 +42,8 @@ export function scanReadFrom(capture: ScanCapture, directory: readonly IndexedDi
     // The barcode's cert fills the cert when the label's own wasn't read. It is never the card #.
     if (!label.certNumber && capture.cert) label.certNumber = capture.cert;
     if (label.certNumber && label.cardNumber.replace(/\D/g, "") === label.certNumber.replace(/\D/g, "")) label.cardNumber = "";
-    return { kind: "slab", label };
+    // The back through the case: a printed "No. 47" fills a card # the label didn't give.
+    return { kind: "slab", label, back: capture.backLines?.length ? readRawCardText(capture.backLines, directory, { side: "back" }) : null };
   }
   return {
     kind: "raw",

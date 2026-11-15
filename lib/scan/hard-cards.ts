@@ -11,6 +11,7 @@ import { nameKey } from "./player-lookup";
  * a product or a parallel: hard-cards.test.ts scores whatever the file holds.
  *
  * Optional on a card: "typical_ocr_back", the back as a real photo read (else it is built);
+ * "kind": "slab" for a graded slab (the front is its label);
  * "parallel_unconfirmed" and "listing_titles_modeled" (see the file's notes);
  * "parallel_also", other names for the same parallel that count as right
  * (the checklist's name beside the sellers' name), and "player_also", the same person as our
@@ -37,6 +38,8 @@ export type HardCard = {
   print_run: number | null;
   sport: string;
   is_rookie: boolean;
+  /** "slab": scanned as a graded slab (the front is the label as read). Else a raw card. */
+  kind?: "slab";
   typical_ocr_front: string[];
   /** The back as read off a real photo. Without it the back is built from the card #, the year and the product. */
   typical_ocr_back?: string[];

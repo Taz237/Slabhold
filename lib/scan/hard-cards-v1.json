@@ -8,7 +8,8 @@
   "checklist = checklistinsider.com / diamondcardsonline.com; listing = SportsCardsPro product page, which shows real eBay sold titles (eBay itself blocked direct fetches).",
   "listing_title_examples are real seller titles, kept because they show how the market words each card (including seller mistakes).",
   "A card may carry \"typical_ocr_back\": the back as read off a real photo, used in place of the built one (hc-074).",
-  "\"parallel_unconfirmed\": the card is a parallel whose name no checklist confirms: showing nothing is open, showing any name is wrong. \"listing_titles_modeled\": the titles are written to match a sale the app showed, not copied from real listings (hc-074: the James Wood sale the wrong answer came from)."
+  "\"parallel_unconfirmed\": the card is a parallel whose name no checklist confirms: showing nothing is open, showing any name is wrong. \"listing_titles_modeled\": the titles are written to match a sale the app showed, not copied from real listings (hc-074: the James Wood sale the wrong answer came from).",
+  "\"kind\": \"slab\" scans the card as a graded slab: the front is the label as read, the back is the slab's back (hc-075)."
  ],
  "cards": [
   {
@@ -2149,6 +2150,53 @@
    ],
    "listing_titles_modeled": true,
    "confidence": "player, team, card # and run verified from the card and the checklist; parallel unconfirmed; listing titles modeled, not captured"
+  },
+  {
+   "id": "hc-075",
+   "category": "slab_tier_number",
+   "year": "2020",
+   "manufacturer": "Panini",
+   "product": "Panini Select Football",
+   "card_number": "47",
+   "player": "Jordan Love",
+   "team": "Green Bay Packers",
+   "parallel": null,
+   "parallel_also": [
+    "Concourse"
+   ],
+   "print_run": null,
+   "sport": "football",
+   "is_rookie": true,
+   "kind": "slab",
+   "typical_ocr_front": [
+    "2020 PANINI SELECT 47",
+    "JORDAN LOVE",
+    "CONCOURSE",
+    "GEM MT 10",
+    "PSA",
+    "71905562"
+   ],
+   "typical_ocr_back": [
+    "47",
+    "JORDAN LOVE",
+    "QUARTERBACK",
+    "PSA",
+    "71905562",
+    "© 2020 Panini America, Inc."
+   ],
+   "why_hard": "Device miss (Nov 15): a PSA 10, front and back scanned, showed #247 (his Club Level card) with the right #47 (Concourse) under \"Or one of these\". Select prints the same player at #47, #147, #247 and #347 (Concourse, Premier, Club Level, Field Level), so sold titles for \"Jordan Love 2020 Select\" name several real cards and the Club Level sales outnumbered the Concourse ones. Here the phone drops the label's \"#\" (\"2020 PANINI SELECT 47\") and the back's \"47\" prints bare. The label is the cleaner read: it prints \"#47\" right after the year and set. The back's bare number can be a jersey, so it only breaks the tie between the numbers the sold titles name. Concourse is Select's base level, so naming it is right and leaving it out is open. Label and back lines and the cert are modeled, not captured.",
+   "source_urls": [
+    "https://www.cardboardconnection.com/2020-panini-select-football-cards"
+   ],
+   "listing_title_examples": [
+    "2020 Panini Select Jordan Love Club Level RC #247 PSA 10 Packers",
+    "2020 Select Jordan Love Club Level Rookie #247 PSA 10 GEM MINT",
+    "Jordan Love 2020 Panini Select #247 Club Level RC PSA 10",
+    "2020 Panini Select Concourse Jordan Love RC #47 PSA 10 Packers",
+    "Jordan Love 2020 Select Concourse #47 Rookie PSA 10"
+   ],
+   "listing_titles_modeled": true,
+   "confidence": "player, card # and level checked against the store's 2020 Panini Select checklist (Base Concourse #47, Base Club Level #247); label, back and listing titles modeled, not captured"
   }
  ]
 }

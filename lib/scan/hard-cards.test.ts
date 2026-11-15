@@ -41,7 +41,7 @@ function shownLine(match: ScanMatch | undefined): string {
 
 const label = (card: HardCard) => `${card.id} ${card.player}, ${card.year} ${hardCardSet(card.product)} #${card.card_number}${card.parallel ? ` ${card.parallel}` : ""}${card.print_run ? ` /${card.print_run}` : ""}`;
 const row = (card: HardCard, match: ScanMatch | undefined): Row => ({ id: card.id, label: label(card), ...marks(match, card), shown: shownLine(match) });
-const capture = (card: HardCard) => ({ lines: card.typical_ocr_front, backLines: hardCardBack(card), kind: "card" as const });
+const capture = (card: HardCard) => ({ lines: card.typical_ocr_front, backLines: hardCardBack(card), kind: card.kind ?? ("card" as const) });
 
 async function scanAlone(card: HardCard): Promise<Row> {
   const read = scanReadFrom({ ...capture(card), image: null, alternates: null, backAlternates: null, cert: null }, SCAN_DIRECTORY);
@@ -104,7 +104,7 @@ function assertNoWrong(rows: readonly Row[]) {
 
 describe("the hard-cards set", () => {
   it("the file is well formed: unique hc- ids, a front, and a truth for every field", () => {
-    assert.ok(CARDS.length >= 73);
+    assert.ok(CARDS.length >= 75);
     assert.equal(new Set(CARDS.map((card) => card.id)).size, CARDS.length);
     for (const card of CARDS) {
       assert.match(card.id, /^hc-\d{3,}$/, card.id);

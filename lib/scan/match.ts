@@ -34,7 +34,12 @@ import { SAPPHIRE_WORD, inSapphireFamily, isSapphireSet, sapphireOf, sapphireOpt
  */
 
 export type ScanRead =
-  | { kind: "slab"; label: SlabLabelRead }
+  | {
+      kind: "slab";
+      label: SlabLabelRead;
+      /** The slab's back (the card's back through the case), when the scanner asked for it. Only its card # is used. */
+      back?: RawCardRead | null;
+    }
   | {
       kind: "raw";
       front: RawCardRead;
@@ -187,6 +192,11 @@ type Evidence = {
   /** A slab's printed set when it isn't one of SETS. */
   setText: string;
   cardNumber: string;
+  /**
+   * Numbers alone on a line of the back ("47"). Never the card # by themselves (a jersey or an age
+   * prints the same way), only a tie-break between real cards the sold titles name.
+   */
+  backNumbers: string[];
   serial: { number: string; run: string } | null;
   /** The read run was replaced by the run sold titles agree on (OCR read /298, titles say /299). */
   runUnsure?: boolean;
@@ -196,6 +206,11 @@ type Evidence = {
   isAuto: boolean;
   grade: ScanGrade | null;
 };
+
+/** Every 1-4 digit number alone on a line of the back, as a card # key. */
+function loneNumbers(back: RawCardRead | null | undefined): string[] {
+  return [...new Set((back?.lines ?? []).map((line) => line.trim()).filter((line) => /^\d{1,4}$/.test(line)).map(cardNumberKey))];
+}
 
 function words(text: string): string[] {
   return normInterest(text).split(" ").filter(Boolean);
@@ -252,7 +267,9 @@ function evidenceFrom(read: ScanRead, directory: readonly IndexedDirectoryPlayer
       copyrightYear: "",
       setNames: label.setName ? [label.setName] : [],
       setText: label.setName ? "" : label.setText,
-      cardNumber: looksLikeCatalogSku(label.cardNumber) ? "" : label.cardNumber,
+      // The label's # first; else the one the back prints the way a back does ("No. 47", "BP-27").
+      cardNumber: (looksLikeCatalogSku(label.cardNumber) ? "" : label.cardNumber) || (read.back?.cardNumber && !looksLikeCatalogSku(read.back.cardNumber) ? read.back.cardNumber : ""),
+      backNumbers: loneNumbers(read.back),
       serial: label.serial ?? null,
       parallelWords: slabParallelWords(label.varietyText),
       isRookie: label.isRookie,
@@ -359,6 +376,7 @@ function evidenceFrom(read: ScanRead, directory: readonly IndexedDirectoryPlayer
     setNames,
     setText: "",
     cardNumber,
+    backNumbers: loneNumbers(read.back),
     serial: sides.map((side) => side.serial).find(Boolean) ?? null,
     parallelWords,
     isRookie: sides.some((side) => side.isRookie),
@@ -682,6 +700,13 @@ type Candidate = {
   rowsByParallel: Map<string, string>;
   /** Cached sold listings that name this exact card. */
   titles?: TitleFacts[];
+  /**
+   * Sold titles name 2+ real cards for this player in this set (Select's #47 and #247): +20 for the
+   * one the card itself backs (a lone back number, the label's variety), -20 for the others.
+   */
+  numberNudge?: number;
+  /** The card with the # left open because the titles split between real cards: it stands in for the scan's own bare card. */
+  openSplit?: boolean;
 };
 
 /** The sport a listing's own words give (a team, a league, "Baseball"). "" when it says nothing. */
@@ -1108,16 +1133,18 @@ function titleCandidates(
     return set;
   };
 
-  const groups = new Map<string, { set: string; number: string; years: Map<string, number>; isRookie: boolean }>();
+  const groups = new Map<string, TitleGroup>();
   for (const item of parsed) {
     const set = titleSet(item);
     if (!set) continue;
     const key = `${setMatchPhrase(set)}|${item.number}`;
-    const group = groups.get(key) ?? { set, number: item.read.cardNumber, years: new Map(), isRookie: false };
+    const group: TitleGroup = groups.get(key) ?? { set, number: item.read.cardNumber, years: new Map(), isRookie: false, titles: [], nudge: 0 };
     if (item.read.yearLabel) group.years.set(item.read.yearLabel, (group.years.get(item.read.yearLabel) ?? 0) + 1);
     if (item.read.isRookie) group.isRookie = true;
+    group.titles.push(item.title);
     groups.set(key, group);
   }
+  if (!printedNumber) settleSplitNumbers(evidence, groups);
 
   // No title names a set ("Aidan Miller Pink/Red /299 BP-27"): they still count toward the parallel of
   // the card the scan built, for its # and run.
@@ -1145,8 +1172,56 @@ function titleCandidates(
       isRookie: group.isRookie,
       rowsByParallel: new Map(),
       titles: facts,
+      ...(group.nudge ? { numberNudge: group.nudge } : {}),
+      ...(group.openSplit ? { openSplit: true } : {}),
     };
   });
+}
+
+/** Sold titles for one set and card # (# "" when they give none). */
+type TitleGroup = { set: string; number: string; years: Map<string, number>; isRookie: boolean; titles: string[]; nudge: number; openSplit?: boolean };
+
+/** Titles for one card # count as a second card only with 2+ of them: one is a seller's slip. */
+const SPLIT_NUMBER_MIN_TITLES = 2;
+const NUMBER_NUDGE = 20;
+
+/**
+ * The card printed no # we read, and its sold titles name 2+ cards of this player in one set, each
+ * in 2+ titles (Select's Concourse #47 and Club Level #247). How many sold says nothing about which
+ * one is in hand. The card picks one when it can: a number alone on its back that one of them has,
+ * or, on a slab, the label's variety in only one of them's titles ("CONCOURSE"). Then that one is
+ * nudged up and the rest down. Otherwise every one is nudged down and a card with the # open leads:
+ * open beats wrong, and the numbers stay under "Or one of these".
+ */
+function settleSplitNumbers(evidence: Evidence, groups: Map<string, TitleGroup>) {
+  const bySet = new Map<string, TitleGroup[]>();
+  for (const group of groups.values()) {
+    if (!group.number || group.titles.length < SPLIT_NUMBER_MIN_TITLES) continue;
+    const phrase = setMatchPhrase(group.set);
+    bySet.set(phrase, [...(bySet.get(phrase) ?? []), group]);
+  }
+  for (const [phrase, split] of bySet) {
+    if (split.length < 2) continue;
+    let picked = split.filter((group) => evidence.backNumbers.includes(cardNumberKey(group.number)));
+    if (picked.length !== 1 && evidence.slab && evidence.parallelWords.length > 0) {
+      const says = (title: string) => {
+        const titleWords = new Set(words(title));
+        return evidence.parallelWords.every((word) => titleWords.has(word));
+      };
+      picked = split.filter((group) => group.titles.some(says));
+    }
+    if (picked.length === 1) {
+      for (const group of split) group.nudge = group === picked[0] ? NUMBER_NUDGE : -NUMBER_NUDGE;
+      continue;
+    }
+    for (const group of split) group.nudge = -NUMBER_NUDGE;
+    const openKey = `${phrase}|`;
+    if (!groups.has(openKey)) {
+      const years = new Map<string, number>();
+      for (const group of split) for (const [year, count] of group.years) years.set(year, (years.get(year) ?? 0) + count);
+      groups.set(openKey, { set: split[0].set, number: "", years, isRookie: split.some((group) => group.isRookie), titles: split.flatMap((group) => group.titles), nudge: 0, openSplit: true });
+    }
+  }
 }
 
 /** How far an OCR'd print run can be from the run sold titles agree on (/298 for /299). */
@@ -1201,7 +1276,11 @@ function looseTitleFacts(
 
 /** Catalog and sold-listing candidates for the same card become one, keeping the catalog row. */
 function mergeTitleCandidates(candidates: Candidate[], fromTitles: Candidate[]): Candidate[] {
-  const out = [...candidates];
+  let out = [...candidates];
+  // The open-# card from split titles says everything the scan's bare card does, and more.
+  for (const open of fromTitles.filter((card) => card.openSplit)) {
+    out = out.filter((card) => !(card.catalogId == null && !card.titles?.length && covers(open, card)));
+  }
   for (const card of fromTitles) {
     const key = identityKey(card);
     const same = out.find((item) => identityKey(item) === key);
@@ -1376,7 +1455,7 @@ export function rankScanMatches(
       isAuto: evidence.isAuto,
       grade: evidence.grade,
       // Scored and judged as the set the card printed: Sapphire from sales rides on top of it.
-      score: identityScore(evidence, found) + titleScore(evidence, found) + parallelBonus,
+      score: identityScore(evidence, found) + titleScore(evidence, found) + parallelBonus + (found.numberNudge ?? 0),
       sureness: sureness(evidence, found, parallel),
       parallelOptions: parallel.options,
       ...(fromSales ? { setSource: "sales" as const } : {}),
