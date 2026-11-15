@@ -1,3 +1,4 @@
+import { scrollBehavior } from "@/lib/ui/scroll-behavior";
 import type { assessNewCardSubmit, CardDraftForm, NewCardDraft } from "@/lib/cards/new-card-draft";
 
 export const MORE_DETAILS_LABEL = "More details (optional)";
@@ -77,7 +78,7 @@ export function revealField(root: ParentNode, key: string): HTMLElement | null {
   if (!el) return null;
   const details = el.closest("details");
   if (details && !details.open) details.open = true;
-  el.scrollIntoView?.({ behavior: "smooth", block: "center" });
+  el.scrollIntoView?.({ behavior: scrollBehavior(), block: "center" });
   el.focus();
   return el;
 }

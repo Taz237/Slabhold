@@ -1,5 +1,6 @@
 "use client";
 
+import { useSheetDrag } from "@/lib/ui/use-sheet-drag";
 import Link from "next/link";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -46,6 +47,10 @@ export function SendPostSheetView({ post, onClose }: { post: Post; onClose: () =
   const [toast, setToast] = useState<{ username: string } | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const onCloseRef = useRef(onClose);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  /** Swipe down to close; the backdrop and Close slide it away first. */
+  const dismiss = useSheetDrag(panelRef, rootRef, onClose);
   const handle = handleQuery(query);
   useProfiles(handle ? { usernames: [handle] } : null);
   const byHandle = handle ? profileByUsername(handle) : undefined;
@@ -157,16 +162,18 @@ export function SendPostSheetView({ post, onClose }: { post: Post; onClose: () =
   if (typeof document === "undefined") return null;
   return createPortal(
     <div
+      ref={rootRef}
       className="backdrop-in fixed inset-0 z-[70] grid place-items-end bg-black/60 sm:place-items-center"
-      onClick={onClose}
+      onClick={dismiss}
     >
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         data-send-post-sheet=""
         onClick={(event) => event.stopPropagation()}
-        className="sheet-up flex max-h-[85dvh] w-full max-w-sm flex-col rounded-t-3xl border-t border-zinc-200 bg-[var(--background)] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] text-zinc-900 shadow-2xl sm:rounded-3xl sm:border dark:border-white/10 dark:text-zinc-100"
+        className="sheet-slide flex max-h-[85dvh] w-full max-w-sm flex-col rounded-t-3xl border-t border-zinc-200 bg-[var(--background)] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] text-zinc-900 shadow-2xl sm:rounded-3xl sm:border dark:border-white/10 dark:text-zinc-100"
       >
         <div aria-hidden className="mx-auto mb-1 h-1 w-9 shrink-0 rounded-full bg-zinc-300 sm:hidden dark:bg-white/20" />
         <div className="flex shrink-0 items-center justify-between gap-3 px-2 pt-1">

@@ -24,6 +24,8 @@ const SETTLE = "transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ea
 const MARK = 36;
 /** Arc length of the ring around the mark (r = 16). */
 const RING = 2 * Math.PI * 16;
+/** The share of the ring left open while it spins, so the turn is visible. */
+const SPIN_GAP = 0.28;
 
 function scrollOffset() {
   const root = document.scrollingElement;
@@ -84,7 +86,8 @@ export function PullToRefresh({
     const indicator = indicatorRef.current;
     const ring = ringRef.current;
     const spinner = spinnerRef.current;
-    const transition = animate ? SETTLE : "none";
+    // With Reduce Motion the page and the mark snap into place.
+    const transition = animate && !window.matchMedia(REDUCED).matches ? SETTLE : "none";
     if (content) {
       content.style.transition = transition;
       content.style.transform = offset > 0 ? `translate3d(0, ${offset}px, 0)` : "";
@@ -106,6 +109,10 @@ export function PullToRefresh({
     if (refreshingRef.current) return;
     refreshingRef.current = true;
     setRefreshing(true);
+    // A closed ring looks still while it turns, and an empty one (a refresh
+    // from the tab bar) is invisible. Spin an arc with a gap instead.
+    const ring = ringRef.current;
+    if (ring) ring.style.strokeDashoffset = String(RING * SPIN_GAP);
     paint(PULL_HOLD_PX, 1, true);
     const started = Date.now();
     void Promise.all([

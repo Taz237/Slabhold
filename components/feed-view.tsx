@@ -1,5 +1,6 @@
 "use client";
 
+import { scrollBehavior } from "@/lib/ui/scroll-behavior";
 import Link from "next/link";
 import { ReadRetry } from "@/components/read-retry";
 import { usePathname, useRouter } from "next/navigation";
@@ -412,7 +413,7 @@ export function FeedView({
   function openCollectors() {
     const section = document.getElementById("collectors-to-follow");
     if (section) {
-      section.scrollIntoView({ behavior: "smooth", block: "start" });
+      section.scrollIntoView({ behavior: scrollBehavior(), block: "start" });
       return;
     }
     router.push("/search");
