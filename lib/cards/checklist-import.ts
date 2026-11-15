@@ -46,8 +46,14 @@ function withoutNotes(text: string): string {
     .replace(/\s1st\b/gi, " ")
     .replace(/\s+/g, " ")
     .replace(/[\s,;:*-]+$/, "")
-    .trim();
+    .trim()
+    // A tier letter some pages put after the name ("Alex Rodriguez A", "Alexander Ovechkin C"). Never
+    // I, V or X: a suffix (Will Fuller V).
+    .replace(/^(\S+(?:\s+\S+)+)\s+[A-HJ-UWYZ]$/, "$1");
 }
+
+/** One letter of a nameplate per card (2009 Topps' In the Name Letter Relics, KY5): no card for a player as such. */
+const LETTER_SECTION = /\bletters?\b.*\b(?:relics?|patch(?:es)?)\b/i;
 
 /** "339 C.J. Stroud - Houston Texans" → the card. Null when the line isn't one card with one player. */
 export function parseChecklistLine(
@@ -90,6 +96,7 @@ export function sectionsFromChecklistPage(html: string, knownPerson?: (name: str
     const end = part.search(/<\/h3>/i);
     if (end < 0) continue;
     const name = sectionName(part.slice(0, end));
+    if (LETTER_SECTION.test(name)) continue;
     const cards: ImportedSection["cards"] = [];
     const blocks = part.slice(end).matchAll(/<div[^>]*class="[^"]*tablechecklist[^"]*"[^>]*>([\s\S]*?)<\/div>/gi);
     for (const block of blocks) {
@@ -129,6 +136,7 @@ function sectionsWithoutHotTitles(html: string, knownPerson?: (name: string) => 
     }
     if (cards.length === 0) continue;
     const name = sections.length === 0 ? "Base" : sectionName(heading);
+    if (LETTER_SECTION.test(name)) continue;
     const same = sections.find((section) => section.name === name);
     if (same) same.cards.push(...cards);
     else sections.push({ name, cards });

@@ -58,6 +58,22 @@ describe("the checklist import", () => {
     assert.deepEqual(sections[0].cards[2], { number: "340", player: "Dylan Horton", team: "Houston Texans" });
   });
 
+  it("a tier letter after a name is no part of it: 'Alex Rodriguez A' is Alex Rodriguez", () => {
+    assert.deepEqual(parseChecklistLine("TA1 Alex Rodriguez A - New York Yankees"), { number: "TA1", player: "Alex Rodriguez", team: "New York Yankees" });
+    assert.deepEqual(parseChecklistLine("GJ-AO Alexander Ovechkin C"), { number: "GJ-AO", player: "Alexander Ovechkin", team: "" });
+    assert.equal(parseChecklistLine("1 Ken Griffey Jr. - Seattle Mariners")?.player, "Ken Griffey Jr.");
+    assert.equal(parseChecklistLine("323 Will Fuller V - Houston Texans")?.player, "Will Fuller V");
+  });
+
+  it("a letter relic or letter patch section is left out: each card is one letter of a nameplate (KY5)", () => {
+    const page = [
+      '<h3 class="hot-title">Base Set Checklist</h3><div class="tablechecklist">1 Kevin Youkilis - Boston Red Sox</div>',
+      '<h3 class="hot-title">In the Name Letter Relics Checklist</h3><div class="tablechecklist">KY5 Kevin Youkilis I - Boston Red Sox</div>',
+      '<h3 class="hot-title">Legendary Letters Commemorative Patch Checklist</h3><div class="tablechecklist">LL1 Babe Ruth B</div>',
+    ].join("\n");
+    assert.deepEqual(sectionsFromChecklistPage(page).map((section) => section.name), ["Base"]);
+  });
+
   it("reads an older page with no section headings: its checklist blocks are the base set", () => {
     // The layout of Cardboard Connection's vintage pages (1960 Topps): one "Set Checklist" heading, two columns.
     const page = [
