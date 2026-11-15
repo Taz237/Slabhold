@@ -12,6 +12,7 @@ import {
   shouldDismiss,
   snapIndex,
   springEasing,
+  thumbRadius,
   trackOffset,
   zoomAt,
 } from "./photo-viewer-math";
@@ -147,3 +148,20 @@ describe("photo viewer: spring", () => {
 function round(value: number) {
   return Math.round(value * 100) / 100;
 }
+
+describe("photo viewer: thumbnail corners", () => {
+  it("reads a fixed radius, a round avatar, or square corners", () => {
+    assert.equal(thumbRadius("16", 320, 400), 16);
+    assert.equal(thumbRadius("full", 40, 40), 20, "a round avatar");
+    assert.equal(thumbRadius("full", 40, 30), 15);
+    assert.equal(thumbRadius(undefined, 40, 40), 0);
+    assert.equal(thumbRadius("junk", 40, 40), 0);
+  });
+
+  it("shrinks a photo back into a round avatar as a circle", () => {
+    const target = containRect({ width: 400, height: 400 }, viewport);
+    const from = sharedElementFrom({ rect: { left: 16, top: 16, width: 40, height: 40 }, fit: "cover", radius: 20 }, target);
+    // 20px on screen is half the photo's width once scaled up: a full circle.
+    assert.match(from.clip, /round 195px\)$/);
+  });
+});

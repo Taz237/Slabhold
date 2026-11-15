@@ -2,6 +2,7 @@
 
 import type { LightboxOptions } from "@/components/image-lightbox";
 import { knownPhotoSize, rememberPhotoSize } from "@/lib/social/photo-sizes";
+import { thumbnailsIn } from "@/lib/ui/thumbnail-origins";
 import { imagesFromPost, postPhotoCellClass, postPhotoGridClass } from "@/lib/social/post-photos";
 
 /** Rounded, with a hairline purple-tinted edge and a soft neutral shadow. */
@@ -10,11 +11,7 @@ const PHOTO_FRAME =
 
 /** The grid's thumbnails in order, so the viewer can grow out of (and shrink back into) the tapped one. */
 function originsFrom(button: HTMLElement): HTMLImageElement[] {
-  const frame = button.closest("[data-photo-frame]") ?? button;
-  const imgs = [...frame.querySelectorAll<HTMLImageElement>("img[data-photo-index]")];
-  // Loaded before hydration, onLoad never ran: note the size now for the post page.
-  for (const img of imgs) rememberPhotoSize(img.getAttribute("src") ?? "", img.naturalWidth, img.naturalHeight);
-  return imgs;
+  return thumbnailsIn(button.closest("[data-photo-frame]") ?? button);
 }
 
 function remember(event: React.SyntheticEvent<HTMLImageElement>) {

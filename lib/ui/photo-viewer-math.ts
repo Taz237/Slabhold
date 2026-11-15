@@ -118,6 +118,13 @@ export function sharedElementFrom(
   };
 }
 
+/** A thumbnail's corner radius from its `data-photo-radius`: px, or "full" for a round avatar. */
+export function thumbRadius(attr: string | undefined, width: number, height: number): number {
+  if (attr === "full") return Math.min(width, height) / 2;
+  const px = Number(attr);
+  return Number.isFinite(px) && px > 0 ? px : 0;
+}
+
 /** A zoomed photo can't be panned past its own edges; at 1x it stays centered. */
 export function clampPan(state: ZoomState, fitted: Size, screen: Size): Point {
   const maxX = Math.max(0, (fitted.width * state.scale - screen.width) / 2);
