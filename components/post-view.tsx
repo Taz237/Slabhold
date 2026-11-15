@@ -535,9 +535,9 @@ function ReplyMenu({
         <Ellipsis className="h-5 w-5" />
       </button>
       {open ? (
-        <MenuSheet label="Reply options" onClose={close}>
+        <MenuSheet label="Reply options" onClose={close} cancel={!confirming}>
           {confirming ? (
-            <div className="px-5 pt-2 pb-1">
+            <div className="px-5 pt-2 pb-2">
               <p className="text-base font-semibold">Delete this reply?</p>
               <div className="mt-3 flex gap-2">
                 <button
@@ -560,7 +560,7 @@ function ReplyMenu({
                   onClick={() => setConfirming(false)}
                   className="tap min-h-12 flex-1 rounded-full border border-zinc-300 text-base font-semibold dark:border-white/20"
                 >
-                  Keep
+                  Cancel
                 </button>
               </div>
             </div>

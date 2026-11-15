@@ -25,11 +25,14 @@ export function MenuSheetIcon({ icon: Icon }: { icon: LucideIcon }) {
 export function MenuSheet({
   label,
   onClose,
+  cancel = true,
   children,
 }: {
   /** What the menu is for, read to screen readers: "Post options". */
   label: string;
   onClose: () => void;
+  /** The Cancel row. Off while the sheet asks a question with its own Cancel. */
+  cancel?: boolean;
   children: ReactNode;
 }) {
   const titleId = useId();
@@ -82,15 +85,17 @@ export function MenuSheet({
           {label}
         </h2>
         {children}
-        <div className="px-4 pt-2">
-          <button
-            type="button"
-            onClick={dismiss}
-            className="tap flex min-h-12 w-full items-center justify-center rounded-full border border-zinc-300 text-base font-semibold dark:border-white/20"
-          >
-            Cancel
-          </button>
-        </div>
+        {cancel ? (
+          <div className="px-4 pt-2">
+            <button
+              type="button"
+              onClick={dismiss}
+              className="tap flex min-h-12 w-full items-center justify-center rounded-full border border-zinc-300 text-base font-semibold dark:border-white/20"
+            >
+              Cancel
+            </button>
+          </div>
+        ) : null}
       </div>
     </div>,
     document.body,

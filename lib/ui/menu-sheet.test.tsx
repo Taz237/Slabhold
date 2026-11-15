@@ -93,6 +93,12 @@ describe("the ⋯ menu is a bottom sheet", () => {
     assert.doesNotMatch(sheet, /teal|font-bold|animate-spin|shadow-violet|\bglow\b/i);
   });
 
+  it("shows one Cancel at a time: the delete question brings its own", () => {
+    for (const file of ["components/tweet.tsx", "components/post-view.tsx"]) {
+      assert.match(read(file), /<MenuSheet label="[^"]+" onClose=\{close\} cancel=\{!confirming\}>/, file);
+    }
+  });
+
   it("is what the post, reply and other-people menus open", () => {
     for (const file of ["components/tweet.tsx", "components/post-view.tsx", "components/safety-menu.tsx"]) {
       const source = read(file);
