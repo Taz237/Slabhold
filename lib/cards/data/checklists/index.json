@@ -261,6 +261,15 @@
   "cards": 530
  },
  {
+  "file": "2020-baseball-topps-chrome-update-sapphire",
+  "sport": "Baseball",
+  "yearLabel": "2020",
+  "product": "Topps Chrome Update Sapphire",
+  "source": "https://www.cardboardconnection.com/2020-topps-chrome-update-sapphire-baseball-cards",
+  "read": "2026-11-15",
+  "cards": 330
+ },
+ {
   "file": "2020-baseball-topps-update",
   "sport": "Baseball",
   "yearLabel": "2020",
@@ -421,6 +430,15 @@
   "source": "https://www.cardboardconnection.com/2021-topps-chrome-baseball-cards",
   "read": "2026-11-14",
   "cards": 568
+ },
+ {
+  "file": "2021-baseball-topps-chrome-update-sapphire",
+  "sport": "Baseball",
+  "yearLabel": "2021",
+  "product": "Topps Chrome Update Sapphire",
+  "source": "https://www.cardboardconnection.com/2021-topps-chrome-update-sapphire-baseball-cards",
+  "read": "2026-11-15",
+  "cards": 351
  },
  {
   "file": "2021-baseball-topps-finest",
@@ -763,6 +781,15 @@
   "source": "https://www.cardboardconnection.com/2023-panini-prizm-football-nfl-cards",
   "read": "2026-11-14",
   "cards": 1074
+ },
+ {
+  "file": "2023-football-prizm-draft-picks",
+  "sport": "Football",
+  "yearLabel": "2023",
+  "product": "Prizm Draft Picks",
+  "source": "https://www.cardboardconnection.com/2023-panini-prizm-draft-picks-football-cards",
+  "read": "2026-11-15",
+  "cards": 872
  },
  {
   "file": "2024-25-basketball-bowman-u-chrome",
