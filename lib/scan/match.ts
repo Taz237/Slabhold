@@ -187,6 +187,8 @@ type Evidence = {
   border: string | null;
   yearLabel: string;
   copyrightYear: string;
+  /** The last season the back's stat table lists ("2019"), or "". A year only once a checklist confirms it. */
+  statSeason?: string;
   /**
    * The © year is the only year, and the back's stats stop two seasons before it: last year's
    * product printed late, or this year's. The lookups try both; the sheet shows neither.
@@ -382,6 +384,7 @@ function evidenceFrom(read: ScanRead, directory: readonly IndexedDirectoryPlayer
     border: read.border ?? null,
     yearLabel,
     copyrightYear,
+    ...(statSeason ? { statSeason } : {}),
     ...(yearOpen ? { yearOpen: true } : {}),
     setNames,
     setText: "",
@@ -495,6 +498,18 @@ function cardYears(evidence: Evidence): string[] {
   return evidence.yearLabel ? [evidence.yearLabel] : copyright ? [copyright, String(Number(copyright) - 1)] : [];
 }
 
+/** The year a card with no printed or © year is, by its stats: the season after the last one listed. Only ever checked against a checklist. */
+function statYear(evidence: Evidence): string {
+  return !evidence.yearLabel && !evidence.copyrightYear && /^\d{4}$/.test(evidence.statSeason ?? "") ? String(Number(evidence.statSeason) + 1) : "";
+}
+
+/** The years to load and check checklists for: the card's own, else the one its stats point to. */
+function checklistYears(evidence: Evidence): string[] {
+  const years = cardYears(evidence);
+  const fromStats = statYear(evidence);
+  return years.length > 0 ? years : fromStats ? [fromStats] : [];
+}
+
 function cardKeyOf(evidence: Evidence): ScanCardKey | null {
   if (evidence.slab) return null;
   const setBrand = evidence.setNames[0] ?? "";
@@ -518,8 +533,10 @@ export function scanChecklistKey(read: ScanRead, directory: readonly IndexedDire
   if (card) return card;
   const evidence = evidenceFrom(read, directory);
   const setBrand = evidence.setNames[0] ?? "";
-  const years = cardYears(evidence);
-  if (evidence.slab || !setBrand || years.length === 0 || evidence.backNumbers.length === 0 || !bestPlayerName(evidence)) return null;
+  const years = checklistYears(evidence);
+  if (evidence.slab || !setBrand || years.length === 0 || !bestPlayerName(evidence)) return null;
+  // Worth a load only when the checklist can settle something: a bare back number, or a year by the stats.
+  if (evidence.backNumbers.length === 0 && !(statYear(evidence) && evidence.cardNumber)) return null;
   return { years, setBrand, sport: evidence.sport };
 }
 
@@ -529,15 +546,22 @@ export function scanChecklistKey(read: ScanRead, directory: readonly IndexedDire
  * number, or the # stays open. A jersey or an age the checklist doesn't put him at never counts.
  */
 function withChecklistNumber(evidence: Evidence, checklists: readonly ChecklistProduct[] | null | undefined): Evidence {
-  if (evidence.cardNumber || evidence.backNumbers.length === 0 || !checklists?.length) return evidence;
+  if (!checklists?.length) return evidence;
   const name = bestPlayerName(evidence);
   const setBrand = evidence.setNames[0] ?? "";
-  const years = cardYears(evidence);
+  const years = checklistYears(evidence);
   if (!name || !setBrand || years.length === 0) return evidence;
-  const his = evidence.backNumbers.filter((number) =>
-    years.some((yearLabel) => playersAt(checklists, { yearLabel, setBrand, cardNumber: number, sport: evidence.sport || undefined }).some((hit) => namesAgree(hit.player, name))),
-  );
-  return his.length === 1 ? { ...evidence, cardNumber: his[0] } : evidence;
+  const his = (number: string) =>
+    years.some((yearLabel) => playersAt(checklists, { yearLabel, setBrand, cardNumber: number, sport: evidence.sport || undefined }).some((hit) => namesAgree(hit.player, name)));
+  let next = evidence;
+  if (!next.cardNumber && next.backNumbers.length > 0) {
+    const numbers = next.backNumbers.filter(his);
+    if (numbers.length === 1) next = { ...next, cardNumber: numbers[0] };
+  }
+  // No year printed: the year its stats point to, once that year's checklist has him at this #.
+  const fromStats = statYear(next);
+  if (fromStats && next.cardNumber && his(next.cardNumber)) next = { ...next, yearLabel: fromStats };
+  return next;
 }
 
 export function scanCardKey(read: ScanRead, directory: readonly IndexedDirectoryPlayer[]): ScanCardKey | null {

@@ -54,3 +54,18 @@ describe("a bare number on the back, checked against the checklist", () => {
     assert.equal(match?.cardNumber, "");
   });
 });
+
+describe("no year printed: last season's stats, checked against the checklist", () => {
+  const STATS_BACK = ["47", "JORDAN LOVE", "QUARTERBACK", "YEAR TEAM ATT COMP YDS TD", "2019 UTAH STATE 473 293 3402 20", "2018 UTAH STATE 418 267 3567 32"];
+
+  it("stats through 2019 and the 2020 checklist has him at 47: 2020, #47", async () => {
+    const match = (await top(FRONT, STATS_BACK))!;
+    assert.equal(match.yearLabel, "2020");
+    assert.equal(match.cardNumber, "47");
+  });
+
+  it("the checklist for the year after the stats doesn't have him there: the year stays open", async () => {
+    const match = await top(FRONT, ["47", "JORDAN LOVE", "QUARTERBACK", "YEAR TEAM ATT COMP YDS TD", "2017 UTAH STATE 473 293 3402 20"]);
+    assert.equal(match?.yearLabel ?? "", "");
+  });
+});
