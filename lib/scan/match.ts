@@ -551,7 +551,7 @@ function cardKeyOf(evidence: Evidence): ScanCardKey | null {
 
 /** The card a scan read (year, set, card #), so its checklist can be loaded before ranking. */
 /** Which checklist files a scan needs: its year and set. */
-export type ScanChecklistKey = { years: string[]; setBrand: string; sport: string };
+export type ScanChecklistKey = { years: string[]; setBrand: string; sport: string; allYears?: boolean };
 
 /**
  * The year and set to load checklists for. The card # isn't needed here: with a player read and a
@@ -565,7 +565,11 @@ export function scanChecklistKey(read: ScanRead, directory: readonly IndexedDire
   const years = checklistYears(evidence);
   if (evidence.slab || !setBrand || !bestPlayerName(evidence)) return null;
   // No year at all: every year of the set, in the sport the card names, to find the one with him at this #.
-  if (years.length === 0) return evidence.sport && (evidence.cardNumber || evidence.backNumbers.length > 0) ? { years: [], setBrand, sport: evidence.sport } : null;
+  if (years.length === 0) {
+    if (!evidence.sport || (!evidence.cardNumber && evidence.backNumbers.length === 0)) return null;
+    // A letter code (BP-27, US175) is on modern cards only: then every year of the set, not just the vintage ones.
+    return { years: [], setBrand, sport: evidence.sport, ...(/[a-z]/i.test(evidence.cardNumber) ? { allYears: true } : {}) };
+  }
   // Worth a load only when the checklist can settle something: a bare back number, or a year by the stats.
   if (evidence.backNumbers.length === 0 && !(statYear(evidence) && evidence.cardNumber)) return null;
   return { years, setBrand, sport: evidence.sport };

@@ -151,6 +151,8 @@ describe("the checklist store", () => {
       { file: "f61", sport: "Basketball", yearLabel: "1961-62", product: "Fleer", source: "s", read: "2026-11-15", cards: 1 },
     ];
     assert.deepEqual(checklistFilesFor({ years: [], setBrand: "Topps", sport: "Baseball" }, vintage), ["t52", "t80"]);
+    // A letter code (BP-27, US175) is a modern card's: every year.
+    assert.deepEqual(checklistFilesFor({ years: [], setBrand: "Topps", sport: "Baseball", allYears: true }, vintage), ["t52", "t80", "t81"]);
     assert.deepEqual(checklistFilesFor({ years: [], setBrand: "Fleer", sport: "Basketball" }, vintage), ["f61"]);
     assert.deepEqual(checklistFilesFor({ years: [], setBrand: "Topps" }, vintage), []);
     assert.deepEqual(checklistFilesFor({ years: [], setBrand: "Prizm", sport: "Basketball" }, entries), []);

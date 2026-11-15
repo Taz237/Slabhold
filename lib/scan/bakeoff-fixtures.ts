@@ -22,6 +22,8 @@ export type BakeoffTruth = {
   parallelAlso?: string[];
   /** The card's year or season: "2024", "2025-26". */
   year?: string;
+  /** The card's sport, to check the truth against the store's checklist for it (the era set). */
+  sport?: string;
   /** The card's print run (/299). Null or missing: the card isn't numbered. */
   run?: number | null;
   /** A slab's grade ("PSA 10"). Checked, not scored. */

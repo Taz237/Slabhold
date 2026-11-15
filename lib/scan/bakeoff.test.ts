@@ -247,18 +247,18 @@ describe("the scanner bake-off", () => {
   it("the era set: every truth is on the store's checklist where the store has the set, and with it loaded the card # and year read right", async () => {
     let checked = 0;
     for (const scan of ERA_BAKEOFF_CASES) {
-      if (!scan.truth.number || !scan.truth.player) continue;
-      const files = await loadChecklistsFor({ years: [scan.truth.year], setBrand: scan.truth.set });
+      if (!scan.truth.number || !scan.truth.player || !scan.truth.year) continue;
+      const files = await loadChecklistsFor({ years: [scan.truth.year], setBrand: scan.truth.set, sport: scan.truth.sport });
       if (files.length === 0) continue;
       const at = files.flatMap((product) => product.sections.flatMap((section) => section.cards.filter(([number]) => number.toLowerCase() === scan.truth.number.toLowerCase()).map(([, player]) => player)));
       assert.ok(at.some((player) => nameKey(player) === nameKey(scan.truth.player)), `${scan.name}: the checklist has ${at.join(", ") || "nobody"} at #${scan.truth.number}`);
       checked += 1;
     }
-    assert.ok(checked >= 2, `${checked} era truths checked against the store`);
+    assert.ok(checked >= 8, `${checked} era truths checked against the store`);
     const products = await loadProductData();
-    for (const scan of ERA_BAKEOFF_CASES.filter((item) => item.kind !== "slab" && item.truth.number)) {
+    for (const scan of ERA_BAKEOFF_CASES.filter((item) => item.kind !== "slab" && item.truth.number && item.truth.year)) {
       // Only where the store has the set: without its checklist a bare number rightly stays open.
-      if ((await loadChecklistsFor({ years: [scan.truth.year], setBrand: scan.truth.set })).length === 0) continue;
+      if ((await loadChecklistsFor({ years: [scan.truth.year!], setBrand: scan.truth.set, sport: scan.truth.sport })).length === 0) continue;
       const match = top(scan, products, await storeChecklists(scan));
       assert.equal(match?.cardNumber, scan.truth.number, `${scan.name}: ${shownLine(match)}`);
       assert.equal(match?.yearLabel, scan.truth.year, `${scan.name}: ${shownLine(match)}`);
