@@ -459,6 +459,15 @@
   "cards": 800
  },
  {
+  "file": "1992-baseball-upper-deck",
+  "sport": "Baseball",
+  "yearLabel": "1992",
+  "product": "Upper Deck",
+  "source": "https://www.cardboardconnection.com/1992-upper-deck-baseball-cards",
+  "read": "2026-11-15",
+  "cards": 848
+ },
+ {
   "file": "1993-baseball-bowman",
   "sport": "Baseball",
   "yearLabel": "1993",
@@ -475,6 +484,15 @@
   "source": "https://www.cardboardconnection.com/1993-topps-baseball-cards",
   "read": "2026-11-15",
   "cards": 830
+ },
+ {
+  "file": "1993-baseball-upper-deck",
+  "sport": "Baseball",
+  "yearLabel": "1993",
+  "product": "Upper Deck",
+  "source": "https://www.cardboardconnection.com/1993-upper-deck-baseball-cards",
+  "read": "2026-11-15",
+  "cards": 920
  },
  {
   "file": "1994-baseball-bowman",
