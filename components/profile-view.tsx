@@ -14,6 +14,7 @@ import { ProfileBadgeStrip } from "@/components/badges/profile-badge-strip";
 import { LoadMore } from "@/components/load-more";
 import { MentionText } from "@/components/mention-text";
 import { PullToRefresh } from "@/components/pull-to-refresh";
+import { FeedItem } from "@/components/timeline-ui";
 import { usePagedTimeline } from "@/components/use-paged-timeline";
 import { EmptyState, LoadingRows, ProfileSkeleton } from "@/components/status";
 import { FollowButton } from "@/components/follow-button";
@@ -668,15 +669,16 @@ export function ProfileView({
             const author = authors.get(item.post.authorId);
             if (!author) return null;
             return (
-              <Tweet
-                key={item.key}
-                post={item.post}
-                author={author}
-                pinned={item.key.startsWith("pinned:")}
-                repostedBy={item.repostedBy}
-                extraPosts={pagedPosts.relatedPosts}
-                extraProfiles={pagedPosts.profiles}
-              />
+              <FeedItem key={item.key} itemKey={`profile:${item.key}`} delay={null}>
+                <Tweet
+                  post={item.post}
+                  author={author}
+                  pinned={item.key.startsWith("pinned:")}
+                  repostedBy={item.repostedBy}
+                  extraPosts={pagedPosts.relatedPosts}
+                  extraProfiles={pagedPosts.profiles}
+                />
+              </FeedItem>
             );
           })}
           {mode === "supabase" ? (

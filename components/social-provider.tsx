@@ -2144,6 +2144,15 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           ...existing,
           reposts: reposts.filter((repost) => knownPosts.has(repost.postId)),
         }));
+        // The server said no: put this one repost back the way it was, without waiting for the re-read.
+        const undoRepost = () => {
+          const restore = (list: PostRepost[]): PostRepost[] => {
+            const rest = list.filter((repost) => !(repost.postId === postId && repost.userId === userId));
+            return reposted ? [...rest, { postId, userId, createdAt: new Date().toISOString() }] : rest;
+          };
+          snapshotRef.current = { ...snapshotRef.current, reposts: restore(snapshotRef.current.reposts) };
+          setRemote((existing) => ({ ...existing, reposts: restore(existing.reposts) }));
+        };
         repostQueue.current = repostQueue.current
           .catch(() => undefined)
           .then(async () => {
@@ -2155,11 +2164,13 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
               reposted,
             });
             if (result.error || result.notice) setStatus(result.error ?? result.notice ?? null);
+            if (result.error) undoRepost();
             if (!result.error && !reposted) emitSocialAction("repost");
             await rereadPost(client, postId);
           })
           .catch((error: unknown) => {
             setStatus(friendlyError(error, "Could not update that repost."));
+            undoRepost();
             return rereadPost(client, postId).catch(() => undefined);
           });
         return;

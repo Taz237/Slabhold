@@ -1,5 +1,6 @@
 "use client";
 
+import { fadeInWhenLoaded } from "@/lib/ui/fade-in-image";
 import type { LightboxOptions } from "@/components/image-lightbox";
 import { knownPhotoSize, rememberPhotoSize } from "@/lib/social/photo-sizes";
 import { thumbnailsIn } from "@/lib/ui/thumbnail-origins";
@@ -55,6 +56,8 @@ export function PostPhotoGrid({
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
+          ref={eager ? undefined : fadeInWhenLoaded}
+          data-fade={eager ? undefined : ""}
           src={photos[0]}
           alt=""
           data-photo-index={0}
@@ -96,6 +99,8 @@ export function PostPhotoGrid({
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
+            ref={eager ? undefined : fadeInWhenLoaded}
+            data-fade={eager ? undefined : ""}
             src={src}
             alt=""
             data-photo-index={index}

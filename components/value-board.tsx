@@ -83,7 +83,7 @@ export function ValueBoardView({
 
 function ValueBoardRowView({ row }: { row: ValueBoardRow }) {
   return (
-    <Link href={userHref(row.username)} className="flex min-h-11 items-center gap-3 px-3 py-2">
+    <Link href={userHref(row.username)} className="tap-row flex min-h-11 items-center gap-3 px-3 py-2">
       <span className="w-6 shrink-0 text-sm font-semibold tabular-nums text-zinc-500">{row.rank}</span>
       <Avatar
         name={row.displayName}
