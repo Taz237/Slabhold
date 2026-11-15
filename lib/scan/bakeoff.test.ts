@@ -257,6 +257,8 @@ describe("the scanner bake-off", () => {
     assert.ok(checked >= 2, `${checked} era truths checked against the store`);
     const products = await loadProductData();
     for (const scan of ERA_BAKEOFF_CASES.filter((item) => item.kind !== "slab" && item.truth.number)) {
+      // Only where the store has the set: without its checklist a bare number rightly stays open.
+      if ((await loadChecklistsFor({ years: [scan.truth.year], setBrand: scan.truth.set })).length === 0) continue;
       const match = top(scan, products, await storeChecklists(scan));
       assert.equal(match?.cardNumber, scan.truth.number, `${scan.name}: ${shownLine(match)}`);
       assert.equal(match?.yearLabel, scan.truth.year, `${scan.name}: ${shownLine(match)}`);

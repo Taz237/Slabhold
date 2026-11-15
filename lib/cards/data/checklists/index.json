@@ -1,5 +1,32 @@
 [
  {
+  "file": "1948-baseball-bowman",
+  "sport": "Baseball",
+  "yearLabel": "1948",
+  "product": "Bowman",
+  "source": "https://www.cardboardconnection.com/1948-bowman-baseball-cards",
+  "read": "2026-11-15",
+  "cards": 48
+ },
+ {
+  "file": "1950-baseball-bowman",
+  "sport": "Baseball",
+  "yearLabel": "1950",
+  "product": "Bowman",
+  "source": "https://www.cardboardconnection.com/1950-bowman-baseball-cards",
+  "read": "2026-11-15",
+  "cards": 252
+ },
+ {
+  "file": "1951-baseball-bowman",
+  "sport": "Baseball",
+  "yearLabel": "1951",
+  "product": "Bowman",
+  "source": "https://www.cardboardconnection.com/1951-bowman-baseball-cards",
+  "read": "2026-11-15",
+  "cards": 324
+ },
+ {
   "file": "1952-baseball-topps",
   "sport": "Baseball",
   "yearLabel": "1952",
@@ -565,6 +592,15 @@
   "source": "https://www.cardboardconnection.com/2018-topps-chrome-baseball-cards",
   "read": "2026-11-15",
   "cards": 469
+ },
+ {
+  "file": "2018-baseball-topps-chrome-update",
+  "sport": "Baseball",
+  "yearLabel": "2018",
+  "product": "Topps Chrome Update",
+  "source": "https://www.cardboardconnection.com/2018-topps-chrome-update-series-baseball-cards",
+  "read": "2026-11-15",
+  "cards": 174
  },
  {
   "file": "2018-baseball-topps-update",
