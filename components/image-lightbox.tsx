@@ -20,7 +20,7 @@ export type ViewerState = {
   key: number;
 };
 
-const ImageLightboxContext = createContext<OpenLightbox>(() => {});
+export const ImageLightboxContext = createContext<OpenLightbox>(() => {});
 
 export function useImageLightbox() {
   return useContext(ImageLightboxContext);

@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { useImageLightbox } from "@/components/image-lightbox";
 import { initials } from "@/lib/format";
+import { thumbnailsIn } from "@/lib/ui/thumbnail-origins";
 
 export function Avatar({
   name,
@@ -38,7 +39,8 @@ export function Avatar({
         onClick={(event) => {
           event.preventDefault();
           event.stopPropagation();
-          open(shown, `${name}'s profile picture`);
+          // Grows out of the round avatar and shrinks back into it.
+          open(shown, `${name}'s profile picture`, undefined, { origins: thumbnailsIn(event.currentTarget) });
         }}
         className={`tap hit-44 inline-block shrink-0 cursor-zoom-in rounded-full border-0 bg-transparent p-0 ${className}`}
       >
@@ -47,6 +49,8 @@ export function Avatar({
           ref={watch}
           src={shown}
           alt=""
+          data-photo-index={0}
+          data-photo-radius="full"
           loading="lazy"
           decoding="async"
           onError={failed}

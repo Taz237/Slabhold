@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { EbaySoldLink } from "@/components/ebay-sold-link";
-import { useImageLightbox } from "@/components/image-lightbox";
+import { useImageLightbox, type LightboxOptions } from "@/components/image-lightbox";
 import { useSocial } from "@/components/social-provider";
 import { money } from "@/lib/format";
 import { mailDayCardHref, visibleMailDayCards } from "@/lib/social/mail-day";
@@ -19,6 +19,9 @@ import {
   visibleAcquiredSource,
 } from "@/lib/value/ebay-sold";
 import type { CardValueResult } from "@/lib/value/types";
+import { thumbnailsIn } from "@/lib/ui/thumbnail-origins";
+
+type OpenPhoto = (src: string, alt: string, gallery?: readonly string[], options?: LightboxOptions) => void;
 
 function legacyViews(post: Post): MailDayCardView[] {
   if (!post.card || !post.mailDay) return [];
@@ -156,7 +159,7 @@ export function MailDayTileBody({
   soldHref: string | null;
   sourceLabel: string | null;
   paidLabel: string | null;
-  onOpen: (src: string, alt: string) => void;
+  onOpen: OpenPhoto;
 }) {
   const [lead, ...rest] = photos;
   const showPrice = Boolean(priceLabel || soldHref || sourceLabel || paidLabel);
@@ -179,11 +182,11 @@ export function MailDayTileBody({
     >
       {lead ? (
         <div className="grid gap-1">
-          <MailDayPhoto src={lead} hero={hero} onOpen={onOpen} />
+          <MailDayPhoto src={lead} index={0} photos={photos} hero={hero} onOpen={onOpen} />
           {rest.length > 0 ? (
             <div className={`grid gap-1 ${rest.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
-              {rest.map((src) => (
-                <MailDayPhoto key={src} src={src} hero={hero} onOpen={onOpen} />
+              {rest.map((src, i) => (
+                <MailDayPhoto key={src} src={src} index={i + 1} photos={photos} hero={hero} onOpen={onOpen} />
               ))}
             </div>
           ) : null}
@@ -210,19 +213,25 @@ function MailDayPhoto({
   src,
   hero,
   onOpen,
+  index,
+  photos,
 }: {
   src: string;
   hero: boolean;
-  onOpen: (src: string, alt: string) => void;
+  onOpen: OpenPhoto;
+  index: number;
+  photos: readonly string[];
 }) {
   return (
     <button
       type="button"
-      aria-label="View photo"
+      aria-label={photos.length > 1 ? `View photo ${index + 1}` : "View photo"}
       onClick={(event) => {
         event.preventDefault();
         event.stopPropagation();
-        onOpen(src, "Card photo");
+        // All of the pickup's photos, swipeable, each growing from its own tile.
+        const tile = event.currentTarget.closest("[data-mail-day-layout]");
+        onOpen(src, "Card photo", photos, { origins: thumbnailsIn(tile ?? event.currentTarget) });
       }}
       className="block bg-zinc-100 dark:bg-zinc-900"
     >
@@ -230,6 +239,7 @@ function MailDayPhoto({
       <img
         src={src}
         alt=""
+        data-photo-index={index}
         loading="lazy"
         decoding="async"
         data-photo-fit={hero ? "contain" : "cover"}

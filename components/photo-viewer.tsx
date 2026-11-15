@@ -25,6 +25,7 @@ import {
   shouldDismiss,
   snapIndex,
   springEasing,
+  thumbRadius,
   trackOffset,
   zoomAt,
   type Point,
@@ -123,7 +124,7 @@ function originFor(img: HTMLImageElement | null | undefined, screen: PhotoSize) 
   if (box.width < 2 || box.height < 2) return null;
   if (box.bottom <= 0 || box.top >= screen.height || box.right <= 0 || box.left >= screen.width) return null;
   const fit = getComputedStyle(img).objectFit === "contain" ? ("contain" as const) : ("cover" as const);
-  const radius = Number(img.dataset.photoRadius ?? 0) || 0;
+  const radius = thumbRadius(img.dataset.photoRadius, box.width, box.height);
   const rect: Rect = { left: box.left, top: box.top, width: box.width, height: box.height };
   return { rect, fit, radius };
 }
