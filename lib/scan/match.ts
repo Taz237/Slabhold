@@ -148,7 +148,11 @@ const SLAB_SUBSET_WORDS = new Set(["prospect", "prospects", "ticket", "young", "
 
 /** The parallel words on a slab's variety line: no flags, subset names, stray numbers, or a trailing "Prizm". */
 function slabParallelWords(varietyText: string): string[] {
-  const kept = words(varietyText).filter((word) => !FLAG_WORDS.has(word) && !SLAB_SUBSET_WORDS.has(word) && !/^\d+$/.test(word));
+  const all = words(varietyText);
+  // "TICKET" is Contenders' Rookie Ticket subset, except after another word: Championship, Playoff,
+  // Cracked Ice and Super Bowl Ticket are parallels, and keep the word.
+  const parallelTicket = (index: number) => all[index] === "ticket" && index > 0 && !["rookie", "rc"].includes(all[index - 1]);
+  const kept = all.filter((word, index) => parallelTicket(index) || (!FLAG_WORDS.has(word) && !SLAB_SUBSET_WORDS.has(word) && !/^\d+$/.test(word)));
   // "SILVER PRIZM" is Silver. "PRIZM" alone is the parallel's own name (2012's Prizm), so it stays.
   const colors = kept.filter((word) => word !== "prizm" && word !== "prizms");
   return colors.length > 0 ? colors : kept;
@@ -220,13 +224,19 @@ function compactName(name: string): string {
   return compactNorm(normInterest(name));
 }
 
+/** Words a card prints in capitals that stay capitals: a name's suffix (II, III, IV) and set initials (SP, SPx, UD). */
+const KEPT_CAPITALS: Record<string, string> = { ii: "II", iii: "III", iv: "IV", sp: "SP", spx: "SPx", ud: "UD", opc: "OPC" };
+
 function titleCase(text: string): string {
   return text
     .toLowerCase()
     .replace(/\s+/g, " ")
     .trim()
     // "C.J. STROUD" is C.J. Stroud: a letter after a period starts a word too.
-    .replace(/(^|[\s.-])([a-z])/g, (_match, lead: string, letter: string) => `${lead}${letter.toUpperCase()}`);
+    .replace(/(^|[\s.-])([a-z])/g, (_match, lead: string, letter: string) => `${lead}${letter.toUpperCase()}`)
+    .split(" ")
+    .map((word) => KEPT_CAPITALS[word.toLowerCase()] ?? word)
+    .join(" ");
 }
 
 function cardNumberKey(value: string): string {
@@ -461,6 +471,8 @@ function printedSetNames(sides: readonly RawCardRead[], cardNumber: string): str
   if (lines.some((line) => BOWMAN_U_OTHER.test(line))) return ordered.filter((name) => !/^bowman/i.test(name));
   // A college Bowman card with nothing saying Chrome: Bowman U has more than one product, so the set stays open.
   if (bowman && school) return ordered.filter((name) => name !== "Bowman" && name !== "Bowman Chrome");
+  // Topps Update numbers its cards US1, US175 (US-175 later): a Topps card with a US code is Update.
+  if (ordered[0] === "Topps" && prefix === "US" && /^US-?\d+$/i.test(cardNumber)) return ["Topps Update", ...ordered];
   if (ordered[0] === "Bowman") {
     if (BOWMAN_CHROME_PREFIXES.has(prefix) && !ordered.includes("Bowman Chrome")) return ["Bowman", "Bowman Chrome", ...ordered.slice(1)];
     if (BOWMAN_DRAFT_PREFIXES.has(prefix)) return ["Bowman Draft", ...ordered.filter((name) => name !== "Bowman Draft")];
