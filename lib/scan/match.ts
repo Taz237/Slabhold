@@ -667,7 +667,11 @@ function withLookedUpPlayer(
     // Someone our list knows (the near match itself, give or take Jr., or an exact name) keeps the list's row.
     const known = evidence.players.find((hit) => nameKey(hit.name) === nameKey(name)) ?? rosterPlayer(name, sport || evidence.sport, directory);
     const base = { ...evidence, playerLocked: true, playerUnverified: false, playerOpen: false, sport: evidence.sport || sport };
-    if (known) return { ...base, players: [{ ...known, score: 1, nameplate: true }], playerText: "", lookedUp: { name: known.name, source } };
+    if (known) {
+      // The source prints a suffix our list leaves off ("Patrick Mahomes II"): the card's own name keeps it.
+      const shown = withoutSuffix(name) !== name && withoutSuffix(known.name) === known.name ? name : known.name;
+      return { ...base, players: [{ ...known, name: shown, score: 1, nameplate: true }], playerText: "", lookedUp: { name: shown, source } };
+    }
     return { ...base, players: [], playerText: name, lookedUp: { name, source } };
   };
 

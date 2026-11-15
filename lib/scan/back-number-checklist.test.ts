@@ -90,3 +90,11 @@ describe("no year anywhere on the card: every year of its set in the store", () 
     assert.equal((await top(MANTLE_FRONT, tcg("No. 999")))?.yearLabel ?? "", "");
   });
 });
+
+describe("a suffix the card and its checklist print stays", () => {
+  it("2017 Prizm #269: the card and the checklist say Patrick Mahomes II, our list Patrick Mahomes: II stays", async () => {
+    const match = (await top(["PATRICK MAHOMES II", "CHIEFS", "PRIZM", "RC"], ["269", "PATRICK MAHOMES II", "2017 PANINI - PRIZM FOOTBALL", "© 2017 Panini America, Inc."]))!;
+    assert.equal(match.playerName, "Patrick Mahomes II");
+    assert.equal(match.cardNumber, "269");
+  });
+});

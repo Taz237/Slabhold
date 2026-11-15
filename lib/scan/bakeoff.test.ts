@@ -254,7 +254,7 @@ describe("the scanner bake-off", () => {
       assert.ok(at.some((player) => nameKey(player) === nameKey(scan.truth.player)), `${scan.name}: the checklist has ${at.join(", ") || "nobody"} at #${scan.truth.number}`);
       checked += 1;
     }
-    assert.ok(checked >= 8, `${checked} era truths checked against the store`);
+    assert.ok(checked >= 9, `${checked} era truths checked against the store`);
     const products = await loadProductData();
     for (const scan of ERA_BAKEOFF_CASES.filter((item) => item.kind !== "slab" && item.truth.number && item.truth.year)) {
       // Only where the store has the set: without its checklist a bare number rightly stays open.

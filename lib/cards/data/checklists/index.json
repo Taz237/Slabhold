@@ -99,6 +99,15 @@
   "cards": 274
  },
  {
+  "file": "1954-55-hockey-topps",
+  "sport": "Hockey",
+  "yearLabel": "1954-55",
+  "product": "Topps",
+  "source": "https://www.cardboardconnection.com/1954-55-topps-hockey-cards",
+  "read": "2026-11-15",
+  "cards": 60
+ },
+ {
   "file": "1954-baseball-bowman",
   "sport": "Baseball",
   "yearLabel": "1954",
@@ -153,6 +162,15 @@
   "cards": 119
  },
  {
+  "file": "1957-58-hockey-topps",
+  "sport": "Hockey",
+  "yearLabel": "1957-58",
+  "product": "Topps",
+  "source": "https://www.cardboardconnection.com/1957-58-topps-hockey-cards",
+  "read": "2026-11-15",
+  "cards": 66
+ },
+ {
   "file": "1957-baseball-topps",
   "sport": "Baseball",
   "yearLabel": "1957",
@@ -169,6 +187,15 @@
   "source": "https://www.cardboardconnection.com/1957-topps-football-cards",
   "read": "2026-11-15",
   "cards": 159
+ },
+ {
+  "file": "1958-59-hockey-topps",
+  "sport": "Hockey",
+  "yearLabel": "1958-59",
+  "product": "Topps",
+  "source": "https://www.cardboardconnection.com/1958-59-topps-hockey-cards",
+  "read": "2026-11-15",
+  "cards": 66
  },
  {
   "file": "1958-baseball-topps",
@@ -189,6 +216,15 @@
   "cards": 131
  },
  {
+  "file": "1959-60-hockey-topps",
+  "sport": "Hockey",
+  "yearLabel": "1959-60",
+  "product": "Topps",
+  "source": "https://www.cardboardconnection.com/1959-60-topps-hockey-cards",
+  "read": "2026-11-15",
+  "cards": 65
+ },
+ {
   "file": "1959-baseball-topps",
   "sport": "Baseball",
   "yearLabel": "1959",
@@ -198,6 +234,15 @@
   "cards": 545
  },
  {
+  "file": "1960-61-hockey-topps",
+  "sport": "Hockey",
+  "yearLabel": "1960-61",
+  "product": "Topps",
+  "source": "https://www.cardboardconnection.com/1960-61-topps-hockey-cards",
+  "read": "2026-11-15",
+  "cards": 60
+ },
+ {
   "file": "1960-baseball-topps",
   "sport": "Baseball",
   "yearLabel": "1960",
@@ -205,6 +250,15 @@
   "source": "https://www.cardboardconnection.com/1960-topps-baseball-cards",
   "read": "2026-11-15",
   "cards": 545
+ },
+ {
+  "file": "1961-62-hockey-topps",
+  "sport": "Hockey",
+  "yearLabel": "1961-62",
+  "product": "Topps",
+  "source": "https://www.cardboardconnection.com/1961-62-topps-hockey-cards",
+  "read": "2026-11-15",
+  "cards": 62
  },
  {
   "file": "1961-baseball-topps",
@@ -225,6 +279,15 @@
   "cards": 183
  },
  {
+  "file": "1962-63-hockey-topps",
+  "sport": "Hockey",
+  "yearLabel": "1962-63",
+  "product": "Topps",
+  "source": "https://www.cardboardconnection.com/1962-63-topps-hockey-cards",
+  "read": "2026-11-15",
+  "cards": 62
+ },
+ {
   "file": "1962-baseball-topps",
   "sport": "Baseball",
   "yearLabel": "1962",
@@ -243,6 +306,15 @@
   "cards": 221
  },
  {
+  "file": "1963-64-hockey-topps",
+  "sport": "Hockey",
+  "yearLabel": "1963-64",
+  "product": "Topps",
+  "source": "https://www.cardboardconnection.com/1963-64-topps-hockey-cards",
+  "read": "2026-11-15",
+  "cards": 62
+ },
+ {
   "file": "1963-baseball-topps",
   "sport": "Baseball",
   "yearLabel": "1963",
@@ -259,6 +331,15 @@
   "source": "https://www.cardboardconnection.com/1963-topps-football-cards",
   "read": "2026-11-15",
   "cards": 167
+ },
+ {
+  "file": "1964-65-hockey-topps",
+  "sport": "Hockey",
+  "yearLabel": "1964-65",
+  "product": "Topps",
+  "source": "https://www.cardboardconnection.com/1964-65-topps-hockey-cards",
+  "read": "2026-11-15",
+  "cards": 108
  },
  {
   "file": "1964-baseball-topps",
@@ -288,6 +369,15 @@
   "cards": 210
  },
  {
+  "file": "1966-67-hockey-topps",
+  "sport": "Hockey",
+  "yearLabel": "1966-67",
+  "product": "Topps",
+  "source": "https://www.cardboardconnection.com/1966-67-topps-hockey-cards",
+  "read": "2026-11-15",
+  "cards": 129
+ },
+ {
   "file": "1966-football-topps",
   "sport": "Football",
   "yearLabel": "1966",
@@ -295,6 +385,15 @@
   "source": "https://www.cardboardconnection.com/1966-topps-football-cards",
   "read": "2026-11-15",
   "cards": 129
+ },
+ {
+  "file": "1967-68-hockey-topps",
+  "sport": "Hockey",
+  "yearLabel": "1967-68",
+  "product": "Topps",
+  "source": "https://www.cardboardconnection.com/1967-68-topps-hockey-cards",
+  "read": "2026-11-15",
+  "cards": 130
  },
  {
   "file": "1967-baseball-topps",
@@ -315,6 +414,24 @@
   "cards": 155
  },
  {
+  "file": "1968-69-hockey-o-pee-chee",
+  "sport": "Hockey",
+  "yearLabel": "1968-69",
+  "product": "O-Pee-Chee",
+  "source": "https://www.cardboardconnection.com/1968-69-o-pee-chee-hockey-cards",
+  "read": "2026-11-15",
+  "cards": 201
+ },
+ {
+  "file": "1968-69-hockey-topps",
+  "sport": "Hockey",
+  "yearLabel": "1968-69",
+  "product": "Topps",
+  "source": "https://www.cardboardconnection.com/1968-69-topps-hockey-cards",
+  "read": "2026-11-15",
+  "cards": 131
+ },
+ {
   "file": "1968-baseball-topps",
   "sport": "Baseball",
   "yearLabel": "1968",
@@ -324,6 +441,24 @@
   "cards": 103
  },
  {
+  "file": "1969-70-hockey-o-pee-chee",
+  "sport": "Hockey",
+  "yearLabel": "1969-70",
+  "product": "O-Pee-Chee",
+  "source": "https://www.cardboardconnection.com/1969-70-o-pee-chee-hockey-cards",
+  "read": "2026-11-15",
+  "cards": 225
+ },
+ {
+  "file": "1969-70-hockey-topps",
+  "sport": "Hockey",
+  "yearLabel": "1969-70",
+  "product": "Topps",
+  "source": "https://www.cardboardconnection.com/1969-70-topps-hockey-cards",
+  "read": "2026-11-15",
+  "cards": 131
+ },
+ {
   "file": "1969-football-topps",
   "sport": "Football",
   "yearLabel": "1969",
@@ -331,6 +466,33 @@
   "source": "https://www.cardboardconnection.com/1969-topps-football-cards",
   "read": "2026-11-15",
   "cards": 262
+ },
+ {
+  "file": "1970-71-basketball-topps",
+  "sport": "Basketball",
+  "yearLabel": "1970-71",
+  "product": "Topps",
+  "source": "https://www.cardboardconnection.com/1970-71-topps-basketball-cards",
+  "read": "2026-11-15",
+  "cards": 184
+ },
+ {
+  "file": "1970-71-hockey-o-pee-chee",
+  "sport": "Hockey",
+  "yearLabel": "1970-71",
+  "product": "O-Pee-Chee",
+  "source": "https://www.cardboardconnection.com/1970-71-o-pee-chee-hockey-cards",
+  "read": "2026-11-15",
+  "cards": 242
+ },
+ {
+  "file": "1970-71-hockey-topps",
+  "sport": "Hockey",
+  "yearLabel": "1970-71",
+  "product": "Topps",
+  "source": "https://www.cardboardconnection.com/1970-71-topps-hockey-cards",
+  "read": "2026-11-15",
+  "cards": 130
  },
  {
   "file": "1970-baseball-topps",
@@ -351,6 +513,24 @@
   "cards": 355
  },
  {
+  "file": "1971-72-basketball-topps",
+  "sport": "Basketball",
+  "yearLabel": "1971-72",
+  "product": "Topps",
+  "source": "https://www.cardboardconnection.com/1971-72-topps-basketball-cards",
+  "read": "2026-11-15",
+  "cards": 218
+ },
+ {
+  "file": "1971-72-hockey-o-pee-chee",
+  "sport": "Hockey",
+  "yearLabel": "1971-72",
+  "product": "O-Pee-Chee",
+  "source": "https://www.cardboardconnection.com/1971-72-o-pee-chee-hockey-cards",
+  "read": "2026-11-15",
+  "cards": 246
+ },
+ {
   "file": "1971-baseball-topps",
   "sport": "Baseball",
   "yearLabel": "1971",
@@ -369,6 +549,24 @@
   "cards": 345
  },
  {
+  "file": "1972-73-basketball-topps",
+  "sport": "Basketball",
+  "yearLabel": "1972-73",
+  "product": "Topps",
+  "source": "https://www.cardboardconnection.com/1972-73-topps-basketball-cards",
+  "read": "2026-11-15",
+  "cards": 237
+ },
+ {
+  "file": "1972-73-hockey-o-pee-chee",
+  "sport": "Hockey",
+  "yearLabel": "1972-73",
+  "product": "O-Pee-Chee",
+  "source": "https://www.cardboardconnection.com/1972-73-o-pee-chee-hockey-cards",
+  "read": "2026-11-15",
+  "cards": 341
+ },
+ {
   "file": "1972-football-topps",
   "sport": "Football",
   "yearLabel": "1972",
@@ -376,6 +574,15 @@
   "source": "https://www.cardboardconnection.com/1972-topps-football-cards",
   "read": "2026-11-15",
   "cards": 340
+ },
+ {
+  "file": "1973-74-hockey-o-pee-chee",
+  "sport": "Hockey",
+  "yearLabel": "1973-74",
+  "product": "O-Pee-Chee",
+  "source": "https://www.cardboardconnection.com/1973-74-o-pee-chee-hockey-cards",
+  "read": "2026-11-15",
+  "cards": 230
  },
  {
   "file": "1973-baseball-topps",
@@ -405,6 +612,24 @@
   "cards": 214
  },
  {
+  "file": "1974-75-hockey-o-pee-chee",
+  "sport": "Hockey",
+  "yearLabel": "1974-75",
+  "product": "O-Pee-Chee",
+  "source": "https://www.cardboardconnection.com/1974-75-o-pee-chee-hockey-cards",
+  "read": "2026-11-15",
+  "cards": 347
+ },
+ {
+  "file": "1974-75-hockey-topps",
+  "sport": "Hockey",
+  "yearLabel": "1974-75",
+  "product": "Topps",
+  "source": "https://www.cardboardconnection.com/1974-75-topps-hockey-cards",
+  "read": "2026-11-15",
+  "cards": 234
+ },
+ {
   "file": "1974-baseball-topps",
   "sport": "Baseball",
   "yearLabel": "1974",
@@ -430,6 +655,15 @@
   "source": "https://www.cardboardconnection.com/1975-76-topps-basketball-cards",
   "read": "2026-11-15",
   "cards": 255
+ },
+ {
+  "file": "1975-76-hockey-topps",
+  "sport": "Hockey",
+  "yearLabel": "1975-76",
+  "product": "Topps",
+  "source": "https://www.cardboardconnection.com/1975-76-topps-hockey-cards",
+  "read": "2026-11-15",
+  "cards": 272
  },
  {
   "file": "1975-baseball-topps",
@@ -459,6 +693,15 @@
   "cards": 143
  },
  {
+  "file": "1976-77-hockey-topps",
+  "sport": "Hockey",
+  "yearLabel": "1976-77",
+  "product": "Topps",
+  "source": "https://www.cardboardconnection.com/1976-77-topps-hockey-cards",
+  "read": "2026-11-15",
+  "cards": 21
+ },
+ {
   "file": "1976-baseball-topps",
   "sport": "Baseball",
   "yearLabel": "1976",
@@ -475,6 +718,24 @@
   "source": "https://www.cardboardconnection.com/1977-78-topps-basketball-cards",
   "read": "2026-11-15",
   "cards": 131
+ },
+ {
+  "file": "1977-78-hockey-o-pee-chee",
+  "sport": "Hockey",
+  "yearLabel": "1977-78",
+  "product": "O-Pee-Chee",
+  "source": "https://www.cardboardconnection.com/1977-78-o-pee-chee-hockey-cards",
+  "read": "2026-11-15",
+  "cards": 21
+ },
+ {
+  "file": "1977-78-hockey-topps",
+  "sport": "Hockey",
+  "yearLabel": "1977-78",
+  "product": "Topps",
+  "source": "https://www.cardboardconnection.com/1977-78-topps-hockey-cards",
+  "read": "2026-11-15",
+  "cards": 21
  },
  {
   "file": "1977-baseball-topps",
@@ -522,6 +783,15 @@
   "cards": 362
  },
  {
+  "file": "1979-80-hockey-topps",
+  "sport": "Hockey",
+  "yearLabel": "1979-80",
+  "product": "Topps",
+  "source": "https://www.cardboardconnection.com/1979-80-topps-hockey-cards",
+  "read": "2026-11-15",
+  "cards": 219
+ },
+ {
   "file": "1979-baseball-topps",
   "sport": "Baseball",
   "yearLabel": "1979",
@@ -540,6 +810,15 @@
   "cards": 248
  },
  {
+  "file": "1980-81-hockey-topps",
+  "sport": "Hockey",
+  "yearLabel": "1980-81",
+  "product": "Topps",
+  "source": "https://www.cardboardconnection.com/1980-81-topps-hockey-cards",
+  "read": "2026-11-15",
+  "cards": 217
+ },
+ {
   "file": "1980-baseball-topps",
   "sport": "Baseball",
   "yearLabel": "1980",
@@ -556,6 +835,15 @@
   "source": "https://www.cardboardconnection.com/1981-82-o-pee-chee-hockey-cards",
   "read": "2026-11-15",
   "cards": 367
+ },
+ {
+  "file": "1981-82-hockey-topps",
+  "sport": "Hockey",
+  "yearLabel": "1981-82",
+  "product": "Topps",
+  "source": "https://www.cardboardconnection.com/1981-82-topps-hockey-cards",
+  "read": "2026-11-15",
+  "cards": 174
  },
  {
   "file": "1981-baseball-panini-donruss",
@@ -648,6 +936,15 @@
   "cards": 372
  },
  {
+  "file": "1984-85-hockey-topps",
+  "sport": "Hockey",
+  "yearLabel": "1984-85",
+  "product": "Topps",
+  "source": "https://www.cardboardconnection.com/1984-85-topps-hockey-cards",
+  "read": "2026-11-15",
+  "cards": 163
+ },
+ {
   "file": "1984-baseball-topps",
   "sport": "Baseball",
   "yearLabel": "1984",
@@ -664,6 +961,15 @@
   "source": "https://www.cardboardconnection.com/1985-86-o-pee-chee-hockey-cards",
   "read": "2026-11-15",
   "cards": 254
+ },
+ {
+  "file": "1985-86-hockey-topps",
+  "sport": "Hockey",
+  "yearLabel": "1985-86",
+  "product": "Topps",
+  "source": "https://www.cardboardconnection.com/1985-86-topps-hockey-cards",
+  "read": "2026-11-15",
+  "cards": 164
  },
  {
   "file": "1985-baseball-panini-donruss",
@@ -700,6 +1006,15 @@
   "source": "https://www.cardboardconnection.com/1986-87-o-pee-chee-hockey-cards",
   "read": "2026-11-15",
   "cards": 255
+ },
+ {
+  "file": "1986-87-hockey-topps",
+  "sport": "Hockey",
+  "yearLabel": "1986-87",
+  "product": "Topps",
+  "source": "https://www.cardboardconnection.com/1986-87-topps-hockey-cards",
+  "read": "2026-11-15",
+  "cards": 196
  },
  {
   "file": "1986-baseball-panini-donruss",
@@ -945,6 +1260,15 @@
   "cards": 841
  },
  {
+  "file": "1991-baseball-topps-stadium-club",
+  "sport": "Baseball",
+  "yearLabel": "1991",
+  "product": "Topps Stadium Club",
+  "source": "https://www.cardboardconnection.com/1991-topps-stadium-club-baseball-cards",
+  "read": "2026-11-15",
+  "cards": 594
+ },
+ {
   "file": "1991-baseball-upper-deck",
   "sport": "Baseball",
   "yearLabel": "1991",
@@ -1024,6 +1348,15 @@
   "source": "https://www.cardboardconnection.com/1993-topps-baseball-cards",
   "read": "2026-11-15",
   "cards": 830
+ },
+ {
+  "file": "1993-baseball-topps-finest",
+  "sport": "Baseball",
+  "yearLabel": "1993",
+  "product": "Topps Finest",
+  "source": "https://www.cardboardconnection.com/1993-topps-finest-baseball-cards",
+  "read": "2026-11-15",
+  "cards": 65
  },
  {
   "file": "1993-baseball-upper-deck",
@@ -1107,6 +1440,15 @@
   "cards": 577
  },
  {
+  "file": "1997-98-basketball-topps-chrome",
+  "sport": "Basketball",
+  "yearLabel": "1997-98",
+  "product": "Topps Chrome",
+  "source": "https://www.cardboardconnection.com/1997-98-topps-chrome-basketball-cards",
+  "read": "2026-11-15",
+  "cards": 300
+ },
+ {
   "file": "1997-baseball-topps",
   "sport": "Baseball",
   "yearLabel": "1997",
@@ -1188,6 +1530,15 @@
   "cards": 971
  },
  {
+  "file": "2005-06-hockey-upper-deck",
+  "sport": "Hockey",
+  "yearLabel": "2005-06",
+  "product": "Upper Deck",
+  "source": "https://www.cardboardconnection.com/2005-06-upper-deck-hockey-cards",
+  "read": "2026-11-15",
+  "cards": 1527
+ },
+ {
   "file": "2005-baseball-topps",
   "sport": "Baseball",
   "yearLabel": "2005",
@@ -1204,6 +1555,15 @@
   "source": "https://www.cardboardconnection.com/2006-topps-baseball-cards",
   "read": "2026-11-15",
   "cards": 915
+ },
+ {
+  "file": "2006-baseball-topps-allen-ginter",
+  "sport": "Baseball",
+  "yearLabel": "2006",
+  "product": "Topps Allen & Ginter",
+  "source": "https://www.cardboardconnection.com/2006-topps-allen-ginter-baseball-cards",
+  "read": "2026-11-15",
+  "cards": 600
  },
  {
   "file": "2007-baseball-bowman-draft",
@@ -1278,6 +1638,15 @@
   "cards": 2317
  },
  {
+  "file": "2012-13-basketball-hoops",
+  "sport": "Basketball",
+  "yearLabel": "2012-13",
+  "product": "Hoops",
+  "source": "https://www.cardboardconnection.com/2012-13-nba-hoops-basketball-cards",
+  "read": "2026-11-15",
+  "cards": 699
+ },
+ {
   "file": "2012-13-basketball-panini-prizm",
   "sport": "Basketball",
   "yearLabel": "2012-13",
@@ -1314,6 +1683,15 @@
   "cards": 906
  },
  {
+  "file": "2012-football-panini-prizm",
+  "sport": "Football",
+  "yearLabel": "2012",
+  "product": "Panini Prizm",
+  "source": "https://www.cardboardconnection.com/2012-panini-prizm-football-cards",
+  "read": "2026-11-15",
+  "cards": 578
+ },
+ {
   "file": "2012-football-topps",
   "sport": "Football",
   "yearLabel": "2012",
@@ -1321,6 +1699,24 @@
   "source": "https://www.cardboardconnection.com/2012-topps-football-cards",
   "read": "2026-11-15",
   "cards": 1536
+ },
+ {
+  "file": "2012-football-topps-chrome",
+  "sport": "Football",
+  "yearLabel": "2012",
+  "product": "Topps Chrome",
+  "source": "https://www.cardboardconnection.com/2012-topps-chrome-football-cards",
+  "read": "2026-11-15",
+  "cards": 529
+ },
+ {
+  "file": "2013-14-basketball-hoops",
+  "sport": "Basketball",
+  "yearLabel": "2013-14",
+  "product": "Hoops",
+  "source": "https://www.cardboardconnection.com/2013-14-nba-hoops-basketball-cards",
+  "read": "2026-11-15",
+  "cards": 1315
  },
  {
   "file": "2013-14-basketball-panini-prizm",
@@ -1348,6 +1744,15 @@
   "source": "https://www.cardboardconnection.com/2013-14-o-pee-chee-hockey-cards",
   "read": "2026-11-15",
   "cards": 927
+ },
+ {
+  "file": "2013-14-hockey-upper-deck",
+  "sport": "Hockey",
+  "yearLabel": "2013-14",
+  "product": "Upper Deck",
+  "source": "https://www.cardboardconnection.com/2013-14-upper-deck-series-1-hockey-cards",
+  "read": "2026-11-15",
+  "cards": 838
  },
  {
   "file": "2013-baseball-bowman",
@@ -1386,6 +1791,15 @@
   "cards": 1328
  },
  {
+  "file": "2013-baseball-topps-allen-ginter",
+  "sport": "Baseball",
+  "yearLabel": "2013",
+  "product": "Topps Allen & Ginter",
+  "source": "https://www.cardboardconnection.com/2013-topps-allen-ginter-baseball-cards",
+  "read": "2026-11-15",
+  "cards": 1427
+ },
+ {
   "file": "2013-baseball-topps-chrome",
   "sport": "Baseball",
   "yearLabel": "2013",
@@ -1402,6 +1816,15 @@
   "source": "https://www.cardboardconnection.com/2013-topps-chrome-update-series-baseball-cards",
   "read": "2026-11-15",
   "cards": 110
+ },
+ {
+  "file": "2013-baseball-topps-finest",
+  "sport": "Baseball",
+  "yearLabel": "2013",
+  "product": "Topps Finest",
+  "source": "https://www.cardboardconnection.com/2013-topps-finest-baseball-cards",
+  "read": "2026-11-15",
+  "cards": 361
  },
  {
   "file": "2013-baseball-topps-heritage",
@@ -1422,6 +1845,15 @@
   "cards": 975
  },
  {
+  "file": "2013-football-panini-prizm",
+  "sport": "Football",
+  "yearLabel": "2013",
+  "product": "Panini Prizm",
+  "source": "https://www.cardboardconnection.com/2013-panini-prizm-football-cards",
+  "read": "2026-11-15",
+  "cards": 1034
+ },
+ {
   "file": "2013-football-topps",
   "sport": "Football",
   "yearLabel": "2013",
@@ -1429,6 +1861,15 @@
   "source": "https://www.cardboardconnection.com/2013-topps-football-cards",
   "read": "2026-11-15",
   "cards": 1862
+ },
+ {
+  "file": "2013-football-topps-chrome",
+  "sport": "Football",
+  "yearLabel": "2013",
+  "product": "Topps Chrome",
+  "source": "https://www.cardboardconnection.com/2013-topps-chrome-football-cards",
+  "read": "2026-11-15",
+  "cards": 678
  },
  {
   "file": "2014-15-basketball-panini-donruss",
@@ -1456,6 +1897,15 @@
   "source": "https://www.cardboardconnection.com/2014-15-o-pee-chee-hockey-cards",
   "read": "2026-11-15",
   "cards": 889
+ },
+ {
+  "file": "2014-15-hockey-upper-deck",
+  "sport": "Hockey",
+  "yearLabel": "2014-15",
+  "product": "Upper Deck",
+  "source": "https://www.cardboardconnection.com/2014-15-upper-deck-series-1-hockey-cards",
+  "read": "2026-11-15",
+  "cards": 770
  },
  {
   "file": "2014-baseball-bowman",
@@ -1503,6 +1953,15 @@
   "cards": 2965
  },
  {
+  "file": "2014-baseball-topps-allen-ginter",
+  "sport": "Baseball",
+  "yearLabel": "2014",
+  "product": "Topps Allen & Ginter",
+  "source": "https://www.cardboardconnection.com/2014-topps-allen-ginter-baseball-cards",
+  "read": "2026-11-15",
+  "cards": 194
+ },
+ {
   "file": "2014-baseball-topps-chrome",
   "sport": "Baseball",
   "yearLabel": "2014",
@@ -1521,6 +1980,15 @@
   "cards": 1238
  },
  {
+  "file": "2014-baseball-topps-stadium-club",
+  "sport": "Baseball",
+  "yearLabel": "2014",
+  "product": "Topps Stadium Club",
+  "source": "https://www.cardboardconnection.com/2014-topps-stadium-club-baseball-cards",
+  "read": "2026-11-15",
+  "cards": 237
+ },
+ {
   "file": "2014-baseball-topps-update",
   "sport": "Baseball",
   "yearLabel": "2014",
@@ -1528,6 +1996,24 @@
   "source": "https://www.cardboardconnection.com/2014-topps-update-series-baseball-cards",
   "read": "2026-11-15",
   "cards": 1192
+ },
+ {
+  "file": "2014-football-panini-prizm",
+  "sport": "Football",
+  "yearLabel": "2014",
+  "product": "Panini Prizm",
+  "source": "https://www.cardboardconnection.com/2014-panini-prizm-football-cards",
+  "read": "2026-11-15",
+  "cards": 2271
+ },
+ {
+  "file": "2014-football-topps-chrome",
+  "sport": "Football",
+  "yearLabel": "2014",
+  "product": "Topps Chrome",
+  "source": "https://www.cardboardconnection.com/2014-topps-chrome-football-cards",
+  "read": "2026-11-15",
+  "cards": 868
  },
  {
   "file": "2015-16-basketball-panini-select",
@@ -1584,6 +2070,15 @@
   "cards": 1215
  },
  {
+  "file": "2015-baseball-topps-allen-ginter",
+  "sport": "Baseball",
+  "yearLabel": "2015",
+  "product": "Topps Allen & Ginter",
+  "source": "https://www.cardboardconnection.com/2015-topps-allen-ginter-baseball-cards",
+  "read": "2026-11-15",
+  "cards": 1799
+ },
+ {
   "file": "2015-baseball-topps-chrome",
   "sport": "Baseball",
   "yearLabel": "2015",
@@ -1602,6 +2097,15 @@
   "cards": 108
  },
  {
+  "file": "2015-baseball-topps-finest",
+  "sport": "Baseball",
+  "yearLabel": "2015",
+  "product": "Topps Finest",
+  "source": "https://www.cardboardconnection.com/2015-topps-finest-baseball-cards",
+  "read": "2026-11-15",
+  "cards": 301
+ },
+ {
   "file": "2015-baseball-topps-heritage",
   "sport": "Baseball",
   "yearLabel": "2015",
@@ -1609,6 +2113,15 @@
   "source": "https://www.cardboardconnection.com/2015-topps-heritage-baseball-cards",
   "read": "2026-11-15",
   "cards": 1158
+ },
+ {
+  "file": "2015-baseball-topps-stadium-club",
+  "sport": "Baseball",
+  "yearLabel": "2015",
+  "product": "Topps Stadium Club",
+  "source": "https://www.cardboardconnection.com/2015-topps-stadium-club-baseball-cards",
+  "read": "2026-11-15",
+  "cards": 511
  },
  {
   "file": "2015-baseball-topps-update",
@@ -1620,6 +2133,15 @@
   "cards": 1002
  },
  {
+  "file": "2015-football-panini-prizm",
+  "sport": "Football",
+  "yearLabel": "2015",
+  "product": "Panini Prizm",
+  "source": "https://www.cardboardconnection.com/2015-panini-prizm-football-cards",
+  "read": "2026-11-15",
+  "cards": 634
+ },
+ {
   "file": "2015-football-topps",
   "sport": "Football",
   "yearLabel": "2015",
@@ -1629,6 +2151,15 @@
   "cards": 1696
  },
  {
+  "file": "2015-football-topps-chrome",
+  "sport": "Football",
+  "yearLabel": "2015",
+  "product": "Topps Chrome",
+  "source": "https://www.cardboardconnection.com/2015-topps-chrome-football-cards",
+  "read": "2026-11-15",
+  "cards": 851
+ },
+ {
   "file": "2016-17-basketball-donruss-optic",
   "sport": "Basketball",
   "yearLabel": "2016-17",
@@ -1636,6 +2167,15 @@
   "source": "https://www.cardboardconnection.com/2016-17-donruss-optic-basketball-cards",
   "read": "2026-11-15",
   "cards": 596
+ },
+ {
+  "file": "2016-17-basketball-hoops",
+  "sport": "Basketball",
+  "yearLabel": "2016-17",
+  "product": "Hoops",
+  "source": "https://www.cardboardconnection.com/2016-17-nba-hoops-basketball-cards",
+  "read": "2026-11-15",
+  "cards": 995
  },
  {
   "file": "2016-17-basketball-panini-prizm",
@@ -1710,6 +2250,15 @@
   "cards": 1125
  },
  {
+  "file": "2016-baseball-topps-allen-ginter",
+  "sport": "Baseball",
+  "yearLabel": "2016",
+  "product": "Topps Allen & Ginter",
+  "source": "https://www.cardboardconnection.com/2016-topps-allen-ginter-baseball-cards",
+  "read": "2026-11-15",
+  "cards": 1446
+ },
+ {
   "file": "2016-baseball-topps-chrome",
   "sport": "Baseball",
   "yearLabel": "2016",
@@ -1717,6 +2266,15 @@
   "source": "https://www.cardboardconnection.com/2016-topps-chrome-baseball-cards",
   "read": "2026-11-15",
   "cards": 442
+ },
+ {
+  "file": "2016-baseball-topps-finest",
+  "sport": "Baseball",
+  "yearLabel": "2016",
+  "product": "Topps Finest",
+  "source": "https://www.cardboardconnection.com/2016-topps-finest-baseball-cards",
+  "read": "2026-11-15",
+  "cards": 254
  },
  {
   "file": "2016-baseball-topps-heritage",
@@ -1728,6 +2286,15 @@
   "cards": 1197
  },
  {
+  "file": "2016-baseball-topps-stadium-club",
+  "sport": "Baseball",
+  "yearLabel": "2016",
+  "product": "Topps Stadium Club",
+  "source": "https://www.cardboardconnection.com/2016-topps-stadium-club-baseball-cards",
+  "read": "2026-11-15",
+  "cards": 542
+ },
+ {
   "file": "2016-baseball-topps-update",
   "sport": "Baseball",
   "yearLabel": "2016",
@@ -1735,6 +2302,33 @@
   "source": "https://www.cardboardconnection.com/2016-topps-update-series-baseball-cards",
   "read": "2026-11-15",
   "cards": 946
+ },
+ {
+  "file": "2016-football-donruss-optic",
+  "sport": "Football",
+  "yearLabel": "2016",
+  "product": "Donruss Optic",
+  "source": "https://www.cardboardconnection.com/2016-donruss-optic-football-cards",
+  "read": "2026-11-15",
+  "cards": 633
+ },
+ {
+  "file": "2016-football-panini-prizm",
+  "sport": "Football",
+  "yearLabel": "2016",
+  "product": "Panini Prizm",
+  "source": "https://www.cardboardconnection.com/2016-panini-prizm-football-cards",
+  "read": "2026-11-15",
+  "cards": 694
+ },
+ {
+  "file": "2016-football-panini-select",
+  "sport": "Football",
+  "yearLabel": "2016",
+  "product": "Panini Select",
+  "source": "https://www.cardboardconnection.com/2016-panini-select-football-cards",
+  "read": "2026-11-15",
+  "cards": 816
  },
  {
   "file": "2017-18-basketball-donruss-optic",
@@ -1762,6 +2356,15 @@
   "source": "https://www.cardboardconnection.com/2017-18-panini-prizm-basketball-nba-cards",
   "read": "2026-11-15",
   "cards": 1218
+ },
+ {
+  "file": "2017-18-hockey-upper-deck",
+  "sport": "Hockey",
+  "yearLabel": "2017-18",
+  "product": "Upper Deck",
+  "source": "https://www.cardboardconnection.com/2017-18-upper-deck-series-1-hockey-cards",
+  "read": "2026-11-15",
+  "cards": 851
  },
  {
   "file": "2017-baseball-bowman",
@@ -1809,6 +2412,15 @@
   "cards": 454
  },
  {
+  "file": "2017-baseball-topps-finest",
+  "sport": "Baseball",
+  "yearLabel": "2017",
+  "product": "Topps Finest",
+  "source": "https://www.cardboardconnection.com/2017-topps-finest-baseball-cards",
+  "read": "2026-11-15",
+  "cards": 314
+ },
+ {
   "file": "2017-baseball-topps-heritage",
   "sport": "Baseball",
   "yearLabel": "2017",
@@ -1818,6 +2430,15 @@
   "cards": 1241
  },
  {
+  "file": "2017-baseball-topps-stadium-club",
+  "sport": "Baseball",
+  "yearLabel": "2017",
+  "product": "Topps Stadium Club",
+  "source": "https://www.cardboardconnection.com/2017-topps-stadium-club-baseball-cards",
+  "read": "2026-11-15",
+  "cards": 658
+ },
+ {
   "file": "2017-baseball-topps-update",
   "sport": "Baseball",
   "yearLabel": "2017",
@@ -1825,6 +2446,33 @@
   "source": "https://www.cardboardconnection.com/2017-topps-update-series-baseball-cards",
   "read": "2026-11-15",
   "cards": 1216
+ },
+ {
+  "file": "2017-football-donruss-optic",
+  "sport": "Football",
+  "yearLabel": "2017",
+  "product": "Donruss Optic",
+  "source": "https://www.cardboardconnection.com/2017-donruss-optic-football-nfl-cards",
+  "read": "2026-11-15",
+  "cards": 767
+ },
+ {
+  "file": "2017-football-panini-donruss",
+  "sport": "Football",
+  "yearLabel": "2017",
+  "product": "Panini Donruss",
+  "source": "https://www.cardboardconnection.com/2017-donruss-football-cards",
+  "read": "2026-11-15",
+  "cards": 1650
+ },
+ {
+  "file": "2017-football-panini-prizm",
+  "sport": "Football",
+  "yearLabel": "2017",
+  "product": "Panini Prizm",
+  "source": "https://www.cardboardconnection.com/2017-panini-prizm-football-cards",
+  "read": "2026-11-15",
+  "cards": 700
  },
  {
   "file": "2018-19-basketball-donruss-optic",
@@ -1861,6 +2509,15 @@
   "source": "https://www.cardboardconnection.com/2018-19-o-pee-chee-hockey-cards",
   "read": "2026-11-15",
   "cards": 1351
+ },
+ {
+  "file": "2018-19-hockey-upper-deck",
+  "sport": "Hockey",
+  "yearLabel": "2018-19",
+  "product": "Upper Deck",
+  "source": "https://www.cardboardconnection.com/2018-19-upper-deck-series-1-hockey-cards",
+  "read": "2026-11-15",
+  "cards": 831
  },
  {
   "file": "2018-baseball-bowman",
@@ -1906,6 +2563,15 @@
   "source": "https://www.cardboardconnection.com/2018-topps-series-1-baseball-cards",
   "read": "2026-11-15",
   "cards": 1693
+ },
+ {
+  "file": "2018-baseball-topps-allen-ginter",
+  "sport": "Baseball",
+  "yearLabel": "2018",
+  "product": "Topps Allen & Ginter",
+  "source": "https://www.cardboardconnection.com/2018-topps-allen-ginter-baseball-cards",
+  "read": "2026-11-15",
+  "cards": 1594
  },
  {
   "file": "2018-baseball-topps-chrome",
