@@ -53,3 +53,22 @@ describe("Contenders tickets on a slab", () => {
     assert.doesNotMatch(match.parallel, /ticket/i);
   });
 });
+
+describe("vintage backs", () => {
+  it("© O-PEE-CHEE CO. LTD. 1979: the year after the maker is the © year (1979-80 hockey)", () => {
+    const match = top(["WAYNE GRETZKY", "OILERS", "O-PEE-CHEE"], ["18", "WAYNE GRETZKY", "© O-PEE-CHEE CO. LTD. 1979"], "card");
+    assert.equal(match.setBrand, "O-Pee-Chee");
+    assert.equal(match.yearLabel, "1979-80");
+  });
+
+  it("T.C.G. on the back is Topps (Topps Chewing Gum), and its No. is the card #", () => {
+    const match = top(["MICKEY MANTLE", "NEW YORK YANKEES"], ["No. 311", "MICKEY MANTLE", "Outfield: New York Yankees", "T.C.G. PRINTED IN U.S.A."], "card");
+    assert.equal(match.setBrand, "Topps");
+    assert.equal(match.cardNumber, "311");
+  });
+
+  it("a stat line's year after a © never stands in for one: only a © line counts", () => {
+    const match = top(["WAYNE GRETZKY", "OILERS", "O-PEE-CHEE"], ["18", "WAYNE GRETZKY", "1978 INDIANAPOLIS 3 0 3 3 0"], "card");
+    assert.notEqual(match.yearLabel, "1978-79");
+  });
+});

@@ -218,6 +218,10 @@ const NOT_NAME_WORDS = new Set([
 const SERIAL = /(?<![\d/])(\d{1,4})\s*\/\s*(\d{1,4})(?![\d/])/;
 const COPYRIGHT = /(?:©|\(c\)|copyright)\s*(\d{4})/i;
 const MAKER_YEAR = /\b(\d{4})\b/;
+/** A © line whose year comes after the maker: "© O-PEE-CHEE CO. LTD. 1979". */
+const COPYRIGHT_LATE = /(?:©|\(c\)|copyright)\D*?\b(19[0-9]{2}|20[0-3][0-9])\b/i;
+/** Topps Chewing Gum, the way 1950s and 1960s Topps backs sign: "T.C.G. PRINTED IN U.S.A." */
+const TOPPS_CHEWING_GUM = /(?:^|[^a-z])t\.\s?c\.\s?g\.(?:$|[^a-z])/i;
 
 /**
  * A catalog code that can't be a printed card #: a long run of digits or a
@@ -1063,6 +1067,7 @@ export function readRawCardText(
   if (!read.copyrightYear && options.side === "back") {
     read.copyrightYear = clean.filter((line) => MAKER_ONLY_LINE.test(line)).map((line) => MAKER_YEAR.exec(line)?.[1] ?? "").find(Boolean) ?? "";
   }
+  if (!read.copyrightYear) read.copyrightYear = clean.map((line) => COPYRIGHT_LATE.exec(line)?.[1] ?? "").find(Boolean) ?? "";
   read.cardNumber = readCardNumber(clean, Boolean(options.side), options.side, (line) =>
     Boolean(readTeam([normInterest(line).split(" ").filter(Boolean)], directory)),
   );
@@ -1087,7 +1092,9 @@ export function readRawCardText(
     lineWords.filter((_words, i) => !maker(clean[i])),
     { back: options.side === "back" },
   );
-  const kept = withoutUnlistedProducts(sets.names, clean);
+  let kept = withoutUnlistedProducts(sets.names, clean);
+  // Nothing else names the set, and the back signs T.C.G.: a vintage Topps card.
+  if (kept.length === 0 && options.side === "back" && clean.some((line) => TOPPS_CHEWING_GUM.test(line))) kept = ["Topps"];
   read.setNames = kept;
   read.printedSets = sets.printed.filter((name) => kept.includes(name));
   read.parallelWords = readParallelWords(colorLineWords(clean, directory, Boolean(options.side)));
