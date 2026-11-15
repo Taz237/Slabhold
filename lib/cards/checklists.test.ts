@@ -58,6 +58,33 @@ describe("the checklist import", () => {
     assert.deepEqual(sections[0].cards[2], { number: "340", player: "Dylan Horton", team: "Houston Texans" });
   });
 
+  it("reads an older page with no section headings: its checklist blocks are the base set", () => {
+    // The layout of Cardboard Connection's vintage pages (1960 Topps): one "Set Checklist" heading, two columns.
+    const page = [
+      "<h2>1960 Topps Baseball Set Checklist</h2>",
+      '<div class="ezcol ezcol-one-half  tablechecklist">1 Early Wynn - Chicago White Sox<br />',
+      "7 Master &amp; Mentor - Mays / Rigney<br />",
+      "10 Ernie Banks - Chicago Cubs</div>",
+      '<div class="ezcol ezcol-one-half ezcol-last tablechecklist">350 Mickey Mantle - New York Yankees<br />',
+      "395 Hoyt Wilhelm - Baltimore Orioles</div>",
+      "<h3>1960 Topps Baseball Venezuelan</h3><p>Only cards #1-196.</p>",
+    ].join("\n");
+    const sections = sectionsFromChecklistPage(page);
+    assert.deepEqual(sections.map((section) => [section.name, section.cards.map((card) => card.number)]), [["Base", ["1", "10", "350", "395"]]]);
+    assert.deepEqual(sections[0].cards[2], { number: "350", player: "Mickey Mantle", team: "New York Yankees" });
+  });
+
+  it("an older page with a second headed block: the first is the base set, the next keeps its heading", () => {
+    const page = [
+      "<h2>1986-87 Fleer Basketball Set Checklist</h2>",
+      '<div class="tablechecklist">57 Michael Jordan - Chicago Bulls<br />26 Patrick Ewing - New York Knicks</div>',
+      "<h3>Stickers</h3>",
+      '<div class="tablechecklist">8 Michael Jordan - Chicago Bulls<br />6 Patrick Ewing - New York Knicks</div>',
+    ].join("\n");
+    const sections = sectionsFromChecklistPage(page);
+    assert.deepEqual(sections.map((section) => [section.name, section.cards.map((card) => card.number)]), [["Base", ["57", "26"]], ["Stickers", ["8", "6"]]]);
+  });
+
   it("reads the maker's CSV: a card once, however many parallels repeat it", () => {
     const csv = [
       '"SPORT","YEAR","BRAND","PROGRAM","CARD SET","ATHLETE","TEAM","POSITION","CARD NUMBER","SEQUENCE"',
