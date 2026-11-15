@@ -45,6 +45,15 @@
   "cards": 413
  },
  {
+  "file": "1953-baseball-bowman",
+  "sport": "Baseball",
+  "yearLabel": "1953",
+  "product": "Bowman",
+  "source": "https://www.cardboardconnection.com/1953-bowman-baseball-cards",
+  "read": "2026-11-15",
+  "cards": 224
+ },
+ {
   "file": "1953-baseball-topps",
   "sport": "Baseball",
   "yearLabel": "1953",
@@ -54,6 +63,15 @@
   "cards": 274
  },
  {
+  "file": "1954-baseball-bowman",
+  "sport": "Baseball",
+  "yearLabel": "1954",
+  "product": "Bowman",
+  "source": "https://www.cardboardconnection.com/1954-bowman-baseball-cards",
+  "read": "2026-11-15",
+  "cards": 301
+ },
+ {
   "file": "1954-baseball-topps",
   "sport": "Baseball",
   "yearLabel": "1954",
@@ -61,6 +79,15 @@
   "source": "https://www.cardboardconnection.com/1954-topps-baseball-cards",
   "read": "2026-11-15",
   "cards": 249
+ },
+ {
+  "file": "1955-baseball-bowman",
+  "sport": "Baseball",
+  "yearLabel": "1955",
+  "product": "Bowman",
+  "source": "https://www.cardboardconnection.com/1955-bowman-baseball-cards",
+  "read": "2026-11-15",
+  "cards": 331
  },
  {
   "file": "1964-baseball-topps",
@@ -234,6 +261,15 @@
   "cards": 863
  },
  {
+  "file": "1989-baseball-bowman",
+  "sport": "Baseball",
+  "yearLabel": "1989",
+  "product": "Bowman",
+  "source": "https://www.cardboardconnection.com/1989-bowman-baseball-cards",
+  "read": "2026-11-15",
+  "cards": 476
+ },
+ {
   "file": "1989-baseball-topps",
   "sport": "Baseball",
   "yearLabel": "1989",
@@ -241,6 +277,15 @@
   "source": "https://www.cardboardconnection.com/1989-topps-baseball-cards",
   "read": "2026-11-15",
   "cards": 883
+ },
+ {
+  "file": "1990-baseball-bowman",
+  "sport": "Baseball",
+  "yearLabel": "1990",
+  "product": "Bowman",
+  "source": "https://www.cardboardconnection.com/1990-bowman-baseball-cards",
+  "read": "2026-11-15",
+  "cards": 523
  },
  {
   "file": "1990-baseball-topps",
@@ -252,6 +297,15 @@
   "cards": 913
  },
  {
+  "file": "1991-baseball-bowman",
+  "sport": "Baseball",
+  "yearLabel": "1991",
+  "product": "Bowman",
+  "source": "https://www.cardboardconnection.com/1991-bowman-baseball-cards",
+  "read": "2026-11-15",
+  "cards": 697
+ },
+ {
   "file": "1991-baseball-topps",
   "sport": "Baseball",
   "yearLabel": "1991",
@@ -259,6 +313,15 @@
   "source": "https://www.cardboardconnection.com/1991-topps-baseball-cards",
   "read": "2026-11-15",
   "cards": 841
+ },
+ {
+  "file": "1992-baseball-bowman",
+  "sport": "Baseball",
+  "yearLabel": "1992",
+  "product": "Bowman",
+  "source": "https://www.cardboardconnection.com/1992-bowman-baseball-cards",
+  "read": "2026-11-15",
+  "cards": 700
  },
  {
   "file": "1992-baseball-topps",
@@ -270,6 +333,15 @@
   "cards": 800
  },
  {
+  "file": "1993-baseball-bowman",
+  "sport": "Baseball",
+  "yearLabel": "1993",
+  "product": "Bowman",
+  "source": "https://www.cardboardconnection.com/1993-bowman-baseball-cards",
+  "read": "2026-11-15",
+  "cards": 697
+ },
+ {
   "file": "1993-baseball-topps",
   "sport": "Baseball",
   "yearLabel": "1993",
@@ -277,6 +349,15 @@
   "source": "https://www.cardboardconnection.com/1993-topps-baseball-cards",
   "read": "2026-11-15",
   "cards": 830
+ },
+ {
+  "file": "1994-baseball-bowman",
+  "sport": "Baseball",
+  "yearLabel": "1994",
+  "product": "Bowman",
+  "source": "https://www.cardboardconnection.com/1994-bowman-baseball-cards",
+  "read": "2026-11-15",
+  "cards": 678
  },
  {
   "file": "1994-baseball-topps",
@@ -295,6 +376,15 @@
   "source": "https://www.cardboardconnection.com/1995-topps-baseball-cards",
   "read": "2026-11-15",
   "cards": 967
+ },
+ {
+  "file": "1996-baseball-bowman",
+  "sport": "Baseball",
+  "yearLabel": "1996",
+  "product": "Bowman",
+  "source": "https://www.cardboardconnection.com/1996-bowman-baseball-cards",
+  "read": "2026-11-15",
+  "cards": 431
  },
  {
   "file": "1996-baseball-topps",
@@ -538,6 +628,15 @@
   "source": "https://www.cardboardconnection.com/2015-topps-update-series-baseball-cards",
   "read": "2026-11-15",
   "cards": 1002
+ },
+ {
+  "file": "2016-baseball-topps",
+  "sport": "Baseball",
+  "yearLabel": "2016",
+  "product": "Topps",
+  "source": "https://www.cardboardconnection.com/2016-topps-series-2-baseball-cards",
+  "read": "2026-11-15",
+  "cards": 1125
  },
  {
   "file": "2016-baseball-topps-chrome",
