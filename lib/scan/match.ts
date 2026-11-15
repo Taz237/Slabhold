@@ -1,6 +1,6 @@
 import type { CatalogCard } from "@/lib/card-catalog";
 import { parallelMatchKey, parallelsForSet, sameParallelLoosely } from "@/lib/cards/parallels";
-import { baseSetHits, playersAt, type ChecklistHit, type ChecklistProduct } from "@/lib/cards/checklists";
+import { baseSetHits, isBaseSection, playersAt, type ChecklistHit, type ChecklistProduct } from "@/lib/cards/checklists";
 import { parallelsIn, sameSeason, type ProductParallel, type ProductRecord } from "@/lib/cards/product-data";
 import { setMatchPhrase } from "@/lib/comps/match";
 import type { IndexedDirectoryPlayer } from "@/lib/players/types";
@@ -34,7 +34,12 @@ import { SAPPHIRE_WORD, inSapphireFamily, isSapphireSet, sapphireOf, sapphireOpt
  */
 
 export type ScanRead =
-  | { kind: "slab"; label: SlabLabelRead }
+  | {
+      kind: "slab";
+      label: SlabLabelRead;
+      /** The slab's back (the card's back through the case), when the scanner asked for it. Only its card # is used. */
+      back?: RawCardRead | null;
+    }
   | {
       kind: "raw";
       front: RawCardRead;
@@ -137,13 +142,17 @@ const TITLE_SUPPORT = 6;
 const TITLE_SUPPORT_MAX = 18;
 
 /** Label words that mark an autograph or rookie, not a parallel. */
-const FLAG_WORDS = new Set(["rookie", "rc", "auto", "autos", "autograph", "autographs", "autographed"]);
+const FLAG_WORDS = new Set(["rookie", "rc", "auto", "autos", "autograph", "autographs", "autographed", "card", "cards"]);
 /** Label words that name a subset of the set (Prospects, Rookie Ticket, Young Guns), never a parallel. */
 const SLAB_SUBSET_WORDS = new Set(["prospect", "prospects", "ticket", "young", "guns", "rated", "1st"]);
 
 /** The parallel words on a slab's variety line: no flags, subset names, stray numbers, or a trailing "Prizm". */
 function slabParallelWords(varietyText: string): string[] {
-  const kept = words(varietyText).filter((word) => !FLAG_WORDS.has(word) && !SLAB_SUBSET_WORDS.has(word) && !/^\d+$/.test(word));
+  const all = words(varietyText);
+  // "TICKET" is Contenders' Rookie Ticket subset, except after another word: Championship, Playoff,
+  // Cracked Ice and Super Bowl Ticket are parallels, and keep the word.
+  const parallelTicket = (index: number) => all[index] === "ticket" && index > 0 && !["rookie", "rc"].includes(all[index - 1]);
+  const kept = all.filter((word, index) => parallelTicket(index) || (!FLAG_WORDS.has(word) && !SLAB_SUBSET_WORDS.has(word) && !/^\d+$/.test(word)));
   // "SILVER PRIZM" is Silver. "PRIZM" alone is the parallel's own name (2012's Prizm), so it stays.
   const colors = kept.filter((word) => word !== "prizm" && word !== "prizms");
   return colors.length > 0 ? colors : kept;
@@ -178,6 +187,8 @@ type Evidence = {
   border: string | null;
   yearLabel: string;
   copyrightYear: string;
+  /** The last season the back's stat table lists ("2019"), or "". A year only once a checklist confirms it. */
+  statSeason?: string;
   /**
    * The © year is the only year, and the back's stats stop two seasons before it: last year's
    * product printed late, or this year's. The lookups try both; the sheet shows neither.
@@ -187,6 +198,11 @@ type Evidence = {
   /** A slab's printed set when it isn't one of SETS. */
   setText: string;
   cardNumber: string;
+  /**
+   * Numbers alone on a line of the back ("47"). Never the card # by themselves (a jersey or an age
+   * prints the same way), only a tie-break between real cards the sold titles name.
+   */
+  backNumbers: string[];
   serial: { number: string; run: string } | null;
   /** The read run was replaced by the run sold titles agree on (OCR read /298, titles say /299). */
   runUnsure?: boolean;
@@ -197,6 +213,15 @@ type Evidence = {
   grade: ScanGrade | null;
 };
 
+/** More bare numbers than this on one back is a stat table read cell by cell: none of them is trusted. */
+const MAX_LONE_NUMBERS = 2;
+
+/** Every 1-4 digit number alone on a line of the back, as a card # key. None when the back has many. */
+function loneNumbers(back: RawCardRead | null | undefined): string[] {
+  const numbers = [...new Set((back?.lines ?? []).map((line) => line.trim()).filter((line) => /^\d{1,4}$/.test(line)).map(cardNumberKey))];
+  return numbers.length > MAX_LONE_NUMBERS ? [] : numbers;
+}
+
 function words(text: string): string[] {
   return normInterest(text).split(" ").filter(Boolean);
 }
@@ -205,13 +230,19 @@ function compactName(name: string): string {
   return compactNorm(normInterest(name));
 }
 
+/** Words a card prints in capitals that stay capitals: a name's suffix (II, III, IV) and set initials (SP, SPx, UD). */
+const KEPT_CAPITALS: Record<string, string> = { ii: "II", iii: "III", iv: "IV", sp: "SP", spx: "SPx", ud: "UD", opc: "OPC" };
+
 function titleCase(text: string): string {
   return text
     .toLowerCase()
     .replace(/\s+/g, " ")
     .trim()
     // "C.J. STROUD" is C.J. Stroud: a letter after a period starts a word too.
-    .replace(/(^|[\s.-])([a-z])/g, (_match, lead: string, letter: string) => `${lead}${letter.toUpperCase()}`);
+    .replace(/(^|[\s.-])([a-z])/g, (_match, lead: string, letter: string) => `${lead}${letter.toUpperCase()}`)
+    .split(" ")
+    .map((word) => KEPT_CAPITALS[word.toLowerCase()] ?? word)
+    .join(" ");
 }
 
 function cardNumberKey(value: string): string {
@@ -252,7 +283,9 @@ function evidenceFrom(read: ScanRead, directory: readonly IndexedDirectoryPlayer
       copyrightYear: "",
       setNames: label.setName ? [label.setName] : [],
       setText: label.setName ? "" : label.setText,
-      cardNumber: looksLikeCatalogSku(label.cardNumber) ? "" : label.cardNumber,
+      // The label's # first; else the one the back prints the way a back does ("No. 47", "BP-27").
+      cardNumber: (looksLikeCatalogSku(label.cardNumber) ? "" : label.cardNumber) || (read.back?.cardNumber && !looksLikeCatalogSku(read.back.cardNumber) ? read.back.cardNumber : ""),
+      backNumbers: loneNumbers(read.back),
       serial: label.serial ?? null,
       parallelWords: slabParallelWords(label.varietyText),
       isRookie: label.isRookie,
@@ -355,10 +388,12 @@ function evidenceFrom(read: ScanRead, directory: readonly IndexedDirectoryPlayer
     border: read.border ?? null,
     yearLabel,
     copyrightYear,
+    ...(statSeason ? { statSeason } : {}),
     ...(yearOpen ? { yearOpen: true } : {}),
     setNames,
     setText: "",
     cardNumber,
+    backNumbers: loneNumbers(read.back),
     serial: sides.map((side) => side.serial).find(Boolean) ?? null,
     parallelWords,
     isRookie: sides.some((side) => side.isRookie),
@@ -443,6 +478,8 @@ function printedSetNames(sides: readonly RawCardRead[], cardNumber: string): str
   if (lines.some((line) => BOWMAN_U_OTHER.test(line))) return ordered.filter((name) => !/^bowman/i.test(name));
   // A college Bowman card with nothing saying Chrome: Bowman U has more than one product, so the set stays open.
   if (bowman && school) return ordered.filter((name) => name !== "Bowman" && name !== "Bowman Chrome");
+  // Topps Update numbers its cards US1, US175 (US-175 later): a Topps card with a US code is Update.
+  if (ordered[0] === "Topps" && prefix === "US" && /^US-?\d+$/i.test(cardNumber)) return ["Topps Update", ...ordered];
   if (ordered[0] === "Bowman") {
     if (BOWMAN_CHROME_PREFIXES.has(prefix) && !ordered.includes("Bowman Chrome")) return ["Bowman", "Bowman Chrome", ...ordered.slice(1)];
     if (BOWMAN_DRAFT_PREFIXES.has(prefix)) return ["Bowman Draft", ...ordered.filter((name) => name !== "Bowman Draft")];
@@ -458,19 +495,111 @@ function bestPlayerName(evidence: Evidence): string {
 /** The year, set and card # a scan read off the card: what the player lookup needs. Null when one is missing, or on a slab. */
 export type ScanCardKey = { years: string[]; yearPrinted: boolean; setBrand: string; cardNumber: string; run: number | null; sport: string };
 
+/** The years a card's checklist can be under: the printed year, or the © year and the one before it. */
+function cardYears(evidence: Evidence): string[] {
+  // The year printed beside the brand is the card's year. A © year alone can be the year after.
+  const copyright = /^\d{4}$/.test(evidence.copyrightYear) ? evidence.copyrightYear : "";
+  return evidence.yearLabel ? [evidence.yearLabel] : copyright ? [copyright, String(Number(copyright) - 1)] : [];
+}
+
+/**
+ * No year printed, no © year and no stats: the year of the set whose checklist has this player at
+ * this # (the card's own, or one bare number on its back). Exactly one year and #, or nothing changes.
+ */
+function withYearFromChecklists(evidence: Evidence, checklists: readonly ChecklistProduct[], name: string, setBrand: string): Evidence {
+  if (!evidence.sport) return evidence;
+  const numbers = evidence.cardNumber ? [evidence.cardNumber] : evidence.backNumbers;
+  // Base-set hits first: a later year's insert can reuse the number (2026 Topps' Mantle #311 tribute).
+  const found = { base: new Set<string>(), any: new Set<string>() };
+  for (const product of checklists) {
+    if (product.sport.toLowerCase() !== evidence.sport.toLowerCase()) continue;
+    for (const number of numbers) {
+      for (const hit of playersAt([product], { yearLabel: product.yearLabel, setBrand, cardNumber: number, sport: evidence.sport })) {
+        if (!namesAgree(hit.player, name)) continue;
+        found.any.add(`${product.yearLabel}|${number}`);
+        if (isBaseSection(hit.section)) found.base.add(`${product.yearLabel}|${number}`);
+      }
+    }
+  }
+  const pick = found.base.size === 1 ? found.base : found.base.size === 0 && found.any.size === 1 ? found.any : null;
+  if (!pick) return evidence;
+  const [yearLabel, cardNumber] = [...pick][0].split("|");
+  return { ...evidence, yearLabel, cardNumber };
+}
+
+/** The year a card with no printed or © year is, by its stats: the season after the last one listed. Only ever checked against a checklist. */
+function statYear(evidence: Evidence): string {
+  return !evidence.yearLabel && !evidence.copyrightYear && /^\d{4}$/.test(evidence.statSeason ?? "") ? String(Number(evidence.statSeason) + 1) : "";
+}
+
+/** The years to load and check checklists for: the card's own, else the one its stats point to. */
+function checklistYears(evidence: Evidence): string[] {
+  const years = cardYears(evidence);
+  const fromStats = statYear(evidence);
+  return years.length > 0 ? years : fromStats ? [fromStats] : [];
+}
+
 function cardKeyOf(evidence: Evidence): ScanCardKey | null {
   if (evidence.slab) return null;
   const setBrand = evidence.setNames[0] ?? "";
   if (!setBrand || !evidence.cardNumber) return null;
-  // The year printed beside the brand is the card's year. A © year alone can be the year after.
-  const copyright = /^\d{4}$/.test(evidence.copyrightYear) ? evidence.copyrightYear : "";
-  const years = evidence.yearLabel ? [evidence.yearLabel] : copyright ? [copyright, String(Number(copyright) - 1)] : [];
+  const years = cardYears(evidence);
   if (years.length === 0) return null;
   const run = evidence.serial ? Number(evidence.serial.run) : null;
   return { years, yearPrinted: Boolean(evidence.yearLabel), setBrand, cardNumber: evidence.cardNumber, run: Number.isFinite(run) ? run : null, sport: evidence.sport };
 }
 
 /** The card a scan read (year, set, card #), so its checklist can be loaded before ranking. */
+/** Which checklist files a scan needs: its year and set. */
+export type ScanChecklistKey = { years: string[]; setBrand: string; sport: string; allYears?: boolean };
+
+/**
+ * The year and set to load checklists for. The card # isn't needed here: with a player read and a
+ * bare number on the back, the checklist is what can tell that number is the card # (withChecklistNumber).
+ */
+export function scanChecklistKey(read: ScanRead, directory: readonly IndexedDirectoryPlayer[]): ScanChecklistKey | null {
+  const card = scanCardKey(read, directory);
+  if (card) return card;
+  const evidence = evidenceFrom(read, directory);
+  const setBrand = evidence.setNames[0] ?? "";
+  const years = checklistYears(evidence);
+  if (evidence.slab || !setBrand || !bestPlayerName(evidence)) return null;
+  // No year at all: every year of the set, in the sport the card names, to find the one with him at this #.
+  if (years.length === 0) {
+    if (!evidence.sport || (!evidence.cardNumber && evidence.backNumbers.length === 0)) return null;
+    // A letter code (BP-27, US175) is on modern cards only: then every year of the set, not just the vintage ones.
+    return { years: [], setBrand, sport: evidence.sport, ...(/[a-z]/i.test(evidence.cardNumber) ? { allYears: true } : {}) };
+  }
+  // Worth a load only when the checklist can settle something: a bare back number, or a year by the stats.
+  if (evidence.backNumbers.length === 0 && !(statYear(evidence) && evidence.cardNumber)) return null;
+  return { years, setBrand, sport: evidence.sport };
+}
+
+/**
+ * No card # read, but the back has bare numbers and the card names its player: a number is the card
+ * # when the checklist for the year and set the card read has this player at it. Exactly one such
+ * number, or the # stays open. A jersey or an age the checklist doesn't put him at never counts.
+ */
+function withChecklistNumber(evidence: Evidence, checklists: readonly ChecklistProduct[] | null | undefined): Evidence {
+  if (!checklists?.length) return evidence;
+  const name = bestPlayerName(evidence);
+  const setBrand = evidence.setNames[0] ?? "";
+  const years = checklistYears(evidence);
+  if (!name || !setBrand) return evidence;
+  if (years.length === 0) return withYearFromChecklists(evidence, checklists, name, setBrand);
+  const his = (number: string) =>
+    years.some((yearLabel) => playersAt(checklists, { yearLabel, setBrand, cardNumber: number, sport: evidence.sport || undefined }).some((hit) => namesAgree(hit.player, name)));
+  let next = evidence;
+  if (!next.cardNumber && next.backNumbers.length > 0) {
+    const numbers = next.backNumbers.filter(his);
+    if (numbers.length === 1) next = { ...next, cardNumber: numbers[0] };
+  }
+  // No year printed: the year its stats point to, once that year's checklist has him at this #.
+  const fromStats = statYear(next);
+  if (fromStats && next.cardNumber && his(next.cardNumber)) next = { ...next, yearLabel: fromStats };
+  return next;
+}
+
 export function scanCardKey(read: ScanRead, directory: readonly IndexedDirectoryPlayer[]): ScanCardKey | null {
   return cardKeyOf(evidenceFrom(read, directory));
 }
@@ -538,7 +667,11 @@ function withLookedUpPlayer(
     // Someone our list knows (the near match itself, give or take Jr., or an exact name) keeps the list's row.
     const known = evidence.players.find((hit) => nameKey(hit.name) === nameKey(name)) ?? rosterPlayer(name, sport || evidence.sport, directory);
     const base = { ...evidence, playerLocked: true, playerUnverified: false, playerOpen: false, sport: evidence.sport || sport };
-    if (known) return { ...base, players: [{ ...known, score: 1, nameplate: true }], playerText: "", lookedUp: { name: known.name, source } };
+    if (known) {
+      // The source prints a suffix our list leaves off ("Patrick Mahomes II"): the card's own name keeps it.
+      const shown = withoutSuffix(name) !== name && withoutSuffix(known.name) === known.name ? name : known.name;
+      return { ...base, players: [{ ...known, name: shown, score: 1, nameplate: true }], playerText: "", lookedUp: { name: shown, source } };
+    }
     return { ...base, players: [], playerText: name, lookedUp: { name, source } };
   };
 
@@ -682,6 +815,13 @@ type Candidate = {
   rowsByParallel: Map<string, string>;
   /** Cached sold listings that name this exact card. */
   titles?: TitleFacts[];
+  /**
+   * Sold titles name 2+ real cards for this player in this set (Select's #47 and #247): +20 for the
+   * one the card itself backs (a lone back number, the label's variety), -20 for the others.
+   */
+  numberNudge?: number;
+  /** The card with the # left open because the titles split between real cards: it stands in for the scan's own bare card. */
+  openSplit?: boolean;
 };
 
 /** The sport a listing's own words give (a team, a league, "Baseball"). "" when it says nothing. */
@@ -954,7 +1094,14 @@ function pickParallel(
   // A numbered card is never Base, and with no checklist run that fits, any color would be a guess:
   // leave it open with no chips. The print run the card showed still shows on the sheet.
   // Then last year's parallels with the same run are offered as quick picks, never preselected.
-  const sameRunLastYear = run != null && fitsRun.length === 0 ? yearAgo.filter((option) => option.serialRun === run && parallelMatchKey(option.name) !== "base") : [];
+  // Last year's name gives way to this year's for the same parallel: 2024's "Green Pattern" /99 is
+  // 2025's Green Pattern Border, when exactly one name on this year's list is it, give or take Border.
+  const thisYearsName = (option: ProductParallel): ProductParallel => {
+    const same = checklist.filter((item) => sameParallelLoosely(item.name, option.name));
+    return same.length === 1 ? { ...option, name: same[0].name } : option;
+  };
+  const sameRunLastYear =
+    run != null && fitsRun.length === 0 ? yearAgo.filter((option) => option.serialRun === run && parallelMatchKey(option.name) !== "base").map(thisYearsName) : [];
   const pool = run != null && fitsRun.length === 0 ? sameRunLastYear : fitsRun;
   const ordered = [
     ...named,
@@ -1108,16 +1255,18 @@ function titleCandidates(
     return set;
   };
 
-  const groups = new Map<string, { set: string; number: string; years: Map<string, number>; isRookie: boolean }>();
+  const groups = new Map<string, TitleGroup>();
   for (const item of parsed) {
     const set = titleSet(item);
     if (!set) continue;
     const key = `${setMatchPhrase(set)}|${item.number}`;
-    const group = groups.get(key) ?? { set, number: item.read.cardNumber, years: new Map(), isRookie: false };
+    const group: TitleGroup = groups.get(key) ?? { set, number: item.read.cardNumber, years: new Map(), isRookie: false, titles: [], nudge: 0 };
     if (item.read.yearLabel) group.years.set(item.read.yearLabel, (group.years.get(item.read.yearLabel) ?? 0) + 1);
     if (item.read.isRookie) group.isRookie = true;
+    group.titles.push(item.title);
     groups.set(key, group);
   }
+  if (!printedNumber) settleSplitNumbers(evidence, groups);
 
   // No title names a set ("Aidan Miller Pink/Red /299 BP-27"): they still count toward the parallel of
   // the card the scan built, for its # and run.
@@ -1145,8 +1294,56 @@ function titleCandidates(
       isRookie: group.isRookie,
       rowsByParallel: new Map(),
       titles: facts,
+      ...(group.nudge ? { numberNudge: group.nudge } : {}),
+      ...(group.openSplit ? { openSplit: true } : {}),
     };
   });
+}
+
+/** Sold titles for one set and card # (# "" when they give none). */
+type TitleGroup = { set: string; number: string; years: Map<string, number>; isRookie: boolean; titles: string[]; nudge: number; openSplit?: boolean };
+
+/** Titles for one card # count as a second card only with 2+ of them: one is a seller's slip. */
+const SPLIT_NUMBER_MIN_TITLES = 2;
+const NUMBER_NUDGE = 20;
+
+/**
+ * The card printed no # we read, and its sold titles name 2+ cards of this player in one set, each
+ * in 2+ titles (Select's Concourse #47 and Club Level #247). How many sold says nothing about which
+ * one is in hand. The card picks one when it can: a number alone on its back that one of them has,
+ * or, on a slab, the label's variety in only one of them's titles ("CONCOURSE"). Then that one is
+ * nudged up and the rest down. Otherwise every one is nudged down and a card with the # open leads:
+ * open beats wrong, and the numbers stay under "Or one of these".
+ */
+function settleSplitNumbers(evidence: Evidence, groups: Map<string, TitleGroup>) {
+  const bySet = new Map<string, TitleGroup[]>();
+  for (const group of groups.values()) {
+    if (!group.number || group.titles.length < SPLIT_NUMBER_MIN_TITLES) continue;
+    const phrase = setMatchPhrase(group.set);
+    bySet.set(phrase, [...(bySet.get(phrase) ?? []), group]);
+  }
+  for (const [phrase, split] of bySet) {
+    if (split.length < 2) continue;
+    let picked = split.filter((group) => evidence.backNumbers.includes(cardNumberKey(group.number)));
+    if (picked.length !== 1 && evidence.slab && evidence.parallelWords.length > 0) {
+      const says = (title: string) => {
+        const titleWords = new Set(words(title));
+        return evidence.parallelWords.every((word) => titleWords.has(word));
+      };
+      picked = split.filter((group) => group.titles.some(says));
+    }
+    if (picked.length === 1) {
+      for (const group of split) group.nudge = group === picked[0] ? NUMBER_NUDGE : -NUMBER_NUDGE;
+      continue;
+    }
+    for (const group of split) group.nudge = -NUMBER_NUDGE;
+    const openKey = `${phrase}|`;
+    if (!groups.has(openKey)) {
+      const years = new Map<string, number>();
+      for (const group of split) for (const [year, count] of group.years) years.set(year, (years.get(year) ?? 0) + count);
+      groups.set(openKey, { set: split[0].set, number: "", years, isRookie: split.some((group) => group.isRookie), titles: split.flatMap((group) => group.titles), nudge: 0, openSplit: true });
+    }
+  }
 }
 
 /** How far an OCR'd print run can be from the run sold titles agree on (/298 for /299). */
@@ -1201,7 +1398,11 @@ function looseTitleFacts(
 
 /** Catalog and sold-listing candidates for the same card become one, keeping the catalog row. */
 function mergeTitleCandidates(candidates: Candidate[], fromTitles: Candidate[]): Candidate[] {
-  const out = [...candidates];
+  let out = [...candidates];
+  // The open-# card from split titles says everything the scan's bare card does, and more.
+  for (const open of fromTitles.filter((card) => card.openSplit)) {
+    out = out.filter((card) => !(card.catalogId == null && !card.titles?.length && covers(open, card)));
+  }
   for (const card of fromTitles) {
     const key = identityKey(card);
     const same = out.find((item) => identityKey(item) === key);
@@ -1313,7 +1514,7 @@ export function rankScanMatches(
     withAgreedRun(
       withBackedNearPlayer(
         withLookedUpPlayer(
-          evidenceFrom(read, options.directory),
+          withChecklistNumber(evidenceFrom(read, options.directory), options.checklists),
           options.soldTitles ?? [],
           options.checklists,
           options.directory,
@@ -1376,7 +1577,7 @@ export function rankScanMatches(
       isAuto: evidence.isAuto,
       grade: evidence.grade,
       // Scored and judged as the set the card printed: Sapphire from sales rides on top of it.
-      score: identityScore(evidence, found) + titleScore(evidence, found) + parallelBonus,
+      score: identityScore(evidence, found) + titleScore(evidence, found) + parallelBonus + (found.numberNudge ?? 0),
       sureness: sureness(evidence, found, parallel),
       parallelOptions: parallel.options,
       ...(fromSales ? { setSource: "sales" as const } : {}),
@@ -1424,7 +1625,7 @@ export type MatchScanDeps = {
    */
   soldTitles?: (playerName: string, signal: AbortSignal) => Promise<SoldTitle[] | null>;
   /** The checklists for the year and set the scan read. A failure is no lookup: the card's own read still counts. */
-  checklists?: (card: ScanCardKey) => Promise<readonly ChecklistProduct[]>;
+  checklists?: (card: ScanChecklistKey) => Promise<readonly ChecklistProduct[]>;
   signal: AbortSignal;
 };
 
@@ -1455,7 +1656,7 @@ export async function matchScan(read: ScanRead, deps: MatchScanDeps): Promise<Sc
   }
   if (deps.signal.aborted) return null;
   let checklists: readonly ChecklistProduct[] | null = null;
-  const card = scanCardKey(read, deps.directory);
+  const card = scanChecklistKey(read, deps.directory);
   if (card && deps.checklists) {
     try {
       checklists = await deps.checklists(card);

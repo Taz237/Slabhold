@@ -46,8 +46,14 @@ function withoutNotes(text: string): string {
     .replace(/\s1st\b/gi, " ")
     .replace(/\s+/g, " ")
     .replace(/[\s,;:*-]+$/, "")
-    .trim();
+    .trim()
+    // A tier letter some pages put after the name ("Alex Rodriguez A", "Alexander Ovechkin C"). Never
+    // I, V or X: a suffix (Will Fuller V).
+    .replace(/^(\S+(?:\s+\S+)+)\s+[A-HJ-UWYZ]$/, "$1");
 }
+
+/** One letter of a nameplate per card (2009 Topps' In the Name Letter Relics, KY5): no card for a player as such. */
+const LETTER_SECTION = /\bletters?\b.*\b(?:relics?|patch(?:es)?)\b/i;
 
 /** "339 C.J. Stroud - Houston Texans" → the card. Null when the line isn't one card with one player. */
 export function parseChecklistLine(
@@ -90,6 +96,7 @@ export function sectionsFromChecklistPage(html: string, knownPerson?: (name: str
     const end = part.search(/<\/h3>/i);
     if (end < 0) continue;
     const name = sectionName(part.slice(0, end));
+    if (LETTER_SECTION.test(name)) continue;
     const cards: ImportedSection["cards"] = [];
     const blocks = part.slice(end).matchAll(/<div[^>]*class="[^"]*tablechecklist[^"]*"[^>]*>([\s\S]*?)<\/div>/gi);
     for (const block of blocks) {
@@ -99,6 +106,37 @@ export function sectionsFromChecklistPage(html: string, knownPerson?: (name: str
       }
     }
     if (cards.length === 0) continue;
+    const same = sections.find((section) => section.name === name);
+    if (same) same.cards.push(...cards);
+    else sections.push({ name, cards });
+  }
+  return sections.length > 0 ? sections : sectionsWithoutHotTitles(html, knownPerson);
+}
+
+/**
+ * Older pages (1960 Topps) head the checklist with a plain "Set Checklist" heading and no section
+ * headings. Each run of checklist blocks under one h2 or h3 is a section: the first is the base
+ * set, a later one keeps its heading's name ("Stickers").
+ */
+function sectionsWithoutHotTitles(html: string, knownPerson?: (name: string) => boolean): ImportedSection[] {
+  const sections: ImportedSection[] = [];
+  const pieces = html.split(/(<h[23][^>]*>[\s\S]*?<\/h[23]>)/i);
+  let heading = "";
+  for (const piece of pieces) {
+    if (/^<h[23]/i.test(piece)) {
+      heading = piece;
+      continue;
+    }
+    const cards: ImportedSection["cards"] = [];
+    for (const block of piece.matchAll(/<div[^>]*class="[^"]*tablechecklist[^"]*"[^>]*>([\s\S]*?)<\/div>/gi)) {
+      for (const line of block[1].split(/<br\s*\/?>|\n/i)) {
+        const card = parseChecklistLine(line, knownPerson);
+        if (card) cards.push(card);
+      }
+    }
+    if (cards.length === 0) continue;
+    const name = sections.length === 0 ? "Base" : sectionName(heading);
+    if (LETTER_SECTION.test(name)) continue;
     const same = sections.find((section) => section.name === name);
     if (same) same.cards.push(...cards);
     else sections.push({ name, cards });

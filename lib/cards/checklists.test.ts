@@ -58,6 +58,49 @@ describe("the checklist import", () => {
     assert.deepEqual(sections[0].cards[2], { number: "340", player: "Dylan Horton", team: "Houston Texans" });
   });
 
+  it("a tier letter after a name is no part of it: 'Alex Rodriguez A' is Alex Rodriguez", () => {
+    assert.deepEqual(parseChecklistLine("TA1 Alex Rodriguez A - New York Yankees"), { number: "TA1", player: "Alex Rodriguez", team: "New York Yankees" });
+    assert.deepEqual(parseChecklistLine("GJ-AO Alexander Ovechkin C"), { number: "GJ-AO", player: "Alexander Ovechkin", team: "" });
+    assert.equal(parseChecklistLine("1 Ken Griffey Jr. - Seattle Mariners")?.player, "Ken Griffey Jr.");
+    assert.equal(parseChecklistLine("323 Will Fuller V - Houston Texans")?.player, "Will Fuller V");
+  });
+
+  it("a letter relic or letter patch section is left out: each card is one letter of a nameplate (KY5)", () => {
+    const page = [
+      '<h3 class="hot-title">Base Set Checklist</h3><div class="tablechecklist">1 Kevin Youkilis - Boston Red Sox</div>',
+      '<h3 class="hot-title">In the Name Letter Relics Checklist</h3><div class="tablechecklist">KY5 Kevin Youkilis I - Boston Red Sox</div>',
+      '<h3 class="hot-title">Legendary Letters Commemorative Patch Checklist</h3><div class="tablechecklist">LL1 Babe Ruth B</div>',
+    ].join("\n");
+    assert.deepEqual(sectionsFromChecklistPage(page).map((section) => section.name), ["Base"]);
+  });
+
+  it("reads an older page with no section headings: its checklist blocks are the base set", () => {
+    // The layout of Cardboard Connection's vintage pages (1960 Topps): one "Set Checklist" heading, two columns.
+    const page = [
+      "<h2>1960 Topps Baseball Set Checklist</h2>",
+      '<div class="ezcol ezcol-one-half  tablechecklist">1 Early Wynn - Chicago White Sox<br />',
+      "7 Master &amp; Mentor - Mays / Rigney<br />",
+      "10 Ernie Banks - Chicago Cubs</div>",
+      '<div class="ezcol ezcol-one-half ezcol-last tablechecklist">350 Mickey Mantle - New York Yankees<br />',
+      "395 Hoyt Wilhelm - Baltimore Orioles</div>",
+      "<h3>1960 Topps Baseball Venezuelan</h3><p>Only cards #1-196.</p>",
+    ].join("\n");
+    const sections = sectionsFromChecklistPage(page);
+    assert.deepEqual(sections.map((section) => [section.name, section.cards.map((card) => card.number)]), [["Base", ["1", "10", "350", "395"]]]);
+    assert.deepEqual(sections[0].cards[2], { number: "350", player: "Mickey Mantle", team: "New York Yankees" });
+  });
+
+  it("an older page with a second headed block: the first is the base set, the next keeps its heading", () => {
+    const page = [
+      "<h2>1986-87 Fleer Basketball Set Checklist</h2>",
+      '<div class="tablechecklist">57 Michael Jordan - Chicago Bulls<br />26 Patrick Ewing - New York Knicks</div>',
+      "<h3>Stickers</h3>",
+      '<div class="tablechecklist">8 Michael Jordan - Chicago Bulls<br />6 Patrick Ewing - New York Knicks</div>',
+    ].join("\n");
+    const sections = sectionsFromChecklistPage(page);
+    assert.deepEqual(sections.map((section) => [section.name, section.cards.map((card) => card.number)]), [["Base", ["57", "26"]], ["Stickers", ["8", "6"]]]);
+  });
+
   it("reads the maker's CSV: a card once, however many parallels repeat it", () => {
     const csv = [
       '"SPORT","YEAR","BRAND","PROGRAM","CARD SET","ATHLETE","TEAM","POSITION","CARD NUMBER","SEQUENCE"',
@@ -116,6 +159,19 @@ describe("the checklist store", () => {
     assert.deepEqual(checklistFilesFor({ years: ["2023"], setBrand: "Prizm" }, entries), ["a", "b"]);
     assert.deepEqual(checklistFilesFor({ years: ["2023"], setBrand: "Prizm", sport: "Basketball" }, entries), ["b"]);
     assert.deepEqual(checklistFilesFor({ years: ["2024", "2023"], setBrand: "Panini Select" }, entries), ["d"]);
+    // No year read: every year of the set up to 1980 in that sport, and never across sports.
+    const vintage = [
+      { file: "t52", sport: "Baseball", yearLabel: "1952", product: "Topps", source: "s", read: "2026-11-15", cards: 1 },
+      { file: "t80", sport: "Baseball", yearLabel: "1980", product: "Topps", source: "s", read: "2026-11-15", cards: 1 },
+      { file: "t81", sport: "Baseball", yearLabel: "1981", product: "Topps", source: "s", read: "2026-11-15", cards: 1 },
+      { file: "f61", sport: "Basketball", yearLabel: "1961-62", product: "Fleer", source: "s", read: "2026-11-15", cards: 1 },
+    ];
+    assert.deepEqual(checklistFilesFor({ years: [], setBrand: "Topps", sport: "Baseball" }, vintage), ["t52", "t80"]);
+    // A letter code (BP-27, US175) is a modern card's: every year.
+    assert.deepEqual(checklistFilesFor({ years: [], setBrand: "Topps", sport: "Baseball", allYears: true }, vintage), ["t52", "t80", "t81"]);
+    assert.deepEqual(checklistFilesFor({ years: [], setBrand: "Fleer", sport: "Basketball" }, vintage), ["f61"]);
+    assert.deepEqual(checklistFilesFor({ years: [], setBrand: "Topps" }, vintage), []);
+    assert.deepEqual(checklistFilesFor({ years: [], setBrand: "Prizm", sport: "Basketball" }, entries), []);
   });
 
   it("knows the base set's sections from a variation, an autograph or an insert", () => {
