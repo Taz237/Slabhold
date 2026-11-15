@@ -979,7 +979,14 @@ function pickParallel(
   // A numbered card is never Base, and with no checklist run that fits, any color would be a guess:
   // leave it open with no chips. The print run the card showed still shows on the sheet.
   // Then last year's parallels with the same run are offered as quick picks, never preselected.
-  const sameRunLastYear = run != null && fitsRun.length === 0 ? yearAgo.filter((option) => option.serialRun === run && parallelMatchKey(option.name) !== "base") : [];
+  // Last year's name gives way to this year's for the same parallel: 2024's "Green Pattern" /99 is
+  // 2025's Green Pattern Border, when exactly one name on this year's list is it, give or take Border.
+  const thisYearsName = (option: ProductParallel): ProductParallel => {
+    const same = checklist.filter((item) => sameParallelLoosely(item.name, option.name));
+    return same.length === 1 ? { ...option, name: same[0].name } : option;
+  };
+  const sameRunLastYear =
+    run != null && fitsRun.length === 0 ? yearAgo.filter((option) => option.serialRun === run && parallelMatchKey(option.name) !== "base").map(thisYearsName) : [];
   const pool = run != null && fitsRun.length === 0 ? sameRunLastYear : fitsRun;
   const ordered = [
     ...named,
