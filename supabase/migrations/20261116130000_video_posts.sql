@@ -1,4 +1,4 @@
--- UNAPPLIED. Needs review before running.
+-- APPLIED to prod Nov 16, 2026 (QA-fixed version). Do not re-run.
 -- Do not run supabase db push. Do not apply this with the Supabase CLI.
 --
 -- Video posts.
