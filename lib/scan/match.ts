@@ -1,6 +1,6 @@
 import { parallelSwatch } from "@/lib/cards/parallel-swatch";
 import type { CatalogCard } from "@/lib/card-catalog";
-import { parallelMatchKey, parallelsForSet, sameParallelLoosely } from "@/lib/cards/parallels";
+import { parallelMatchKey, parallelSetFamily, parallelsForSet, sameParallelLoosely } from "@/lib/cards/parallels";
 import { baseSetHits, isBaseSection, playersAt, type ChecklistHit, type ChecklistProduct } from "@/lib/cards/checklists";
 import { parallelsIn, sameSeason, type ProductParallel, type ProductRecord } from "@/lib/cards/product-data";
 import { setMatchPhrase } from "@/lib/comps/match";
@@ -976,6 +976,23 @@ function checklistFor(
   return parallelsForSet(card.setBrand).map((name) => ({ name, serialRun: null }));
 }
 
+/** Parallels (Refractor, Silver, Holo) arrived in the 1993-94 season: Finest's Refractor was the first. */
+const FIRST_PARALLEL_YEAR = 1993;
+
+/**
+ * A pre-1993 set we have no parallel list for (neither its own nor its family's): the general list
+ * of modern parallels would only be noise, so "Which version?" offers Base and Something else.
+ */
+function vintageWithoutList(
+  products: readonly ProductRecord[] | null,
+  card: Pick<Candidate, "sport" | "yearLabel" | "setBrand" | "cardNumber">,
+): boolean {
+  const year = Number(/^(\d{4})/.exec(card.yearLabel.trim())?.[1] ?? Number.NaN);
+  if (!(year < FIRST_PARALLEL_YEAR)) return false;
+  const listed = products?.length ? parallelsIn(products, card.sport, card.yearLabel, card.setBrand, card.cardNumber) : [];
+  return listed.length === 0 && parallelSetFamily(card.setBrand) === null;
+}
+
 /** The parallel's own words all appear in what the card showed. */
 function namedBy(option: ProductParallel, shown: readonly string[]): boolean {
   const own = words(parallelMatchKey(option.name));
@@ -1097,6 +1114,8 @@ function pickParallel(
   titles: readonly TitleFacts[] = [],
   /** Last year's parallels of the same set: quick picks for a numbered card this year's list can't place. */
   yearAgo: ProductParallel[] = [],
+  /** A pre-1993 set with no parallel list: "Which version?" offers Base alone (and Something else). */
+  baseOnly = false,
 ): ParallelPick {
   const runOf = (option: ProductParallel | undefined) => option?.serialRun ?? null;
 
@@ -1109,7 +1128,7 @@ function pickParallel(
       const base = checklist.find((option) => parallelMatchKey(option.name) === "base") ?? { name: "Base", serialRun: null };
       // A base label prints no variety line, and neither does one whose variety line didn't read.
       // So we always ask "Which version?", Base first, in every set. Never Base on our say-so.
-      return { parallel: "", sureness: "unsure", serialRun: null, options: [base, ...closestToBase(checklist)] };
+      return { parallel: "", sureness: "unsure", serialRun: null, options: baseOnly ? [base] : [base, ...closestToBase(checklist)] };
     }
     const named = coveringLabel(checklist, evidence.parallelWords);
     if (named.length === 1) {
@@ -1635,7 +1654,7 @@ export function rankScanMatches(
       : card.titles;
     const lastYear = yearBefore(card.yearLabel);
     const yearAgo = lastYear && options.products?.length ? parallelsIn(options.products, card.sport, lastYear, card.setBrand, card.cardNumber) : [];
-    const parallel = pickParallel(evidence, checklistFor(options.products, card), titles, yearAgo);
+    const parallel = pickParallel(evidence, checklistFor(options.products, card), titles, yearAgo, vintageWithoutList(options.products, card));
     const inDirectory = evidence.players.some((item) => compactName(item.name) === compactName(card.playerName));
     // A slab label prints no run: when every sold title for this parallel names the same one, use it.
     if (parallel.serialRun == null && parallel.parallel && card.titles?.length) {

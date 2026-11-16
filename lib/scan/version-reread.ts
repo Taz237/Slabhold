@@ -10,6 +10,8 @@ import type { ParallelPick } from "./confirm";
 export function rowsWithVersion(rows: readonly ScanMatch[], pick: NonNullable<ParallelPick>, serialNo: string): ScanMatch[] {
   const [top, ...rest] = rows;
   if (!top) return [];
+  // The same pick again (a retry): the very same rows, so the sheet keeps everything.
+  if (top.parallel === pick.name && top.serialNo === serialNo && top.sureness.parallel === "sure" && (pick.serialRun ?? top.serialRun) === top.serialRun) return [...rows];
   const picked: ScanMatch = {
     ...top,
     parallel: pick.name,
@@ -36,7 +38,24 @@ export function sameCardRow(a: ScanMatch, b: ScanMatch): boolean {
   );
 }
 
-const UNAVAILABLE: SoldsState = { status: "done", comp: { status: "unavailable" }, query: null };
+/**
+ * Whether a pick should read the slab again now: a key for that read (so each tap reads once), or
+ * null. A slab still waiting on its version reads on the first pick. After a read, picking another
+ * version reads that one, and tapping any version after a failed read tries again.
+ */
+export function versionReadKey(solds: SoldsState | undefined, pick: ParallelPick, picked: boolean, taps: number): string | null {
+  if (!picked || !pick || solds?.status !== "done") return null;
+  const key = `${pick.name}#${taps}`;
+  if (solds.comp.status === "version") return key;
+  if (!solds.version) return null;
+  return pick.name !== solds.version || solds.comp.status === "unavailable" ? key : null;
+}
+
+/** The sales to show beside a pick: never a read's prices under a different version. */
+export function soldsForPick(solds: SoldsState | undefined, pick: string | null): SoldsState | undefined {
+  if (solds?.status === "done" && solds.version && pick !== solds.version) return undefined;
+  return solds;
+}
 
 /**
  * The sheet after the slab is read again as the picked version. The rows stay exactly as the
@@ -50,12 +69,15 @@ export function versionRereadSheet(
   solds: LiveSoldsResult | null,
 ): { kind: "ready"; matches: ScanMatch[]; solds: SoldsState } {
   const top = rows[0];
+  const version = top?.parallel ?? "";
   const found = solds?.matches[0];
   const same = Boolean(top && found && sameCardRow(top, found) && key(found.parallel) === key(top.parallel));
-  if (!solds || !same || solds.comp.status === "version") return { kind: "ready", matches: rows, solds: UNAVAILABLE };
+  if (!solds || !same || solds.comp.status === "version") {
+    return { kind: "ready", matches: rows, solds: { status: "done", comp: { status: "unavailable" }, query: null, version } };
+  }
   return {
     kind: "ready",
     matches: rows,
-    solds: { status: "done", comp: solds.comp, query: solds.query, ...(solds.similar ? { similar: solds.similar } : {}) },
+    solds: { status: "done", comp: solds.comp, query: solds.query, version, ...(solds.similar ? { similar: solds.similar } : {}) },
   };
 }

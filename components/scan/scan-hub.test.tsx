@@ -509,3 +509,139 @@ describe("ScanHub: a slab's version picked from \"Which version?\"", () => {
     }
   });
 });
+
+describe("ScanHub: picking another version after a read", () => {
+  const rowsFor = () => [fixtures.PREVIEW_SLAB_VERSION];
+  const waiting = (matches: ScanMatch[]) => ({ matches, comp: { status: "version" as const }, query: null });
+  const priced = (matches: ScanMatch[], cents: number, label: string) => ({
+    matches,
+    comp: { status: "ok" as const, sales: [{ priceCents: cents, soldAt: "2026-11-10" }], nSales: 1, medianCents: null, lowCents: null, highCents: null, trend: null, asOf: null, source: "live" as const, parallel: label },
+    query: "fixture",
+  });
+  const pressed = (name: string) => button(name).getAttribute("aria-pressed") === "true";
+
+  it("X-Fractor priced, then Base picked: a new read runs for Base, and X-Fractor's price never shows under Base", async () => {
+    const reads: string[] = [];
+    let releaseBase: () => void = () => {};
+    const view = await mount(
+      "add",
+      nativeDeps({
+        identify: async () => result(rowsFor()),
+        solds: async (capture, matches) => {
+          const last = capture.lines.at(-1) ?? "";
+          reads.push(last);
+          if (reads.length === 1) return waiting(matches);
+          if (last === "X-FRACTOR") return priced(matches, 15000, "X-Fractor");
+          await new Promise<void>((resolve) => (releaseBase = resolve));
+          return priced(matches, 6000, "Base");
+        },
+      }),
+    );
+    try {
+      await waitFor(() => text().includes("Pick the version to see its sold prices"));
+      await act(async () => button("X-Fractor").click());
+      await waitFor(() => text().includes("$150"));
+      await act(async () => button("Base").click());
+      await waitFor(() => reads.length === 3);
+      assert.equal(reads[2], "BASE", "the label is read again with Base, not with X-Fractor");
+      assert.equal(pressed("Base"), true);
+      assert.doesNotMatch(text(), /\$150/, "X-Fractor's price never shows under Base");
+      await act(async () => releaseBase());
+      await waitFor(() => text().includes("$60"));
+      assert.doesNotMatch(text(), /\$150/);
+      assert.equal(pressed("Base"), true);
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("a failed read, then the same pick again, tries the read again", async () => {
+    const reads: string[] = [];
+    const view = await mount(
+      "add",
+      nativeDeps({
+        identify: async () => result(rowsFor()),
+        solds: async (capture, matches) => {
+          reads.push(capture.lines.at(-1) ?? "");
+          if (reads.length === 1) return waiting(matches);
+          if (reads.length === 2) return null;
+          return priced(matches, 15000, "X-Fractor");
+        },
+      }),
+    );
+    try {
+      await waitFor(() => text().includes("Pick the version to see its sold prices"));
+      await act(async () => button("X-Fractor").click());
+      await waitFor(() => text().includes("We couldn't load sold prices"));
+      await act(async () => button("X-Fractor").click());
+      await waitFor(() => text().includes("$150"));
+      assert.deepEqual(reads.slice(1), ["X-FRACTOR", "X-FRACTOR"]);
+      assert.equal(pressed("X-Fractor"), true);
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("a failed read, then another version, reads that one", async () => {
+    const reads: string[] = [];
+    const view = await mount(
+      "comp",
+      nativeDeps({
+        identify: async () => result(rowsFor()),
+        solds: async (capture, matches) => {
+          reads.push(capture.lines.at(-1) ?? "");
+          if (reads.length === 1) return waiting(matches);
+          if (reads.length === 2) return null;
+          return priced(matches, 9500, "Refractor");
+        },
+      }),
+    );
+    try {
+      await waitFor(() => text().includes("Pick the version to see its sold prices"));
+      await act(async () => button("X-Fractor").click());
+      await waitFor(() => reads.length === 2 && text().includes("We couldn't load sold prices"));
+      await act(async () => button("Refractor").click());
+      await waitFor(() => reads.length === 3);
+      assert.equal(reads[2], "REFRACTOR");
+    } finally {
+      view.unmount();
+    }
+  });
+});
+
+describe("ScanHub comp: a grade change after a version read", () => {
+  it("looks the new grade up as before, for the version read", async () => {
+    const lookups: { parallel: string; grade: string }[] = [];
+    let reads = 0;
+    const view = await mount(
+      "comp",
+      nativeDeps({
+        identify: async () => result([fixtures.PREVIEW_SLAB_VERSION]),
+        compLookup: async (identity) => (lookups.push({ parallel: identity.parallel, grade: identity.grade }), { status: "none" }),
+        solds: async (_capture, matches) => {
+          reads += 1;
+          if (reads === 1) return { matches, comp: { status: "version" as const }, query: null };
+          return {
+            matches,
+            comp: { status: "ok" as const, sales: [{ priceCents: 15000, soldAt: "2026-11-10" }], nSales: 1, medianCents: null, lowCents: null, highCents: null, trend: null, asOf: null, source: "live" as const, parallel: "X-Fractor" },
+            query: "fixture",
+          };
+        },
+      }),
+    );
+    try {
+      await waitFor(() => text().includes("Pick the version to see its sold prices"));
+      await act(async () => button("X-Fractor").click());
+      await waitFor(() => text().includes("$150"));
+      assert.equal(lookups.length, 0);
+      const nine = [...win.document.querySelectorAll("button")].find((node) => node.textContent?.trim() === "PSA 9");
+      assert.ok(nine);
+      await act(async () => (nine as HTMLElement).click());
+      await waitFor(() => lookups.length === 1);
+      assert.deepEqual(lookups[0], { parallel: "X-Fractor", grade: "PSA 9" });
+      assert.equal(reads, 2, "a grade change is a lookup, not another read");
+    } finally {
+      view.unmount();
+    }
+  });
+});
