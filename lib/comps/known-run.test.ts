@@ -85,8 +85,40 @@ describe("a numbered parallel's sold filter", () => {
     assert.deepEqual(sharedCompValue(card, titles).sales.map((sale) => sale.itemId), ["bare"]);
   });
 
-  it("now: the known /50 keeps the /50 sales only", async () => {
+  it("now: the known /50 keeps the /50 sales and the titles that print no run, and drops /25", async () => {
     const data = await loadProductData();
-    assert.deepEqual(sharedCompValue(withKnownRun(card, data), titles).sales.map((sale) => sale.itemId).sort(), ["fifty", "numbered"]);
+    const known = withKnownRun(card, data);
+    assert.equal(known.runFromChecklist, true);
+    assert.deepEqual(sharedCompValue(known, titles).sales.map((sale) => sale.itemId).sort(), ["bare", "fifty", "numbered"]);
+  });
+
+  it("a slab seller who leaves /50 out is still a Gold /50 sale", async () => {
+    const data = await loadProductData();
+    const graded = { ...card, conditionType: "graded" as const, grade: "PSA 10" };
+    const slab = { ...sold("slab", "2025 Topps Chrome Fixture Player #48 Gold Refractor PSA 10"), details: { listing_state: "sold" as const, grading: { graded: true, grader: "PSA", grade: "10", condition: null } } };
+    assert.deepEqual(sharedCompValue(withKnownRun(graded, data), [slab]).sales.map((sale) => sale.itemId), ["slab"]);
+  });
+
+  it("a run the owner saved keeps the strict rule: the no-run title is dropped", async () => {
+    const data = await loadProductData();
+    const saved = withKnownRun({ ...card, serialRun: 50 }, data);
+    assert.equal(saved.runFromChecklist, undefined);
+    assert.deepEqual(sharedCompValue(saved, titles).sales.map((sale) => sale.itemId).sort(), ["fifty", "numbered"]);
+  });
+});
+
+describe("the same rule in cached pricing (price-context's fallback)", () => {
+  it("a checklist /50 keeps the no-run row; an owner-saved /50 drops it", async () => {
+    const { fallbackSales } = await import("@/lib/value/price-batch");
+    const data = await loadProductData();
+    const owned = { id: "fixture-card", ...card };
+    const rows = [
+      { item_id: "fifty", title: "2025 Topps Chrome Fixture Player #48 Gold Refractor /50", price: 40, sold_at: "2026-11-10", fetched_at: "2026-11-12T00:00:00Z" },
+      { item_id: "bare", title: "2025 Topps Chrome Fixture Player #48 Gold Refractor", price: 42, sold_at: "2026-11-09", fetched_at: "2026-11-12T00:00:00Z" },
+      { item_id: "twentyfive", title: "2025 Topps Chrome Fixture Player #48 Gold Refractor /25", price: 90, sold_at: "2026-11-08", fetched_at: "2026-11-12T00:00:00Z" },
+    ];
+    const ids = (sales: { itemId?: string | null }[]) => sales.map((sale) => sale.itemId).sort();
+    assert.deepEqual(ids(fallbackSales(withKnownRun(owned, data), rows, new Set())), ["bare", "fifty"]);
+    assert.deepEqual(ids(fallbackSales(withKnownRun({ ...owned, serialRun: 50 }, data), rows, new Set())), ["fifty"]);
   });
 });

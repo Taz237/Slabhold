@@ -38,9 +38,16 @@ export function knownPrintRun(products: readonly ProductRecord[] | null, card: R
   return runs.size === 1 && typeof run === "number" && run > 0 ? run : null;
 }
 
-/** The card with its known print run, when the owner saved none. A saved run always wins. */
-export function withKnownRun<T extends RunCard & { serialRun?: number | null }>(card: T, products: readonly ProductRecord[] | null): T {
+/**
+ * The card with its known print run, when the owner saved none, marked as from the checklist: its
+ * sold filter also keeps titles that print no run (sellers often leave "/50" out). A saved run
+ * always wins and keeps the strict rule.
+ */
+export function withKnownRun<T extends RunCard & { serialRun?: number | null; runFromChecklist?: boolean }>(
+  card: T,
+  products: readonly ProductRecord[] | null,
+): T {
   if (typeof card.serialRun === "number" && card.serialRun > 0) return card;
   const run = knownPrintRun(products, card);
-  return run ? { ...card, serialRun: run } : card;
+  return run ? { ...card, serialRun: run, runFromChecklist: true } : card;
 }

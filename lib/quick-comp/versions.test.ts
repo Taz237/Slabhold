@@ -184,7 +184,7 @@ describe("Jaxson Dart 2025 Topps Chrome #306 PSA 10, by version", () => {
 });
 
 describe("a numbered version picked with no run (a catalog row)", () => {
-  it("keeps only the sales at the checklist's run: 2025 Topps Chrome Gold Refractor is /50", async () => {
+  it("keeps the sales at the checklist's run, and ones that print none: 2025 Topps Chrome Gold Refractor is /50", async () => {
     const identity: QuickCompIdentity = { playerName: "Fixture Player", year: 2025, yearLabel: "2025", setBrand: "Topps Chrome", cardNumber: "48", parallel: "Gold Refractor", grade: "Raw" };
     const raw = (id: string, title: string) => ({ ...sold(id, title, 40, null), condition: "Ungraded" });
     const results = [
@@ -199,7 +199,8 @@ describe("a numbered version picked with no run (a catalog row)", () => {
       fetchSold: (async (query: string) => (queries.push(query), { ok: true, body: { results } })) as unknown as QuickCompDeps["fetchSold"],
     });
     assert.ok(result.ok);
-    assert.deepEqual(result.payload.comps.map((item) => item.itemId).sort(), ["fifty", "numbered"]);
+    // The checklist's /50, so a title that prints no run is kept too; /25 is not.
+    assert.deepEqual(result.payload.comps.map((item) => item.itemId).sort(), ["bare", "fifty", "numbered"]);
     // The search text is the card as picked: no run added, so it is the same search as before.
     assert.doesNotMatch(queries[0], /\/50/);
   });
