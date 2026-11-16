@@ -20,8 +20,8 @@ export const SIDE_MENU_ITEMS = [
   { href: "/messages", label: "Messages" },
   { href: "/cards/new", label: "Add card" },
   { href: "/leaderboard", label: "Leaderboard" },
-  // Literals, not MOVING_TODAY_PATH/TITLE: that module also carries helpers this constants file shouldn't pull in.
-  { href: "/moving-today", label: "Moving today" },
+  // A literal, not CATALOG_PATH: that module also carries helpers this constants file shouldn't pull in.
+  { href: "/catalog", label: "Catalog" },
   { href: INVITE_MENU_HREF, label: "Invite a collector" },
 ] as const;
 
