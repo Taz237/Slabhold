@@ -45,6 +45,25 @@ export const PREVIEW_SLAB: ScanMatch = {
   parallelOptions: [{ name: "Silver", serialRun: null }],
 };
 
+/** A slab whose label named no parallel: the sheet asks "Which version?". A made-up player and card. */
+export const PREVIEW_SLAB_VERSION: ScanMatch = {
+  ...PREVIEW_SLAB,
+  catalogId: null,
+  playerName: "Fixture Player",
+  sport: "Football",
+  yearLabel: "2025",
+  setBrand: "Topps Chrome",
+  cardNumber: "306",
+  parallel: "",
+  sureness: { ...SURE, parallel: "unsure" },
+  parallelOptions: [
+    { name: "Base", serialRun: null },
+    { name: "Refractor", serialRun: null },
+    { name: "X-Fractor", serialRun: null },
+    { name: "Prism Refractor", serialRun: null },
+  ],
+};
+
 const RAW_OPTIONS = [
   { name: "Base", serialRun: null },
   { name: "Silver", serialRun: null },

@@ -18,6 +18,7 @@ import { COMP_COPY, type SoldsState } from "@/lib/scan/comp";
 import {
   CONFIRM_COPY,
   confirmMatch,
+  parallelHint,
   initialChoice,
   matchesKey,
   promoteMatch,
@@ -158,7 +159,7 @@ function Ready({
           deferred={deferred}
           hint={
             !pick && !deferred
-              ? CONFIRM_COPY.pickParallel
+              ? parallelHint(top, pick, deferred)
               : top.parallelSource === "sales" && pick?.name === top.parallel
                 ? COMP_COPY.matchedFromSales
                 : null

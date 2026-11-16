@@ -11,6 +11,7 @@ export const metadata: Metadata = {
 const KINDS: readonly PreviewKind[] = [
   "slab",
   "slab-looking",
+  "slab-version",
   "from-sales",
   "comp-from-sales",
   "comp-run-only",
