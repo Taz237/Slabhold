@@ -21,6 +21,8 @@ export type ScanCapture = {
   image: string | null;
   /** The scanner's guess from the shape. Null when it couldn't tell. */
   kind: "card" | "slab" | null;
+  /** The version the collector picked for a slab whose label named none, as the line it was added as. */
+  versionLine?: string | null;
   /** The border's color name from the photo (pink, red, purple...), read on the phone. Null when unclear. */
   border?: string | null;
   /** Each line's next best readings, same order as `lines`. Only ever used to fill an open field (alternates.ts). */
@@ -58,4 +60,20 @@ export function sheetStateFrom(result: ScanMatchResult | null, online: boolean):
   if (!result) return { kind: "none", offline: !online };
   if (result.matches.length === 0) return { kind: "none", offline: false };
   return { kind: "ready", matches: result.matches };
+}
+
+/**
+ * The collector picked the slab's version on the sheet: the same scan, read again as if the label
+ * printed it ("X-FRACTOR" as its own line). A second pick replaces the first. An empty pick
+ * takes the line back off.
+ */
+export function withVersionLine<T extends { lines: string[]; versionLine?: string | null }>(capture: T, version: string): T {
+  const line = version.replace(/\s+/g, " ").trim().toUpperCase();
+  const lines = [...capture.lines];
+  if (capture.versionLine) {
+    const at = lines.lastIndexOf(capture.versionLine);
+    if (at >= 0) lines.splice(at, 1);
+  }
+  if (!line) return { ...capture, lines, versionLine: null };
+  return { ...capture, lines: [...lines, line], versionLine: line };
 }

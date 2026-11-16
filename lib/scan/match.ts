@@ -1,3 +1,4 @@
+import { parallelSwatch } from "@/lib/cards/parallel-swatch";
 import type { CatalogCard } from "@/lib/card-catalog";
 import { parallelMatchKey, parallelsForSet, sameParallelLoosely } from "@/lib/cards/parallels";
 import { baseSetHits, isBaseSection, playersAt, type ChecklistHit, type ChecklistProduct } from "@/lib/cards/checklists";
@@ -146,13 +147,38 @@ const FLAG_WORDS = new Set(["rookie", "rc", "auto", "autos", "autograph", "autog
 /** Label words that name a subset of the set (Prospects, Rookie Ticket, Young Guns), never a parallel. */
 const SLAB_SUBSET_WORDS = new Set(["prospect", "prospects", "ticket", "young", "guns", "rated", "1st"]);
 
+/** Short forms graders print on a label's variety line, spelled out. An unknown one stays as printed. */
+const LABEL_SHORT_FORMS: Record<string, readonly string[]> = {
+  ref: ["refractor"],
+  refr: ["refractor"],
+  rfr: ["refractor"],
+  xfractor: ["x", "fractor"],
+  przm: ["prizm"],
+  gld: ["gold"],
+  slv: ["silver"],
+  slvr: ["silver"],
+  blu: ["blue"],
+  grn: ["green"],
+  prpl: ["purple"],
+  orng: ["orange"],
+  blk: ["black"],
+  wht: ["white"],
+  pnk: ["pink"],
+  ylw: ["yellow"],
+};
+
+/** A cert number read with a slip ("4567B912"): mostly digits, never a parallel's word. */
+function certLike(word: string): boolean {
+  return (word.match(/\d/g)?.length ?? 0) >= 4;
+}
+
 /** The parallel words on a slab's variety line: no flags, subset names, stray numbers, or a trailing "Prizm". */
 function slabParallelWords(varietyText: string): string[] {
-  const all = words(varietyText);
+  const all = words(varietyText).flatMap((word) => LABEL_SHORT_FORMS[word] ?? [word]);
   // "TICKET" is Contenders' Rookie Ticket subset, except after another word: Championship, Playoff,
   // Cracked Ice and Super Bowl Ticket are parallels, and keep the word.
   const parallelTicket = (index: number) => all[index] === "ticket" && index > 0 && !["rookie", "rc"].includes(all[index - 1]);
-  const kept = all.filter((word, index) => parallelTicket(index) || (!FLAG_WORDS.has(word) && !SLAB_SUBSET_WORDS.has(word) && !/^\d+$/.test(word)));
+  const kept = all.filter((word, index) => parallelTicket(index) || (!FLAG_WORDS.has(word) && !SLAB_SUBSET_WORDS.has(word) && !/^\d+$/.test(word) && !certLike(word)));
   // "SILVER PRIZM" is Silver. "PRIZM" alone is the parallel's own name (2012's Prizm), so it stays.
   const colors = kept.filter((word) => word !== "prizm" && word !== "prizms");
   return colors.length > 0 ? colors : kept;
@@ -761,6 +787,15 @@ export function liveSearchLadder(
   const rungs = number
     ? [rung(searchSet, insert, number, run, grade, auto), rung(insert, number, run, grade, auto), rung(searchSet, insert, number, grade), rung(insert, number, grade)]
     : [rung(searchSet, insert, run, grade, auto), rung(insert, run, grade, auto), rung(searchSet, insert, grade)];
+  // A slab searches by its label's own wording first: year, set, player, card #, parallel, print
+  // run and grade, the way the label prints them. The wider rungs follow, for sellers who leave
+  // words out. Base is never a search word, and an open parallel adds none.
+  if (evidence.slab && top && set && number) {
+    const year = known("year") ? top.yearLabel : "";
+    const named = top.parallel.trim() && top.sureness.parallel !== "unsure" && parallelMatchKey(top.parallel) !== "base" ? top.parallel.trim() : "";
+    const label = [year, searchSet, player, insert, number, named, run, grade].filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
+    rungs.unshift(label);
+  }
   const useful = [...new Set(rungs)].filter((query) => query !== player);
   // Nothing but the name was read: search the player once, and let the titles name the card.
   return (useful.length > 0 ? useful : [player]).slice(0, MAX_LADDER_RUNGS);
@@ -954,6 +989,26 @@ function longestNamed(options: ProductParallel[], shown: readonly string[]): Pro
   return named.filter((option) => words(option.name).length === longest);
 }
 
+/** Words a label adds to a color that the list's name may leave off: "GOLD REFRACTOR" is the list's Gold. */
+const LABEL_OPTIONAL_WORDS = new Set(["refractor", "border"]);
+
+/**
+ * The list's parallels that are the label's variety, whole: every word of the name is on the
+ * label, and the label printed nothing more (bar "Refractor" or "Border" after a color).
+ * "ORANGE PULSAR" is not the list's Orange, and "GOLD WAVE" is neither Gold nor Wave.
+ */
+function coveringLabel(options: ProductParallel[], shown: readonly string[]): ProductParallel[] {
+  const covering = options.filter((option) => {
+    const own = words(parallelMatchKey(option.name));
+    if (own.length === 0 || !own.every((word) => shown.includes(word))) return false;
+    const extra = shown.filter((word) => !own.includes(word));
+    return extra.every((word) => LABEL_OPTIONAL_WORDS.has(word)) && (extra.length === 0 || own.some((word) => !LABEL_OPTIONAL_WORDS.has(word)));
+  });
+  if (covering.length <= 1) return covering;
+  const longest = Math.max(...covering.map((option) => words(option.name).length));
+  return covering.filter((option) => words(option.name).length === longest);
+}
+
 /** Finishes a base chrome card already looks like: the border can't tell them apart. */
 const CHROME_FINISH = new Set(["SILVER", "REFRACTOR", "HOLO", "PRIZM", "CHROME", "SHIMMER", "MOJO"]);
 
@@ -1013,6 +1068,30 @@ export function yearBefore(label: string): string {
   return /^\d{4}$/.test(label.trim()) ? String(Number(label.trim()) - 1) : "";
 }
 
+/** How many versions "Which version?" offers, Base included. */
+const CLOSEST_VERSIONS = 5;
+
+/**
+ * The versions that read the same as Base on a label that names no parallel: unnumbered, and
+ * with no color of their own (Refractor, X-Fractor, Silver, Holo). Plain names lead ("Refractor"
+ * before "Negative Refractor"). A color or a numbered parallel is never a guess here.
+ */
+function baseLookalikes(checklist: readonly ProductParallel[]): ProductParallel[] {
+  const rank = (option: ProductParallel) => (parallelSwatch(option.name).kind === "shimmer" ? 0 : 1);
+  const spaced = (name: string) => name.trim().split(/\s+/).length;
+  return checklist
+    .map((option, index) => ({ option, index }))
+    .filter(({ option }) => {
+      if (option.serialRun != null || option.runVaries) return false;
+      if (parallelMatchKey(option.name) === "base") return false;
+      const kind = parallelSwatch(option.name).kind;
+      return kind === "shimmer" || kind === "neutral";
+    })
+    .sort((a, b) => rank(a.option) - rank(b.option) || spaced(a.option.name) - spaced(b.option.name) || a.index - b.index)
+    .slice(0, CLOSEST_VERSIONS - 1)
+    .map(({ option }) => option);
+}
+
 function pickParallel(
   evidence: Evidence,
   checklist: ProductParallel[],
@@ -1029,13 +1108,17 @@ function pickParallel(
       // A numbered card is never Base: with no parallel named, it stays open.
       if (labelRun != null) return { parallel: "", sureness: "unsure", serialRun: labelRun, options: [] };
       const base = checklist.find((option) => parallelMatchKey(option.name) === "base") ?? { name: "Base", serialRun: null };
+      // A base label prints no variety line, and neither does one whose variety line didn't read.
+      // When the set has versions that look like Base, we ask. Never Base on our say-so.
+      const lookalikes = baseLookalikes(checklist);
+      if (lookalikes.length > 0) return { parallel: "", sureness: "unsure", serialRun: null, options: [base, ...lookalikes] };
       return { parallel: "Base", sureness: "sure", serialRun: null, options: [base] };
     }
-    const named = longestNamed(checklist, evidence.parallelWords);
+    const named = coveringLabel(checklist, evidence.parallelWords);
     if (named.length === 1) {
       return { parallel: named[0].name, sureness: "sure", serialRun: labelRun ?? runOf(named[0]), options: named };
     }
-    // Printed on the label, but not a parallel our lists know: keep the label's words.
+    // Printed on the label, but not a parallel our lists know whole: keep the label's words.
     const printed = titleCase(evidence.parallelWords.join(" "));
     return { parallel: printed, sureness: "likely", serialRun: labelRun, options: [{ name: printed, serialRun: labelRun }] };
   }

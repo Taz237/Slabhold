@@ -103,7 +103,11 @@ describe("the search ladder", () => {
   it("a slab's grade rides along", () => {
     const read = scanReadFrom({ lines: ["PSA", "2024 BOWMAN", "#BP-27", "AIDAN MILLER", "MINT 9", "12345678"], backLines: null, image: null, kind: "slab" }, INDEXED_DIRECTORY);
     const top = rankScanMatches(read, [], { directory: INDEXED_DIRECTORY, products: null }).matches[0];
-    assert.equal(liveSearchLadder(read, top, INDEXED_DIRECTORY)[0], "Aidan Miller Bowman BP-27 PSA 9");
+    // A slab leads with its label's own wording (the year too); the wider search follows.
+    const rungs = liveSearchLadder(read, top, INDEXED_DIRECTORY);
+    assert.equal(rungs[0], "2024 Bowman Aidan Miller BP-27 PSA 9");
+    assert.equal(rungs[1], "Aidan Miller Bowman BP-27 PSA 9");
+    assert.ok(rungs.every((query) => query.endsWith("PSA 9")));
   });
 
   it("stops at the first rung that finds this card's sales", async () => {

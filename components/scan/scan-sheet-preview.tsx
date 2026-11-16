@@ -15,6 +15,7 @@ import {
   PREVIEW_PHOTO,
   PREVIEW_RAW,
   PREVIEW_SLAB,
+  PREVIEW_SLAB_VERSION,
   PREVIEW_FROM_SALES,
   PREVIEW_SOLDS,
   PREVIEW_SOLDS_PARALLEL,
@@ -55,6 +56,7 @@ export type PreviewKind =
   | "sapphire"
   | "comp-sapphire-ask"
   | "slab-looking"
+  | "slab-version"
   | "from-sales"
   | "comp-from-sales"
   | "comp-run-only"
@@ -70,6 +72,7 @@ const SCREENS = new Set<PreviewKind>(["hub", "hub-comp", "door"]);
 const STATES: Record<Exclude<PreviewKind, "hub" | "hub-comp" | "door">, ConfirmSheetState> = {
   slab: { kind: "ready", matches: [PREVIEW_SLAB], solds: PREVIEW_SOLDS },
   "slab-looking": { kind: "ready", matches: [PREVIEW_SLAB], solds: PREVIEW_SOLDS_LOOKING },
+  "slab-version": { kind: "ready", matches: [PREVIEW_SLAB_VERSION], solds: { status: "done", comp: { status: "version" }, query: null } },
   "from-sales": { kind: "ready", matches: [PREVIEW_FROM_SALES], solds: PREVIEW_SOLDS_PARALLEL },
   "comp-from-sales": { kind: "ready", matches: [PREVIEW_FROM_SALES], solds: PREVIEW_SOLDS_PARALLEL },
   "comp-run-only": { kind: "ready", matches: [PREVIEW_RUN_ONLY], solds: PREVIEW_SOLDS_RUN_ONLY },
@@ -117,6 +120,7 @@ const LABELS: Record<PreviewKind, string> = {
   sapphire: "Sapphire from recent sales",
   "comp-sapphire-ask": "Comp, is this Sapphire?",
   "slab-looking": "Slab, looking up",
+  "slab-version": "Slab, which version",
   "from-sales": "Parallel from sales",
   "comp-from-sales": "Comp, parallel from sales",
   "comp-run-only": "Comp, numbered, no color named",

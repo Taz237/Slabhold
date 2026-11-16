@@ -16,7 +16,7 @@ import { compQueryString, type ScanCompResult } from "@/lib/scan/comp";
 import { newScanId, scanAddPath, scanHandoffFrom } from "@/lib/scan/handoff";
 import type { LiveSoldsResult } from "@/lib/scan/live-solds";
 import type { ScanMatch, ScanMatchResult, SoldTitle } from "@/lib/scan/match";
-import { HUB_COPY, scanReadFrom, sheetStateFrom, type ScanCapture, type ScanPurpose } from "@/lib/scan/session";
+import { HUB_COPY, scanReadFrom, sheetStateFrom, withVersionLine, type ScanCapture, type ScanPurpose } from "@/lib/scan/session";
 
 export type ScanHubDeps = {
   /** Async so no plugin code ships in /scan's first load. */
@@ -183,7 +183,7 @@ export function ScanHub({
       // Alternates are settled once, here, so the phone and the server read the same lines.
       const capture = await deps.settle(scanned).catch(() => scanned);
       if (controller.signal.aborted) return;
-      lastCapture.current = capture;
+      lastCapture.current = { ...capture, versionLine: scanned.versionLine ?? null };
       const result = await deps.identify(capture, controller.signal).catch(() => null);
       if (controller.signal.aborted) return;
       const online = deps.online();
@@ -223,6 +223,19 @@ export function ScanHub({
     if (!capture || capture.lines.some((line) => /\bsapphire\b/i.test(line))) return;
     void identify({ ...capture, lines: [...capture.lines, "SAPPHIRE"] });
   }, [identify]);
+
+  /**
+   * The collector picked the slab's version ("Which version?"): the same scan is read again as if
+   * the label printed it, and that version's sales are looked up by the label's wording.
+   */
+  const asVersion = useCallback(
+    (version: string) => {
+      const capture = lastCapture.current;
+      if (!capture) return;
+      void identify(withVersionLine(capture, version));
+    },
+    [identify],
+  );
 
   const startScan = useCallback(async () => {
     let capture: ScanOutcome = null;
@@ -412,6 +425,7 @@ export function ScanHub({
           onStepByStep={stepByStep}
           onRetake={() => void startScan()}
           onSapphire={asSapphire}
+          onVersion={asVersion}
           onClose={closeSheet}
         />
       ) : null}
@@ -424,6 +438,7 @@ export function ScanHub({
           onScanAnother={() => void startScan()}
           onSearch={() => router.push("/comp")}
           onSapphire={asSapphire}
+          onVersion={asVersion}
           onClose={closeSheet}
         />
       ) : null}
