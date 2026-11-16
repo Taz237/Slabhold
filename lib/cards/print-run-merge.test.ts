@@ -292,3 +292,34 @@ describe("Bowman's paper and chrome lists", () => {
     assert.equal(at("BCP-22", 199).length, 3);
   });
 });
+
+describe("a base and rookie list that disagree", () => {
+  it("keeps a run both lists give, leaves one they disagree on unknown, and drops image variations", () => {
+    const record = hobbyListRecord({
+      sport: "Football",
+      yearLabel: "2025",
+      product: "Topps Chrome",
+      manufacturer: "Topps",
+      parallels: [
+        { subset: "Base", name: "Green Wave Refractor", serialRun: 99 },
+        { subset: "Base Rookies", name: "Green Wave Refractor", serialRun: 100 },
+        { subset: "Base", name: "Gold Refractor", serialRun: 50 },
+        { subset: "Base Rookies", name: "Gold Refractor", serialRun: 50 },
+        { subset: "Base Rookies", name: "Teal Wave Refractor", serialRun: 299 },
+        { subset: "Base", name: "Touchdown Variations", serialRun: null },
+        { subset: "Base", name: "Red/White/Blue Refractor", serialRun: null },
+      ],
+    });
+    assert.ok(record);
+    assert.deepEqual(
+      record.parallels.map((row) => [row.name, row.serialRun]),
+      [
+        ["Base", null],
+        ["Green Wave Refractor", null],
+        ["Gold Refractor", 50],
+        ["Teal Wave Refractor", 299],
+        ["Red/White/Blue Refractor", null],
+      ],
+    );
+  });
+});

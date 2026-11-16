@@ -24,9 +24,17 @@ const names = (list: readonly { name: string }[]) => list.map((item) => item.nam
 
 describe("Quick Comp versions", () => {
   it("a set with no checklist offers its family's list, Base first: Base, Refractor, X-Fractor", async () => {
-    const list = quickCompVersions(await loadProductData(), { ...dart, sport: "Football" });
+    // 2023 Topps Chrome Football has no list of ours.
+    const list = quickCompVersions(await loadProductData(), { ...dart, yearLabel: "2023", sport: "Football" });
     assert.deepEqual(names(list).slice(0, 3), ["Base", "Refractor", "X-Fractor"]);
     assert.ok(list.every((item) => item.serialRun === null));
+  });
+
+  it("2025 Topps Chrome Football has its own list now: X-Fractor unnumbered, Gold Refractor /50", async () => {
+    const list = quickCompVersions(await loadProductData(), { ...dart, sport: "Football" });
+    assert.equal(names(list)[0], "Base");
+    assert.deepEqual(list.find((item) => item.name === "X-Fractor"), { name: "X-Fractor", serialRun: null });
+    assert.deepEqual(list.find((item) => item.name === "Gold Refractor"), { name: "Gold Refractor", serialRun: 50 });
   });
 
   it("a set with a checklist offers that year's parallels with their runs", async () => {

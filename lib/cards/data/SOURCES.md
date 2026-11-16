@@ -102,6 +102,7 @@ added, skipped or failed.
 | Football | Panini Mosaic | 2020, 2021, 2022, 2023 |
 | Football | Panini Prizm | 2019, 2020, 2021, 2022, 2023, 2024, 2025 |
 | Football | Panini Select | 2019, 2020, 2021, 2022 |
+| Football | Topps Chrome | 2025 |
 | Football | Prizm Draft Picks | 2019, 2020, 2021 |
 | Hockey | Upper Deck | 2024-25, 2025-26 |
 
@@ -124,8 +125,29 @@ npx tsx scripts/import-checklist.ts --sport Basketball --year 2025-26 --product 
 - `--read` logs the day that page was read, in place of today.
 - The Series 2 files were imported with `--add`. 2026 Topps is Series 1 only so far.
 
-The `*.parallels.json` files beside the CSVs are that site's parallel lists. They are kept there
-for later and are not loaded by the app: the parallel files above are still the only ones used.
+The `*.parallels.json` files beside the CSVs are that site's parallel lists. The Topps and Bowman
+ones feed `topps-parallels.json` through `scripts/merge-print-runs.ts` (above).
+
+### 2025 Topps Chrome Football (read 2026-11-16)
+
+Read from https://www.checklistinsider.com/2025-topps-chrome-football with the page converter, which
+writes the same two files the earlier imports kept (`lib/cards/checklist-insider.ts` does the
+reading):
+
+```
+npx tsx scripts/checklist-insider-import.ts --sport Football --year 2025 --product "Topps Chrome" \
+  --manufacturer Topps --title "2025 Topps Chrome Football" \
+  --from https://www.checklistinsider.com/2025-topps-chrome-football
+npx tsx scripts/import-checklist.ts --sport Football --year 2025 --product "Topps Chrome" \
+  --from scripts/checklist-csv/2025-football-topps-chrome.csv \
+  --source https://www.checklistinsider.com/2025-topps-chrome-football --read 2026-11-16
+npx tsx scripts/merge-print-runs.ts
+```
+
+Its base and rookie parallel list is not official. Topps' own odds sheet
+(https://cdn.shopify.com/s/files/1/0662/9749/5709/files/2025_Topps_Chrome_Football_Odds.pdf) names
+the same parallels with no print runs. The page gives two rookie runs that differ from the
+veterans' (Green Wave /100 and Purple Wave /76, against /99 and /75): those two are left unknown.
 
 Until a product is in the store, the scanner falls back to the sold titles for that year, set and
 card # (below).

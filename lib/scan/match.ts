@@ -2,7 +2,7 @@ import { parallelSwatch } from "@/lib/cards/parallel-swatch";
 import type { CatalogCard } from "@/lib/card-catalog";
 import { parallelMatchKey, parallelsForSet, sameParallelLoosely } from "@/lib/cards/parallels";
 import { baseSetHits, isBaseSection, playersAt, type ChecklistHit, type ChecklistProduct } from "@/lib/cards/checklists";
-import { parallelsIn, sameSeason, type ProductParallel, type ProductRecord } from "@/lib/cards/product-data";
+import { parallelsIn, productPhrase, sameSeason, type ProductParallel, type ProductRecord } from "@/lib/cards/product-data";
 import { setMatchPhrase } from "@/lib/comps/match";
 import type { IndexedDirectoryPlayer } from "@/lib/players/types";
 import { compactNorm, normInterest } from "@/lib/social/follow-rank";
@@ -976,6 +976,27 @@ function checklistFor(
   return parallelsForSet(card.setBrand).map((name) => ({ name, serialRun: null }));
 }
 
+/**
+ * A slab whose player our list doesn't know has no sport, so no season and no checklist to look the
+ * player up in. PSA prints the first year of a season ("2025 PANINI PRIZM" on a 2025-26 basketball
+ * card). When the label names a parallel that only one sport's list for that year and set has
+ * (Orange Pulsar is only in 2025-26 basketball Prizm), that is the sport. Two sports' lists having
+ * it, or none, leaves it open.
+ */
+function withSportFromParallel(evidence: Evidence, products: readonly ProductRecord[] | null | undefined): Evidence {
+  if (!evidence.slab || evidence.sport || evidence.parallelWords.length === 0 || !products?.length) return evidence;
+  const setBrand = evidence.setNames[0] ?? "";
+  const phrase = productPhrase(setBrand);
+  if (!phrase || !evidence.yearLabel) return evidence;
+  const sports = new Set<string>();
+  for (const product of products) {
+    if (!sameSeason(product.yearLabel, evidence.yearLabel) || productPhrase(product.product) !== phrase) continue;
+    const list = parallelsIn([product], product.sport, product.yearLabel, product.product, evidence.cardNumber);
+    if (coveringLabel(list, evidence.parallelWords).length > 0) sports.add(product.sport);
+  }
+  return sports.size === 1 ? { ...evidence, sport: [...sports][0] } : evidence;
+}
+
 /** Parallels (Refractor, Silver, Holo) arrived in the 1993-94 season: Finest's Refractor was the first. */
 const FIRST_PARALLEL_YEAR = 1993;
 
@@ -1614,7 +1635,7 @@ export function rankScanMatches(
     withAgreedRun(
       withBackedNearPlayer(
         withLookedUpPlayer(
-          withChecklistNumber(evidenceFrom(read, options.directory), options.checklists),
+          withChecklistNumber(withSportFromParallel(evidenceFrom(read, options.directory), options.products), options.checklists),
           options.soldTitles ?? [],
           options.checklists,
           options.directory,

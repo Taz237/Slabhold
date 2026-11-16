@@ -2290,6 +2290,72 @@
    ],
    "listing_title_examples": [],
    "confidence": "player, year, set and card # checked against the store's 1986-87 Fleer Basketball checklist (Base #57 Michael Jordan); label lines and the cert modeled, not captured"
+  },
+  {
+   "id": "hc-079",
+   "category": "raw_unnumbered_parallel",
+   "year": "2025",
+   "manufacturer": "Topps",
+   "product": "Topps Chrome Football",
+   "card_number": "306",
+   "player": "Jaxson Dart",
+   "team": "New York Giants",
+   "parallel": "X-Fractor",
+   "print_run": null,
+   "sport": "football",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "TOPPS CHROME",
+    "JAXSON DART",
+    "NEW YORK GIANTS",
+    "QUARTERBACK",
+    "RC"
+   ],
+   "why_hard": "The raw Jaxson Dart 2025 Topps Chrome #306 X-Fractor (a Mega box exclusive per the checklist). The front prints no parallel word and X-Fractor is unnumbered, so text alone can't tell it from the base card: the parallel must stay open, never Base. Card # and player checked against the 2025 Topps Chrome Football checklist (Base Rookies #306). Front lines and titles modeled, not captured.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-topps-chrome-football"
+   ],
+   "listing_title_examples": [
+    "2025 Topps Chrome Jaxson Dart X-Fractor #306 RC Giants",
+    "2025 Topps Chrome Football Jaxson Dart Xfractor Rookie #306"
+   ],
+   "listing_titles_modeled": true,
+   "confidence": "player, card # and team checked against the 2025 Topps Chrome Football checklist (Checklist Insider, Base Rookies #306); X-Fractor is in its parallel list, unnumbered; front lines and titles modeled, not captured"
+  },
+  {
+   "id": "hc-080",
+   "category": "slab_season_year",
+   "year": "2025-26",
+   "manufacturer": "Panini",
+   "product": "Panini Prizm Basketball",
+   "card_number": "103",
+   "player": "Labaron Philon",
+   "player_also": [
+    "Labaron Philon Jr."
+   ],
+   "team": "Alabama Crimson Tide",
+   "parallel": "Orange Pulsar",
+   "print_run": 175,
+   "sport": "basketball",
+   "is_rookie": false,
+   "kind": "slab",
+   "typical_ocr_front": [
+    "2025 PANINI PRIZM #103",
+    "LABARON PHILON",
+    "ORANGE PULSAR PRIZM",
+    "GEM MT 10",
+    "PSA",
+    "10234571"
+   ],
+   "why_hard": "LaBaron Philon 2025-26 Prizm #103 Orange Pulsar /175 as a PSA slab. PSA prints the season's first year (\"2025 PANINI PRIZM\"), and Philon isn't in our player list, so the sport was unknown: the year read as 2025 (wrong for a 2025-26 card). Orange Pulsar is only in the 2025-26 basketball Prizm list, which settles the sport, the season and the /175. A slab never looks its player up in a checklist, so the name stays open (our list spells him Labaron Philon Jr.). Label lines and the cert modeled, not captured.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-26-panini-prizm-basketball"
+   ],
+   "listing_title_examples": [
+    "2025-26 Panini Prizm Labaron Philon Orange Pulsar Prizm 162/175 #103 PSA 10"
+   ],
+   "listing_titles_modeled": true,
+   "confidence": "card #, parallel and run checked against the 2025-26 Panini Prizm Basketball checklist and parallel list (#103 Labaron Philon, Orange Pulsar /175); label lines, cert and title modeled, not captured"
   }
  ]
 }
