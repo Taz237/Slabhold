@@ -117,7 +117,14 @@ export type ScanCompResult =
  */
 export type SoldsState =
   | { status: "looking" }
-  | { status: "done"; comp: ScanCompResult; query: string | null; similar?: ScanEstimateResult };
+  | {
+      status: "done";
+      comp: ScanCompResult;
+      query: string | null;
+      similar?: ScanEstimateResult;
+      /** A slab read again as the version the collector picked: the version these sales are for. */
+      version?: string;
+    };
 
 /** How many sales a price stands on, the way the price line says it: "1 sold", "3 sold". */
 export function soldCount(nSales: number): string {
