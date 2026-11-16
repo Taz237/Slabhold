@@ -1,3 +1,5 @@
+import { loadProductData } from "@/lib/cards/product-data";
+import { withKnownRun } from "./known-run";
 import "server-only";
 
 import { runAfterResponse } from "@/lib/server/after-response";
@@ -177,8 +179,12 @@ export async function getSoldComps(
     return { ok: true, payload };
   }
 
-  const matchCard = toMatchCard(card);
-  const query = buildSoldSearchQuery(matchCard);
+  // The search is the card as saved. The filter adds the parallel's known print run (the
+  // checklist's /50 for a Gold Refractor saved with no run), so a numbered parallel keeps its own
+  // /run sales and no others. The search text and its cache are unchanged.
+  const searchCard = toMatchCard(card);
+  const matchCard = withKnownRun(searchCard, await loadProductData().catch(() => null));
+  const query = buildSoldSearchQuery(searchCard);
   if (!query || !card.id) {
     return { ok: false, unavailable: true };
   }

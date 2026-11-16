@@ -1,6 +1,8 @@
 import "server-only";
 
 import { unstable_cache } from "next/cache";
+import { loadProductData } from "@/lib/cards/product-data";
+import { withKnownRun } from "@/lib/comps/known-run";
 import { getCompsSource, payloadFromSales, samplePayload, type CompsSource } from "@/lib/comps";
 import { buildSoldSearchQuery } from "@/lib/comps/match";
 import { sharedCompValue } from "@/lib/comps/shared-value";
@@ -62,8 +64,11 @@ export async function getQuickComp(
     return { ok: true, payload: { ...sample, photo: samplePhoto(sample.comps.map((comp) => comp.soldDate)) } };
   }
 
-  const matchCard = toMatchCard(identity, { openRun: true });
-  const query = buildSoldSearchQuery(matchCard);
+  // A version picked from a catalog row carries no run: the checklist's run fills the filter
+  // (never the search text), so a Gold Refractor keeps its /50 sales only.
+  const searchCard = toMatchCard(identity, { openRun: true });
+  const matchCard = withKnownRun(searchCard, await loadProductData().catch(() => null));
+  const query = buildSoldSearchQuery(searchCard);
   if (!query || !deps.hasTrawlKey()) return { ok: false, reason: "unavailable" };
 
   try {

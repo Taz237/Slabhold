@@ -23,6 +23,12 @@ export type MatchCard = {
    * no runs): a sale may print a run or not. Never set with a serialRun, and never for Base.
    */
   anyRun?: boolean;
+  /**
+   * serialRun came from the checklist, not from the owner (lib/comps/known-run.ts). Sellers often
+   * leave the run out ("Gold Refractor PSA 10"), so a title that prints no run counts; a title
+   * that prints a different run never does. An owner-saved run keeps the strict rule.
+   */
+  runFromChecklist?: boolean;
   gradeQualifier?: string | null;
   isRookie?: boolean;
   /** Used so a WNBA Prizm card can keep WNBA titles. */
@@ -989,10 +995,13 @@ function isSeasonPair(left: string, right: string): boolean {
 export function titleSerialOk(
   title: string,
   serialRun?: number | null,
+  /** The run came from the checklist: a title that prints no run is allowed. */
+  allowNoRun = false,
 ): boolean {
   const runs = titleSerialRuns(title);
   if (serialRun != null && serialRun > 0) {
-    return runs.length > 0 && runs.every((run) => run === serialRun);
+    if (runs.length === 0) return allowNoRun;
+    return runs.every((run) => run === serialRun);
   }
   // Card has no serial run → exclude any numbered listing
   return runs.length === 0;
@@ -1196,7 +1205,7 @@ export function titleMatchesCard(title: string, card: MatchCard): boolean {
     return false;
   }
   const runOpen = card.anyRun === true && !card.serialRun && !parallelIsBase(card.parallel);
-  if (!runOpen && !titleSerialOk(title, card.serialRun)) return false;
+  if (!runOpen && !titleSerialOk(title, card.serialRun, card.runFromChecklist === true)) return false;
 
   if (card.isAuto) {
     if (!AUTO_RE.test(title)) return false;

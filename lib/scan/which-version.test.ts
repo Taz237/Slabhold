@@ -114,6 +114,20 @@ describe("a set with no parallel list", () => {
     assert.deepEqual(names(top), ["Base"]);
   });
 
+  it("before 1993, a family list for modern products is ignored: a 1986 Donruss slab offers Base only, never Press Proofs", async () => {
+    const top = await slab(["1986 DONRUSS #72", "KIRBY PUCKETT", "NM-MT 8", "PSA", "10234569"]);
+    assert.equal(top.setBrand.toLowerCase().includes("donruss"), true);
+    assert.equal(top.parallel, "");
+    assert.equal(top.sureness.parallel, "unsure");
+    assert.deepEqual(names(top), ["Base"]);
+  });
+
+  it("1993 on, a family list still applies: a 2023 Donruss slab offers its Press Proofs", async () => {
+    const top = await slab(["2023 DONRUSS #301", "C.J. STROUD", "GEM MT 10", "PSA", "10234570"], []);
+    assert.equal(top.parallel, "");
+    assert.ok(names(top).length > 1, names(top).join(", "));
+  });
+
   it("1993 on keeps the general list: a 1993 Finest can be a Refractor", async () => {
     const top = await slab(["1993 FINEST #1", "MICHAEL JORDAN", "GEM MT 10", "PSA", "10234568"]);
     assert.equal(top.parallel, "");
