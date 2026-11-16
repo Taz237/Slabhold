@@ -62,7 +62,7 @@ export async function getQuickComp(
     return { ok: true, payload: { ...sample, photo: samplePhoto(sample.comps.map((comp) => comp.soldDate)) } };
   }
 
-  const matchCard = toMatchCard(identity);
+  const matchCard = toMatchCard(identity, { openRun: true });
   const query = buildSoldSearchQuery(matchCard);
   if (!query || !deps.hasTrawlKey()) return { ok: false, reason: "unavailable" };
 

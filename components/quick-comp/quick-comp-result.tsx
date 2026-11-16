@@ -22,7 +22,7 @@ import { feedback, focusRing, sectionLabel, textMuted, textSecondary } from "./t
 
 export const QUICK_COMP_EMPTY_TITLE = "No recent sold prices for this card and grade";
 
-/** "2023-24 Panini Prizm #136 Base · PSA 10". */
+/** "2023-24 Panini Prizm #136 Base · PSA 10", or "… Orange Pulsar /175 · PSA 10" for a numbered version. */
 export function identityLine(identity: QuickCompIdentity): string {
   const line = catalogResultLine({
     yearLabel: identity.yearLabel,
@@ -30,7 +30,8 @@ export function identityLine(identity: QuickCompIdentity): string {
     cardNumber: identity.cardNumber,
     parallel: identity.parallel,
   });
-  return [line, identity.grade].filter(Boolean).join(" · ");
+  const run = identity.serialRun ? (identity.serialRun === 1 ? "1/1" : `/${identity.serialRun}`) : "";
+  return [[line, run].filter(Boolean).join(" "), identity.grade].filter(Boolean).join(" · ");
 }
 
 /**

@@ -9,7 +9,8 @@
   "listing_title_examples are real seller titles, kept because they show how the market words each card (including seller mistakes).",
   "A card may carry \"typical_ocr_back\": the back as read off a real photo, used in place of the built one (hc-074).",
   "\"parallel_unconfirmed\": the card is a parallel whose name no checklist confirms: showing nothing is open, showing any name is wrong. \"listing_titles_modeled\": the titles are written to match a sale the app showed, not copied from real listings (hc-074: the James Wood sale the wrong answer came from).",
-  "\"kind\": \"slab\" scans the card as a graded slab: the front is the label as read, the back is the slab's back (hc-075)."
+  "\"kind\": \"slab\" scans the card as a graded slab: the front is the label as read, the back is the slab's back (hc-075).",
+  "hc-076 is the Nov 16 device miss (Jaxson Dart X-Fractor slab shown as Base). Here the label's variety line reads; the same slab with that line missed is the open case tracked in docs/scanner-audit.md (fix B). Its Quick Comp side is tested in lib/quick-comp/versions.test.ts."
  ],
  "cards": [
   {
@@ -2197,6 +2198,39 @@
    ],
    "listing_titles_modeled": true,
    "confidence": "player, card # and level checked against the store's 2020 Panini Select checklist (Base Concourse #47, Base Club Level #247); label, back and listing titles modeled, not captured"
+  },
+  {
+   "id": "hc-076",
+   "category": "slab_unnumbered_parallel",
+   "year": "2025",
+   "manufacturer": "Topps",
+   "product": "Topps Chrome Football",
+   "card_number": "306",
+   "player": "Jaxson Dart",
+   "team": "New York Giants",
+   "parallel": "X-Fractor",
+   "print_run": null,
+   "sport": "football",
+   "is_rookie": true,
+   "kind": "slab",
+   "typical_ocr_front": [
+    "2025 TOPPS CHROME #306",
+    "JAXSON DART",
+    "X-FRACTOR",
+    "GEM MT 10",
+    "PSA",
+    "98765432"
+   ],
+   "why_hard": "Device miss (Nov 16): a PSA 10 X-Fractor showed as \"#306 Base\", and Quick Comp for Base PSA 10 priced X-Fractor sales (the photo was an X-Fractor slab). X-Fractor is unnumbered and its front reads the same as the base card, so only the label's variety line tells them apart. Sellers write it three ways (X-Fractor, Xfractor, X Fractor), and \"#306 X-Fractor\" used to read as a \"306 x\" lot. We have no 2025 Topps Chrome Football checklist, so the family list (Base, Refractor, X-Fractor) is all that backs the name. Label lines and the cert are modeled, not captured.",
+   "source_urls": [],
+   "listing_title_examples": [
+    "2025 Topps Chrome Jaxson Dart X-Fractor #306 RC PSA 10",
+    "2025 Topps Chrome Football Jaxson Dart Xfractor RC #306 PSA 10",
+    "2025 Topps Chrome Jaxson Dart #306 RC PSA 10 Giants",
+    "2025 Topps Chrome Jaxson Dart #306 Refractor RC PSA 10"
+   ],
+   "listing_titles_modeled": true,
+   "confidence": "player, year, set, card #, parallel and grade from the collector's report of the slab; not checked against a checklist (we have none for this set); label and listing titles modeled, not captured"
   }
  ]
 }

@@ -11,6 +11,8 @@ export type QuickCompIdentity = {
   setBrand: string;
   cardNumber: string;
   parallel: string;
+  /** The print run of the picked version ("/175"). Null or missing: unnumbered, or not known. */
+  serialRun?: number | null;
   /** "Raw", "PSA 10", "BGS 9.5" and the like. */
   grade: string;
 };
@@ -30,20 +32,30 @@ export function quickCompIdentityKey(identity: QuickCompIdentity): string {
     cardNumber: identity.cardNumber,
     parallel: identity.parallel || "Base",
     grade: identity.grade,
+    serialRun: identity.serialRun ?? null,
     conditionType: isRawGrade(identity.grade) ? "raw" : "graded",
   });
 }
 
-export function toMatchCard(identity: QuickCompIdentity): MatchCard {
+/**
+ * `openRun` is Quick Comp's own lookup: a named version whose print run we don't know takes
+ * sales with or without one. The scanner leaves it off: there, no run read means none counted.
+ */
+export function toMatchCard(identity: QuickCompIdentity, options: { openRun?: boolean } = {}): MatchCard {
   const raw = isRawGrade(identity.grade);
+  const parallel = identity.parallel || "Base";
+  const named = parallel.trim().toLowerCase() !== "base";
+  const run = typeof identity.serialRun === "number" && identity.serialRun > 0 ? identity.serialRun : null;
   return {
+    // A named version keeps its run when we know it. When we don't, a sale may print one or not.
+    ...(run ? { serialRun: run } : named && options.openRun ? { anyRun: true } : {}),
     playerName: identity.playerName,
     year: identity.year,
     yearLabel: identity.yearLabel,
     setBrand: identity.setBrand,
     cardNumber: identity.cardNumber,
     noNumber: !identity.cardNumber.trim(),
-    parallel: identity.parallel || "Base",
+    parallel,
     conditionType: raw ? "raw" : "graded",
     grade: raw ? RAW_GRADE : identity.grade,
   };

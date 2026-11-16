@@ -35,6 +35,7 @@ export function quickCompUrl(identity: QuickCompIdentity): string {
   if (identity.setBrand) params.set("set", identity.setBrand);
   if (identity.cardNumber) params.set("number", identity.cardNumber);
   if (identity.parallel && identity.parallel !== "Base") params.set("parallel", identity.parallel);
+  if (identity.serialRun && identity.serialRun > 0) params.set("run", String(identity.serialRun));
   params.set("grade", identity.grade);
   return `${QUICK_COMP_API}?${params.toString()}`;
 }

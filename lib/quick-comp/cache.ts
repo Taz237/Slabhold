@@ -6,9 +6,9 @@ export const QUICK_COMP_CACHE_TAG = "quick-comp";
 /** Six hours, the same freshness as the card page's sold comps. */
 export const QUICK_COMP_REVALIDATE_SECONDS = CACHE_TTL_MS / 1000;
 
-/** Shared across users: the key has no user id, so a hit is free for everyone. */
+/** Shared across users: the key has no user id, so a hit is free for everyone. v2: sales are matched by version. */
 export function quickCompCacheKey(identity: QuickCompIdentity): string {
-  return `quick-comp-v1|${quickCompIdentityKey(identity)}`;
+  return `quick-comp-v2|${quickCompIdentityKey(identity)}`;
 }
 
 /** Thrown from inside the loader so the cache never stores it. */
