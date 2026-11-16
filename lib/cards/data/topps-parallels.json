@@ -4747,5 +4747,310 @@
         "serialRun": null
       }
     ]
+  },
+  {
+    "sport": "Football",
+    "yearLabel": "2025",
+    "product": "Topps Chrome",
+    "manufacturer": "Topps",
+    "source": "https://www.checklistinsider.com/2025-topps-chrome-football",
+    "official": false,
+    "parallels": [
+      {
+        "subset": "Base",
+        "name": "Base",
+        "serialRun": null
+      },
+      {
+        "subset": "Base",
+        "name": "Refractor",
+        "serialRun": null
+      },
+      {
+        "subset": "Base",
+        "name": "Topps Refractor",
+        "serialRun": null
+      },
+      {
+        "subset": "Base",
+        "name": "X-Fractor",
+        "serialRun": null
+      },
+      {
+        "subset": "Base",
+        "name": "Hot Pink X-Fractor",
+        "serialRun": null
+      },
+      {
+        "subset": "Base",
+        "name": "Lime Green X-Fractor",
+        "serialRun": null
+      },
+      {
+        "subset": "Base",
+        "name": "Prism Refractor",
+        "serialRun": null
+      },
+      {
+        "subset": "Base",
+        "name": "Neon Pulse Refractor",
+        "serialRun": null
+      },
+      {
+        "subset": "Base",
+        "name": "Pulsar Refractor",
+        "serialRun": null
+      },
+      {
+        "subset": "Base",
+        "name": "Teal Refractor",
+        "serialRun": 299
+      },
+      {
+        "subset": "Base",
+        "name": "Pink Refractor",
+        "serialRun": 250
+      },
+      {
+        "subset": "Base",
+        "name": "Pink Wave Refractor",
+        "serialRun": 250
+      },
+      {
+        "subset": "Base",
+        "name": "Aqua Refractor",
+        "serialRun": 199
+      },
+      {
+        "subset": "Base",
+        "name": "Aqua Wave Refractor",
+        "serialRun": 199
+      },
+      {
+        "subset": "Base",
+        "name": "Blue Refractor",
+        "serialRun": 150
+      },
+      {
+        "subset": "Base",
+        "name": "Blue Wave Refractor",
+        "serialRun": 150
+      },
+      {
+        "subset": "Base",
+        "name": "Green Refractor",
+        "serialRun": 99
+      },
+      {
+        "subset": "Base",
+        "name": "Green Lava Refractor",
+        "serialRun": 99
+      },
+      {
+        "subset": "Base",
+        "name": "Green Wave Refractor",
+        "serialRun": null
+      },
+      {
+        "subset": "Base",
+        "name": "Purple Refractor",
+        "serialRun": 75
+      },
+      {
+        "subset": "Base",
+        "name": "Purple Lava Refractor",
+        "serialRun": 75
+      },
+      {
+        "subset": "Base",
+        "name": "Purple Wave Refractor",
+        "serialRun": null
+      },
+      {
+        "subset": "Base",
+        "name": "Gold Refractor",
+        "serialRun": 50
+      },
+      {
+        "subset": "Base",
+        "name": "Gold Lava Refractor",
+        "serialRun": 50
+      },
+      {
+        "subset": "Base",
+        "name": "Gold Wave Refractor",
+        "serialRun": 50
+      },
+      {
+        "subset": "Base",
+        "name": "White Refractor",
+        "serialRun": 30
+      },
+      {
+        "subset": "Base",
+        "name": "Orange Refractor",
+        "serialRun": 25
+      },
+      {
+        "subset": "Base",
+        "name": "Orange Lava Refractor",
+        "serialRun": 25
+      },
+      {
+        "subset": "Base",
+        "name": "Orange Wave Refractor",
+        "serialRun": 25
+      },
+      {
+        "subset": "Base",
+        "name": "Black Refractor",
+        "serialRun": 10
+      },
+      {
+        "subset": "Base",
+        "name": "Black Lava Refractor",
+        "serialRun": 10
+      },
+      {
+        "subset": "Base",
+        "name": "Black Wave Refractor",
+        "serialRun": 10
+      },
+      {
+        "subset": "Base",
+        "name": "First Day Issue",
+        "serialRun": 6
+      },
+      {
+        "subset": "Base",
+        "name": "Red Refractor",
+        "serialRun": 5
+      },
+      {
+        "subset": "Base",
+        "name": "Red Lava Refractor",
+        "serialRun": 5
+      },
+      {
+        "subset": "Base",
+        "name": "Red Wave Refractor",
+        "serialRun": 5
+      },
+      {
+        "subset": "Base",
+        "name": "FrozenFractor",
+        "serialRun": null
+      },
+      {
+        "subset": "Base",
+        "name": "SuperFractor",
+        "serialRun": 1
+      },
+      {
+        "subset": "Base",
+        "name": "Geometric Refractor",
+        "serialRun": null
+      },
+      {
+        "subset": "Base",
+        "name": "Gold Geometric Refractor",
+        "serialRun": 50
+      },
+      {
+        "subset": "Base",
+        "name": "Orange Geometric Refractor",
+        "serialRun": 25
+      },
+      {
+        "subset": "Base",
+        "name": "Black Geometric Refractor",
+        "serialRun": 10
+      },
+      {
+        "subset": "Base",
+        "name": "Red Geometric Refractor",
+        "serialRun": 5
+      },
+      {
+        "subset": "Base",
+        "name": "Tie Dye Geometric Refractor",
+        "serialRun": 2
+      },
+      {
+        "subset": "Base",
+        "name": "RayWave Refractor",
+        "serialRun": null
+      },
+      {
+        "subset": "Base",
+        "name": "Red/White/Blue Refractor",
+        "serialRun": null
+      },
+      {
+        "subset": "Base",
+        "name": "Football Leather Refractor",
+        "serialRun": null
+      },
+      {
+        "subset": "Base",
+        "name": "Football Leather Green Refractor",
+        "serialRun": 99
+      },
+      {
+        "subset": "Base",
+        "name": "Football Leather Purple Refractor",
+        "serialRun": 75
+      },
+      {
+        "subset": "Base",
+        "name": "Football Leather Gold Refractor",
+        "serialRun": 50
+      },
+      {
+        "subset": "Base",
+        "name": "Football Leather Orange Refractor",
+        "serialRun": 25
+      },
+      {
+        "subset": "Base",
+        "name": "Football Leather Black Refractor",
+        "serialRun": 10
+      },
+      {
+        "subset": "Base",
+        "name": "Football Leather Red Refractor",
+        "serialRun": 5
+      },
+      {
+        "subset": "Base Rookies",
+        "name": "Teal Wave Refractor",
+        "serialRun": 299
+      },
+      {
+        "subset": "Base Rookies",
+        "name": "Yellow Wave Refractor",
+        "serialRun": 275
+      },
+      {
+        "subset": "Base Rookies",
+        "name": "Blue Geometric Refractor",
+        "serialRun": 150
+      },
+      {
+        "subset": "Base Rookies",
+        "name": "Green Geometric Refractor",
+        "serialRun": 99
+      },
+      {
+        "subset": "Base Rookies",
+        "name": "Purple Geometric Refractor",
+        "serialRun": 75
+      },
+      {
+        "subset": "Base Rookies",
+        "name": "Football Leather Blue Refractor",
+        "serialRun": 150
+      }
+    ]
   }
 ]

@@ -172,6 +172,7 @@ export function mergePrintRuns(record: ProductRecord, source: { source?: string;
 /** The hobby lists' base subsets: the base cards and the base prospects, paper or chrome. */
 const BASE_LISTS = new Set([
   "base",
+  "base rookies",
   "base chrome",
   "base paper",
   "base prospects",
@@ -183,9 +184,10 @@ const BASE_LISTS = new Set([
   "chrome prospects sapphire",
 ]);
 
-/** A real parallel's name: no odds, no stray run, no page fragment. */
+/** A real parallel's name: no odds, no stray run, no page fragment, and not an image variation. */
 function cleanName(name: string): boolean {
-  return /[a-z]/i.test(name) && !/[/:()]/.test(name) && name.length <= 60;
+  // "Red/White/Blue" is a name; "/50" or "1/1" left in a name is a run the page didn't split off.
+  return /[a-z]/i.test(name) && !/[:()]|\/\s*-?\d|\d\s*\//.test(name) && name.length <= 60 && !/\bvariations?$/i.test(name.trim());
 }
 
 /**

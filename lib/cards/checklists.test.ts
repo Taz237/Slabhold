@@ -189,7 +189,7 @@ describe("the checklist store", () => {
 
   it("the 2024-and-later files: the page each came from is logged, never a file name, and the spot cards are who the page says", async () => {
     const added = CHECKLIST_INDEX.filter((entry) => entry.source.includes("checklistinsider.com"));
-    assert.equal(added.length, 22);
+    assert.equal(added.length, 23);
     for (const entry of CHECKLIST_INDEX) assert.doesNotMatch(entry.source, /\.csv\b/i, entry.file);
     // Upper Deck Series 1 and Series 2 are one product, with both pages logged.
     for (const year of ["2024-25", "2025-26"]) {
@@ -205,6 +205,18 @@ describe("the checklist store", () => {
     assert.deepEqual(await only("Baseball", "2025", "Bowman", "BCP-22"), ["JJ Wetherholt"]);
     assert.deepEqual(await only("Baseball", "2025", "Topps Chrome", "221"), ["Max Muncy"]);
     assert.deepEqual(await only("Basketball", "2025-26", "Topps Chrome", "251"), ["Cooper Flagg"]);
+    assert.deepEqual(await only("Football", "2025", "Topps Chrome", "306"), ["Jaxson Dart"]);
+    // The page's slips, fixed (lib/cards/checklist-insider.ts): "Kale! Mullings", "Kurds Rourke", "Jandae Barron".
+    assert.deepEqual(await only("Football", "2025", "Topps Chrome", "309"), ["Kaleb Mullings"]);
+    assert.deepEqual(await only("Football", "2025", "Topps Chrome", "307"), ["Kurtis Rourke"]);
+    assert.deepEqual(await only("Football", "2025", "Topps Chrome", "359"), ["Jahdae Barron"]);
+    // Base Rookies #313 is Pat Bryant only: the etch list's leftover "Antwane Wells Jr." is gone.
+    assert.deepEqual(await only("Football", "2025", "Topps Chrome", "313"), ["Pat Bryant"]);
+    assert.deepEqual(await only("Football", "2025", "Topps Chrome", "58"), ["Ja'Marr Chase"]);
+    const chrome = await loadChecklistsFor({ years: ["2025"], setBrand: "Topps Chrome", sport: "Football" });
+    const rookies = chrome.flatMap((product) => product.sections).find((section) => section.name === "Base Rookies");
+    assert.equal(rookies?.cards.length, 100);
+    assert.ok((await only("Football", "2025", "Topps Chrome", "RA-KMU")).includes("Kaleb Mullings"));
 
     // 2025-26 Prizm #24: thirteen cards share the number, one is in Base.
     const shared = await at("Basketball", "2025-26", "Panini Prizm", "24");
