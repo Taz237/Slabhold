@@ -147,13 +147,38 @@ const FLAG_WORDS = new Set(["rookie", "rc", "auto", "autos", "autograph", "autog
 /** Label words that name a subset of the set (Prospects, Rookie Ticket, Young Guns), never a parallel. */
 const SLAB_SUBSET_WORDS = new Set(["prospect", "prospects", "ticket", "young", "guns", "rated", "1st"]);
 
+/** Short forms graders print on a label's variety line, spelled out. An unknown one stays as printed. */
+const LABEL_SHORT_FORMS: Record<string, readonly string[]> = {
+  ref: ["refractor"],
+  refr: ["refractor"],
+  rfr: ["refractor"],
+  xfractor: ["x", "fractor"],
+  przm: ["prizm"],
+  gld: ["gold"],
+  slv: ["silver"],
+  slvr: ["silver"],
+  blu: ["blue"],
+  grn: ["green"],
+  prpl: ["purple"],
+  orng: ["orange"],
+  blk: ["black"],
+  wht: ["white"],
+  pnk: ["pink"],
+  ylw: ["yellow"],
+};
+
+/** A cert number read with a slip ("4567B912"): mostly digits, never a parallel's word. */
+function certLike(word: string): boolean {
+  return (word.match(/\d/g)?.length ?? 0) >= 4;
+}
+
 /** The parallel words on a slab's variety line: no flags, subset names, stray numbers, or a trailing "Prizm". */
 function slabParallelWords(varietyText: string): string[] {
-  const all = words(varietyText);
+  const all = words(varietyText).flatMap((word) => LABEL_SHORT_FORMS[word] ?? [word]);
   // "TICKET" is Contenders' Rookie Ticket subset, except after another word: Championship, Playoff,
   // Cracked Ice and Super Bowl Ticket are parallels, and keep the word.
   const parallelTicket = (index: number) => all[index] === "ticket" && index > 0 && !["rookie", "rc"].includes(all[index - 1]);
-  const kept = all.filter((word, index) => parallelTicket(index) || (!FLAG_WORDS.has(word) && !SLAB_SUBSET_WORDS.has(word) && !/^\d+$/.test(word)));
+  const kept = all.filter((word, index) => parallelTicket(index) || (!FLAG_WORDS.has(word) && !SLAB_SUBSET_WORDS.has(word) && !/^\d+$/.test(word) && !certLike(word)));
   // "SILVER PRIZM" is Silver. "PRIZM" alone is the parallel's own name (2012's Prizm), so it stays.
   const colors = kept.filter((word) => word !== "prizm" && word !== "prizms");
   return colors.length > 0 ? colors : kept;
@@ -964,6 +989,26 @@ function longestNamed(options: ProductParallel[], shown: readonly string[]): Pro
   return named.filter((option) => words(option.name).length === longest);
 }
 
+/** Words a label adds to a color that the list's name may leave off: "GOLD REFRACTOR" is the list's Gold. */
+const LABEL_OPTIONAL_WORDS = new Set(["refractor", "border"]);
+
+/**
+ * The list's parallels that are the label's variety, whole: every word of the name is on the
+ * label, and the label printed nothing more (bar "Refractor" or "Border" after a color).
+ * "ORANGE PULSAR" is not the list's Orange, and "GOLD WAVE" is neither Gold nor Wave.
+ */
+function coveringLabel(options: ProductParallel[], shown: readonly string[]): ProductParallel[] {
+  const covering = options.filter((option) => {
+    const own = words(parallelMatchKey(option.name));
+    if (own.length === 0 || !own.every((word) => shown.includes(word))) return false;
+    const extra = shown.filter((word) => !own.includes(word));
+    return extra.every((word) => LABEL_OPTIONAL_WORDS.has(word)) && (extra.length === 0 || own.some((word) => !LABEL_OPTIONAL_WORDS.has(word)));
+  });
+  if (covering.length <= 1) return covering;
+  const longest = Math.max(...covering.map((option) => words(option.name).length));
+  return covering.filter((option) => words(option.name).length === longest);
+}
+
 /** Finishes a base chrome card already looks like: the border can't tell them apart. */
 const CHROME_FINISH = new Set(["SILVER", "REFRACTOR", "HOLO", "PRIZM", "CHROME", "SHIMMER", "MOJO"]);
 
@@ -1069,11 +1114,11 @@ function pickParallel(
       if (lookalikes.length > 0) return { parallel: "", sureness: "unsure", serialRun: null, options: [base, ...lookalikes] };
       return { parallel: "Base", sureness: "sure", serialRun: null, options: [base] };
     }
-    const named = longestNamed(checklist, evidence.parallelWords);
+    const named = coveringLabel(checklist, evidence.parallelWords);
     if (named.length === 1) {
       return { parallel: named[0].name, sureness: "sure", serialRun: labelRun ?? runOf(named[0]), options: named };
     }
-    // Printed on the label, but not a parallel our lists know: keep the label's words.
+    // Printed on the label, but not a parallel our lists know whole: keep the label's words.
     const printed = titleCase(evidence.parallelWords.join(" "));
     return { parallel: printed, sureness: "likely", serialRun: labelRun, options: [{ name: printed, serialRun: labelRun }] };
   }
