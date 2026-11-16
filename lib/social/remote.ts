@@ -27,7 +27,7 @@ import {
   notifyReplyMentions,
 } from "./reply-mentions";
 import { isReservedUsername, normalizeUsername, usernameChangeError, usernameError } from "./usernames";
-import { followOfficialUpdates } from "./official-updates";
+import { followSlabholdOnSignup } from "./signup-auto-follow";
 import {
   noteReplyImagesMissing,
   replyImageColumnMissing,
@@ -636,10 +636,11 @@ export async function remoteSignUp(
     if (profileError) return { error: usernameTakenMessage(profileError) ?? profileError.message };
     // Creation only. Login, profile edits, and unfollow must not call this.
     // Email-confirm signups have no session yet; the profile insert trigger
-    // writes the same follow, and a later login does not try again.
+    // (private.follow_slabhold_on_signup) writes the same follow to @slabhold,
+    // and a later login does not try again.
     // Test and QA handles are skipped here and in that trigger.
     if (!isTestAccount(username)) {
-      await followOfficialUpdates(supabase, data.user.id);
+      await followSlabholdOnSignup(supabase, data.user.id);
     }
   }
   if (!session) {
