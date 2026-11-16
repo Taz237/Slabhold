@@ -568,6 +568,37 @@ img[data-fade]:not([data-loaded]) {
   }
 }
 
+/* DM reactions: the emoji bar springs up from the bubble, each emoji just after. */
+@keyframes reaction-bar-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.6);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.03);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes reaction-emoji-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.4);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* Empty inbox: the brand shapes drift a little. */
 @keyframes inbox-float {
   0%,

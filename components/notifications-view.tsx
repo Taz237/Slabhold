@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ReadRetry } from "@/components/read-retry";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { AtSign, Bell, Handshake, Heart, MessageCircle, Quote, Repeat2, Star, UserPlus } from "lucide-react";
+import { AtSign, Bell, Handshake, Heart, MessageCircle, Quote, Repeat2, SmilePlus, Star, UserPlus } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { DealConfirmActions, useMyDeals } from "@/components/deal-response";
 import { WantAlertOfferLink } from "@/components/open-to-offers";
@@ -127,7 +127,7 @@ export function NotificationsView() {
             const names = group.actorIds.map(
               (id) => authors.get(id)?.displayName?.trim() || "Someone",
             );
-            const headline = groupHeadlineParts(group.kind, names);
+            const headline = groupHeadlineParts(group.kind, names, group.notes[0]?.metadata);
             const lead = authors.get(group.actorIds[0] ?? "");
             const faces = group.actorIds.slice(0, 2);
             const highlighted = groupStaysHighlighted(group, savedUnreadIds);
@@ -245,5 +245,6 @@ function groupIcon(kind: NotificationKind) {
   if (kind === "mention") return AtSign;
   if (kind === "want_alert") return Star;
   if (kind === "deal_confirm") return Handshake;
+  if (kind === "dm_reaction") return SmilePlus;
   return UserPlus;
 }
