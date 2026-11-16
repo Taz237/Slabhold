@@ -2152,6 +2152,37 @@
    "confidence": "player, team, card # and run verified from the card and the checklist; parallel unconfirmed; listing titles modeled, not captured"
   },
   {
+   "id": "hc-077",
+   "category": "slab_variety_line_missed",
+   "year": "2025",
+   "manufacturer": "Topps",
+   "product": "Topps Chrome Football",
+   "card_number": "306",
+   "player": "Jaxson Dart",
+   "team": "New York Giants",
+   "parallel": "X-Fractor",
+   "print_run": null,
+   "sport": "football",
+   "is_rookie": true,
+   "kind": "slab",
+   "typical_ocr_front": [
+    "2025 TOPPS CHROME #306",
+    "JAXSON DART",
+    "GEM MT 10",
+    "PSA",
+    "98765432"
+   ],
+   "why_hard": "Device miss (Nov 16): a PSA 10 X-Fractor showed as \"#306 Base\". The label's small variety line (\"X-FRACTOR\") didn't read, and a label with no variety line was taken as Base, marked sure. A base label prints no variety line either, so the two read the same: the parallel has to stay open and the sheet asks \"Which version?\" (Base, Refractor, X-Fractor). Label lines and the cert are modeled, not captured.",
+   "source_urls": [],
+   "listing_title_examples": [
+    "2025 Topps Chrome Jaxson Dart X-Fractor #306 RC PSA 10",
+    "2025 Topps Chrome Jaxson Dart #306 RC PSA 10 Giants",
+    "2025 Topps Chrome Jaxson Dart #306 Refractor RC PSA 10"
+   ],
+   "listing_titles_modeled": true,
+   "confidence": "player, year, set, card #, parallel and grade from the collector's report of the slab; not checked against a checklist (we have none for this set); label and listing titles modeled, not captured"
+  },
+  {
    "id": "hc-075",
    "category": "slab_tier_number",
    "year": "2020",

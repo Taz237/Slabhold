@@ -26,6 +26,8 @@ export const CONFIRM_COPY = {
   others: "Or one of these",
   parallel: "Parallel",
   pickParallel: "Pick the parallel",
+  /** A slab whose label named no parallel: Base and the versions that look like it. */
+  whichVersion: "Which version?",
   somethingElse: "Something else",
   serialLabel: "Your number",
   notSure: "Not sure",
@@ -76,6 +78,15 @@ export function initialChoice(match: ScanMatch): ParallelPick {
   if (!match.parallel) return null;
   const option = match.parallelOptions.find((item) => item.name === match.parallel);
   return { name: match.parallel, serialRun: option?.serialRun ?? match.serialRun };
+}
+
+/**
+ * The line beside "Parallel" while nothing is picked. A slab asks "Which version?": its label
+ * named none, and Base, Refractor and X-Fractor read the same. Null once picked or deferred.
+ */
+export function parallelHint(match: ScanMatch, pick: ParallelPick, deferred: boolean): string | null {
+  if (pick || deferred) return null;
+  return match.grade ? CONFIRM_COPY.whichVersion : CONFIRM_COPY.pickParallel;
 }
 
 /** The match with the sheet's picks applied, ready for the Add card handoff. */

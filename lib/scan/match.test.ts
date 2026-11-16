@@ -106,7 +106,9 @@ describe("rankScanMatches: slabs", () => {
     assert.equal(top?.playerName, "Some Player");
     assert.equal(top?.setBrand, "Sage Hit");
     assert.equal(top?.cardNumber, "12");
-    assert.equal(top?.parallel, "Base");
+    // No parallel on the label, and the set has versions that look like Base: we ask, Base first.
+    assert.equal(top?.parallel, "");
+    assert.equal(top?.parallelOptions[0]?.name, "Base");
     assert.equal(top?.sureness.player, "likely");
     assert.equal(top?.grade?.number, "9");
   });
@@ -121,7 +123,10 @@ describe("rankScanMatches: slabs", () => {
     assert.equal(top?.playerName, "Paul Skenes");
     assert.equal(top?.sport, "Baseball");
     assert.equal(top?.yearLabel, "2024");
-    assert.equal(top?.parallel, "Base");
+    // Never "Rookie Auto" as the parallel. The label named none, so it is open with Base first.
+    assert.equal(top?.parallel, "");
+    assert.equal(top?.parallelOptions[0]?.name, "Base");
+    assert.ok(!top?.parallelOptions.some((option) => /rookie|auto/i.test(option.name)));
     assert.equal(top?.isAuto, true);
     assert.equal(top?.isRookie, true);
     assert.equal(top?.grade?.autoGrade, "10");
