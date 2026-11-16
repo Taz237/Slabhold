@@ -82,6 +82,20 @@ export type VideoUploadInput = {
   newId?: () => string;
 };
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+/**
+ * The one shape the bucket accepts: <user id>/<uuid>.mp4|mov|jpg, all
+ * lowercase, no subfolders. The extension comes from the type, never the
+ * file name, so an iPhone IMG_0001.MOV is stored as .mov.
+ */
+export function videoObjectPath(userId: string, id: string, ext: "mp4" | "mov" | "jpg"): string {
+  const owner = userId.trim().toLowerCase();
+  const name = id.trim().toLowerCase();
+  if (!UUID.test(owner) || !UUID.test(name)) throw new Error(VIDEO_UPLOAD_ERROR);
+  return `${owner}/${name}.${ext}`;
+}
+
 function objectUrl(origin: string, path: string, isPublic: boolean): string {
   const encoded = path.split("/").map(encodeURIComponent).join("/");
   return `${origin}/storage/v1/object/${isPublic ? "public/" : ""}${VIDEO_BUCKET}/${encoded}`;
@@ -99,8 +113,8 @@ export async function uploadPostVideo(input: VideoUploadInput): Promise<PostVide
   const transport = input.transport ?? xhrTransport;
   const newId = input.newId ?? (() => crypto.randomUUID());
   const ext = input.mime === "video/quicktime" ? "mov" : "mp4";
-  const videoPath = `${input.userId}/${newId()}.${ext}`;
-  const posterPath = `${input.userId}/${newId()}.jpg`;
+  const videoPath = videoObjectPath(input.userId, newId(), ext);
+  const posterPath = videoObjectPath(input.userId, newId(), "jpg");
   const total = Math.max(1, input.poster.size + input.file.size);
   let posterDone = 0;
   let last = 0;

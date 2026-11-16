@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { isUploadAborted, uploadPostVideo, UploadAborted, type UploadRequest, type UploadTransport } from "./video-upload";
+import {
+  isUploadAborted,
+  uploadPostVideo,
+  UploadAborted,
+  videoObjectPath,
+  type UploadRequest,
+  type UploadTransport,
+} from "./video-upload";
 import { VIDEO_UPLOAD_ERROR } from "./videos";
 
 const ORIGIN = "https://knuwflptobyutrauxblj.supabase.co";
@@ -92,5 +99,46 @@ describe("video upload", () => {
   it("a file over the bucket limit gets the size message", async () => {
     const transport: UploadTransport = async () => ({ status: 413, body: "Payload too large" });
     await assert.rejects(uploadPostVideo(input(transport)), /too large/);
+  });
+});
+
+describe("stored names", () => {
+  it("is always <user id>/<lowercase uuid>.mp4|mov|jpg, with no subfolders", () => {
+    assert.equal(videoObjectPath(USER, IDS[0]!, "mov"), `${USER}/${IDS[0]}.mov`);
+    assert.equal(videoObjectPath(USER.toUpperCase(), IDS[0]!.toUpperCase(), "jpg"), `${USER}/${IDS[0]}.jpg`);
+    for (const bad of ["", "a/b", "../x", `${IDS[0]}/x`, "IMG_0001"]) {
+      assert.throws(() => videoObjectPath(USER, bad, "mp4"), { message: VIDEO_UPLOAD_ERROR });
+      assert.throws(() => videoObjectPath(bad, IDS[0]!, "mp4"), { message: VIDEO_UPLOAD_ERROR });
+    }
+  });
+
+  it("saves an iPhone IMG_0001.MOV as .mov, from the type not the file name", async () => {
+    const sent: string[] = [];
+    const transport: UploadTransport = async (request) => {
+      sent.push(request.url);
+      return { status: 200, body: "{}" };
+    };
+    let next = 0;
+    const upper = [IDS[0]!.toUpperCase(), IDS[1]!.toUpperCase()];
+    const video = await uploadPostVideo({
+      ...input(transport),
+      userId: USER.toUpperCase(),
+      file: new File([new Uint8Array(10)], "IMG_0001.MOV", { type: "video/quicktime" }),
+      newId: () => upper[next++]!,
+    });
+    const pattern = new RegExp(`/post-videos/${USER}/[0-9a-f-]{36}\\.(mov|jpg)$`);
+    for (const url of [...sent, video.url, video.poster]) assert.match(url, pattern);
+    assert.ok(video.url.endsWith(`${USER}/${IDS[0]}.mov`));
+    assert.ok(video.poster.endsWith(`${USER}/${IDS[1]}.jpg`));
+  });
+
+  it("uploads nothing when the account id isn't a uuid", async () => {
+    let calls = 0;
+    const transport: UploadTransport = async () => {
+      calls += 1;
+      return { status: 200, body: "{}" };
+    };
+    await assert.rejects(uploadPostVideo({ ...input(transport), userId: "someone/else" }), { message: VIDEO_UPLOAD_ERROR });
+    assert.equal(calls, 0);
   });
 });

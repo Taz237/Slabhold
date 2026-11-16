@@ -1099,7 +1099,7 @@ async function preparePost(
         user_id: authorId,
         content: body,
         // A video post keeps its poster here too, so link previews and share images show it.
-        image_url: uploaded.urls[0] ?? video?.poster ?? null,
+        image_url: video ? video.poster : (uploaded.urls[0] ?? null),
         card: card.card,
         quoted_post_id: quotedPostId,
       },
@@ -1269,8 +1269,6 @@ export async function remoteUpdatePost(
     images?: readonly string[] | null;
     /** Left out: the GIF stays as it is. Null takes it off. */
     gif?: PostGif | null;
-    /** The post's video. An edit never changes it; its poster stays on image_url. */
-    video?: PostVideo | null;
   },
 ): Promise<AuthResult> {
   const body = input.body.trim();
@@ -1278,8 +1276,12 @@ export async function remoteUpdatePost(
   const bodyProblem = contentProblem(body);
   if (bodyProblem) return { error: bodyProblem };
   const gif = input.gif === undefined ? undefined : gifForSave(input.gif);
-  const video = sanitizeVideo(input.video, authorId);
-  const photos = gif || video ? [] : draftPostPhotos(input);
+  // An edit never changes a video. Read it from the row, so image_url stays
+  // exactly its poster (the only picture a video post may keep) and no photo
+  // is added beside it.
+  const videoImage = videoPostImageUrl(await storedVideoValue(supabase, "posts", postId, authorId));
+  const hasVideo = videoImage !== undefined;
+  const photos = gif || hasVideo ? [] : draftPostPhotos(input);
   const uploaded = await uploadPostImages(supabase, authorId, photos);
   if (uploaded.error) return { error: uploaded.error };
   const forgetUploads = async (message: string): Promise<AuthResult> => {
@@ -1294,7 +1296,7 @@ export async function remoteUpdatePost(
     .maybeSingle();
   const base: { content: string; image_url: string | null; gif?: PostGif | null } = {
     content: body,
-    image_url: uploaded.urls[0] ?? video?.poster ?? null,
+    image_url: hasVideo ? videoImage : (uploaded.urls[0] ?? null),
   };
   // Only sent when the editor changed it, so an edit saves on a database with no gif column.
   if (gif !== undefined) base.gif = gif;
@@ -1517,14 +1519,14 @@ export async function remoteUnpinPost(supabase: SupabaseClient): Promise<AuthRes
   return message ? { error: message } : {};
 }
 
-/** The video a post or reply stores, read before it is deleted. Null when it has none. */
-async function storedVideo(
+/** The video column of one of this author's rows, exactly as stored. Undefined when it can't be read. */
+async function storedVideoValue(
   supabase: SupabaseClient,
   table: "posts" | "comments",
   id: string,
   authorId: string,
-): Promise<PostVideo | null> {
-  if (videoKnownMissing()) return null;
+): Promise<unknown> {
+  if (videoKnownMissing()) return undefined;
   try {
     const { data, error } = await supabase
       .from(table)
@@ -1534,12 +1536,33 @@ async function storedVideo(
       .maybeSingle();
     if (error) {
       if (videoColumnMissing(error)) noteVideoMissing();
-      return null;
+      return undefined;
     }
-    return sanitizeVideo((data as { video?: unknown } | null)?.video, authorId);
+    return (data as { video?: unknown } | null)?.video ?? null;
   } catch {
-    return null;
+    return undefined;
   }
+}
+
+/** The video a post or reply stores, read before it is deleted. Null when it has none. */
+async function storedVideo(
+  supabase: SupabaseClient,
+  table: "posts" | "comments",
+  id: string,
+  authorId: string,
+): Promise<PostVideo | null> {
+  return sanitizeVideo(await storedVideoValue(supabase, table, id, authorId), authorId);
+}
+
+/**
+ * What an edit writes to posts.image_url for a post that has a video: the
+ * stored poster, character for character (the database only allows that or
+ * null). Undefined when the post has no video.
+ */
+export function videoPostImageUrl(stored: unknown): string | null | undefined {
+  if (!stored || typeof stored !== "object" || Array.isArray(stored)) return undefined;
+  const poster = (stored as { poster?: unknown }).poster;
+  return typeof poster === "string" ? poster : null;
 }
 
 /** Best effort: the post is gone either way. A file left behind is only storage. */

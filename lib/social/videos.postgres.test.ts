@@ -69,6 +69,7 @@ create table public.posts (
 alter table public.posts enable row level security;
 create policy "Posts are public" on public.posts for select using (true);
 create policy "Create own posts" on public.posts for insert with check (auth.uid() = user_id);
+create policy "Update own posts" on public.posts for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "Delete own posts" on public.posts for delete using (auth.uid() = user_id);
 grant select on public.posts to anon, authenticated;
 grant insert, update, delete on public.posts to authenticated;
@@ -136,14 +137,21 @@ ${expect(
   "the post-videos bucket is public, capped at 100 MB, MP4/MOV/JPEG only",
 )}
 ${expect("(select count(*) from pg_policies where schemaname = 'storage' and policyname like '%post videos') = 3", "three post-videos storage policies")}
-${expect("(select count(*) from pg_policies where schemaname = 'public') = 5", "no table policy was added or changed")}
+${expect("(select count(*) from pg_policies where schemaname = 'public') = 6", "no table policy was added or changed")}
 
 set role authenticated;
 select set_config('app.user_id', '${AUTHOR}', false);
 
 -- Storage: your own folder only.
 insert into storage.objects (bucket_id, name) values ('post-videos', '${AUTHOR}/${FILE}.mov');
+insert into storage.objects (bucket_id, name) values ('post-videos', '${AUTHOR}/${POSTER}.jpg');
 ${fails(`insert into storage.objects (bucket_id, name) values ('post-videos', '${OTHER}/${FILE}.mov');`, "an upload into someone else's folder")}
+-- QA fix 1: only <uid>/<uuid>.mp4|mov|jpg.
+${fails(`insert into storage.objects (bucket_id, name) values ('post-videos', '${AUTHOR}/${FILE}.MOV');`, "an uppercase extension")}
+${fails(`insert into storage.objects (bucket_id, name) values ('post-videos', '${AUTHOR}/sub/${FILE}.mov');`, "a subfolder")}
+${fails(`insert into storage.objects (bucket_id, name) values ('post-videos', '${AUTHOR}/IMG_0001.mov');`, "a name that isn't a uuid")}
+${fails(`insert into storage.objects (bucket_id, name) values ('post-videos', '${AUTHOR}/${FILE.toUpperCase()}.mov');`, "an uppercase uuid")}
+${fails(`insert into storage.objects (bucket_id, name) values ('post-videos', '${AUTHOR}/${FILE}.webm');`, "another file type")}
 select set_config('app.user_id', '${OTHER}', false);
 ${expect("not exists (select 1 from storage.objects where bucket_id = 'post-videos')", "someone else can list your videos")}
 delete from storage.objects where bucket_id = 'post-videos';
@@ -167,6 +175,12 @@ ${fails(`insert into public.posts (user_id, content, video) values ('${AUTHOR}',
 ${fails(`insert into public.posts (user_id, content, video) values ('${AUTHOR}', 'x', '${video({ extra: 1 })}');`, "an unknown key")}
 ${fails(`insert into public.posts (user_id, content, video, gif) values ('${AUTHOR}', 'x', '${video()}', '{"id":"a"}');`, "a video with a GIF")}
 ${fails(`insert into public.posts (user_id, content, video, meta) values ('${AUTHOR}', 'x', '${video()}', '{"images":["a","b"]}');`, "a video with photos")}
+-- QA fix 2: the only picture a video post keeps is its own poster (or none).
+${fails(`insert into public.posts (user_id, content, image_url, video) values ('${AUTHOR}', 'x', '${BASE}/${AUTHOR}/${FILE}.jpg', '${video()}');`, "a video post with another picture")}
+${fails(`update public.posts set image_url = 'https://example.com/p.jpg' where content = 'pull';`, "an edit that swaps the poster")}
+update public.posts set content = 'pull, edited' where content = 'pull';
+${expect(`exists (select 1 from public.posts where content = 'pull, edited' and image_url = video ->> 'poster')`, "a text edit kept the poster")}
+update public.posts set image_url = null where content = 'pull, edited';
 
 -- A reply can be just a video, and never a video with photos or a GIF.
 insert into public.comments (post_id, user_id, body, video)

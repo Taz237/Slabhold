@@ -61,6 +61,11 @@ create policy "Users can upload post videos"
   with check (
     bucket_id = 'post-videos'
     and (select auth.uid())::text = (storage.foldername(name))[1]
+    -- QA fix 1: only <uid>/<uuid>.mp4|mov|jpg, the names the app writes.
+    and name ~ (
+      '^' || (select auth.uid())::text
+      || '/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(mp4|mov|jpg)$'
+    )
   );
 
 drop policy if exists "Users can view own post videos" on storage.objects;
@@ -160,6 +165,8 @@ alter table public.posts
     or (
       gif is null
       and not (coalesce(meta, '{}'::jsonb) ? 'images')
+      -- QA fix 2: the only picture a video post keeps is its own poster.
+      and (image_url is null or image_url = video ->> 'poster')
     )
   );
 
