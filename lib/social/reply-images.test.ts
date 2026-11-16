@@ -242,7 +242,7 @@ describe("optimistic photo replies", () => {
     const provider = read("components/social-provider.tsx");
     assert.match(provider, /optimisticReply\(/);
     assert.match(provider, /withoutOptimisticReply/);
-    assert.match(provider, /const sendKey = `reply:\$\{postId\}:\$\{text\}:\$\{photos\.join\("\|"\)\}:\$\{gif\?\.id \?\? ""\}`/);
+    assert.match(provider, /const sendKey = `reply:\$\{postId\}:\$\{text\}:\$\{photos\.join\("\|"\)\}:\$\{gif\?\.id \?\? ""\}(?::\$\{video\?\.url \?\? ""\})?`/);
     assert.match(provider, /if \(inflight\) return inflight as Promise<AuthResult>/);
   });
 });

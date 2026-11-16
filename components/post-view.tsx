@@ -20,6 +20,10 @@ import { PhotoFileInputs } from "@/components/photo-file-inputs";
 import { ReplyPhotos } from "@/components/reply-photos";
 import { GifPicker } from "@/components/gif-picker";
 import { GifDraft, PostGifPlayer } from "@/components/post-gif";
+import { PostVideoPlayer, VideoDraftTile } from "@/components/post-video";
+import { useVideoDraft } from "@/components/use-video-draft";
+import { PHOTO_ACCEPT } from "@/lib/photos";
+import { libraryAccept, planMediaPick, postsSupportVideo } from "@/lib/social/videos";
 import type { PostGif } from "@/lib/social/gifs";
 import { postsSupportGifsAndThreads } from "@/lib/social/threads";
 import { SafetyMenu } from "@/components/safety-menu";
@@ -72,6 +76,9 @@ export function PostView({ id }: { id: string }) {
   const [replyGifsOn, setReplyGifsOn] = useState(mode !== "supabase");
   const [gif, setGif] = useState<PostGif | null>(null);
   const [gifOpen, setGifOpen] = useState(false);
+  /** Videos need Supabase Storage and the comments.video column. */
+  const [replyVideosOn, setReplyVideosOn] = useState(false);
+  const video = useVideoDraft(user?.id);
   const threadId = post?.threadId ?? null;
   const thread = threadId ? threadPosts(threadId) : [];
   const place = thread.findIndex((item) => item.id === id);
@@ -127,6 +134,9 @@ export function PostView({ id }: { id: string }) {
       void postsSupportGifsAndThreads(supabase).then((ok) => {
         if (!cancelled) setReplyGifsOn(ok);
       });
+      void postsSupportVideo(supabase).then((ok) => {
+        if (!cancelled) setReplyVideosOn(ok);
+      });
     }).catch(() => {
       // supabase-js failed to load: reply photos stay off.
     });
@@ -170,12 +180,20 @@ export function PostView({ id }: { id: string }) {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (pending || isOverLimit(draft, COMMENT_LIMIT)) return;
+    // Reply waits for a video upload to finish.
+    if (video.busy) return;
     if (!user) {
       router.push(signupPath(pathname));
       return;
     }
     setPending(true);
-    const result = await addComment(id, draft, replyPhotosOn ? images : [], replyGifsOn ? gif : null);
+    const result = await addComment(
+      id,
+      draft,
+      replyPhotosOn ? images : [],
+      replyGifsOn ? gif : null,
+      replyVideosOn ? video.draft.video : null,
+    );
     // Your own reply lands at the end: show every page, so it is on screen.
     if (!result.error) setReplyPages(Number.POSITIVE_INFINITY);
     setPending(false);
@@ -186,10 +204,30 @@ export function PostView({ id }: { id: string }) {
     setDraft("");
     replaceAll([]);
     setGif(null);
+    video.posted();
+    video.remove();
     setError(result.notice ?? null);
     if (replyRef.current) {
       replyRef.current.style.height = "auto";
     }
+  }
+
+  /** A library pick: photos, or one video. Never both, and never with a GIF. */
+  function pickFromLibrary(files: File[]) {
+    const plan = planMediaPick(files, {
+      photos: images.length,
+      hasVideo: video.active,
+      hasGif: Boolean(gif),
+      videoAllowed: replyVideosOn,
+    });
+    if (plan.kind === "none") return;
+    if (plan.kind === "error") {
+      video.setError(plan.message);
+      return;
+    }
+    video.setError(null);
+    if (plan.kind === "video") void video.pick(plan.file);
+    else void addFiles(plan.files);
   }
 
   function updateDraft(next: string) {
@@ -222,7 +260,7 @@ export function PostView({ id }: { id: string }) {
   return (
     <div
       className={`-mx-4 -mt-5 ${
-        images.length > 0 || gif
+        images.length > 0 || gif || video.active
           ? "pb-[calc(18rem+env(safe-area-inset-bottom))] min-[391px]:pb-40"
           : "pb-[calc(10rem+env(safe-area-inset-bottom))] min-[391px]:pb-24"
       }`}
@@ -341,6 +379,7 @@ export function PostView({ id }: { id: string }) {
                   ) : null}
                   <ReplyPhotos images={reply.images} />
                   {reply.gif ? <PostGifPlayer gif={reply.gif} size="reply" /> : null}
+                  {reply.video && !reply.gif ? <PostVideoPlayer video={reply.video} size="reply" /> : null}
                   {isOptimisticReply(reply.id) ? null : (
                     <Engagement
                       targetId={reply.id}
@@ -376,13 +415,14 @@ export function PostView({ id }: { id: string }) {
             <ReplyPhotoDrafts images={images} onRemove={removePhoto} />
           ) : null}
           {gif ? <GifDraft gif={gif} size="reply" onRemove={() => setGif(null)} /> : null}
+          <VideoDraftTile draft={video.draft} size="reply" onRemove={video.remove} />
           <div className="flex min-w-0 items-end gap-2">
             {/* With the GIF button a 390px bar is full, so the avatar steps aside while a reply is being written. */}
             <Avatar
               name={user.displayName}
               image={user.avatarDataUrl}
               accent={user.accent}
-              className={`mb-1 h-8 w-8 ${replyGifsOn && (draft || gif || images.length > 0) ? "max-[430px]:hidden" : ""}`}
+              className={`mb-1 h-8 w-8 ${replyGifsOn && (draft || gif || images.length > 0 || video.active) ? "max-[430px]:hidden" : ""}`}
             />
             <MentionTextarea
               ref={replyRef}
@@ -400,14 +440,15 @@ export function PostView({ id }: { id: string }) {
                 <PhotoFileInputs
                   libraryRef={libraryRef}
                   libraryMultiple
+                  libraryAccept={libraryAccept(PHOTO_ACCEPT, replyVideosOn)}
                   onPick={(file) => {
-                    if (file) void addFiles([file]);
+                    if (file) pickFromLibrary([file]);
                   }}
-                  onPickMany={(files) => void addFiles(files)}
+                  onPickMany={pickFromLibrary}
                 />
                 <button
                   type="button"
-                  disabled={photosFull || Boolean(gif)}
+                  disabled={photosFull || Boolean(gif) || video.active}
                   aria-label="Add photos"
                   aria-describedby={photosFull ? "reply-photo-cap" : undefined}
                   onClick={() => {
@@ -423,7 +464,7 @@ export function PostView({ id }: { id: string }) {
             {replyGifsOn ? (
               <button
                 type="button"
-                disabled={Boolean(gif) || images.length > 0 || readingPhoto}
+                disabled={Boolean(gif) || images.length > 0 || readingPhoto || video.active}
                 aria-label="Add a GIF"
                 onClick={() => {
                   void GifPicker.preload().catch(() => {});
@@ -450,8 +491,9 @@ export function PostView({ id }: { id: string }) {
               disabled={
                 pending ||
                 readingPhoto ||
+                video.busy ||
                 isOverLimit(draft, COMMENT_LIMIT) ||
-                (!draft.trim() && images.length === 0 && !gif)
+                (!draft.trim() && images.length === 0 && !gif && !video.draft.video)
               }
               className={`${solidButton} mb-1 min-h-11`}
             >
@@ -465,6 +507,11 @@ export function PostView({ id }: { id: string }) {
           ) : null}
           {readingPhoto ? <p className="mt-1 pl-10 text-xs text-zinc-500">Reading photo…</p> : null}
           {photoError ? <p className="mt-1 pl-10 text-xs text-rose-600 dark:text-rose-400">{photoError}</p> : null}
+          {video.draft.error ? (
+            <p role="alert" className="mt-1 pl-10 text-xs text-rose-600 dark:text-rose-400">
+              {video.draft.error}
+            </p>
+          ) : null}
           {error ? <p className="mt-1 pl-10 text-xs text-rose-600 dark:text-rose-400">{error}</p> : null}
           {gifOpen ? (
             <GifPicker

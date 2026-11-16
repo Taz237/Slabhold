@@ -16,6 +16,7 @@ import { EbaySoldLink } from "@/components/ebay-sold-link";
 import { LazyPlayerNameLink } from "@/components/player-name-lazy";
 import { QUOTE_HEADER } from "@/lib/ui/quote-header";
 import { TeamBadge } from "@/components/team-badge";
+import { VideoThumbMark } from "@/components/post-video";
 import type { CardValueResult } from "@/lib/value/types";
 
 export function QuotedPostEmbed({
@@ -139,8 +140,8 @@ export function QuotedPostEmbed({
             </p>
           ) : null}
         </div>
-        {post.imageDataUrl || card ? (
-          <EmbedThumb imageUrl={post.imageDataUrl} card={card} />
+        {post.imageDataUrl || card || post.video ? (
+          <EmbedThumb imageUrl={post.imageDataUrl ?? post.video?.poster ?? null} card={card} video={Boolean(post.video && !post.imageDataUrl)} />
         ) : null}
       </div>
     </div>
@@ -150,21 +151,27 @@ export function QuotedPostEmbed({
 function EmbedThumb({
   imageUrl,
   card,
+  video = false,
 }: {
   imageUrl: string | null;
   card: PublicCard | null;
+  /** The thumb is a video's poster: a play mark sits on it. */
+  video?: boolean;
 }) {
   const src = imageUrl || card?.photoDataUrl || null;
   if (src) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={src}
-        alt=""
-        loading="lazy"
-        decoding="async"
-        className="h-14 w-14 shrink-0 rounded-xl object-cover"
-      />
+      <span className="relative h-14 w-14 shrink-0">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={src}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          className="h-14 w-14 rounded-xl bg-zinc-100 object-cover dark:bg-white/[0.06]"
+        />
+        {video ? <VideoThumbMark /> : null}
+      </span>
     );
   }
   if (card) {

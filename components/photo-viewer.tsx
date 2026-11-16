@@ -34,6 +34,7 @@ import {
 } from "@/lib/ui/photo-viewer-math";
 
 import type { ViewerState } from "@/components/image-lightbox";
+import { useViewerVideo, ViewerVideoControls, ViewerVideoSurface } from "@/components/viewer-video";
 
 function focusableIn(root: HTMLElement): HTMLElement[] {
   return [...root.querySelectorAll<HTMLElement>("button, [href], input, select, textarea")].filter(
@@ -112,13 +113,20 @@ function springCurve() {
   return SPRING_FALLBACK;
 }
 
-function naturalOf(img: HTMLImageElement | null | undefined): PhotoSize | null {
+function naturalOf(el: HTMLElement | null | undefined): PhotoSize | null {
+  const img = el as HTMLImageElement | null | undefined;
   if (!img || !(img.naturalWidth > 0) || !(img.naturalHeight > 0)) return null;
   return { width: img.naturalWidth, height: img.naturalHeight };
 }
 
+/** The decoded thumbnail, when the origin is a photo. A video origin has none. */
+function decodedSrc(el: HTMLElement | null | undefined): string | undefined {
+  const img = el as HTMLImageElement | null | undefined;
+  return img && typeof img.currentSrc === "string" && img.tagName === "IMG" ? img.currentSrc : undefined;
+}
+
 /** The thumbnail to grow from or shrink into, if it's on screen. */
-function originFor(img: HTMLImageElement | null | undefined, screen: PhotoSize) {
+function originFor(img: HTMLElement | null | undefined, screen: PhotoSize) {
   if (!img || !img.isConnected) return null;
   const box = img.getBoundingClientRect();
   if (box.width < 2 || box.height < 2) return null;
@@ -129,7 +137,7 @@ function originFor(img: HTMLImageElement | null | undefined, screen: PhotoSize) 
   return { rect, fit, radius };
 }
 
-function setOriginHidden(img: HTMLImageElement | null | undefined, hidden: boolean) {
+function setOriginHidden(img: HTMLElement | null | undefined, hidden: boolean) {
   if (!img) return;
   img.style.visibility = hidden ? "hidden" : "";
 }
@@ -151,15 +159,19 @@ type Gesture =
   | { kind: "pinch"; start: { pan: ZoomState; mid: Point; distance: number } };
 
 export default function PhotoViewer({ viewer, onClosed }: { viewer: ViewerState; onClosed: () => void }) {
-  const { images, alt, origins, footer } = viewer;
+  const { images, alt, origins, footer, video } = viewer;
   const count = images.length;
   const [index, setIndex] = useState(viewer.index);
   const [chromeOn, setChromeOn] = useState(true);
   const [screen, setScreen] = useState<PhotoSize>(() => ({ width: window.innerWidth, height: window.innerHeight }));
   const [seen, setSeen] = useState<ReadonlySet<number>>(() => near(viewer.index, count));
   const [sizes, setSizes] = useState<(PhotoSize | null)[]>(() =>
-    images.map((src, i) => naturalOf(origins[i]) ?? knownPhotoSize(src)),
+    // A video opens at the shape it was saved with: its real aspect ratio.
+    video
+      ? [{ width: video.width, height: video.height }]
+      : images.map((src, i) => naturalOf(origins[i]) ?? knownPhotoSize(src)),
   );
+  const player = useViewerVideo(video);
 
   const dialogRef = useRef<HTMLDivElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
@@ -450,6 +462,11 @@ export default function PhotoViewer({ viewer, onClosed }: { viewer: ViewerState;
     const point = { x: event.clientX, y: event.clientY };
     pointers.current.set(event.pointerId, point);
     if (pointers.current.size === 2) {
+      // A video doesn't zoom: the second finger is ignored.
+      if (video) {
+        pointers.current.delete(event.pointerId);
+        return;
+      }
       window.clearTimeout(tapTimer.current);
       lastTap.current = null;
       const current = gesture.current;
@@ -566,6 +583,11 @@ export default function PhotoViewer({ viewer, onClosed }: { viewer: ViewerState;
 
   /** One tap shows or hides the buttons; two taps zoom in on that spot, or back out. */
   function onTap(point: Point, time: number) {
+    // A video has no zoom, so one tap shows or hides its controls at once.
+    if (video) {
+      setChromeOn((on) => !on);
+      return;
+    }
     const previous = lastTap.current;
     if (previous && time - previous.t < DOUBLE_TAP_MS && Math.hypot(point.x - previous.x, point.y - previous.y) < 40) {
       window.clearTimeout(tapTimer.current);
@@ -620,7 +642,7 @@ export default function PhotoViewer({ viewer, onClosed }: { viewer: ViewerState;
           {images.map((src, i) => {
             const size = sizes[i];
             const fit = size ? containRect(size, box) : null;
-            const placeholder = origins[i]?.currentSrc;
+            const placeholder = decodedSrc(origins[i]);
             return (
               <div
                 key={`${i}-${src}`}
@@ -653,15 +675,24 @@ export default function PhotoViewer({ viewer, onClosed }: { viewer: ViewerState;
                         className="absolute inset-0 h-full w-full object-contain"
                       />
                     ) : null}
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={seen.has(i) ? src : undefined}
-                      alt={i === index ? alt : ""}
-                      draggable={false}
-                      decoding={i === index ? "sync" : "async"}
-                      onLoad={(event) => onLoad(i, event.currentTarget)}
-                      className="relative h-full w-full object-contain"
-                    />
+                    {video ? (
+                      <ViewerVideoSurface
+                        video={video}
+                        attach={player.attach}
+                        handlers={player.handlers}
+                        failed={player.state.failed}
+                      />
+                    ) : (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={seen.has(i) ? src : undefined}
+                        alt={i === index ? alt : ""}
+                        draggable={false}
+                        decoding={i === index ? "sync" : "async"}
+                        onLoad={(event) => onLoad(i, event.currentTarget)}
+                        className="relative h-full w-full object-contain"
+                      />
+                    )}
                   </div>
                 </div>
               </div>
@@ -686,7 +717,9 @@ export default function PhotoViewer({ viewer, onClosed }: { viewer: ViewerState;
           >
             <X className="h-5 w-5" />
           </button>
+          {video ? <ViewerVideoControls player={player} placement="center" /> : null}
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/35 to-transparent pt-10 pb-[max(0.25rem,env(safe-area-inset-bottom))]">
+            {video ? <ViewerVideoControls player={player} placement="bar" /> : null}
             {count > 1 ? (
               <div
                 role="img"

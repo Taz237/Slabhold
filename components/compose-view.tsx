@@ -17,6 +17,8 @@ import { Avatar } from "@/components/avatar";
 import { ComposePhotoDrafts } from "@/components/compose-photo-drafts";
 import { GifPicker } from "@/components/gif-picker";
 import { GifDraft } from "@/components/post-gif";
+import { savedVideoDraft, VideoDraftTile } from "@/components/post-video";
+import { useVideoDraft } from "@/components/use-video-draft";
 import { PhotoFileInputs } from "@/components/photo-file-inputs";
 import { usePostPhotos } from "@/components/use-post-photos";
 import { useCollection } from "@/components/collection-provider";
@@ -35,7 +37,8 @@ import {
   type ComposeDraft,
 } from "@/lib/social/compose-draft";
 import { initials } from "@/lib/format";
-import { PHOTO_HEIC_ERROR, readPhotoFile } from "@/lib/photos";
+import { PHOTO_ACCEPT, PHOTO_HEIC_ERROR, readPhotoFile } from "@/lib/photos";
+import { libraryAccept, planMediaPick, postsSupportVideo } from "@/lib/social/videos";
 import {
   POST_PHOTO_LIMIT_ERROR,
   POST_PHOTO_SINGLE_ERROR,
@@ -102,6 +105,9 @@ export function ComposeView() {
   const [gifOpen, setGifOpen] = useState(false);
   /** GIFs and threads need their database columns. Until those are there, the buttons stay hidden. */
   const [extrasOn, setExtrasOn] = useState(mode !== "supabase");
+  /** Videos need Supabase Storage and the posts.video column. Until then the library takes photos only. */
+  const [videoOn, setVideoOn] = useState(false);
+  const video = useVideoDraft(user?.id);
   /**
    * Every post of the thread being written. The one at `active` is edited
    * through body, images and gif above, so its slot here is stale until
@@ -263,6 +269,9 @@ export function ComposeView() {
       void postsSupportGifsAndThreads(supabase).then((ok) => {
         if (!cancelled) setExtrasOn(ok);
       });
+      void postsSupportVideo(supabase).then((ok) => {
+        if (!cancelled) setVideoOn(ok);
+      });
     }).catch(() => {
       // supabase-js failed to load: the photo limit stays at its default.
     });
@@ -296,15 +305,34 @@ export function ComposeView() {
     activate(next.active, next.segments);
   }
 
+  /** A library pick: photos, or one video. Never both, and never with a GIF. */
+  function pickFromLibrary(files: File[]) {
+    const plan = planMediaPick(files, {
+      photos: images.length,
+      hasVideo: video.active || Boolean(editing?.video),
+      hasGif: Boolean(gif),
+      videoAllowed: videoOn && !editing,
+      threaded: thread.length > 1,
+    });
+    if (plan.kind === "none") return;
+    if (plan.kind === "error") {
+      video.setError(plan.message);
+      return;
+    }
+    video.setError(null);
+    if (plan.kind === "video") void video.pick(plan.file);
+    else void addFiles(plan.files);
+  }
+
   function openCamera() {
-    if (gif) return;
+    if (gif || video.active) return;
     if (photoAttachFull(images.length, limit)) return;
     photoSource.current = "camera";
     cameraRef.current?.click();
   }
 
   function openLibrary() {
-    if (gif) return;
+    if (gif || video.active) return;
     if (photoAttachFull(images.length, limit)) return;
     photoSource.current = "library";
     libraryRef.current?.click();
@@ -325,11 +353,14 @@ export function ComposeView() {
     const image = images[0] ?? null;
     const drafts = editing ? [{ body, images, gif }] : segmentsToPost(thread);
     const lead = drafts[0] ?? EMPTY_SEGMENT;
+    // The finished upload. Post stays off while one is still going.
+    const leadVideo = editing ? null : video.draft.video;
+    if (video.busy) return;
 
     if (quoteId) {
       const quoteError = validateQuoteContent({
         body: lead.body,
-        imageDataUrl: lead.images[0] ?? lead.gif?.still ?? null,
+        imageDataUrl: lead.images[0] ?? lead.gif?.still ?? leadVideo?.poster ?? null,
         card,
       });
       if (quoteError) {
@@ -340,7 +371,7 @@ export function ComposeView() {
         setError("That post is unavailable.");
         return;
       }
-    } else if (segmentIsEmpty(lead) && !card) {
+    } else if (segmentIsEmpty(lead) && !card && !leadVideo) {
       setError(
         drafts.length > 1
           ? "Write the first post of the thread."
@@ -356,19 +387,23 @@ export function ComposeView() {
       imageDataUrl: draft.images[0] ?? null,
       images: draft.images,
       gif: draft.gif,
+      video: index === 0 ? leadVideo : null,
       card: index === 0 ? card : null,
       quotedPostId: index === 0 ? quoteId : null,
     }));
     const result = editing
-      ? await updatePost(editing.id, { body, imageDataUrl: image, images, gif })
+      ? await updatePost(editing.id, { body, imageDataUrl: image, images, gif, video: editing.video ?? null })
       : inputs.length > 1
         ? await createThread(inputs)
         : await createPost(inputs[0]!);
     setSending(false);
     if (result.error) {
+      // A failed save deleted the uploaded video too: clear the tile so it's added again.
+      if ("videoRemoved" in result && result.videoRemoved) video.remove();
       setError(result.error === QUOTE_EMPTY_ERROR ? QUOTE_EMPTY_ERROR : result.error);
       return;
     }
+    video.posted();
     if (!editing) haptic("post");
     settleDraft();
     router.push(editing ? `/posts/${editing.id}` : "/");
@@ -418,17 +453,19 @@ export function ComposeView() {
         : null;
 
   const overLimit = thread.some((segment) => isOverLimit(segment.body, POST_LIMIT));
-  const canPost = !overLimit && (quoteId
+  const videoReady = video.draft.phase === "ready" && Boolean(video.draft.video);
+  const canPost = !overLimit && !video.busy && (quoteId
     ? !isQuoteSubmitDisabled({
         body: first.body,
-        imageDataUrl: first.images[0] ?? first.gif?.still ?? null,
+        imageDataUrl: first.images[0] ?? first.gif?.still ?? video.draft.video?.poster ?? null,
         card: attachedPreview,
       }) && !sending && !readingPhoto
-    : (!segmentIsEmpty(first) || Boolean(cardId)) && !sending && !readingPhoto);
+    : (!segmentIsEmpty(first) || Boolean(cardId) || videoReady || Boolean(editing?.video)) && !sending && !readingPhoto);
   const threaded = thread.length > 1;
   const canThread = extrasOn && !editing;
   const threadFull = !canAddToThread(thread.length);
-  const canAddPost = canThread && !threadFull && !segmentIsEmpty(thread[active] ?? EMPTY_SEGMENT);
+  // A video goes on a single post for now, so a post with one can't start a thread.
+  const canAddPost = canThread && !threadFull && !video.active && !segmentIsEmpty(thread[active] ?? EMPTY_SEGMENT);
 
   function leave() {
     leaveCompose(router);
@@ -444,7 +481,8 @@ export function ComposeView() {
       shouldConfirmDiscard({
         body: thread.map((segment) => segment.body).join(""),
         imageDataUrl: thread.map((segment) => segment.images[0] ?? segment.gif?.still ?? null).find(Boolean) ?? null,
-        hasCard: Boolean(attachedPreview),
+        // A picked video counts like a card: worth asking before it's thrown away.
+        hasCard: Boolean(attachedPreview) || video.active,
       })
     ) {
       setConfirmDiscard(true);
@@ -589,8 +627,15 @@ export function ComposeView() {
                         )}
                       </div>
                     ) : null}
+                    {video.draft.error ? (
+                      <p role="alert" className="mt-3 text-sm text-rose-600 dark:text-rose-400">
+                        {video.draft.error}
+                      </p>
+                    ) : null}
                     <ComposePhotoDrafts images={images} onRemove={removePhoto} />
                     {gif ? <GifDraft gif={gif} onRemove={() => setGif(null)} /> : null}
+                    {editing?.video ? <VideoDraftTile draft={savedVideoDraft(editing.video)} /> : null}
+                    {!editing ? <VideoDraftTile draft={video.draft} onRemove={video.remove} /> : null}
                     {readingPhoto ? <p className="mt-2 text-sm text-zinc-500">Reading photo…</p> : null}
                     {quoteId && index === 0 ? (
                       <div className="mt-3 w-full">
@@ -686,15 +731,16 @@ export function ComposeView() {
                 cameraRef={cameraRef}
                 libraryRef={libraryRef}
                 libraryMultiple
+                libraryAccept={libraryAccept(PHOTO_ACCEPT, videoOn && !editing)}
                 onPick={(file) => {
-                  if (file) void addFiles([file]);
+                  if (file) pickFromLibrary([file]);
                 }}
-                onPickMany={(files) => void addFiles(files)}
+                onPickMany={pickFromLibrary}
               />
               <button
                 type="button"
                 aria-label="Photo library"
-                disabled={photosFull || Boolean(gif)}
+                disabled={photosFull || Boolean(gif) || video.active || Boolean(editing?.video)}
                 aria-describedby={photosFull ? "compose-photo-cap" : undefined}
                 onClick={openLibrary}
                 className={TOOL_BUTTON}
@@ -704,7 +750,7 @@ export function ComposeView() {
               <button
                 type="button"
                 aria-label="Camera"
-                disabled={photosFull || Boolean(gif)}
+                disabled={photosFull || Boolean(gif) || video.active || Boolean(editing?.video)}
                 aria-describedby={photosFull ? "compose-photo-cap" : undefined}
                 onClick={openCamera}
                 className={TOOL_BUTTON}
@@ -715,7 +761,7 @@ export function ComposeView() {
                 <button
                   type="button"
                   aria-label="Add a GIF"
-                  disabled={Boolean(gif) || images.length > 0 || readingPhoto}
+                  disabled={Boolean(gif) || images.length > 0 || readingPhoto || video.active || Boolean(editing?.video)}
                   onClick={() => {
                     void GifPicker.preload().catch(() => {});
                     setPickerOpen(false);

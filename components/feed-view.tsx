@@ -41,12 +41,15 @@ import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 import { ComposePhotoDrafts } from "@/components/compose-photo-drafts";
 import { GifPicker } from "@/components/gif-picker";
 import { GifDraft } from "@/components/post-gif";
+import { VideoDraftTile } from "@/components/post-video";
+import { useVideoDraft } from "@/components/use-video-draft";
+import { libraryAccept, planMediaPick, postsSupportVideo } from "@/lib/social/videos";
 import { composeDraftKey, keepComposeDraft, threadDraftFromHome } from "@/lib/social/compose-draft";
 import type { PostGif } from "@/lib/social/gifs";
 import { postsSupportGifsAndThreads } from "@/lib/social/threads";
 import { PhotoFileInputs } from "@/components/photo-file-inputs";
 import { usePostPhotos } from "@/components/use-post-photos";
-import { PHOTO_HEIC_ERROR, readPhotoFile } from "@/lib/photos";
+import { PHOTO_ACCEPT, PHOTO_HEIC_ERROR, readPhotoFile } from "@/lib/photos";
 import {
   POST_PHOTO_LIMIT_ERROR,
   POST_PHOTO_SINGLE_ERROR,
@@ -601,6 +604,9 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
   const [gifOpen, setGifOpen] = useState(false);
   /** GIFs and threads need their database columns. Until those are there, the buttons stay hidden. */
   const [extrasOn, setExtrasOn] = useState(mode !== "supabase");
+  /** Videos need Supabase Storage and the posts.video column. */
+  const [videoOn, setVideoOn] = useState(false);
+  const video = useVideoDraft(user?.id);
   const [composePhoto] = useState(() => takeComposePrefill());
   const {
     images,
@@ -628,6 +634,9 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
       void postsSupportGifsAndThreads(supabase).then((ok) => {
         if (!cancelled) setExtrasOn(ok);
       });
+      void postsSupportVideo(supabase).then((ok) => {
+        if (!cancelled) setVideoOn(ok);
+      });
     }).catch(() => {
       // supabase-js failed to load: the photo limit stays at its default.
     });
@@ -645,6 +654,7 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
     if (overLimit) return;
     const selected = cards.find((card) => card.id === cardId);
     const card: PublicCard | null = selected ? toPublicAttachment(selected) : null;
+    if (video.busy) return;
     setSending(true);
     const result = await createPost({
       body,
@@ -652,12 +662,16 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
       images,
       card,
       gif,
+      video: video.draft.video,
     });
     setSending(false);
     if (result.error) {
+      // A failed save deleted the uploaded video too: clear the tile so it's added again.
+      if ("videoRemoved" in result && result.videoRemoved) video.remove();
       setError(result.error);
       return;
     }
+    video.posted();
     clear();
     haptic("post");
     onPosted?.();
@@ -667,11 +681,30 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
     setBody("");
     replaceAll([]);
     setGif(null);
+    video.remove();
     setCardId("");
     setError(null);
   }
 
-  const hasDraft = body.trim().length > 0 || images.length > 0 || Boolean(gif);
+  /** A library pick: photos, or one video. Never both, and never with a GIF. */
+  function pickFromLibrary(files: File[]) {
+    const plan = planMediaPick(files, {
+      photos: images.length,
+      hasVideo: video.active,
+      hasGif: Boolean(gif),
+      videoAllowed: videoOn,
+    });
+    if (plan.kind === "none") return;
+    if (plan.kind === "error") {
+      video.setError(plan.message);
+      return;
+    }
+    video.setError(null);
+    if (plan.kind === "video") void video.pick(plan.file);
+    else void addFiles(plan.files);
+  }
+
+  const hasDraft = body.trim().length > 0 || images.length > 0 || Boolean(gif) || video.active;
 
   /**
    * The plus button: what is written here becomes the first post of a thread,
@@ -711,29 +744,36 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
         />
         <ComposePhotoDrafts images={images} onRemove={removePhoto} />
         {gif ? <GifDraft gif={gif} onRemove={() => setGif(null)} /> : null}
+        <VideoDraftTile draft={video.draft} onRemove={video.remove} />
+        {video.draft.error ? (
+          <p role="alert" className="mt-2 text-sm text-rose-600 dark:text-rose-400">
+            {video.draft.error}
+          </p>
+        ) : null}
         {readingPhoto ? <p className="mt-2 text-xs text-zinc-500">Reading photo…</p> : null}
         <div className="mt-2 flex flex-wrap items-center gap-1">
           <PhotoFileInputs
             libraryRef={libraryRef}
             libraryMultiple
+            libraryAccept={libraryAccept(PHOTO_ACCEPT, videoOn)}
             onPick={() => undefined}
-            onPickMany={(files) => void addFiles(files)}
+            onPickMany={pickFromLibrary}
           />
           <button
             type="button"
-            disabled={photosFull || Boolean(gif)}
+            disabled={photosFull || Boolean(gif) || video.active}
             aria-describedby={photosFull ? "feed-photo-cap" : undefined}
             onClick={() => libraryRef.current?.click()}
             className="inline-flex min-h-11 items-center gap-1 rounded-full px-2 text-sm text-zinc-500 hover:bg-zinc-100 disabled:opacity-40 dark:hover:bg-white/10"
           >
             <ImagePlus className="h-4 w-4" />
-            Photo
+            {videoOn ? "Media" : "Photo"}
           </button>
           {extrasOn ? (
             <button
               type="button"
               aria-label="Add a GIF"
-              disabled={Boolean(gif) || images.length > 0 || readingPhoto}
+              disabled={Boolean(gif) || images.length > 0 || readingPhoto || video.active}
               onClick={() => {
                 void GifPicker.preload().catch(() => {});
                 setGifOpen(true);
@@ -780,14 +820,14 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
             <button
               type="button"
               aria-label="Add another post"
-              disabled={!hasDraft || overLimit || readingPhoto || sending}
+              disabled={!hasDraft || overLimit || readingPhoto || sending || video.active}
               onClick={continueAsThread}
               className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-[#7C3AED] transition-colors hover:bg-violet-500/10 disabled:opacity-40 dark:text-[#A78BFA]"
             >
               <Plus className="h-5 w-5" />
             </button>
           ) : null}
-          <button type="submit" disabled={sending || readingPhoto || overLimit} className={solidButton}>
+          <button type="submit" disabled={sending || readingPhoto || overLimit || video.busy} className={solidButton}>
             Post
           </button>
         </div>

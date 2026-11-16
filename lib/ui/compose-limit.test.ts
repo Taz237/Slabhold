@@ -92,7 +92,7 @@ describe("composers never cut text", () => {
     assert.match(compose, /const canPost = !overLimit &&/);
     assert.match(compose, /if \(thread\.some\(\(segment\) => isOverLimit\(segment\.body, POST_LIMIT\)\)\) return;/);
     const feed = read("components/feed-view.tsx");
-    assert.match(feed, /disabled=\{sending \|\| readingPhoto \|\| overLimit\}/);
+    assert.match(feed, /disabled=\{sending \|\| readingPhoto \|\| overLimit(?: \|\| video\.busy)?\}/);
     assert.match(feed, /if \(overLimit\) return;/);
     const post = read("components/post-view.tsx");
     assert.match(post, /isOverLimit\(draft, COMMENT_LIMIT\) \|\|/);

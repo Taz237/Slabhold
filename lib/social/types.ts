@@ -1,4 +1,5 @@
 import type { PostGif } from "./gifs";
+import type { PostVideo } from "./videos";
 
 export type Profile = {
   id: string;
@@ -89,6 +90,8 @@ export type Post = {
   viewerLiked?: boolean;
   /** One GIPHY GIF. A post has photos or a GIF, not both. */
   gif?: PostGif | null;
+  /** One short video. A post has photos, a GIF or a video, never a mix. */
+  video?: PostVideo | null;
   /** Set on every post of a thread. Null or omitted on a normal post. */
   threadId?: string | null;
   /** Place in the thread, 0 first. Timelines show the post at 0 only. */
@@ -122,6 +125,8 @@ export type PostComment = {
   images?: string[];
   /** One GIPHY GIF. Omitted when the reply has none. */
   gif?: PostGif | null;
+  /** One short video. Omitted when the reply has none. */
+  video?: PostVideo | null;
   createdAt: string;
 };
 

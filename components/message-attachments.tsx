@@ -10,6 +10,7 @@ import { loadPostById } from "@/lib/social/load-feed-page";
 import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 import { messageLinks, type MessageLink } from "@/lib/social/dm-inbox";
 import { imagesFromPost } from "@/lib/social/post-photos";
+import { VideoThumbMark } from "@/components/post-video";
 import type { DirectMessage, OwnedCard, Post, Profile } from "@/lib/social/types";
 import { usePublicCards } from "@/lib/social/use-public-cards";
 import { userHref } from "@/lib/social/user-href";
@@ -150,7 +151,8 @@ function PostUnavailable() {
 }
 
 function SharedPostMini({ post, author }: { post: Post; author: Profile }) {
-  const photo = post.card?.photoDataUrl ?? imagesFromPost(post)[0] ?? null;
+  const photo = post.card?.photoDataUrl ?? imagesFromPost(post)[0] ?? post.video?.poster ?? null;
+  const videoThumb = Boolean(post.video) && photo === post.video?.poster;
   return (
     <Link
       href={`/posts/${encodeURIComponent(post.id)}`}
@@ -176,7 +178,10 @@ function SharedPostMini({ post, author }: { post: Post; author: Profile }) {
         )}
       </span>
       {photo || post.card ? (
-        <SharedCardPhoto imageUrl={photo} player={post.card?.playerName ?? author.displayName} />
+        <span className="relative shrink-0 self-start">
+          <SharedCardPhoto imageUrl={photo} player={post.card?.playerName ?? author.displayName} />
+          {videoThumb ? <VideoThumbMark /> : null}
+        </span>
       ) : null}
     </Link>
   );
@@ -202,7 +207,7 @@ export function useInboxThumb(last: DirectMessage): { imageUrl: string | null; l
   }
   const found = linkedPost(link.id, loaded);
   if (!found) return null;
-  const photo = found.post.card?.photoDataUrl ?? imagesFromPost(found.post)[0] ?? null;
+  const photo = found.post.card?.photoDataUrl ?? imagesFromPost(found.post)[0] ?? found.post.video?.poster ?? null;
   if (!photo && !found.post.card) return null;
   return { imageUrl: photo, label: found.post.card?.playerName ?? found.author.displayName };
 }
