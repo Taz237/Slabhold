@@ -8,10 +8,11 @@ import { quickCompRecentKey, type RecentComp } from "@/lib/quick-comp/recent";
 
 const { win } = installDom();
 
+/** 2023 Topps Chrome Football: a set with no list of ours, so its family's list shows. */
 const identity: QuickCompIdentity = {
   playerName: "Fixture Player",
-  year: 2025,
-  yearLabel: "2025",
+  year: 2023,
+  yearLabel: "2023",
   setBrand: "Topps Chrome",
   cardNumber: "306",
   parallel: "Base",
@@ -21,7 +22,7 @@ const identity: QuickCompIdentity = {
 const saved: RecentComp = {
   key: quickCompIdentityKey(identity),
   identity,
-  catalog: { id: "fixture", playerName: "Fixture Player", yearLabel: "2025", setBrand: "Topps Chrome", cardNumber: "306", sport: "Football", parallel: "Base" },
+  catalog: { id: "fixture", playerName: "Fixture Player", yearLabel: "2023", setBrand: "Topps Chrome", cardNumber: "306", sport: "Football", parallel: "Base" },
   payload: {
     median: 40,
     p25: 36,
