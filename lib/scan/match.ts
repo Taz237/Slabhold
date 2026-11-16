@@ -1,6 +1,6 @@
 import { parallelSwatch } from "@/lib/cards/parallel-swatch";
 import type { CatalogCard } from "@/lib/card-catalog";
-import { parallelMatchKey, parallelSetFamily, parallelsForSet, sameParallelLoosely } from "@/lib/cards/parallels";
+import { parallelMatchKey, parallelsForSet, sameParallelLoosely } from "@/lib/cards/parallels";
 import { baseSetHits, isBaseSection, playersAt, type ChecklistHit, type ChecklistProduct } from "@/lib/cards/checklists";
 import { parallelsIn, sameSeason, type ProductParallel, type ProductRecord } from "@/lib/cards/product-data";
 import { setMatchPhrase } from "@/lib/comps/match";
@@ -980,8 +980,9 @@ function checklistFor(
 const FIRST_PARALLEL_YEAR = 1993;
 
 /**
- * A pre-1993 set we have no parallel list for (neither its own nor its family's): the general list
- * of modern parallels would only be noise, so "Which version?" offers Base and Something else.
+ * A pre-1993 set we have no parallel list for that year: the general list and the family lists
+ * (Donruss Press Proofs, Prizm colors) describe modern products only, so "Which version?" offers
+ * Base and Something else.
  */
 function vintageWithoutList(
   products: readonly ProductRecord[] | null,
@@ -990,7 +991,7 @@ function vintageWithoutList(
   const year = Number(/^(\d{4})/.exec(card.yearLabel.trim())?.[1] ?? Number.NaN);
   if (!(year < FIRST_PARALLEL_YEAR)) return false;
   const listed = products?.length ? parallelsIn(products, card.sport, card.yearLabel, card.setBrand, card.cardNumber) : [];
-  return listed.length === 0 && parallelSetFamily(card.setBrand) === null;
+  return listed.length === 0;
 }
 
 /** The parallel's own words all appear in what the card showed. */

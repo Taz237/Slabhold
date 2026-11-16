@@ -19,6 +19,28 @@ Notes on 2024 Bowman:
 - Paper rows are for plain numbers and BP- numbers. Chrome rows are for BCP- numbers. A print run
   two rows share (paper /150, chrome /199) stays open with both as choices.
 
+## Print runs filled from the hobby lists
+
+The Topps sheets name the parallels but not their print runs. `scripts/merge-print-runs.ts` fills
+the runs from the hobby-checklist lists already in `scripts/checklist-csv/*.parallels.json` (each
+names its page). A row filled this way has a `runsFrom` field with that page. Nothing is fetched.
+
+- A run is filled only when the hobby list agrees on exactly one run for that name, in the
+  matching base list (never an insert, autograph or variation list). Nothing is overwritten.
+- When the lists disagree, or one name would get two runs in two subsets, the run stays unknown.
+- The hobby list's numbered parallels the sheet lacks are added, so a run two parallels share
+  (Gold and Gold Wave, both /50) stays two choices.
+- Rows that already had runs (2023 Topps Chrome, 2024 Bowman) are left as they are, and so are
+  rows with no hobby list in the repo (2024-25 Topps Chrome Basketball, 2025 Topps Update).
+- Topps products with a hobby list and no list of ours get one, from the hobby list's base subsets
+  only, marked `official: false` with the page as `source`: 2024-25 and 2024/2025 Bowman U Chrome,
+  2025-26 Bowman Basketball, 2025 Bowman Chrome Sapphire, 2025 Bowman Draft, 2025 Topps Chrome
+  Sapphire, 2025 Topps Chrome Update and 2026 Topps.
+- 2025 Bowman gets the paper (plain numbers and BP-) and chrome (BCP-) card-number split our 2024
+  Bowman list has, so a BP- card's run is read against the paper parallels only.
+
+Run `npx tsx scripts/merge-print-runs.ts --dry-run` to see what it fills, adds and leaves unknown.
+
 # Where the checklists come from (card #, player, team)
 
 `checklists/` holds one file per product and year: every card number, the player on it and the

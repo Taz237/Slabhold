@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { ProductRecord } from "./product-data";
-import { mergeKey, mergePrintRuns, splitGluedRows, subsetsFor } from "./print-run-merge";
+import { hobbyListRecord, mergeKey, mergePrintRuns, splitGluedRows, subsetsFor, withBowmanPrefixes } from "./print-run-merge";
 
 const record = (parallels: ProductRecord["parallels"]): ProductRecord => ({
   sport: "Baseball",
@@ -122,10 +122,173 @@ describe("filling print runs into a list that has none", () => {
     assert.deepEqual(merged.added.sort(), ["Base: Aqua Refractor /199", "Base: Gold Wave Refractor /50", "Base: Purple RayWave Refractor /250", "Base: Purple Refractor /250", "Base: Superfractor /1"].sort());
   });
 
+  it("never adds a name the list already has in another subset", () => {
+    const paper = {
+      source: "https://example.test/bowman",
+      parallels: [
+        { subset: "Base Paper", name: "Gold Border", serialRun: 50 },
+        { subset: "Paper Prospects", name: "Gold Border", serialRun: 50 },
+        { subset: "Base Paper", name: "Red Border", serialRun: 5 },
+      ],
+    };
+    const merged = mergePrintRuns(
+      record([
+        { subset: "Base", name: "Base", serialRun: null },
+        { subset: "Base and Paper Prospects", name: "Gold Border", serialRun: null },
+      ]),
+      paper,
+    );
+    const names = merged.record.parallels.map((row) => row.name.toLowerCase());
+    assert.equal(new Set(names).size, names.length, names.join(", "));
+    assert.equal(merged.record.parallels.find((row) => row.name === "Gold Border")?.serialRun, 50);
+    assert.deepEqual(merged.added, ["Base: Red Border /5"]);
+  });
+
+  it("a name filled with two different runs in two subsets is left unknown in both", () => {
+    const merged = mergePrintRuns(
+      record([
+        { subset: "Base", name: "Red Geometric", serialRun: null },
+        { subset: "Chrome Prospects", name: "Red Geometric", serialRun: null },
+        { subset: "Base", name: "Gold Refractor", serialRun: null },
+        { subset: "Chrome Prospects", name: "Gold Refractor", serialRun: null },
+      ]),
+      {
+        parallels: [
+          { subset: "Base Chrome", name: "Red Geometric Refractor", serialRun: 10 },
+          { subset: "Chrome Prospects", name: "Red Geometric Refractor", serialRun: 5 },
+          { subset: "Base Chrome", name: "Gold Refractor", serialRun: 50 },
+          { subset: "Chrome Prospects", name: "Gold Refractor", serialRun: 50 },
+        ],
+      },
+    );
+    const runs = merged.record.parallels.map((row) => `${row.subset}: ${row.name} ${row.serialRun}`);
+    assert.deepEqual(runs, ["Base: Red Geometric null", "Chrome Prospects: Red Geometric null", "Base: Gold Refractor 50", "Chrome Prospects: Gold Refractor 50"]);
+    assert.equal(merged.conflicts.length, 2);
+  });
+
   it("leaves a list that already has print runs alone", () => {
     const already = record([{ subset: "Base", name: "Gold Refractor", serialRun: 49 }]);
     const merged = mergePrintRuns(already, source);
     assert.equal(merged.record, already);
     assert.deepEqual(merged.added, []);
+  });
+});
+
+describe("two parallels that only share a color", () => {
+  it("paper Fuchsia Border /299 and chrome Fuchsia Refractor /199 both keep their runs", () => {
+    const merged = mergePrintRuns(
+      {
+        sport: "Baseball",
+        yearLabel: "2025",
+        product: "Bowman",
+        manufacturer: "Topps",
+        parallels: [
+          { subset: "Base and Paper Prospects", name: "Fuchsia Border", serialRun: null },
+          { subset: "Chrome Prospects", name: "Fuchsia Refractor", serialRun: null },
+        ],
+      },
+      {
+        parallels: [
+          { subset: "Base Paper", name: "Fuchsia Border", serialRun: 299 },
+          { subset: "Paper Prospects", name: "Fuchsia Border", serialRun: 299 },
+          { subset: "Chrome Prospects", name: "Fuchsia Refractor", serialRun: 199 },
+        ],
+      },
+    );
+    assert.deepEqual(merged.record.parallels.map((row) => row.serialRun), [299, 199]);
+    assert.deepEqual(merged.conflicts, []);
+  });
+});
+
+describe("the shipped Topps file", () => {
+  it("2025 Topps Chrome: Gold Refractor is /50, X-Fractor stays unnumbered, and /50 alone names no parallel", async () => {
+    const { loadProductData, onlyParallelAtRun, parallelsIn } = await import("./product-data");
+    const data = await loadProductData();
+    const list = parallelsIn(data, "Baseball", "2025", "Topps Chrome");
+    const run = (name: string) => list.find((item) => item.name === name)?.serialRun;
+    assert.equal(run("Gold Refractor"), 50);
+    assert.equal(run("Gold Wave"), 50);
+    assert.equal(run("Orange Refractor"), 25);
+    assert.equal(run("Superfractor"), 1);
+    assert.equal(run("X-Fractor"), null);
+    assert.equal(run("Refractor"), null);
+    // Gold, Gold Wave, Gold Lava, Gold Geometric and Gold RayWave all share /50: open beats wrong.
+    assert.equal(onlyParallelAtRun(data, { yearLabel: "2025", setBrand: "Topps Chrome", cardNumber: "48", parallel: "Gold Refractor" }, 50), false);
+  });
+
+  it("2025 Bowman: paper Fuchsia Border /299 and chrome Fuchsia Refractor /199 keep their own runs", async () => {
+    const { loadProductData, parallelsIn } = await import("./product-data");
+    const list = parallelsIn(await loadProductData(), "Baseball", "2025", "Bowman");
+    assert.equal(list.find((item) => item.name === "Fuchsia Border")?.serialRun, 299);
+    assert.equal(list.find((item) => item.name === "Fuchsia Refractor")?.serialRun, 199);
+  });
+});
+
+describe("a list for a Topps product we had none for", () => {
+  const page = {
+    sport: "Baseball",
+    yearLabel: "2025",
+    product: "Bowman Draft",
+    manufacturer: "Topps",
+    source: "https://example.test/bowman-draft",
+    parallels: [
+      { subset: "Base Chrome", name: "Refractor", serialRun: null },
+      { subset: "Base Chrome", name: "Gold Refractor /50 (1:193 Hobby", serialRun: null },
+      { subset: "Base Chrome", name: "Purple Refractor", serialRun: 250 },
+      { subset: "Base Paper", name: "Purple Refractor", serialRun: 199 },
+      { subset: "Chrome Prospect Autographs", name: "Red Refractor", serialRun: 5 },
+      { subset: "Base Chrome", name: "(1:20 Hobby", serialRun: null },
+    ],
+  };
+
+  it("takes the base subsets only, Base first, one row per name; two runs for one name stay unknown", () => {
+    const record = hobbyListRecord(page);
+    assert.ok(record);
+    assert.equal(record.official, false);
+    assert.equal(record.source, "https://example.test/bowman-draft");
+    assert.deepEqual(
+      record.parallels.map((row) => [row.name, row.serialRun]),
+      [
+        ["Base", null],
+        ["Refractor", null],
+        ["Gold Refractor", 50],
+        ["Purple Refractor", null],
+      ],
+    );
+  });
+
+  it("a page with no base parallels gives no list", () => {
+    assert.equal(hobbyListRecord({ ...page, parallels: [{ subset: "Autographs", name: "Gold", serialRun: 50 }] }), null);
+  });
+});
+
+describe("Bowman's paper and chrome lists", () => {
+  it("get the BP- and BCP- split the 2024 list has; any other product is left alone", () => {
+    const bowman: ProductRecord = {
+      sport: "Baseball",
+      yearLabel: "2025",
+      product: "Bowman",
+      manufacturer: "Topps",
+      parallels: [
+        { subset: "Base", name: "Base", serialRun: null },
+        { subset: "Base and Paper Prospects", name: "Fuchsia Border", serialRun: 299 },
+        { subset: "Chrome Prospects", name: "Speckle", serialRun: 299 },
+      ],
+    };
+    const split = withBowmanPrefixes(bowman);
+    assert.deepEqual(split.parallels.map((row) => row.cardPrefixes ?? null), [null, ["", "BP"], ["BCP"]]);
+    assert.equal(withBowmanPrefixes({ ...bowman, product: "Bowman Chrome" }).parallels[1].cardPrefixes, undefined);
+    assert.equal(withBowmanPrefixes(split), split);
+  });
+
+  it("in the shipped file, a BP- card's /299 is the Fuchsia Border alone, and a BCP- card's is the chrome Speckle", async () => {
+    const { loadProductData, parallelsIn } = await import("./product-data");
+    const data = await loadProductData();
+    const at = (cardNumber: string, run: number) =>
+      parallelsIn(data, "Baseball", "2025", "Bowman", cardNumber).filter((item) => item.serialRun === run).map((item) => item.name);
+    assert.deepEqual(at("BP-38", 299), ["Fuchsia Border"]);
+    assert.deepEqual(at("BCP-22", 299), ["Speckle"]);
+    // Three chrome parallels share /199: still open.
+    assert.equal(at("BCP-22", 199).length, 3);
   });
 });

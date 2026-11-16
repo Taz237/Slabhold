@@ -6,9 +6,9 @@
  *   npx tsx scripts/merge-print-runs.ts            write the file and print what changed
  *   npx tsx scripts/merge-print-runs.ts --dry-run  print what would change, write nothing
  */
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { mergePrintRuns, type RunSourceRow } from "@/lib/cards/print-run-merge";
+import { hobbyListRecord, mergePrintRuns, withBowmanPrefixes, type RunSourceRow } from "@/lib/cards/print-run-merge";
 import type { ProductRecord } from "@/lib/cards/product-data";
 
 const ROOT = process.cwd();
@@ -25,7 +25,7 @@ const merged = records.map((record) => {
     return record;
   }
   const source = JSON.parse(readFileSync(path, "utf8")) as { source?: string; parallels: RunSourceRow[] };
-  const result = mergePrintRuns(record, source);
+  const result = mergePrintRuns(withBowmanPrefixes(record), source);
   if (result.record === record && result.filled.length === 0) {
     console.log(`${slug(record)}: ${record.parallels.some((row) => row.serialRun != null) ? "already has print runs" : "nothing to fill"}, left as it is`);
     return record;
@@ -39,6 +39,20 @@ const merged = records.map((record) => {
   );
   return result.record;
 });
+
+// Topps products with a hobby list in the repo and no list of ours: their base list, not official.
+type HobbyFile = { sport: string; yearLabel: string; product: string; manufacturer: string; source?: string; parallels: RunSourceRow[] };
+const have = new Set(merged.map(slug));
+for (const file of readdirSync(join(ROOT, "scripts/checklist-csv")).filter((name) => name.endsWith(".parallels.json")).sort()) {
+  const page = JSON.parse(readFileSync(join(ROOT, "scripts/checklist-csv", file), "utf8")) as HobbyFile;
+  if (page.manufacturer !== "Topps") continue;
+  const record = hobbyListRecord(page);
+  if (!record || have.has(slug(record))) continue;
+  have.add(slug(record));
+  merged.push(record);
+  const numbered = record.parallels.filter((row) => row.serialRun != null).length;
+  console.log(`${slug(record)}: new list from the hobby page, ${record.parallels.length} parallels (${numbered} with a print run)`);
+}
 
 if (dryRun) {
   console.log("\nDry run: nothing written.");
