@@ -392,7 +392,7 @@ describe("the plus button on Home's composer", () => {
     assert.match(composer, /keepComposeDraft\(key, threadDraftFromHome\(\{ body, images, cardId, gif \}\)\);\s+clear\(\);\s+router\.push\("\/compose"\)/);
     assert.match(composer, /postsSupportGifsAndThreads\(supabase\)/);
     assert.equal(composer.match(/\{extrasOn \? \(/g)?.length, 2, "both buttons wait for the database columns");
-    assert.match(composer, /disabled=\{!hasDraft \|\| overLimit \|\| readingPhoto \|\| sending\}/);
+    assert.match(composer, /disabled=\{!hasDraft \|\| overLimit \|\| readingPhoto \|\| sending(?: \|\| video\.active)?\}/);
     assert.match(composer, /createPost\(\{[^}]*\bgif,/);
   });
 });

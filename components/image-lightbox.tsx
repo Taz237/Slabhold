@@ -1,12 +1,15 @@
 "use client";
 
 import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useRef, useState } from "react";
+import type { LightboxVideo } from "@/components/viewer-video";
 
 export type LightboxOptions = {
   /** The thumbnails the photos open from, by gallery index: the open grows out of them and the close shrinks back. */
-  origins?: readonly (HTMLImageElement | null | undefined)[];
+  origins?: readonly (HTMLElement | null | undefined)[];
   /** The post's actions along the bottom, like X. `close` starts the close animation. */
   footer?: (close: () => void) => React.ReactNode;
+  /** Opens this video instead of a photo. `src` is its poster. */
+  video?: LightboxVideo;
 };
 
 type OpenLightbox = (src: string, alt: string, gallery?: readonly string[], options?: LightboxOptions) => void;
@@ -15,8 +18,9 @@ export type ViewerState = {
   images: string[];
   index: number;
   alt: string;
-  origins: readonly (HTMLImageElement | null | undefined)[];
+  origins: readonly (HTMLElement | null | undefined)[];
   footer?: (close: () => void) => React.ReactNode;
+  video?: LightboxVideo;
   key: number;
 };
 
@@ -51,7 +55,7 @@ export function ImageLightboxProvider({ children }: { children: React.ReactNode 
   const open = useCallback<OpenLightbox>((src, alt, gallery, options) => {
     const active = document.activeElement;
     openerRef.current = active instanceof HTMLElement ? active : null;
-    const images = gallery && gallery.length > 0 ? [...gallery] : [src];
+    const images = !options?.video && gallery && gallery.length > 0 ? [...gallery] : [src];
     const found = images.indexOf(src);
     keyRef.current += 1;
     setViewer({
@@ -60,6 +64,7 @@ export function ImageLightboxProvider({ children }: { children: React.ReactNode 
       alt,
       origins: options?.origins ?? [],
       footer: options?.footer,
+      video: options?.video,
       key: keyRef.current,
     });
   }, []);

@@ -44,6 +44,7 @@ import {
 import { authSnapshotReload } from "@/lib/social/auth-snapshot";
 import { type LoadedPostPage, loadPostById, loadPostEngagement, loadPostPage, loadThread } from "@/lib/social/load-feed-page";
 import type { PostGif } from "@/lib/social/gifs";
+import type { PostVideo } from "@/lib/social/videos";
 import { orderThread, postsAfterThreadDelete } from "@/lib/social/threads";
 import { loadRealtimePatch } from "@/lib/social/realtime-slices";
 import { newestReplyAt } from "@/lib/social/reply-paging";
@@ -193,6 +194,8 @@ export type SocialContextValue = {
       imageDataUrl: string | null;
       images?: readonly string[] | null;
       gif?: PostGif | null;
+      /** The post's video, unchanged by an edit. */
+      video?: PostVideo | null;
     },
   ) => Promise<AuthResult>;
   deletePost: (postId: string) => Promise<AuthResult>;
@@ -206,6 +209,8 @@ export type SocialContextValue = {
     body: string,
     images?: readonly string[],
     gif?: PostGif | null,
+    /** One uploaded video. A reply has photos, a GIF or a video, never a mix. */
+    video?: PostVideo | null,
   ) => Promise<AuthResult>;
   isLiked: (postId: string) => boolean;
   isReposted: (postId: string) => boolean;
@@ -1744,6 +1749,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         imageDataUrl: string | null;
         images?: readonly string[] | null;
         gif?: PostGif | null;
+        video?: PostVideo | null;
       },
     ): Promise<AuthResult> => {
       const client = supabaseRef.current;
@@ -1758,7 +1764,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
             );
             const gifEdit = input.gif === undefined ? {} : { gif: input.gif };
             if (known) {
-              const photos = input.gif ? [] : draftPostPhotos(input);
+              const photos = input.gif || input.video ? [] : draftPostPhotos(input);
               storeRemembered(
                 rememberedRef.current,
                 [{
@@ -1773,7 +1779,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
               );
             }
             // In place: the edited text and photos on every copy of the post.
-            const photos = input.gif ? [] : draftPostPhotos(input);
+            const photos = input.gif || input.video ? [] : draftPostPhotos(input);
             const edit = (post: Post) =>
               post.id === postId
                 ? { ...post, body: input.body, imageDataUrl: photos[0] ?? null, images: photos, ...gifEdit }
@@ -2187,11 +2193,13 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       body: string,
       images?: readonly string[],
       gif?: PostGif | null,
+      videoInput?: PostVideo | null,
     ): Promise<AuthResult> => {
-      const photos = gif ? [] : draftPostPhotos({ images: images ?? [] });
+      const video = gif ? null : (videoInput ?? null);
+      const photos = gif || video ? [] : draftPostPhotos({ images: images ?? [] });
       const text = body.trim();
-      if (!text && photos.length === 0 && !gif) return { error: "Write a comment." };
-      const sendKey = `reply:${postId}:${text}:${photos.join("|")}:${gif?.id ?? ""}`;
+      if (!text && photos.length === 0 && !gif && !video) return { error: "Write a comment." };
+      const sendKey = `reply:${postId}:${text}:${photos.join("|")}:${gif?.id ?? ""}:${video?.url ?? ""}`;
       const inflight = inflightRef.current.get(sendKey);
       if (inflight) return inflight as Promise<AuthResult>;
       const run = (async (): Promise<AuthResult> => {
@@ -2206,6 +2214,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
             body: text,
             images: photos,
             gif,
+            video,
           });
           const replaceComments = (map: (comments: SocialSnapshot["comments"]) => SocialSnapshot["comments"]) => {
             setRemote((existing) => {
@@ -2228,6 +2237,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
               post?.authorId ?? null,
               photos,
               gif,
+              video,
             );
             if (result.error) {
               replaceComments((comments) => withoutOptimisticReply(comments, optimistic.id));

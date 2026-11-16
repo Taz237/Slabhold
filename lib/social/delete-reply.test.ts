@@ -283,7 +283,8 @@ describe("remote delete comment", () => {
       "delete",
       "eq:id=c1",
       "eq:user_id=author",
-      "select:id, post_id, body, image_urls",
+      // The deleted row comes back with its video, so its files can be removed too.
+      "select:id, post_id, body, image_urls, video",
     ]);
     assert.deepEqual(client.noteDeletes, [
       [

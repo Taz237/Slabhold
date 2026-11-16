@@ -11,6 +11,7 @@ import { useImageLightbox, type LightboxOptions } from "@/components/image-light
 import { PostCardTile, postCardHref } from "@/components/post-card-tile";
 import { PostPhotoGrid } from "@/components/post-photo-grid";
 import { PostGifPlayer } from "@/components/post-gif";
+import { PostVideoPlayer } from "@/components/post-video";
 import { isInThread } from "@/lib/social/threads";
 import { ReplyPhotos } from "@/components/reply-photos";
 import { MentionText } from "@/components/mention-text";
@@ -236,6 +237,9 @@ export const Tweet = memo(function Tweet({
               />
             ) : null}
             {post.gif && !photos.length ? <PostGifPlayer gif={post.gif} /> : null}
+            {post.video && !photos.length && !post.gif ? (
+              <PostVideoPlayer video={post.video} fit={variant === "detail" ? "full" : "feed"} />
+            ) : null}
             {post.card && pill ? (
               <div className="mt-3 -mb-1 flex justify-center">
                 <PostPill label={pill} solid={graded} />
@@ -346,6 +350,7 @@ function CommentPreview({ postId, comments }: { postId: string; comments: PostCo
               ) : null}
               <ReplyPhotos images={comment.images} />
               {comment.gif ? <PostGifPlayer gif={comment.gif} size="reply" /> : null}
+              {comment.video && !comment.gif ? <PostVideoPlayer video={comment.video} size="reply" /> : null}
             </div>
           </div>
         );

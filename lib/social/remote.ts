@@ -51,6 +51,16 @@ import {
 import { GIFS_UNAVAILABLE, gifColumnMissing, gifForSave, type PostGif } from "./gifs";
 import { postExtrasFromRow } from "./post-extras";
 import {
+  VIDEO_BUCKET,
+  VIDEOS_UNAVAILABLE,
+  noteVideoMissing,
+  postVideoPaths,
+  sanitizeVideo,
+  videoColumnMissing,
+  videoKnownMissing,
+  type PostVideo,
+} from "./videos";
+import {
   notePostExtrasMissing,
   THREAD_MAX,
   threadColumnMissing,
@@ -125,6 +135,7 @@ type PostRow = {
   meta?: unknown;
   like_count?: number | null;
   gif?: unknown;
+  video?: unknown;
   thread_id?: string | null;
   thread_position?: number | null;
 };
@@ -862,12 +873,15 @@ export async function remoteAddComment(
   postAuthorId: string | null,
   images?: readonly string[] | null,
   gifInput?: PostGif | null,
+  videoInput?: PostVideo | null,
 ): Promise<AuthResult> {
   const text = body.trim().slice(0, COMMENT_LIMIT);
   const gif = gifForSave(gifInput);
-  // A reply has photos or a GIF, not both.
-  const photos = gif ? [] : draftPostPhotos({ images: images ?? [] });
-  if (!text && photos.length === 0 && !gif) return { error: "Write a comment." };
+  const video = gif ? null : sanitizeVideo(videoInput, authorId);
+  if (videoInput && !gif && !video) return { error: "Couldn't attach that video. Remove it and try again." };
+  // A reply has photos, a GIF or a video, never a mix.
+  const photos = gif || video ? [] : draftPostPhotos({ images: images ?? [] });
+  if (!text && photos.length === 0 && !gif && !video) return { error: "Write a comment." };
   const textProblem = contentProblem(text);
   if (textProblem) return { error: textProblem };
   if (photos.length > 0 && replyImagesKnownMissing()) return { error: REPLY_PHOTOS_UNAVAILABLE };
@@ -882,19 +896,31 @@ export async function remoteAddComment(
     ? await uploadPostImages(supabase, authorId, photos)
     : { urls: [] as string[], createdPaths: [] as string[] };
   if (uploaded.error) return { error: uploaded.error };
-  const row: { post_id: string; user_id: string; body: string; image_urls?: string[]; gif?: PostGif } = {
+  const row: {
+    post_id: string;
+    user_id: string;
+    body: string;
+    image_urls?: string[];
+    gif?: PostGif;
+    video?: PostVideo;
+  } = {
     post_id: postId,
     user_id: authorId,
     body: text,
   };
   if (uploaded.urls.length) row.image_urls = uploaded.urls;
   if (gif) row.gif = gif;
+  if (video) row.video = video;
   const { error } = await supabase.from("comments").insert(row);
   if (error) {
     await discardPostImages(supabase, uploaded.createdPaths);
     if (gif && gifColumnMissing(error)) {
       notePostExtrasMissing();
       return { error: GIFS_UNAVAILABLE };
+    }
+    if (video && videoColumnMissing(error)) {
+      noteVideoMissing();
+      return { error: VIDEOS_UNAVAILABLE };
     }
     if (replyImageColumnMissing(error)) {
       noteReplyImagesMissing();
@@ -922,7 +948,7 @@ export async function remoteAddComment(
         actor_id: authorId,
         kind: "comment",
         post_id: postId,
-        preview: replyNoticePreview(text, noticeImages) ?? (gif ? "GIF" : null),
+        preview: replyNoticePreview(text, noticeImages) ?? (gif ? "GIF" : video ? "Video" : null),
       });
       if (noteError && !missingTable(noteError)) notice = noteError.message;
     }
@@ -1014,6 +1040,7 @@ type PreparedPost = {
   };
   meta: Record<string, unknown> | null;
   gif: PostGif | null;
+  video: PostVideo | null;
   body: string;
   hasCard: boolean;
   shareOfNewCard: boolean;
@@ -1029,17 +1056,20 @@ async function preparePost(
 ): Promise<{ error: string } | { post: PreparedPost }> {
   const body = input.body.trim();
   const gif = gifForSave(input.gif);
-  // A post has photos or a GIF, not both.
-  const photos = gif ? [] : draftPostPhotos(input);
+  // Only a video this author uploaded to the post-videos bucket. A GIF wins over a video.
+  const video = gif ? null : sanitizeVideo(input.video, authorId);
+  if (input.video && !gif && !video) return { error: "Couldn't attach that video. Remove it and try again." };
+  // A post has photos, a GIF or a video, never a mix.
+  const photos = gif || video ? [] : draftPostPhotos(input);
   const quotedPostId = input.quotedPostId?.trim() || null;
   if (quotedPostId) {
     const quoteError = validateQuoteContent({
       body,
-      imageDataUrl: photos[0] ?? gif?.still ?? null,
+      imageDataUrl: photos[0] ?? gif?.still ?? video?.poster ?? null,
       card: input.card,
     });
     if (quoteError) return { error: quoteError };
-  } else if (!body && photos.length === 0 && !input.card && !gif) {
+  } else if (!body && photos.length === 0 && !input.card && !gif && !video) {
     return { error: "Write something, add a photo, or attach a card." };
   }
   if (body.length > 280) return { error: "Keep it to 280 characters." };
@@ -1068,12 +1098,14 @@ async function preparePost(
       row: {
         user_id: authorId,
         content: body,
-        image_url: uploaded.urls[0] ?? null,
+        // A video post keeps its poster here too, so link previews and share images show it.
+        image_url: uploaded.urls[0] ?? video?.poster ?? null,
         card: card.card,
         quoted_post_id: quotedPostId,
       },
       meta: metaWithImages(null, uploaded.urls),
       gif,
+      video,
       body,
       hasCard: Boolean(input.card),
       shareOfNewCard: Boolean(input.shareOfNewCard),
@@ -1098,9 +1130,13 @@ export async function remoteCreatePost(
   const prepared = await preparePost(supabase, authorId, input);
   if ("error" in prepared) return { error: prepared.error };
   const { post } = prepared;
-  // The gif key is only sent with a GIF, so posts save as before on a
-  // database that has no gif column yet.
-  const base = post.gif ? { ...post.row, gif: post.gif } : post.row;
+  // The gif and video keys are only sent with a GIF or a video, so posts save
+  // as before on a database that has no such column yet.
+  const base = {
+    ...post.row,
+    ...(post.gif ? { gif: post.gif } : {}),
+    ...(post.video ? { video: post.video } : {}),
+  };
   const meta = post.meta;
   let created: { id: string } | null = null;
   let error: { message?: string; code?: string } | null = null;
@@ -1124,6 +1160,10 @@ export async function remoteCreatePost(
     if (post.gif && gifColumnMissing(error)) {
       notePostExtrasMissing();
       return { error: GIFS_UNAVAILABLE };
+    }
+    if (post.video && videoColumnMissing(error)) {
+      noteVideoMissing();
+      return { error: VIDEOS_UNAVAILABLE };
     }
     return {
       error: rlsBlocked(error) ? BLOCKED_INTERACTION : (error?.message ?? "Could not save that post."),
@@ -1171,16 +1211,23 @@ export async function remoteCreateThread(
 
   const slots = threadSlots(prepared.length, newThreadId());
   // Every row carries the same keys: one insert, in thread order.
+  // The video key goes on every row only when one of them has a video.
+  const anyVideo = prepared.some((post) => post.video);
   const rows = prepared.map((post, index) => ({
     ...post.row,
     meta: post.meta,
     gif: post.gif,
+    ...(anyVideo ? { video: post.video } : {}),
     thread_id: slots[index]!.threadId,
     thread_position: slots[index]!.threadPosition,
   }));
   const { data, error } = await supabase.from("posts").insert(rows).select("id, thread_position");
   if (error || !data || data.length !== rows.length) {
     await discardPrepared(supabase, prepared);
+    if (anyVideo && videoColumnMissing(error)) {
+      noteVideoMissing();
+      return { error: VIDEOS_UNAVAILABLE };
+    }
     if (threadColumnMissing(error) || gifColumnMissing(error)) {
       notePostExtrasMissing();
       return { error: THREADS_UNAVAILABLE };
@@ -1214,6 +1261,8 @@ export async function remoteUpdatePost(
     images?: readonly string[] | null;
     /** Left out: the GIF stays as it is. Null takes it off. */
     gif?: PostGif | null;
+    /** The post's video. An edit never changes it; its poster stays on image_url. */
+    video?: PostVideo | null;
   },
 ): Promise<AuthResult> {
   const body = input.body.trim();
@@ -1221,7 +1270,8 @@ export async function remoteUpdatePost(
   const bodyProblem = contentProblem(body);
   if (bodyProblem) return { error: bodyProblem };
   const gif = input.gif === undefined ? undefined : gifForSave(input.gif);
-  const photos = gif ? [] : draftPostPhotos(input);
+  const video = sanitizeVideo(input.video, authorId);
+  const photos = gif || video ? [] : draftPostPhotos(input);
   const uploaded = await uploadPostImages(supabase, authorId, photos);
   if (uploaded.error) return { error: uploaded.error };
   const forgetUploads = async (message: string): Promise<AuthResult> => {
@@ -1236,7 +1286,7 @@ export async function remoteUpdatePost(
     .maybeSingle();
   const base: { content: string; image_url: string | null; gif?: PostGif | null } = {
     content: body,
-    image_url: uploaded.urls[0] ?? null,
+    image_url: uploaded.urls[0] ?? video?.poster ?? null,
   };
   // Only sent when the editor changed it, so an edit saves on a database with no gif column.
   if (gif !== undefined) base.gif = gif;
@@ -1459,9 +1509,48 @@ export async function remoteUnpinPost(supabase: SupabaseClient): Promise<AuthRes
   return message ? { error: message } : {};
 }
 
+/** The video a post or reply stores, read before it is deleted. Null when it has none. */
+async function storedVideo(
+  supabase: SupabaseClient,
+  table: "posts" | "comments",
+  id: string,
+  authorId: string,
+): Promise<PostVideo | null> {
+  if (videoKnownMissing()) return null;
+  try {
+    const { data, error } = await supabase
+      .from(table)
+      .select("video")
+      .eq("id", id)
+      .eq("user_id", authorId)
+      .maybeSingle();
+    if (error) {
+      if (videoColumnMissing(error)) noteVideoMissing();
+      return null;
+    }
+    return sanitizeVideo((data as { video?: unknown } | null)?.video, authorId);
+  } catch {
+    return null;
+  }
+}
+
+/** Best effort: the post is gone either way. A file left behind is only storage. */
+export async function removeStoredVideo(supabase: SupabaseClient, video: PostVideo | null) {
+  const paths = postVideoPaths(video);
+  if (!paths.length) return;
+  try {
+    await supabase.storage.from(VIDEO_BUCKET).remove(paths);
+  } catch {
+    // Ignored. The delete already succeeded.
+  }
+}
+
 export async function remoteDeletePost(supabase: SupabaseClient, authorId: string, postId: string) {
+  const video = await storedVideo(supabase, "posts", postId, authorId);
   const { error } = await supabase.from("posts").delete().eq("id", postId).eq("user_id", authorId);
   if (error) return { error: error.message };
+  // Deleting a post deletes its video and poster from storage.
+  await removeStoredVideo(supabase, video);
   return {};
 }
 
@@ -1547,14 +1636,27 @@ export async function remoteDeleteComment(
   authorId: string,
   commentId: string,
 ) {
+  // The deleted row comes back with its video, so the file can go too.
+  const withVideo = !videoKnownMissing();
   const removed = await supabase
     .from("comments")
     .delete()
     .eq("id", commentId)
     .eq("user_id", authorId)
-    .select("id, post_id, body, image_urls");
+    .select((withVideo ? "id, post_id, body, image_urls, video" : "id, post_id, body, image_urls") as string);
   let data = removed.data;
   let error = removed.error;
+  if (error && withVideo && videoColumnMissing(error)) {
+    noteVideoMissing();
+    const retry = await supabase
+      .from("comments")
+      .delete()
+      .eq("id", commentId)
+      .eq("user_id", authorId)
+      .select("id, post_id, body, image_urls");
+    data = retry.data as typeof data;
+    error = retry.error;
+  }
   if (error && replyImageColumnMissing(error)) {
     noteReplyImagesMissing();
     const retry = await supabase
@@ -1575,12 +1677,14 @@ export async function remoteDeleteComment(
   if (!Array.isArray(data) || data.length === 0) {
     return { error: "Could not delete that reply." };
   }
-  const deleted = data[0] as {
+  const deleted = data[0] as unknown as {
     id: string;
     post_id?: string | null;
     body?: string | null;
     image_urls?: unknown;
+    video?: unknown;
   };
+  await removeStoredVideo(supabase, sanitizeVideo(deleted.video, authorId));
   if (deleted.post_id) {
     await deleteOwnReplyPreviewNotifications(
       supabase,

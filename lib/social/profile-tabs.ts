@@ -21,14 +21,15 @@ export function profileTabFromQuery(value: string | null | undefined): ProfileTa
 }
 
 export function postHasProfileMedia(
-  post: Pick<Post, "imageDataUrl" | "images" | "mailDay" | "mailDayCards">,
+  post: Pick<Post, "imageDataUrl" | "images" | "mailDay" | "mailDayCards" | "video">,
 ): boolean {
   if (imagesFromPost(post).length > 0) return true;
+  if (post.video) return true;
   if (post.mailDay?.photos.some((photo) => photo.length > 0)) return true;
   return Boolean(post.mailDayCards?.some((card) => card.photos.some((photo) => photo.length > 0)));
 }
 
-/** Photos on this person's own posts. Reposts of someone else's photo stay out. */
+/** Photos and videos on this person's own posts. Reposts of someone else's stay out. */
 export function profileMediaItems(items: readonly TimelineItem[], userId: string): TimelineItem[] {
   return items.filter(
     (item) => !item.repostedBy && item.post.authorId === userId && postHasProfileMedia(item.post),

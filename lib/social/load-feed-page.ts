@@ -21,8 +21,9 @@ import {
   readLikeCount,
 } from "./likes";
 import { mappedPostImages } from "./post-photos";
-import { POST_EXTRA_COLUMNS, postExtrasFromRow, replyGifFromRow } from "./post-extras";
+import { POST_EXTRA_COLUMNS, POST_VIDEO_COLUMN, postExtrasFromRow, replyGifFromRow, replyVideoFromRow } from "./post-extras";
 import { gifColumnMissing } from "./gifs";
+import { noteVideoMissing, videoColumnMissing, videoKnownMissing } from "./videos";
 import {
   isThreadContinuation,
   notePostExtrasMissing,
@@ -53,6 +54,8 @@ const POST_COLUMNS =
 const POST_SELECT = `${POST_COLUMNS}, like_count`;
 /** With the GIF and thread columns. Used until a read says they are not there yet. */
 const POST_SELECT_EXTRAS = `${POST_SELECT}, ${POST_EXTRA_COLUMNS}`;
+/** With the video column too. Used until a read says it is not there yet. */
+const POST_SELECT_VIDEO = `${POST_SELECT_EXTRAS}, ${POST_VIDEO_COLUMN}`;
 const PROFILE_SELECT =
   "id, username, display_name, bio, avatar_url, cover_url, accent, created_at";
 
@@ -70,6 +73,7 @@ type PostRow = {
   meta?: unknown;
   like_count?: number | null;
   gif?: unknown;
+  video?: unknown;
   thread_id?: string | null;
   thread_position?: number | null;
 };
@@ -264,6 +268,15 @@ async function selectPosts(
  * and thread columns, or without like_count, is read without them.
  */
 async function readPostRows(run: (columns: string) => PromiseLike<QueryResult>): Promise<PostRow[]> {
+  if (!postExtrasKnownMissing() && !videoKnownMissing()) {
+    const withVideo = await run(POST_SELECT_VIDEO);
+    if (!withVideo.error) return (withVideo.data ?? []) as PostRow[];
+    // Only a missing video column falls back here. Anything else is handled below as before.
+    if (videoColumnMissing(withVideo.error)) noteVideoMissing();
+    else if (!gifColumnMissing(withVideo.error) && !threadColumnMissing(withVideo.error) && !missingLikeCountColumn(withVideo.error)) {
+      throw new Error(withVideo.error.message);
+    }
+  }
   if (!postExtrasKnownMissing()) {
     const full = await run(POST_SELECT_EXTRAS);
     if (!full.error) return (full.data ?? []) as PostRow[];
@@ -598,6 +611,7 @@ type CommentRow = {
   created_at: string;
   image_urls?: unknown;
   gif?: unknown;
+  video?: unknown;
 };
 
 /** Same cap as the old home window. The quotes tab stays bounded to this post. */
@@ -685,6 +699,7 @@ function mapComment(row: CommentRow): PostComment {
     body: row.body,
     ...(images.length ? { images } : {}),
     ...replyGifFromRow(row),
+    ...replyVideoFromRow(row),
     createdAt: row.created_at,
   };
 }
@@ -713,9 +728,14 @@ async function selectCommentsForPosts(
     query = query.order("created_at", { ascending: true });
     return execute(query, viewerId, true, hidden);
   };
+  const withVideo = !postExtrasKnownMissing() && !videoKnownMissing();
   let { data, error } = postExtrasKnownMissing()
     ? await run(COMMENT_COLUMNS_WITH_IMAGES)
-    : await run(`${COMMENT_COLUMNS_WITH_IMAGES}, gif`);
+    : await run(`${COMMENT_COLUMNS_WITH_IMAGES}, gif${withVideo ? ", video" : ""}`);
+  if (error && withVideo && videoColumnMissing(error)) {
+    noteVideoMissing();
+    ({ data, error } = await run(`${COMMENT_COLUMNS_WITH_IMAGES}, gif`));
+  }
   if (error && gifColumnMissing(error)) {
     notePostExtrasMissing();
     ({ data, error } = await run(COMMENT_COLUMNS_WITH_IMAGES));
