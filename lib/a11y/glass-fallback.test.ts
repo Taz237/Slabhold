@@ -14,7 +14,7 @@ const GLASS: [file: string, marker: RegExp][] = [
   ["components/app-shell.tsx", /glass sticky top-0 z-20 bg-\[var\(--chrome-bg\)\][^`]*backdrop-blur-xl/],
   ["components/app-shell.tsx", /glass fixed inset-x-0 bottom-0 z-30[^"]*backdrop-blur-xl/],
   ["components/timeline-ui.tsx", /glass bg-\[var\(--chrome-bg\)\] backdrop-blur-xl/],
-  ["components/moving-today-page.tsx", /glass bg-\[var\(--chrome-bg\)\] backdrop-blur-xl/],
+  ["components/catalog-page.tsx", /glass bg-\[var\(--chrome-bg\)\] backdrop-blur-xl/],
   ["components/add-card/flow-ui.tsx", /glass bg-\[color-mix[^"]*backdrop-blur-xl/],
   ["components/message-thread.tsx", /glass bg-\[color-mix[^"]*backdrop-blur-xl/],
 ];

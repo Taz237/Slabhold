@@ -284,7 +284,7 @@ export function MoverTile({
   );
 }
 
-const RAIL_LIST =
+export const RAIL_LIST =
   "flex snap-x snap-mandatory scroll-px-4 items-end gap-2.5 overflow-x-auto overscroll-x-contain px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden after:w-1.5 after:shrink-0 after:content-['']";
 
 /**

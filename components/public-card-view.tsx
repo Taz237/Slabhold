@@ -64,8 +64,51 @@ import { usePublicCards } from "@/lib/social/use-public-cards";
 import { useProfiles } from "@/lib/social/use-profiles";
 import { ReadRetry } from "@/components/read-retry";
 import { TeamBadge } from "@/components/team-badge";
+import { Avatar } from "@/components/avatar";
+import { FollowButton } from "@/components/follow-button";
 
 export { PublicCardSkeleton };
+
+type CardOwnerRef = {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+  accent?: string;
+};
+
+/** Who owns this card: avatar and @handle to their profile, then Follow. */
+export function CardOwnerRow({ owner, followReady }: { owner: CardOwnerRef; followReady: boolean }) {
+  return (
+    <div data-card-owner="" className="mt-4 flex items-center gap-3">
+      <Link
+        href={userHref(owner.username)}
+        aria-label={`${owner.displayName}, @${owner.username}`}
+        className="flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-violet-600"
+      >
+        <Avatar
+          name={owner.displayName}
+          image={owner.avatarUrl}
+          accent={owner.accent}
+          className="h-10 w-10"
+          expandable={false}
+        />
+        <span className="min-w-0">
+          <span className="flex items-center gap-1 truncate text-15 leading-5 font-semibold">
+            <span className="truncate">{owner.displayName}</span>
+            <TeamBadge username={owner.username} inLink />
+          </span>
+          <span className="block truncate text-13 leading-5 text-zinc-500">@{owner.username}</span>
+        </span>
+      </Link>
+      {followReady ? (
+        <FollowButton userId={owner.id} />
+      ) : (
+        <span aria-hidden="true" className="inline-block h-8 min-w-[6.5rem] shrink-0" />
+      )}
+    </div>
+  );
+}
 
 type SalesChartView = ComponentType<{
   card: { id: string; estimatedSellPrice: number; purchasePrice: number };
@@ -133,6 +176,8 @@ export function PublicCardView({
         card={early}
         displayName={initialOwner.displayName}
         ownerUsername={initialOwner.username}
+        owner={initialOwner}
+        followReady={false}
         backHref={backHref}
         userId={null}
         canFlag={false}
@@ -190,6 +235,14 @@ export function PublicCardView({
       card={card}
       displayName={profile.displayName}
       ownerUsername={profile.username}
+      owner={{
+        id: profile.id,
+        username: profile.username,
+        displayName: profile.displayName,
+        avatarUrl: profile.avatarDataUrl,
+        accent: profile.accent,
+      }}
+      followReady
       backHref={backHref}
       userId={social.user?.id ?? null}
       canFlag={isCardOwner(profile.id, social.user?.id ?? null)}
@@ -204,6 +257,8 @@ function PublicCardAnalytics({
   card,
   displayName,
   ownerUsername,
+  owner,
+  followReady,
   backHref,
   userId,
   canFlag,
@@ -216,6 +271,10 @@ function PublicCardAnalytics({
   displayName: string;
   /** For the Slabhold team badge beside the owner's name. */
   ownerUsername?: string | null;
+  /** Avatar, @handle and Follow under the card. */
+  owner: CardOwnerRef;
+  /** False until the snapshot says who is viewing: Follow's room is held, not drawn. */
+  followReady: boolean;
   backHref: string;
   userId: string | null;
   canFlag: boolean;
@@ -388,6 +447,7 @@ function PublicCardAnalytics({
             ))}
           </dl>
         ) : null}
+        <CardOwnerRow owner={owner} followReady={followReady} />
         {messageHref ? (
           <Link href={messageHref} className={`${outlineButton} mt-4`}>
             Message owner

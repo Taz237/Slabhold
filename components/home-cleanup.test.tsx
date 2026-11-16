@@ -175,6 +175,7 @@ function assertNoRows(host: HTMLElement, lane: string) {
   }
   assert.equal(host.querySelector('a[href="/comp"]'), null, lane);
   assert.equal(host.querySelector('a[href="/moving-today"]'), null, lane);
+  assert.equal(host.querySelector('a[href="/catalog"]'), null, lane);
   assert.equal(host.querySelector('a[href="/leaderboard"]'), null, lane);
 }
 
@@ -284,7 +285,7 @@ describe("Home after the cleanup", () => {
   });
 });
 
-describe("Moving today in the drawer", () => {
+describe("Catalog in the drawer", () => {
   for (const flag of [false, true]) {
     it(`sits directly after Leaderboard (flag ${flag ? "on" : "off"})`, async () => {
       setFlag(flag);
@@ -296,9 +297,10 @@ describe("Moving today in the drawer", () => {
         const moving = drawer.rows[leaderboard + 1];
         assert.ok(moving);
         assert.equal(moving.tagName, "A");
-        assert.equal(moving.getAttribute("href"), "/moving-today");
-        assert.equal(label(moving), "Moving today");
-        assert.equal(labels.filter((name) => name === "Moving today").length, 1);
+        assert.equal(moving.getAttribute("href"), "/catalog");
+        assert.equal(label(moving), "Catalog");
+        assert.equal(labels.filter((name) => name === "Catalog").length, 1);
+        assert.equal(labels.includes("Moving today"), false);
         if (flag) {
           const quick = labels.indexOf("Quick Comp");
           assert.ok(quick >= 0, labels.join(", "));

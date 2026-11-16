@@ -15,7 +15,6 @@ import {
   MovingTodaySkeleton,
   RAIL_FIRST_TILES,
 } from "@/components/moving-today";
-import { MovingTodayAll } from "@/components/moving-today-page";
 import {
   createTtlCache,
   MOVING_TODAY_CACHE_SECONDS,
@@ -28,7 +27,6 @@ import {
   defaultDirection,
   directionCounts,
   directionTiles,
-  filtersFromSearch,
   moveBadgeText,
   moverFreshness,
   moverGain,
@@ -347,7 +345,7 @@ describe("Movers rail", () => {
     assert.match(source, /const RAIL_PAINTED_TILES = 3;/);
     // Full prefetch: the auto prefetch of an ISR route with new params only fetches the route tree.
     assert.match(source, /prefetch=\{prefetch\}/);
-    const page = read("components/moving-today-page.tsx");
+    const page = read("components/catalog-page.tsx");
     assert.doesNotMatch(page, /useWarmOnPointerDown|onPointerDown=/);
     assert.match(page, /prefetch=\{index < PAINTED_TILES\}/);
     assert.match(source, /href=\{MOVING_TODAY_PATH\}\s+prefetch=\{false\}/);
@@ -532,261 +530,6 @@ describe("Movers helpers", () => {
   });
 });
 
-describe("See all", () => {
-  function setVibrate(log: number[]) {
-    Object.defineProperty(window.navigator, "vibrate", {
-      configurable: true,
-      value: (ms: number) => {
-        log.push(ms);
-        return true;
-      },
-    });
-  }
-
-  it("toggles Up, Down and All in ?dir=, with counts, in a 2-column grid of shared tiles", () => {
-    const vibrations: number[] = [];
-    setVibrate(vibrations);
-    const data = payload(9);
-    mount(createElement(MovingTodayAll, { payload: data, initialDirection: "up" }));
-    const grid = () => host.querySelector("[data-mover-grid]");
-    assert.equal(grid()?.getAttribute("data-mover-grid"), "up");
-    assert.match(grid()?.className ?? "", /grid-cols-2/);
-    assert.match(grid()?.className ?? "", /sm:grid-cols-3/);
-    const upPercents = [...host.querySelectorAll("[data-mover-grid] [data-gain-text]")].map((node) => node.textContent);
-    assert.deepEqual(upPercents, ["+120%", "+119%", "+117%", "+116%", "+114%", "+113%"]);
-    assert.match(grid()?.textContent ?? "", /Sold Oct 22/);
-    const tab = (dir: string) => host.querySelector<HTMLButtonElement>(`[data-direction=${dir}]`);
-    assert.equal(tab("up")?.getAttribute("aria-selected"), "true");
-    assert.equal(tab("up")?.getAttribute("role"), "tab");
-    assert.ok(host.querySelector('[role="tablist"][aria-label="Direction"]'));
-    assert.ok(host.querySelector('[aria-label="Share"]'));
-    assert.ok(host.querySelector('a[aria-label="Back to Home"][data-nav-back]'));
-
-    act(() => {
-      tab("down")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    });
-    assert.equal(window.location.search, "?dir=down");
-    assert.equal(tab("down")?.getAttribute("aria-selected"), "true");
-    assert.equal(grid()?.getAttribute("data-mover-grid"), "down");
-    const downPercents = [...host.querySelectorAll("[data-mover-grid] [data-gain-text]")].map((node) => node.textContent);
-    assert.deepEqual(downPercents, ["−58%", "−55%", "−52%"]);
-    assert.deepEqual(vibrations, [8]);
-    // The pill slides by transform only.
-    assert.equal(host.querySelector<HTMLElement>("[data-segment-pill]")?.style.transform, "translateX(100%)");
-    assert.match(host.querySelector("[data-segment-pill]")?.className ?? "", /bg-violet-600/);
-    assert.match(host.textContent ?? "", /Up6/);
-    assert.match(host.textContent ?? "", /Down3/);
-    assert.match(host.textContent ?? "", /All9/);
-
-    // Arrow keys move between segments.
-    act(() => {
-      host.querySelector('[role="tablist"]')?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
-    });
-    assert.equal(tab("all")?.getAttribute("aria-selected"), "true");
-    assert.equal(window.location.search, "?dir=all");
-  });
-
-  it("lists movers then the newest cards under All, with New or a value and never a percent", () => {
-    mount(createElement(MovingTodayAll, { payload: mixed(2, 4), initialDirection: "all" }));
-    const tiles = [...host.querySelectorAll("[data-mover-grid] > [data-tile]")];
-    assert.equal(tiles.length, 6);
-    assert.deepEqual(
-      tiles.map((tile) => tile.getAttribute("data-tile")),
-      [id(1), id(2), id(100), id(101), id(102), id(103)],
-    );
-    for (const tile of tiles.slice(2)) {
-      assert.equal(tile.querySelector("[data-gain]"), null);
-      assert.doesNotMatch(tile.textContent ?? "", /Sold|%/);
-    }
-    assert.equal(tiles[2]?.querySelector("[data-new-chip]")?.textContent, "New");
-    assert.match(tiles[3]?.textContent ?? "", /\$12\.50/);
-    // Two rows paint at once. The rest skip layout until scrolled near.
-    assert.doesNotMatch(tiles[3]?.className ?? "", /content-visibility/);
-    assert.match(tiles[4]?.className ?? "", /\[content-visibility:auto\]/);
-  });
-
-  it("disables an empty segment and shows its 0", () => {
-    const allUp = payload(3, { sales: [sale(1), sale(2), sale(3)] });
-    mount(createElement(MovingTodayAll, { payload: allUp, initialDirection: "up" }));
-    const down = host.querySelector<HTMLButtonElement>("[data-direction=down]");
-    assert.equal(down?.disabled, true);
-    assert.match(down?.textContent ?? "", /Down0/);
-  });
-
-  it("features the top mover in the hero, and only a mover", () => {
-    mount(createElement(MovingTodayAll, { payload: mixed(2, 3), initialDirection: "all" }));
-    const hero = host.querySelector("[data-moving-hero]");
-    assert.match(hero?.querySelector("h1")?.textContent ?? "", /Moving this week/);
-    assert.match(hero?.textContent ?? "", /5 cards · 2 moving/);
-    const featured = hero?.querySelector("[data-featured]");
-    assert.equal(featured?.getAttribute("data-featured"), id(1));
-    assert.match(featured?.querySelector("[data-tile]")?.className ?? "", /w-\[172px\]/);
-    assert.doesNotMatch(featured?.querySelector("[data-tile]")?.className ?? "", /rgba\(124,58,237/);
-    assert.equal(featured?.querySelector("[data-gain-text]")?.textContent, "+120%");
-    assert.match(featured?.querySelector("a")?.getAttribute("href") ?? "", /^\/u\/ada\/cards\//);
-    act(() => {
-      featured?.querySelector("a")?.dispatchEvent(new window.PointerEvent("pointerdown", { bubbles: true }));
-    });
-    assert.deepEqual(prefetched, [], "the featured tile prefetches on screen, not on press");
-    assert.equal(host.querySelector("[data-moving-backdrop]"), null);
-
-    act(() => root!.render(withRouter(null)));
-    mount(
-      createElement(MovingTodayAll, {
-        payload: mixed(0, 3, { title: "Fresh on Slabhold", window: "fresh", dateLabel: "" }),
-        initialDirection: "all",
-      }),
-    );
-    assert.equal(host.querySelector("[data-featured]"), null);
-    assert.match(host.textContent ?? "", /The newest cards on Slabhold/);
-    assert.match(host.textContent ?? "", /3 cards · 0 moving/);
-  });
-
-  it("filters by sport chip in ?sport=, hides absent sports, and offers Show all on no match", () => {
-    const data = mixed(0, 0);
-    data.sales = [
-      sale(1, { percent: 40, sport: "football" }),
-      sale(2, { percent: -20, sport: "basketball" }),
-      cardTile(3, { sport: "football" }),
-      cardTile(4, { sport: "basketball" }),
-    ];
-    data.moverCount = 2;
-    data.totalCount = 4;
-    mount(createElement(MovingTodayAll, { payload: data, initialDirection: "down", initialSport: "football" }));
-    const chips = [...host.querySelectorAll("[data-sport-chips] [data-sport]")].map((chip) => chip.getAttribute("data-sport"));
-    assert.deepEqual(chips, ["all", "basketball", "football"]);
-    assert.ok(host.querySelector("[data-sport-chips][data-no-pull]"));
-    assert.equal(host.querySelector("[data-sport=football]")?.getAttribute("aria-pressed"), "true");
-    assert.equal(host.querySelector("[data-moving-no-match]")?.textContent, "No football cards moving down");
-    // Counts follow the sport.
-    assert.match(host.textContent ?? "", /Up1/);
-    assert.match(host.textContent ?? "", /All2/);
-
-    const showAll = [...host.querySelectorAll("button")].find((button) => button.textContent === "Show all");
-    act(() => {
-      showAll?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    });
-    assert.equal(window.location.search, "?dir=all");
-    assert.equal(host.querySelectorAll("[data-mover-grid] > [data-tile]").length, 4);
-
-    act(() => {
-      host.querySelector("[data-sport=basketball]")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    });
-    assert.equal(window.location.search, "?dir=all&sport=basketball");
-    assert.equal(host.querySelectorAll("[data-mover-grid] > [data-tile]").length, 2);
-  });
-
-  it("reads the filters from the URL, which wins over stale props", () => {
-    const fallback = { direction: "up", sport: null } as const;
-    assert.deepEqual(filtersFromSearch("", fallback), fallback);
-    assert.deepEqual(filtersFromSearch("?x=1", { direction: "all", sport: "football" }), {
-      direction: "all",
-      sport: "football",
-    });
-    assert.deepEqual(filtersFromSearch("?dir=all&sport=Basketball", fallback), { direction: "all", sport: "basketball" });
-    // A tab switch always writes dir; no sport there means every sport.
-    assert.deepEqual(filtersFromSearch("?dir=down", { direction: "up", sport: "football" }), {
-      direction: "down",
-      sport: null,
-    });
-    assert.deepEqual(filtersFromSearch("?dir=sideways&sport=curling", fallback), { direction: "up", sport: null });
-  });
-
-  it("shows the URL's sport and tab on Back, though the cached props have neither", () => {
-    const data = mixed(0, 0);
-    data.sales = [
-      sale(1, { percent: 40, sport: "football" }),
-      sale(2, { percent: -20, sport: "basketball" }),
-      cardTile(3, { sport: "football" }),
-      cardTile(4, { sport: "basketball" }),
-    ];
-    data.moverCount = 2;
-    data.totalCount = 4;
-    // The router redraws the page from props fetched before the switch.
-    window.history.replaceState(null, "", "/moving-today?dir=all&sport=basketball");
-    mount(createElement(MovingTodayAll, { payload: data, initialDirection: "up" }));
-    assert.equal(host.querySelector("[data-mover-grid]")?.getAttribute("data-mover-grid"), "all");
-    assert.equal(host.querySelector("[data-sport=basketball]")?.getAttribute("aria-pressed"), "true");
-    assert.equal(host.querySelectorAll("[data-mover-grid] > [data-tile]").length, 2);
-    // Read in the state initializer: the first client render is already filtered,
-    // before NavMotion's scroll restore measures the page.
-    assert.match(read("components/moving-today-page.tsx"), /useState<MovingFilters>\(\(\) =>\s*filtersNow\(/);
-
-    // A popstate to a different query follows it too.
-    act(() => {
-      window.history.replaceState(null, "", "/moving-today?dir=all&sport=football");
-      window.dispatchEvent(new window.PopStateEvent("popstate"));
-    });
-    assert.equal(host.querySelector("[data-sport=football]")?.getAttribute("aria-pressed"), "true");
-    assert.equal(host.querySelectorAll("[data-mover-grid] > [data-tile]").length, 2);
-  });
-
-  it("staggers the first 12 tiles once, then crossfades on a switch", () => {
-    mount(createElement(MovingTodayAll, { payload: mixed(8, 10), initialDirection: "all" }));
-    const delays = [...host.querySelectorAll<HTMLElement>("[data-mover-grid] > [data-tile]")]
-      .filter((tile) => tile.className.includes("animate-[tile-in"))
-      .map((tile) => tile.style.animationDelay);
-    assert.equal(delays.length, 12);
-    assert.deepEqual(delays.slice(0, 3), ["0ms", "30ms", "60ms"]);
-    act(() => {
-      host.querySelector("[data-direction=up]")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    });
-    assert.doesNotMatch(host.querySelector("[data-mover-grid]")?.innerHTML ?? "", /animate-\[tile-in/);
-    assert.match(host.querySelector("[data-mover-grid]")?.className ?? "", /motion-safe:animate-\[lightbox-fade/);
-  });
-
-  it("has no animation classes with reduced motion", () => {
-    state.reducedMotion = true;
-    mount(
-      createElement(MovingTodayAll, {
-        payload: mixed(8, 4, { window: "day", title: "Moving today" }),
-        initialDirection: "all",
-      }),
-    );
-    assert.doesNotMatch(host.innerHTML, /animate-/);
-    assert.doesNotMatch(host.querySelector("[data-segment-pill]")?.className ?? "", /transition-transform/);
-    act(() => {
-      host.querySelector("[data-direction=up]")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    });
-    assert.doesNotMatch(host.innerHTML, /animate-/);
-  });
-
-  it("shows a designed empty state with no cards, not a redirect", () => {
-    mount(createElement(MovingTodayAll, { payload: payload(0), initialDirection: "all", signedIn: true }));
-    assert.match(host.textContent ?? "", /No cards on Slabhold yet/);
-    assert.equal(
-      [...host.querySelectorAll("a")].find((a) => a.textContent === "Add a card")?.getAttribute("href"),
-      "/cards/new",
-    );
-    assert.equal(host.querySelector("[data-mover-grid]"), null);
-    act(() => root!.render(withRouter(null)));
-    mount(createElement(MovingTodayAll, { payload: payload(0), initialDirection: "all", signedIn: false }));
-    assert.equal(
-      [...host.querySelectorAll("a")].find((a) => a.textContent === "Join Slabhold")?.getAttribute("href"),
-      "/signup",
-    );
-    assert.doesNotMatch(host.textContent ?? "", /Add a card/);
-  });
-
-  it("keeps the URL, reads ?dir= and ?sport=, never redirects when empty, and keeps the OG images", () => {
-    const page = read("app/(app)/moving-today/page.tsx");
-    assert.match(page, /searchParams/);
-    assert.match(page, /parseDirection\(params\.dir\)/);
-    assert.match(page, /parseSport\(params\.sport\)/);
-    assert.match(page, /defaultDirection\(payload\)/);
-    assert.doesNotMatch(page, /if \(!shouldShowMovingToday\(payload\.sales\)\) redirect/);
-    assert.match(page, /MovingTodayAll/);
-    assert.match(page, /force-dynamic/);
-    assert.match(read("app/(app)/moving-today/opengraph-image.tsx"), /renderMovingTodayOg/);
-    assert.match(read("app/(app)/moving-today/twitter-image.tsx"), /opengraph-image/);
-    const component = read("components/moving-today-page.tsx");
-    assert.match(component, /sticky top-\[var\(--app-header-h\)\]/);
-    assert.match(component, /bg-\[var\(--chrome-bg\)\] backdrop-blur-xl/);
-    assert.doesNotMatch(component, /radial-gradient/);
-    assert.doesNotMatch(component, /recharts|chart/i);
-  });
-});
-
 describe("Moving today cache", () => {
   it("keeps a value for 30 minutes, shares one miss, and retries a failure", async () => {
     assert.equal(MOVING_TODAY_CACHE_SECONDS, 1800);
@@ -897,9 +640,9 @@ describe("Moving today cache", () => {
     const cachedCall = load.indexOf("unstable_cache(");
     const freshenCall = load.indexOf("return freshenMovingToday");
     assert.ok(cachedCall > 0 && freshenCall > cachedCall);
-    // Home doesn't read the movers; /moving-today, its share image and the API route do.
+    // Home doesn't read the movers; the catalog's row, the share image and the API route do.
     assert.doesNotMatch(home, /getMovingToday|moving-today\/load/);
-    assert.match(read("app/(app)/moving-today/page.tsx"), /getMovingToday\(\)/);
+    assert.match(read("app/(app)/catalog/page.tsx"), /getMovingToday\(\)/);
     const slot = read("components/home-feed.tsx");
     assert.doesNotMatch(slot, /connection\(/);
     assert.doesNotMatch(slot, /MovingToday/);
@@ -912,10 +655,6 @@ describe("Moving today cache", () => {
     assert.match(load, /MOVING_MONTH_DAYS/);
     assert.match(load, /readNewestPublicCards\(admin, MOVING_PUBLIC_CAP\)/);
     assert.match(load, /updatedAt/);
-    const page = read("app/(app)/moving-today/page.tsx");
-    assert.match(page, /generateMetadata/);
-    assert.match(page, /payload\.title/);
-    assert.doesNotMatch(page, /export const metadata/);
     assert.match(load, /T00:00:00Z/);
     assert.match(load, /comp_flags/);
     assert.match(load, /\.order\("sold_at", \{ ascending: false \}\)/);
