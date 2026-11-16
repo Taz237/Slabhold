@@ -53,7 +53,20 @@ export function posterSize(width: number, height: number): { width: number; heig
   return { width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) };
 }
 
-function once(target: HTMLVideoElement, event: string, ms: number): Promise<boolean> {
+/** A cancelled read. The hook ignores it: the pick was removed or replaced. */
+export class VideoReadAborted extends Error {
+  constructor() {
+    super("Video read cancelled");
+    this.name = "AbortError";
+  }
+}
+
+function stopIfAborted(signal: AbortSignal | undefined) {
+  if (signal?.aborted) throw new VideoReadAborted();
+}
+
+/** Waits for one event. False on an error, a timeout or a cancel. */
+function once(target: HTMLVideoElement, event: string, ms: number, signal?: AbortSignal): Promise<boolean> {
   return new Promise((resolve) => {
     let settled = false;
     const finish = (ok: boolean) => {
@@ -61,14 +74,18 @@ function once(target: HTMLVideoElement, event: string, ms: number): Promise<bool
       settled = true;
       target.removeEventListener(event, onEvent);
       target.removeEventListener("error", onError);
+      signal?.removeEventListener("abort", onAbort);
       window.clearTimeout(timer);
       resolve(ok);
     };
     const onEvent = () => finish(true);
     const onError = () => finish(false);
+    const onAbort = () => finish(false);
     target.addEventListener(event, onEvent);
     target.addEventListener("error", onError);
+    signal?.addEventListener("abort", onAbort);
     const timer = window.setTimeout(() => finish(false), ms);
+    if (signal?.aborted) finish(false);
   });
 }
 
@@ -95,7 +112,12 @@ async function plainPoster(width: number, height: number): Promise<Blob | null> 
   return toJpeg(canvas);
 }
 
-export async function readVideoFile(file: File): Promise<ReadVideo> {
+/**
+ * `signal` cancels the read at its next step. A cancelled read always revokes
+ * its object URL and rejects with an AbortError, so nothing leaks.
+ */
+export async function readVideoFile(file: File, signal?: AbortSignal): Promise<ReadVideo> {
+  stopIfAborted(signal);
   const src = URL.createObjectURL(file);
   const video = document.createElement("video");
   video.muted = true;
@@ -106,14 +128,16 @@ export async function readVideoFile(file: File): Promise<ReadVideo> {
   video.preload = "auto";
   video.src = src;
   try {
-    const loaded = video.readyState >= 1 || (await once(video, "loadedmetadata", METADATA_TIMEOUT_MS));
+    const loaded = video.readyState >= 1 || (await once(video, "loadedmetadata", METADATA_TIMEOUT_MS, signal));
+    stopIfAborted(signal);
     if (!loaded) throw new Error(VIDEO_READ_ERROR);
     const duration = video.duration;
     let width = video.videoWidth;
     let height = video.videoHeight;
     if (!(width > 0 && height > 0)) {
       // Some engines know the frame size only once a frame is decoded.
-      await once(video, "loadeddata", SEEK_TIMEOUT_MS);
+      await once(video, "loadeddata", SEEK_TIMEOUT_MS, signal);
+      stopIfAborted(signal);
       width = video.videoWidth;
       height = video.videoHeight;
     }
@@ -129,6 +153,7 @@ export async function readVideoFile(file: File): Promise<ReadVideo> {
       // Refused (Low Power Mode): seeking alone usually still works.
     }
     video.pause();
+    stopIfAborted(signal);
 
     const size = posterSize(width, height);
     const canvas = document.createElement("canvas");
@@ -146,7 +171,8 @@ export async function readVideoFile(file: File): Promise<ReadVideo> {
       for (const time of posterTimes(duration)) {
         if (Math.abs(video.currentTime - time) > 0.01) {
           video.currentTime = time;
-          const sought = await once(video, "seeked", SEEK_TIMEOUT_MS);
+          const sought = await once(video, "seeked", SEEK_TIMEOUT_MS, signal);
+          stopIfAborted(signal);
           if (!sought) continue;
         }
         try {
@@ -166,9 +192,11 @@ export async function readVideoFile(file: File): Promise<ReadVideo> {
       if (!poster && drewAny) poster = await toJpeg(canvas);
     }
     poster ??= await plainPoster(width, height);
+    stopIfAborted(signal);
     if (!poster) throw new Error(VIDEO_READ_ERROR);
     return { src, width, height, duration, poster };
   } catch (error) {
+    // Failed or cancelled: the caller never sees this URL, so it goes here.
     URL.revokeObjectURL(src);
     throw error instanceof Error ? error : new Error(VIDEO_READ_ERROR);
   } finally {

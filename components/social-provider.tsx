@@ -181,7 +181,8 @@ export type SocialContextValue = {
   followingCount: (userId: string) => number;
   followersOf: (userId: string) => Profile[];
   followingOf: (userId: string) => Profile[];
-  createPost: (input: PostWrite) => Promise<AuthResult & { postId?: string }>;
+  /** `videoRemoved`: the save failed and its uploaded video was deleted with it. */
+  createPost: (input: PostWrite) => Promise<AuthResult & { postId?: string; videoRemoved?: boolean }>;
   /** Two to ten posts, saved together in the order given. `postId` is the first. */
   createThread: (inputs: readonly PostWrite[]) => Promise<AuthResult & { postId?: string }>;
   /** The posts of one thread, first to last. Loads the ones not on this device yet. */
@@ -1606,7 +1607,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const createPost = useCallback(
-    async (input: PostWrite): Promise<AuthResult & { postId?: string }> => {
+    async (input: PostWrite): Promise<AuthResult & { postId?: string; videoRemoved?: boolean }> => {
       const client = supabaseRef.current;
       if (mode === "supabase" && client && snapshot.user) {
         try {

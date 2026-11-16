@@ -76,10 +76,14 @@ export function useVideoDraft(userId: string | null | undefined) {
       abort.current = controller;
       try {
         const { readVideoFile } = await import("@/lib/ui/video-poster");
-        const read = await readVideoFile(file);
+        const read = await readVideoFile(file, controller.signal);
+        // Cancelled as the read finished: its URL was never handed out, so free it here.
+        if (controller.signal.aborted) {
+          URL.revokeObjectURL(read.src);
+          return;
+        }
         const posterUrl = URL.createObjectURL(read.poster);
         objectUrls.current.push(read.src, posterUrl);
-        if (controller.signal.aborted) return;
         const tooLong = videoMetadataProblem(read);
         if (tooLong) {
           dispatch({ type: "failed", id, message: tooLong });

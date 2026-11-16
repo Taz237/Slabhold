@@ -1115,18 +1115,24 @@ async function preparePost(
   };
 }
 
+/** A save that failed leaves nothing behind: its photos, card photo and video go. */
 async function discardPrepared(supabase: SupabaseClient, posts: readonly PreparedPost[]) {
   for (const post of posts) {
     await discardPostImages(supabase, post.imagePaths);
     if (post.cardPath) await removeUploadedMedia(supabase, "card-photos", post.cardPath);
+    await removeStoredVideo(supabase, post.video);
   }
 }
 
+/**
+ * `videoRemoved`: the save failed after the video was uploaded, and its files
+ * were deleted with the rest. The composer drops its tile so it is added again.
+ */
 export async function remoteCreatePost(
   supabase: SupabaseClient,
   authorId: string,
   input: PostWrite,
-): Promise<AuthResult & { postId?: string }> {
+): Promise<AuthResult & { postId?: string; videoRemoved?: boolean }> {
   const prepared = await preparePost(supabase, authorId, input);
   if ("error" in prepared) return { error: prepared.error };
   const { post } = prepared;
@@ -1157,16 +1163,18 @@ export async function remoteCreatePost(
   }
   if (error || !created) {
     await discardPrepared(supabase, [post]);
+    const removed = post.video ? { videoRemoved: true } : {};
     if (post.gif && gifColumnMissing(error)) {
       notePostExtrasMissing();
       return { error: GIFS_UNAVAILABLE };
     }
     if (post.video && videoColumnMissing(error)) {
       noteVideoMissing();
-      return { error: VIDEOS_UNAVAILABLE };
+      return { error: VIDEOS_UNAVAILABLE, ...removed };
     }
     return {
       error: rlsBlocked(error) ? BLOCKED_INTERACTION : (error?.message ?? "Could not save that post."),
+      ...removed,
     };
   }
 

@@ -666,6 +666,8 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
     });
     setSending(false);
     if (result.error) {
+      // A failed save deleted the uploaded video too: clear the tile so it's added again.
+      if ("videoRemoved" in result && result.videoRemoved) video.remove();
       setError(result.error);
       return;
     }
@@ -702,7 +704,7 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
     else void addFiles(plan.files);
   }
 
-  const hasDraft = body.trim().length > 0 || images.length > 0 || Boolean(gif);
+  const hasDraft = body.trim().length > 0 || images.length > 0 || Boolean(gif) || video.active;
 
   /**
    * The plus button: what is written here becomes the first post of a thread,

@@ -151,6 +151,20 @@ export function ViewerVideoSurface({
   );
 }
 
+/**
+ * The viewer's dialog is touch-action: none so its swipes stay in JS. These
+ * controls sit in the chrome layer (never on the swipe stage, so swipe-down
+ * still closes) and ask for normal touch handling back.
+ */
+const TOUCHABLE: React.CSSProperties = { touchAction: "auto" };
+
+/** Where on the scrubber a finger is, as a time. */
+export function scrubTime(clientX: number, rect: { left: number; width: number }, duration: number): number {
+  if (!(rect.width > 0) || !(duration > 0)) return 0;
+  const fraction = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+  return fraction * duration;
+}
+
 /** "center": play/pause in the middle. "bar": the scrubber, the time and sound along the bottom. */
 export function ViewerVideoControls({ player, placement }: { player: ViewerVideo; placement: "center" | "bar" }) {
   const { state } = player;
@@ -162,7 +176,9 @@ export function ViewerVideoControls({ player, placement }: { player: ViewerVideo
         type="button"
         onClick={player.toggle}
         aria-label={state.playing ? "Pause" : "Play"}
-        className="pointer-events-auto absolute top-1/2 left-1/2 grid h-16 w-16 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-black/55 text-white transition-transform duration-150 active:scale-95"
+        data-video-control=""
+        style={TOUCHABLE}
+        className="pointer-events-auto touch-auto absolute top-1/2 left-1/2 grid h-16 w-16 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-black/55 text-white transition-transform duration-150 active:scale-95"
       >
         {state.playing ? (
           <Pause className="h-7 w-7 fill-current" aria-hidden="true" />
@@ -173,7 +189,7 @@ export function ViewerVideoControls({ player, placement }: { player: ViewerVideo
     );
   }
   return (
-    <div data-video-scrubber="" className="pointer-events-auto mx-auto flex max-w-lg items-center gap-3 px-4 pb-2">
+    <div data-video-scrubber="" style={TOUCHABLE} className="pointer-events-auto touch-auto mx-auto flex max-w-lg items-center gap-3 px-4 pb-2">
         <span className="w-10 shrink-0 font-mono text-12 text-white/90 tabular-nums">{formatVideoTime(state.time)}</span>
         <input
           type="range"
@@ -182,9 +198,25 @@ export function ViewerVideoControls({ player, placement }: { player: ViewerVideo
           step={0.05}
           value={Math.min(state.time, duration || state.time)}
           onChange={(event) => player.seek(Number(event.currentTarget.value))}
+          // Also drag it from pointer events, which arrive even where iOS
+          // won't move a native range under a touch-action: none ancestor.
+          onPointerDown={(event) => {
+            if (event.pointerType === "mouse") return;
+            try {
+              event.currentTarget.setPointerCapture(event.pointerId);
+            } catch {
+              // Not supported: the native range still works.
+            }
+            player.seek(scrubTime(event.clientX, event.currentTarget.getBoundingClientRect(), duration));
+          }}
+          onPointerMove={(event) => {
+            if (event.pointerType === "mouse" || !event.currentTarget.hasPointerCapture?.(event.pointerId)) return;
+            player.seek(scrubTime(event.clientX, event.currentTarget.getBoundingClientRect(), duration));
+          }}
           aria-label="Seek"
           aria-valuetext={`${formatVideoTime(state.time)} of ${formatVideoTime(duration)}`}
-          className="video-scrubber h-11 min-w-0 flex-1 cursor-pointer accent-[#7C3AED]"
+          style={TOUCHABLE}
+          className="video-scrubber h-11 min-w-0 flex-1 cursor-pointer touch-auto accent-[#7C3AED]"
         />
         <span className="w-10 shrink-0 text-right font-mono text-12 text-white/70 tabular-nums">
           {formatVideoTime(duration)}
@@ -193,7 +225,9 @@ export function ViewerVideoControls({ player, placement }: { player: ViewerVideo
           type="button"
           onClick={player.toggleMute}
           aria-label={state.muted ? "Turn sound on" : "Mute"}
-          className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-white active:bg-white/10"
+          data-video-control=""
+          style={TOUCHABLE}
+          className="touch-auto grid h-11 w-11 shrink-0 place-items-center rounded-full text-white active:bg-white/10"
         >
           {state.muted ? <VolumeX className="h-5 w-5" aria-hidden="true" /> : <Volume2 className="h-5 w-5" aria-hidden="true" />}
         </button>

@@ -398,6 +398,8 @@ export function ComposeView() {
         : await createPost(inputs[0]!);
     setSending(false);
     if (result.error) {
+      // A failed save deleted the uploaded video too: clear the tile so it's added again.
+      if ("videoRemoved" in result && result.videoRemoved) video.remove();
       setError(result.error === QUOTE_EMPTY_ERROR ? QUOTE_EMPTY_ERROR : result.error);
       return;
     }

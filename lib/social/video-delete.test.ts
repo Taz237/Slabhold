@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { beforeEach, describe, it } from "node:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { remoteDeleteComment, remoteDeletePost } from "./remote";
+import { remoteCreatePost, remoteDeleteComment, remoteDeletePost } from "./remote";
 import { resetVideoSupport } from "./videos";
 
 // Read when each check runs, so setting it here is enough.
@@ -151,6 +151,54 @@ describe("deleting a reply deletes its video", () => {
       "comments:delete:id, post_id, body, image_urls, video",
       "comments:delete:id, post_id, body, image_urls",
     ]);
+    assert.deepEqual(removed, []);
+  });
+});
+
+describe("a failed save deletes its uploaded video", () => {
+  beforeEach(() => resetVideoSupport());
+
+  function insertFails(message: string) {
+    const removed: { bucket: string; paths: string[] }[] = [];
+    const client = {
+      from() {
+        const api = {
+          insert: () => api,
+          select: () => api,
+          single: () => Promise.resolve({ data: null, error: { message } }),
+        };
+        return api;
+      },
+      storage: {
+        from(bucket: string) {
+          return {
+            remove(paths: string[]) {
+              removed.push({ bucket, paths });
+              return Promise.resolve({ data: [], error: null });
+            },
+          };
+        },
+      },
+    };
+    return { supabase: client as unknown as SupabaseClient, removed };
+  }
+
+  it("removes the video and poster and tells the composer to drop its tile", async () => {
+    const { supabase, removed } = insertFails("network down");
+    const result = await remoteCreatePost(supabase, AUTHOR, {
+      body: "pull",
+      imageDataUrl: null,
+      card: null,
+      video: VIDEO as Parameters<typeof remoteCreatePost>[2]["video"],
+    });
+    assert.deepEqual(result, { error: "network down", videoRemoved: true });
+    assert.deepEqual(removed, [{ bucket: "post-videos", paths: [`${AUTHOR}/${FILE}.mp4`, `${AUTHOR}/${POSTER}.jpg`] }]);
+  });
+
+  it("says nothing about a video when the post had none", async () => {
+    const { supabase, removed } = insertFails("network down");
+    const result = await remoteCreatePost(supabase, AUTHOR, { body: "pull", imageDataUrl: null, card: null });
+    assert.deepEqual(result, { error: "network down" });
     assert.deepEqual(removed, []);
   });
 });

@@ -100,6 +100,11 @@ insert into public.profiles (id, username) values ('${AUTHOR}', 'author'), ('${O
 insert into storage.buckets (id, name, public) values ('post-images', 'post-images', true);
 `;
 
+/** A reason as a SQL string literal: an apostrophe ("else's") is doubled. */
+function quoted(why: string) {
+  return why.replace(/'/g, "''");
+}
+
 /** The statement must fail. If it goes through, the test stops with the reason. */
 function fails(statement: string, why: string) {
   return `
@@ -107,7 +112,7 @@ do $$
 begin
   begin
     ${statement}
-    raise exception 'ALLOWED: ${why}';
+    raise exception 'ALLOWED: ${quoted(why)}';
   exception
     when others then
       if sqlerrm like 'ALLOWED:%' then raise; end if;
@@ -120,7 +125,7 @@ function expect(condition: string, why: string) {
   return `
 do $$
 begin
-  if not (${condition}) then raise exception 'FAILED: ${why}'; end if;
+  if not (${condition}) then raise exception 'FAILED: ${quoted(why)}'; end if;
 end
 $$;`;
 }
