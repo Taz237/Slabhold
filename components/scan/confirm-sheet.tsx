@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { PrimaryButton, QuietButton, focusRing } from "@/components/add-card/flow-ui";
 import {
   LastSold,
@@ -48,6 +48,8 @@ type Props = {
   onRetake: () => void;
   /** "Is this Sapphire?": read the card again as its Sapphire Edition and look its sales up. */
   onSapphire?: () => void;
+  /** "Which version?": read the slab again as the version picked and look that version's sales up. */
+  onVersion?: (version: string) => void;
   onClose: () => void;
 };
 
@@ -56,7 +58,7 @@ type Props = {
  * and the card's name fills in under it step by step while the lookup runs.
  * The top match is one tap to accept; a wrong row or parallel is one tap to fix.
  */
-export function ConfirmSheet({ photo, state, onConfirm, onStepByStep, onRetake, onSapphire, onClose }: Props) {
+export function ConfirmSheet({ photo, state, onConfirm, onStepByStep, onRetake, onSapphire, onVersion, onClose }: Props) {
   const title = state.kind === "none" ? CONFIRM_COPY.noMatchTitle : CONFIRM_COPY.title;
   return (
     <SheetFrame title={title} busy={state.kind === "matching"} variant="scene" onClose={onClose}>
@@ -73,6 +75,7 @@ export function ConfirmSheet({ photo, state, onConfirm, onStepByStep, onRetake, 
           solds={state.solds}
           photo={photo}
           onSapphire={onSapphire}
+          onVersion={onVersion}
           onConfirm={onConfirm}
           onStepByStep={onStepByStep}
           onRetake={onRetake}
@@ -87,6 +90,7 @@ function Ready({
   solds,
   photo = null,
   onSapphire,
+  onVersion,
   onConfirm,
   onStepByStep,
   onRetake,
@@ -96,6 +100,7 @@ function Ready({
   /** The scan, shown beside a sold listing's photo when one is enlarged. */
   photo?: string | null;
   onSapphire?: () => void;
+  onVersion?: (version: string) => void;
   onConfirm: (match: ScanMatch, options: { save: boolean }) => void;
   onStepByStep: () => void;
   onRetake: () => void;
@@ -109,6 +114,14 @@ function Ready({
   const [error, setError] = useState<string | null>(null);
   const serialId = useId();
   const errorId = useId();
+
+  // A slab waiting on its version ("Which version?"): once one is picked, the scan is read again
+  // with it as the label's own line, and that version's sales load. Tapped early or late.
+  const awaitingVersion = top === matches[0] && solds?.status === "done" && solds.comp.status === "version";
+  const pickedVersion = pick?.name ?? null;
+  useEffect(() => {
+    if (awaitingVersion && pickedVersion && onVersion) onVersion(pickedVersion);
+  }, [awaitingVersion, pickedVersion, onVersion]);
 
   if (!top) return null;
 

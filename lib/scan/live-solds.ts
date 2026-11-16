@@ -101,6 +101,11 @@ export type LiveSoldsResult = {
   similar?: ScanEstimateResult;
 };
 
+/** A slab with its parallel open and versions to choose from ("Which version?"). */
+export function awaitsVersion(match: ScanMatch | undefined): boolean {
+  return Boolean(match?.grade) && !match!.parallel && match!.serialRun == null && match!.parallelOptions.length > 1;
+}
+
 /** Pinned down enough to trust a cached price: the card backed the set and the number (or a slab label did). */
 function confident(match: ScanMatch | undefined): match is ScanMatch {
   if (!match) return false;
@@ -204,6 +209,10 @@ async function lookupSolds(
 
   // No player read and no card to look one up by: no search, ever.
   if (!named && !byCard) return { matches: first, comp: { status: "none" }, query: null };
+
+  // A slab whose label named no parallel, in a set with versions that look like Base: the sheet
+  // asks "Which version?" first. No cache read, no search, no price until the collector picks.
+  if (awaitsVersion(top)) return { matches: first, comp: { status: "version" }, query: null };
 
   // 1. Cache first, only for a card the scan pinned down.
   if (confident(top)) {

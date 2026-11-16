@@ -762,6 +762,15 @@ export function liveSearchLadder(
   const rungs = number
     ? [rung(searchSet, insert, number, run, grade, auto), rung(insert, number, run, grade, auto), rung(searchSet, insert, number, grade), rung(insert, number, grade)]
     : [rung(searchSet, insert, run, grade, auto), rung(insert, run, grade, auto), rung(searchSet, insert, grade)];
+  // A slab searches by its label's own wording first: year, set, player, card #, parallel, print
+  // run and grade, the way the label prints them. The wider rungs follow, for sellers who leave
+  // words out. Base is never a search word, and an open parallel adds none.
+  if (evidence.slab && top && set && number) {
+    const year = known("year") ? top.yearLabel : "";
+    const named = top.parallel.trim() && top.sureness.parallel !== "unsure" && parallelMatchKey(top.parallel) !== "base" ? top.parallel.trim() : "";
+    const label = [year, searchSet, player, insert, number, named, run, grade].filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
+    rungs.unshift(label);
+  }
   const useful = [...new Set(rungs)].filter((query) => query !== player);
   // Nothing but the name was read: search the player once, and let the titles name the card.
   return (useful.length > 0 ? useful : [player]).slice(0, MAX_LADDER_RUNGS);

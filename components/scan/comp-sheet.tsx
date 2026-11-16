@@ -59,6 +59,8 @@ type Props = {
   onSearch: () => void;
   /** "Is this Sapphire?": read the card again as its Sapphire Edition and look its sales up. */
   onSapphire?: () => void;
+  /** "Which version?": read the slab again as the version picked and look that version's sales up. */
+  onVersion?: (version: string) => void;
   onClose: () => void;
 };
 
@@ -68,7 +70,7 @@ type Props = {
  * sales we already have). A different parallel, grade or card is one tap, and
  * its prices load in place from the same search. No sales is said plainly.
  */
-export function CompSheet({ photo, state, lookup, onAdd, onScanAnother, onSearch, onSapphire, onClose }: Props) {
+export function CompSheet({ photo, state, lookup, onAdd, onScanAnother, onSearch, onSapphire, onVersion, onClose }: Props) {
   const title = state.kind === "none" ? CONFIRM_COPY.noMatchTitle : COMP_COPY.title;
   return (
     <SheetFrame title={title} busy={state.kind === "matching"} onClose={onClose}>
@@ -98,6 +100,7 @@ export function CompSheet({ photo, state, lookup, onAdd, onScanAnother, onSearch
           onScanAnother={onScanAnother}
           onSearch={onSearch}
           onSapphire={onSapphire}
+          onVersion={onVersion}
         />
       ) : null}
     </SheetFrame>
@@ -158,6 +161,7 @@ function Ready({
   onScanAnother,
   onSearch,
   onSapphire,
+  onVersion,
 }: {
   photo: string | null;
   matches: ScanMatch[];
@@ -167,6 +171,7 @@ function Ready({
   onScanAnother: () => void;
   onSearch: () => void;
   onSapphire?: () => void;
+  onVersion?: (version: string) => void;
 }) {
   const [rows, setRows] = useState(matches);
   const top = rows[0];
@@ -181,7 +186,9 @@ function Ready({
   );
   const serialRun = pick?.serialRun ?? top?.serialRun ?? null;
   // A numbered card, an autograph and a named variation are never Base: with the parallel open, nothing reads as Base.
-  const assumedBase = Boolean(target?.assumedBase) && top?.serialRun == null && !top?.isAuto && !top?.subset;
+  // A slab waiting on its version ("Which version?") is never shown as Base: nothing is priced until the pick.
+  const awaitingVersion = top === matches[0] && solds?.status === "done" && solds.comp.status === "version";
+  const assumedBase = Boolean(target?.assumedBase) && top?.serialRun == null && !top?.isAuto && !top?.subset && !awaitingVersion;
   const key = target ? compQueryString(target.identity, serialRun) : "";
   // The card the live search priced: the top match as it arrived, with its own parallel and grade.
   const [scanKey] = useState(() => {
@@ -194,8 +201,14 @@ function Ready({
   const [retriedScan, setRetriedScan] = useState(false);
   const fromScan = solds?.status === "done" && key === scanKey && !retriedScan ? solds.comp : undefined;
 
+  // The version picked: the scan is read again with it as the label's own line, and its sales load.
+  const pickedVersion = pick?.name ?? null;
   useEffect(() => {
-    if (!target || results.has(key) || looking || fromScan) return;
+    if (awaitingVersion && pickedVersion && onVersion) onVersion(pickedVersion);
+  }, [awaitingVersion, pickedVersion, onVersion]);
+
+  useEffect(() => {
+    if (!target || results.has(key) || looking || fromScan || awaitingVersion) return;
     let live = true;
     const store = (result: ScanCompResult) => {
       if (live) setResults((prev) => new Map(prev).set(key, result));
@@ -204,7 +217,7 @@ function Ready({
     return () => {
       live = false;
     };
-  }, [fromScan, key, looking, lookup, query, results, serialRun, target]);
+  }, [awaitingVersion, fromScan, key, looking, lookup, query, results, serialRun, target]);
 
   if (!top) return null;
 
@@ -259,7 +272,9 @@ function Ready({
         somethingElse={false}
         hint={
           // With no Base sales the panel already says so and asks for a tap.
-          assumedBase && !(result?.status === "split" && result.missing)
+          awaitingVersion && !pick
+            ? CONFIRM_COPY.whichVersion
+            : assumedBase && !(result?.status === "split" && result.missing)
             ? COMP_COPY.assumedBase
             : top.parallelSource === "sales" && pick?.name === top.parallel
               ? COMP_COPY.matchedFromSalesTap
@@ -388,6 +403,14 @@ function ValuePanel({
     return (
       <div className={box} role="status">
         <p className="text-sm font-medium">{quickCompLimitMessage(result.reason)}</p>
+      </div>
+    );
+  }
+
+  if (result.status === "version") {
+    return (
+      <div className={box} role="status" data-slot="pick-version">
+        <p className="text-sm font-medium">{COMP_COPY.pickVersion}</p>
       </div>
     );
   }

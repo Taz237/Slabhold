@@ -634,7 +634,9 @@ export function LastSold({
         ? quickCompLimitMessage(comp.reason)
         : comp.status === "unavailable"
           ? COMP_COPY.unavailable
-          : comp.status === "none" && comp.searched
+          : comp.status === "version"
+            ? COMP_COPY.pickVersion
+            : comp.status === "none" && comp.searched
             ? COMP_COPY.noneSearched
             : COMP_COPY.none;
   return (

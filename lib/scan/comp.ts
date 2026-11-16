@@ -60,6 +60,8 @@ export const COMP_COPY = {
   /** A numbered card with no parallel named: last year's parallels at the same print run. */
   yearAgoParallels: "Last year's parallels at this print run",
   search: "Look it up by name",
+  /** A slab with its version open: the sold prices wait for the pick. */
+  pickVersion: "Pick the version to see its sold prices",
   needYear: "We need the year to show sold prices. Tap the card below that matches.",
   needPlayer: "We need the player to show sold prices. Add the card and name the player.",
 } as const;
@@ -102,6 +104,11 @@ export type ScanCompResult =
     }
   /** Today's or this hour's live lookups are used up. The identity still shows. */
   | { status: "limited"; reason: "daily" | "hourly" | "safety"; resetAt: string | null }
+  /**
+   * A slab whose label named no parallel: the sheet asks "Which version?" first. Nothing was
+   * searched or priced, so Base never stands in for an X-Fractor.
+   */
+  | { status: "version" }
   | { status: "unavailable" };
 
 /**

@@ -72,7 +72,7 @@ const SCREENS = new Set<PreviewKind>(["hub", "hub-comp", "door"]);
 const STATES: Record<Exclude<PreviewKind, "hub" | "hub-comp" | "door">, ConfirmSheetState> = {
   slab: { kind: "ready", matches: [PREVIEW_SLAB], solds: PREVIEW_SOLDS },
   "slab-looking": { kind: "ready", matches: [PREVIEW_SLAB], solds: PREVIEW_SOLDS_LOOKING },
-  "slab-version": { kind: "ready", matches: [PREVIEW_SLAB_VERSION] },
+  "slab-version": { kind: "ready", matches: [PREVIEW_SLAB_VERSION], solds: { status: "done", comp: { status: "version" }, query: null } },
   "from-sales": { kind: "ready", matches: [PREVIEW_FROM_SALES], solds: PREVIEW_SOLDS_PARALLEL },
   "comp-from-sales": { kind: "ready", matches: [PREVIEW_FROM_SALES], solds: PREVIEW_SOLDS_PARALLEL },
   "comp-run-only": { kind: "ready", matches: [PREVIEW_RUN_ONLY], solds: PREVIEW_SOLDS_RUN_ONLY },
