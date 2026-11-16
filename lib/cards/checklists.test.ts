@@ -189,7 +189,7 @@ describe("the checklist store", () => {
 
   it("the 2024-and-later files: the page each came from is logged, never a file name, and the spot cards are who the page says", async () => {
     const added = CHECKLIST_INDEX.filter((entry) => entry.source.includes("checklistinsider.com"));
-    assert.equal(added.length, 23);
+    assert.equal(added.length, 27);
     for (const entry of CHECKLIST_INDEX) assert.doesNotMatch(entry.source, /\.csv\b/i, entry.file);
     // Upper Deck Series 1 and Series 2 are one product, with both pages logged.
     for (const year of ["2024-25", "2025-26"]) {
@@ -217,6 +217,10 @@ describe("the checklist store", () => {
     const rookies = chrome.flatMap((product) => product.sections).find((section) => section.name === "Base Rookies");
     assert.equal(rookies?.cards.length, 100);
     assert.ok((await only("Football", "2025", "Topps Chrome", "RA-KMU")).includes("Kaleb Mullings"));
+    assert.deepEqual(await only("Football", "2025", "Panini Mosaic", "362"), ["Jaxson Dart"]);
+    assert.deepEqual(await only("Football", "2025", "Donruss Optic", "273"), ["Jaxson Dart"]);
+    assert.ok((await only("Football", "2025", "Panini Select", "93")).includes("Jaxson Dart"));
+    assert.ok((await only("Basketball", "2025-26", "Panini Select", "1")).includes("Giannis Antetokounmpo"));
 
     // 2025-26 Prizm #24: thirteen cards share the number, one is in Base.
     const shared = await at("Basketball", "2025-26", "Panini Prizm", "24");

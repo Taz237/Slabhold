@@ -93,15 +93,15 @@ added, skipped or failed.
 | Basketball | Panini Donruss | 2019-20, 2020-21, 2021-22, 2022-23 |
 | Basketball | Panini Mosaic | 2019-20, 2020-21, 2021-22, 2022-23 |
 | Basketball | Panini Prizm | 2019-20, 2020-21, 2021-22, 2022-23, 2024-25, 2025-26 |
-| Basketball | Panini Select | 2019-20, 2020-21, 2021-22, 2022-23 |
+| Basketball | Panini Select | 2019-20, 2020-21, 2021-22, 2022-23, 2025-26 |
 | Basketball | Prizm Draft Picks | 2019-20, 2020-21, 2021-22, 2022-23, 2023-24 |
 | Basketball | Topps Chrome | 2025-26 |
 | Football | Bowman U Chrome | 2023, 2024, 2025 |
-| Football | Donruss Optic | 2019, 2020, 2021, 2022 |
+| Football | Donruss Optic | 2019, 2020, 2021, 2022, 2025 |
 | Football | Panini Donruss | 2019, 2020, 2021, 2022, 2023 |
-| Football | Panini Mosaic | 2020, 2021, 2022, 2023 |
+| Football | Panini Mosaic | 2020, 2021, 2022, 2023, 2025 |
 | Football | Panini Prizm | 2019, 2020, 2021, 2022, 2023, 2024, 2025 |
-| Football | Panini Select | 2019, 2020, 2021, 2022 |
+| Football | Panini Select | 2019, 2020, 2021, 2022, 2025 |
 | Football | Topps Chrome | 2025 |
 | Football | Prizm Draft Picks | 2019, 2020, 2021 |
 | Hockey | Upper Deck | 2024-25, 2025-26 |
@@ -154,6 +154,16 @@ a person checked: "Kale! Mullings" is Kaleb Mullings (Base Rookies #309 and his 
 "Kurds Rourke" is Kurtis Rourke (#307), "Jandae Barron" is Jahdae Barron (#359), and "JaTMarr
 Chase" (a broken apostrophe) is Ja'Marr Chase. The etch list's "Antwane Wells Jr." at #313 is
 dropped: Base Rookies #313 is Pat Bryant.
+
+### 2025 Select, Optic and Mosaic Football, 2025-26 Select Basketball (read 2026-11-16)
+
+Card checklists only, read the same way from Checklist Insider:
+https://www.checklistinsider.com/2025-panini-select-football,
+https://www.checklistinsider.com/2025-donruss-optic-football,
+https://www.checklistinsider.com/2025-panini-mosaic-football and
+https://www.checklistinsider.com/2025-26-panini-select-basketball. Their parallels come from Panini's
+own lists already in `panini-parallels.json`; the page's lists are kept beside the CSVs and not
+loaded. 2025-26 Optic and Mosaic Basketball have no page yet (404 on 2026-11-16).
 
 Until a product is in the store, the scanner falls back to the sold titles for that year, set and
 card # (below).
