@@ -18,6 +18,11 @@ export type MatchCard = {
   conditionType?: "raw" | "graded";
   /** Combined grade text e.g. "PSA 10" or "Raw". */
   grade?: string;
+  /**
+   * A named parallel whose print run we don't know (Quick Comp's Version pick from a list with
+   * no runs): a sale may print a run or not. Never set with a serialRun, and never for Base.
+   */
+  anyRun?: boolean;
   gradeQualifier?: string | null;
   isRookie?: boolean;
   /** Used so a WNBA Prizm card can keep WNBA titles. */
@@ -294,7 +299,71 @@ const PARALLEL_KEYWORDS = [
   "downtown",
   "ssp",
   "parallel",
+  // Chrome family (Topps Chrome, Bowman Chrome, Finest). "xfractor" and "raywave" are how
+  // joinParallelSpellings writes "X-Fractor" and "Ray Wave".
+  "xfractor",
+  "superfractor",
+  "logofractor",
+  "prism",
+  "sepia",
+  "aqua",
+  "yellow",
+  "teal",
+  "bronze",
+  "magenta",
+  "fuchsia",
+  "atomic",
+  "speckle",
+  "raywave",
+  "lava",
+  "mini diamond",
+  "geometric",
+  "negative",
+  "sapphire",
+  // Panini look-alikes that print no color word.
+  "fast break",
+  "reactive",
+  "stained glass",
+  "shock",
+  "elephant",
+  "tri-color",
+  "genesis",
 ] as const;
+
+/**
+ * One spelling for parallels sellers write three ways: "X-Fractor", "X Fractor" and "XFractor"
+ * are "xfractor" (so "#306 X-Fractor" is not read as a "306 x" lot), "Ray Wave" is "raywave"
+ * (so it is not the Wave parallel), and "Tri Color" is "tri-color".
+ */
+export function joinParallelSpellings(text: string): string {
+  return text
+    .replace(/\bx[\s-]*fractor(s?)\b/gi, "xfractor$1")
+    .replace(/\bray[\s-]*wave\b/gi, "raywave")
+    .replace(/\btri[\s-]*colou?r\b/gi, "tri-color");
+}
+
+/** Team names that carry a color word. "Green Bay" and "Red Sox" are not the Green or Red parallel. */
+const TEAM_COLOR_NAMES = [
+  "green bay",
+  "red sox",
+  "white sox",
+  "blue jays",
+  "red wings",
+  "blue jackets",
+  "blue devils",
+  "red raiders",
+] as const;
+
+function stripTeamNames(text: string): string {
+  let out = text;
+  for (const name of TEAM_COLOR_NAMES) {
+    out = out.replace(new RegExp(`\\b${phrasePattern(name)}\\b`, "gi"), " ");
+  }
+  return out;
+}
+
+/** "Gold Refractor" sells as "Gold" and "Gold" as "Gold Refractor". Never the bare Refractor. */
+const OPTIONAL_PARALLEL_WORD = "refractor";
 
 /** Counted only as their own word after the card number, and only if the set name did not already use them. */
 const PARALLEL_AFTER_NUMBER = ["sp", "variation"] as const;
@@ -725,7 +794,7 @@ function stripSetAndPlayer(
   title: string,
   identity?: { setBrand?: string; playerName?: string },
 ): string {
-  let text = title;
+  let text = stripTeamNames(title);
   for (const phrase of setNamePhrases(identity?.setBrand)) {
     const pattern = phrasePattern(phrase);
     if (!pattern) continue;
@@ -828,9 +897,9 @@ export function titleHasDisallowedParallel(
   parallel?: string,
   identity?: { setBrand?: string; playerName?: string; cardNumber?: string },
 ): boolean {
-  const lower = title.toLowerCase();
+  const lower = joinParallelSpellings(title.toLowerCase());
   const scan = stripSetAndPlayer(lower, identity);
-  const allowed = (parallel ?? "").trim().toLowerCase();
+  const allowed = joinParallelSpellings((parallel ?? "").trim().toLowerCase());
   const allowedWords = new Set(parallelNameWords(allowed));
   const cardSet = setMatchPhrase(identity?.setBrand);
   const pinkSameAsPinkPrizm =
@@ -854,6 +923,8 @@ export function titleHasDisallowedParallel(
     // "Parallel" names the category. A Silver card can still say "Silver Parallel".
     if (keyword === "parallel") continue;
     if (allowedWords.has(canonicalParallelWord(keyword))) continue;
+    // A named parallel may add "Refractor" ("Gold" sells as "Gold Refractor").
+    if (keyword === OPTIONAL_PARALLEL_WORD && allowedWords.size > 0) continue;
     const keywordWords = parallelNameWords(keyword);
     if (keywordWords.length > 0 && keywordWords.every((word) => allowedWords.has(word))) {
       continue;
@@ -875,7 +946,10 @@ export function titleHasDisallowedParallel(
   if (!base && allowed) {
     let words = parallelNameWords(allowed);
     if (pinkSameAsPinkPrizm) words = words.filter((word) => word !== "prizm");
-    if (words.length > 0 && words.some((word) => !titleHasParallelWord(lower, word))) {
+    if (words.length > 1) words = words.filter((word) => word !== OPTIONAL_PARALLEL_WORD);
+    // The team name is not the parallel: "Red Sox" alone does not make it the Red.
+    const named = stripTeamNames(lower);
+    if (words.length > 0 && words.some((word) => !titleHasParallelWord(named, word))) {
       return true;
     }
   }
@@ -938,7 +1012,7 @@ export function expectedSerialRun(
 }
 
 export function titleLooksExcluded(title: string): boolean {
-  return TITLE_JUNK.test(title);
+  return TITLE_JUNK.test(joinParallelSpellings(title));
 }
 
 export function parseGradeFromTitle(
@@ -1119,7 +1193,8 @@ export function titleMatchesCard(title: string, card: MatchCard): boolean {
   ) {
     return false;
   }
-  if (!titleSerialOk(title, card.serialRun)) return false;
+  const runOpen = card.anyRun === true && !card.serialRun && !parallelIsBase(card.parallel);
+  if (!runOpen && !titleSerialOk(title, card.serialRun)) return false;
 
   if (card.isAuto) {
     if (!AUTO_RE.test(title)) return false;

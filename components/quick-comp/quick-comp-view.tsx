@@ -36,7 +36,10 @@ import {
 } from "@/lib/quick-comp/respond";
 import { createSuggestionTyping, SUGGEST_MIN_CHARS, type SuggestionState } from "@/lib/quick-comp/typing";
 import { catalogResultLine } from "@/lib/search/catalog-results";
+import { useProductData } from "@/lib/cards/use-product-data";
+import { isVersion, quickCompVersions, withVersion, type QuickVersion } from "@/lib/quick-comp/versions";
 import { GradeControl } from "./grade-control";
+import { VersionControl } from "./version-control";
 import { QuickCompResult, identityLine } from "./quick-comp-result";
 import { NoticeButton, QuickCompLoading, QuickCompNotice } from "./quick-comp-states";
 import { control, feedback, focusRing, sectionLabel, textMuted, textSecondary } from "./tokens";
@@ -284,6 +287,8 @@ export function QuickCompView({ userId }: { userId: string | null }) {
   const [picked, setPicked] = useState<Picked | null>(null);
   const [grade, setGrade] = useState(DEFAULT_QUICK_GRADE);
   const [otherOpen, setOtherOpen] = useState(false);
+  /** A version tapped but not looked up yet: the row marks it at once, the lookup waits to settle. */
+  const [version, setVersion] = useState<QuickVersion | null>(null);
   const [comp, setComp] = useState<CompState>({ status: "idle" });
   const [saleId, setSaleId] = useState<string | null>(null);
   const [recent, setRecent] = useState<RecentComp[]>(() => readRecentComps(browserRecentStore(), userId));
@@ -321,6 +326,26 @@ export function QuickCompView({ userId }: { userId: string | null }) {
     };
   }, [chartAttempt]);
 
+  // The year's checklist parallels, loaded once a card is picked. The family list shows meanwhile.
+  const { data: productData } = useProductData(picked != null);
+  const pickedIdentity = picked?.identity ?? null;
+  const pickedSport = picked?.catalog?.sport;
+  const versions = useMemo(
+    () =>
+      pickedIdentity
+        ? quickCompVersions(
+            productData,
+            { yearLabel: pickedIdentity.yearLabel, setBrand: pickedIdentity.setBrand, cardNumber: pickedIdentity.cardNumber, sport: pickedSport },
+            pickedIdentity,
+          )
+        : [],
+    [productData, pickedIdentity, pickedSport],
+  );
+  const versionAt = Math.max(
+    0,
+    versions.findIndex((item) => (version ? item.name === version.name : pickedIdentity != null && isVersion(pickedIdentity, item))),
+  );
+
   const results = suggestions.status === "ready" ? suggestions.results : [];
   const showList = open && suggestions.status !== "idle" && query.trim().length > 0;
   const optionCount = results.length + 1;
@@ -331,6 +356,7 @@ export function QuickCompView({ userId }: { userId: string | null }) {
       // A double tap on the same card and grade while it loads does nothing more.
       if (gate.pending(next.identity) && picked && quickCompIdentityKey(picked.identity) === key) return;
       const id = ++token.current;
+      setVersion(null);
       setPicked(next);
       setSaleId(null);
       setComp({ status: "loading" });
@@ -389,15 +415,29 @@ export function QuickCompView({ userId }: { userId: string | null }) {
     setOpen(false);
   }
 
-  function changeGrade(next: string) {
-    setGrade(next);
+  /** One lookup for the grade and version still selected after the settle time. */
+  function settle(nextGrade: string, nextVersion: QuickVersion | null) {
     cancelGradeLookup();
-    if (!picked || picked.identity.grade === next) return;
-    const target = { ...picked, identity: { ...picked.identity, grade: next } };
+    if (!picked) return;
+    const identity = { ...(nextVersion ? withVersion(picked.identity, nextVersion) : picked.identity), grade: nextGrade };
+    if (quickCompIdentityKey(identity) === quickCompIdentityKey(picked.identity)) return;
+    // Add to collection opens with the version comped, not the catalog row's.
+    const catalog = picked.catalog ? { ...picked.catalog, parallel: identity.parallel } : null;
+    const target = { ...picked, identity, catalog };
     gradeTimer.current = window.setTimeout(() => {
       gradeTimer.current = null;
       run(target);
     }, GRADE_SETTLE_MS);
+  }
+
+  function changeGrade(next: string) {
+    setGrade(next);
+    settle(next, version);
+  }
+
+  function changeVersion(next: QuickVersion) {
+    setVersion(next);
+    settle(grade, next);
   }
 
   function openRecent(item: RecentComp) {
@@ -406,6 +446,7 @@ export function QuickCompView({ userId }: { userId: string | null }) {
     setManual(false);
     setGrade(item.identity.grade);
     setOtherOpen(false);
+    setVersion(null);
     setSaleId(null);
     setPicked({ identity: item.identity, catalog: item.catalog, alternatives: [] });
     setComp({ status: "ready", payload: item.payload, savedAt: item.savedAt });
@@ -667,6 +708,7 @@ export function QuickCompView({ userId }: { userId: string | null }) {
               changeGrade(next);
             }}
           />
+          <VersionControl versions={versions} selected={versionAt} onChange={changeVersion} />
         </section>
       ) : null}
 

@@ -50,7 +50,7 @@ describe("quick comp shared cache", () => {
 
   it("gives another grade or parallel a new key", () => {
     const key = quickCompCacheKey(base);
-    assert.match(key, /^quick-comp-v1\|/);
+    assert.match(key, /^quick-comp-v2\|/);
     assert.notEqual(quickCompCacheKey({ ...base, grade: "PSA 9" }), key);
     assert.notEqual(quickCompCacheKey({ ...base, grade: "Raw" }), key);
     assert.notEqual(quickCompCacheKey({ ...base, parallel: "Silver" }), key);

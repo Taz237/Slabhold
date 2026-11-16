@@ -7,7 +7,7 @@ import type { QuickCompPayload } from "./lookup";
 
 export const QUICK_COMP_FIELD_LIMIT = 80;
 const GRADE_LIMIT = 24;
-const ALLOWED = new Set(["player", "year", "set", "number", "parallel", "grade"]);
+const ALLOWED = new Set(["player", "year", "set", "number", "parallel", "run", "grade"]);
 
 export const QUICK_COMP_DAILY_MESSAGE = "You've used today's comps. Saved ones still open";
 export const QUICK_COMP_HOURLY_MESSAGE = "You're checking comps quickly. Try again in a few minutes";
@@ -36,7 +36,7 @@ function field(params: URLSearchParams, name: string, limit = QUICK_COMP_FIELD_L
   return clipWholeCharacters((params.get(name) ?? "").trim().replace(/\s+/g, " "), limit);
 }
 
-/** Player and year are required. Set, number, parallel and grade are optional. */
+/** Player and year are required. Set, number, parallel, run and grade are optional. */
 export function parseQuickCompParams(
   params: URLSearchParams,
 ): { ok: true; identity: QuickCompIdentity } | { ok: false; error: string } {
@@ -49,6 +49,9 @@ export function parseQuickCompParams(
   if (!year) return { ok: false, error: "year is required" };
   const grade = field(params, "grade", GRADE_LIMIT) || "Raw";
   if (!parseGrade(grade).recognized) return { ok: false, error: "grade is not recognized" };
+  const runText = field(params, "run", 8);
+  if (runText && !/^[1-9]\d{0,4}$/.test(runText)) return { ok: false, error: "run is not a print run" };
+  const serialRun = runText ? Number(runText) : null;
   return {
     ok: true,
     identity: {
@@ -58,6 +61,7 @@ export function parseQuickCompParams(
       setBrand: field(params, "set"),
       cardNumber: field(params, "number", 20).replace(/^#/, ""),
       parallel: field(params, "parallel") || "Base",
+      ...(serialRun ? { serialRun } : {}),
       grade,
     },
   };
