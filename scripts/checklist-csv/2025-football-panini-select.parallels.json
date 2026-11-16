@@ -1,0 +1,1625 @@
+{
+ "sport": "Football",
+ "yearLabel": "2025",
+ "product": "Panini Select",
+ "manufacturer": "Panini",
+ "source": "https://www.checklistinsider.com/2025-panini-select-football",
+ "official": false,
+ "parallels": [
+  {
+   "subset": "Base Concourse",
+   "name": "Black & Blue Prizm Shock",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Black & Gold Prizm Shock",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Black & Green Prizm Shock",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Black & Orange Prizm Shock",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Black & Red Prizm Shock",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Cosmic",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Disco Prizm",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Green & Red Prizm Shock",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Green & Yellow Prizm Shock",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Pink Prizm Shock",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Red & Blue Prizm Shock",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Silver Prizm",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Silver Prizm Shock",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Tiger Prizm",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "White Sparkle",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Zebra Prizm",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Zebra Prizm Shock",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Copper Prizm Shock",
+   "serialRun": 899
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "White Prizm Shock",
+   "serialRun": 799
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Neon Green Prizm Shock",
+   "serialRun": 699
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Purple Prizm Shock",
+   "serialRun": 699
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Orange Prizm Shock",
+   "serialRun": 499
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Tri-Color Prizm",
+   "serialRun": 399
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Blue Prizm",
+   "serialRun": 249
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Red Prizm Shock",
+   "serialRun": 249
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Maroon Prizm",
+   "serialRun": 149
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Red Prizm",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Purple Prizm",
+   "serialRun": 75
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Dragon Scale Prizm",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Orange Prizm",
+   "serialRun": 49
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Red Disco Prizm",
+   "serialRun": 49
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Blue & Orange Prizm Shock",
+   "serialRun": 35
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "White Prizm",
+   "serialRun": 35
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Blue Disco Prizm",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Tie-Dye Prizm",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Tie-Dye Prizm Shock",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Pink Glitter Prizm",
+   "serialRun": 15
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Gold Disco Prizm",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Gold Dragon Scale Prizm",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Gold Prizm",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Gold Prizm Shock",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Pink Prizm",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Lucky Envolpe",
+   "serialRun": 8
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Neon Orange Pulsar Prizm",
+   "serialRun": 7
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Green Disco Prizm",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Green Prizm",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Green Prizm Shock",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Green & Black Snakeskin Prizm",
+   "serialRun": 2
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Black Disco Prizm",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Black Dragon Scale Prizm",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Black Prizm",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Black Prizm Shock",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Black & Blue Prizm Shock",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Black & Gold Prizm Shock",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Black & Green Prizm Shock",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Black & Orange Prizm Shock",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Black & Red Prizm Shock",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Cosmic",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Disco Prizm",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Green & Red Prizm Shock",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Green & Yellow Prizm Shock",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Pink Prizm Shock",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Red & Blue Prizm Shock",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Silver Prizm",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Silver Prizm Shock",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Tiger Prizm",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "White Sparkle",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Zebra Prizm",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Zebra Prizm Shock",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Copper Prizm Shock",
+   "serialRun": 899
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "White Prizm Shock",
+   "serialRun": 799
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Neon Green Prizm Shock",
+   "serialRun": 699
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Purple Prizm Shock",
+   "serialRun": 699
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Orange Prizm Shock",
+   "serialRun": 399
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Tri-Color Prizm",
+   "serialRun": 299
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Red Prizm Shock",
+   "serialRun": 249
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Blue Prizm",
+   "serialRun": 175
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Light Blue Prizm",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Purple Prizm",
+   "serialRun": 75
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Dragon Scale Prizm",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Neon Green Prizm",
+   "serialRun": 49
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Red Disco Prizm",
+   "serialRun": 49
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Blue & Orange Prizm Shock",
+   "serialRun": 35
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "White Prizm",
+   "serialRun": 35
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Blue Disco Prizm",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Tie-Dye Prizm",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Tie-Dye Prizm Shock",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Pink Glitter Prizm",
+   "serialRun": 15
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Gold Disco Prizm",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Gold Dragon Scale Prizm",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Gold Prizm",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Gold Prizm Shock",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Lucky Envolpe",
+   "serialRun": 8
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Pink Prizm",
+   "serialRun": 8
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Neon Orange Pulsar Prizm",
+   "serialRun": 7
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Green Disco Prizm",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Green Prizm",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Green Prizm Shock",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Green & Black Snakeskin Prizm",
+   "serialRun": 2
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Black Disco Prizm",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Black Dragon Scale Prizm",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Black Prizm",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Black Prizm Shock",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Black & Blue Prizm Shock",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Black & Gold Prizm Shock",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Black & Green Prizm Shock",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Black & Orange Prizm Shock",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Black & Red Prizm Shock",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Cosmic",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Disco Prizm",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Green & Red Prizm Shock",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Green & Yellow Prizm Shock",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Pink Prizm Shock",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Red & Blue Prizm Shock",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Silver Prizm",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Silver Prizm Shock",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Tiger Prizm",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "White Sparkle",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Zebra Prizm",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Zebra Prizm Shock",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Copper Prizm Shock",
+   "serialRun": 899
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "White Prizm Shock",
+   "serialRun": 799
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Neon Green Prizm Shock",
+   "serialRun": 699
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Purple Prizm Shock",
+   "serialRun": 699
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Orange Prizm Shock",
+   "serialRun": 399
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Red Prizm Shock",
+   "serialRun": 249
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Tri-Color Prizm",
+   "serialRun": 249
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Blue Prizm",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Dragon Scale Prizm",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Red Disco Prizm",
+   "serialRun": 49
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Red Prizm",
+   "serialRun": 49
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Blue & Orange Prizm Shock",
+   "serialRun": 35
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "White Prizm",
+   "serialRun": 35
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Blue Disco Prizm",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Tie-Dye Prizm",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Tie-Dye Prizm Shock",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Pink Glitter Prizm",
+   "serialRun": 15
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Gold Disco Prizm",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Gold Dragon Scale Prizm",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Gold Prizm",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Gold Prizm Shock",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Lucky Envolpe",
+   "serialRun": 8
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Neon Orange Pulsar Prizm",
+   "serialRun": 7
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Pink Prizm",
+   "serialRun": 6
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Green Disco Prizm",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Green Prizm",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Green Prizm Shock",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Green & Black Snakeskin Prizm",
+   "serialRun": 2
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Black Disco Prizm",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Black Dragon Scale Prizm",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Black Prizm",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Club Level",
+   "name": "Black Prizm Shock",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Suite Level",
+   "name": "Cosmic",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Suite Level",
+   "name": "Disco Prizm",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Suite Level",
+   "name": "Silver Prizm",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Suite Level",
+   "name": "Tiger Prizm",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Suite Level",
+   "name": "White Sparkle",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Suite Level",
+   "name": "Zebra Prizm",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Suite Level",
+   "name": "Tri-Color Prizm",
+   "serialRun": 199
+  },
+  {
+   "subset": "Base Suite Level",
+   "name": "Blue Prizm",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base Suite Level",
+   "name": "Dragon Scale Prizm",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base Suite Level",
+   "name": "Red Disco Prizm",
+   "serialRun": 49
+  },
+  {
+   "subset": "Base Suite Level",
+   "name": "Red Prizm",
+   "serialRun": 49
+  },
+  {
+   "subset": "Base Suite Level",
+   "name": "White Prizm",
+   "serialRun": 35
+  },
+  {
+   "subset": "Base Suite Level",
+   "name": "Blue Disco Prizm",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Suite Level",
+   "name": "Tie-Dye Prizm",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Suite Level",
+   "name": "Pink Glitter Prizm",
+   "serialRun": 15
+  },
+  {
+   "subset": "Base Suite Level",
+   "name": "Gold Disco Prizm",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Suite Level",
+   "name": "Gold Dragon Scale Prizm",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Suite Level",
+   "name": "Gold Prizm",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Suite Level",
+   "name": "Lucky Envolpe",
+   "serialRun": 8
+  },
+  {
+   "subset": "Base Suite Level",
+   "name": "Neon Orange Pulsar Prizm",
+   "serialRun": 7
+  },
+  {
+   "subset": "Base Suite Level",
+   "name": "Green Disco Prizm",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Suite Level",
+   "name": "Green Prizm",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Suite Level",
+   "name": "Pink Prizm",
+   "serialRun": 4
+  },
+  {
+   "subset": "Base Suite Level",
+   "name": "Green & Black Snakeskin Prizm",
+   "serialRun": 2
+  },
+  {
+   "subset": "Base Suite Level",
+   "name": "Black Disco Prizm",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Suite Level",
+   "name": "Black Dragon Scale Prizm",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Suite Level",
+   "name": "Black Prizm",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Field Level",
+   "name": "Cosmic",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Field Level",
+   "name": "Silver Prizm",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Field Level",
+   "name": "Tiger Prizm",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Field Level",
+   "name": "White Sparkle",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Field Level",
+   "name": "Zebra Prizm",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Field Level",
+   "name": "Tri-Color Prizm",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base Field Level",
+   "name": "Blue Prizm",
+   "serialRun": 75
+  },
+  {
+   "subset": "Base Field Level",
+   "name": "Dragon Scale Prizm",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base Field Level",
+   "name": "White Prizm",
+   "serialRun": 35
+  },
+  {
+   "subset": "Base Field Level",
+   "name": "Tie-Dye Prizm",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Field Level",
+   "name": "Pink Glitter Prizm",
+   "serialRun": 15
+  },
+  {
+   "subset": "Base Field Level",
+   "name": "Gold Dragon Scale Prizm",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Field Level",
+   "name": "Gold Prizm",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Field Level",
+   "name": "Lucky Envolpe",
+   "serialRun": 8
+  },
+  {
+   "subset": "Base Field Level",
+   "name": "Neon Orange Pulsar Prizm",
+   "serialRun": 7
+  },
+  {
+   "subset": "Base Field Level",
+   "name": "Green Prizm",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Field Level",
+   "name": "Green & Black Snakeskin Prizm",
+   "serialRun": 2
+  },
+  {
+   "subset": "Base Field Level",
+   "name": "Black Dragon Scale Prizm",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Field Level",
+   "name": "Black Prizm",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Field Level",
+   "name": "Pink Prizm",
+   "serialRun": 1
+  },
+  {
+   "subset": "Contenders Rookie Ticket RPS Variation",
+   "name": "Cracked Ice Ticket",
+   "serialRun": 24
+  },
+  {
+   "subset": "Contenders Rookie Ticket RPS Variation",
+   "name": "Super Bowl Ticket",
+   "serialRun": 1
+  },
+  {
+   "subset": "Prime Selections Signatures",
+   "name": "Base Prizm",
+   "serialRun": 199
+  },
+  {
+   "subset": "Prime Selections Signatures",
+   "name": "Neon Orange Pulsar Prizm",
+   "serialRun": 45
+  },
+  {
+   "subset": "Prime Selections Signatures",
+   "name": "Tie-Dye Prizm",
+   "serialRun": 25
+  },
+  {
+   "subset": "Prime Selections Signatures",
+   "name": "Gold Prizm Jersey Number",
+   "serialRun": 10
+  },
+  {
+   "subset": "Prime Selections Signatures",
+   "name": "Green Prizm Team Logo",
+   "serialRun": 5
+  },
+  {
+   "subset": "Prime Selections Signatures",
+   "name": "Black Prizm",
+   "serialRun": 1
+  },
+  {
+   "subset": "Prime Selections Signatures",
+   "name": "Black Prizm Brand Logo",
+   "serialRun": 1
+  },
+  {
+   "subset": "Prime Selections Signatures",
+   "name": "Black Prizm Laundry Nike",
+   "serialRun": 1
+  },
+  {
+   "subset": "Prime Selections Signatures",
+   "name": "Black Prizm NFL Shield",
+   "serialRun": 1
+  },
+  {
+   "subset": "Rookie Signature Memorabilia",
+   "name": "Base Prizm",
+   "serialRun": 249
+  },
+  {
+   "subset": "Rookie Signature Memorabilia",
+   "name": "Blue Prizm",
+   "serialRun": 149
+  },
+  {
+   "subset": "Rookie Signature Memorabilia",
+   "name": "Purple Prizm",
+   "serialRun": 49
+  },
+  {
+   "subset": "Rookie Signature Memorabilia",
+   "name": "Disco Prizm",
+   "serialRun": 45
+  },
+  {
+   "subset": "Rookie Signature Memorabilia",
+   "name": "Neon Blue Pulsar Prizm",
+   "serialRun": 45
+  },
+  {
+   "subset": "Rookie Signature Memorabilia",
+   "name": "Tie-Dye Prizm",
+   "serialRun": 25
+  },
+  {
+   "subset": "Rookie Signature Memorabilia",
+   "name": "Disco Gold Prizm",
+   "serialRun": 10
+  },
+  {
+   "subset": "Rookie Signature Memorabilia",
+   "name": "Gold Prizm",
+   "serialRun": 10
+  },
+  {
+   "subset": "Rookie Signature Memorabilia",
+   "name": "Green Prizm",
+   "serialRun": 5
+  },
+  {
+   "subset": "Rookie Signature Memorabilia",
+   "name": "Black Prizm",
+   "serialRun": 1
+  },
+  {
+   "subset": "Rookie Signature Memorabilia",
+   "name": "Disco Black Prizm",
+   "serialRun": 1
+  },
+  {
+   "subset": "Rookie Signatures",
+   "name": "Base",
+   "serialRun": null
+  },
+  {
+   "subset": "Rookie Signatures",
+   "name": "Prizm",
+   "serialRun": null
+  },
+  {
+   "subset": "Rookie Signatures",
+   "name": "Blue Prizm",
+   "serialRun": 149
+  },
+  {
+   "subset": "Rookie Signatures",
+   "name": "Maroon Prizm",
+   "serialRun": 75
+  },
+  {
+   "subset": "Rookie Signatures",
+   "name": "Light Blue Prizm",
+   "serialRun": 49
+  },
+  {
+   "subset": "Rookie Signatures",
+   "name": "White Prizm",
+   "serialRun": 35
+  },
+  {
+   "subset": "Rookie Signatures",
+   "name": "Tie-Dye Prizm",
+   "serialRun": 25
+  },
+  {
+   "subset": "Rookie Signatures",
+   "name": "Tie-Dye Prizm Die-Cut",
+   "serialRun": 25
+  },
+  {
+   "subset": "Rookie Signatures",
+   "name": "Gold Prizm",
+   "serialRun": 10
+  },
+  {
+   "subset": "Rookie Signatures",
+   "name": "Gold Prizm Die-Cut",
+   "serialRun": 10
+  },
+  {
+   "subset": "Rookie Signatures",
+   "name": "Lucky Envolpe Prizm",
+   "serialRun": 8
+  },
+  {
+   "subset": "Rookie Signatures",
+   "name": "Green Prizm",
+   "serialRun": 5
+  },
+  {
+   "subset": "Rookie Signatures",
+   "name": "Green Prizm Die-Cut",
+   "serialRun": 5
+  },
+  {
+   "subset": "Rookie Signatures",
+   "name": "Black Prizm",
+   "serialRun": 1
+  },
+  {
+   "subset": "Rookie Signatures",
+   "name": "Black Prizm Die-Cut",
+   "serialRun": 1
+  },
+  {
+   "subset": "Select Pairings",
+   "name": "Gold Prizm",
+   "serialRun": 10
+  },
+  {
+   "subset": "Select Pairings",
+   "name": "Black Prizm",
+   "serialRun": 1
+  },
+  {
+   "subset": "Signature Memorabilia",
+   "name": "Base Prizm /249 or less",
+   "serialRun": null
+  },
+  {
+   "subset": "Signature Memorabilia",
+   "name": "Blue Prizm",
+   "serialRun": 149
+  },
+  {
+   "subset": "Signature Memorabilia",
+   "name": "Purple Prizm",
+   "serialRun": 49
+  },
+  {
+   "subset": "Signature Memorabilia",
+   "name": "Tie-Dye Prizm",
+   "serialRun": 25
+  },
+  {
+   "subset": "Signature Memorabilia",
+   "name": "Gold Prizm",
+   "serialRun": 10
+  },
+  {
+   "subset": "Signature Memorabilia",
+   "name": "Green Prizm",
+   "serialRun": 5
+  },
+  {
+   "subset": "Signature Memorabilia",
+   "name": "Black Prizm",
+   "serialRun": 1
+  },
+  {
+   "subset": "Jumbo Rookie Swatch",
+   "name": "White Prizm",
+   "serialRun": 99
+  },
+  {
+   "subset": "Jumbo Rookie Swatch",
+   "name": "Tie-Dye Prizm",
+   "serialRun": 25
+  },
+  {
+   "subset": "Jumbo Rookie Swatch",
+   "name": "Gold Prizm",
+   "serialRun": 10
+  },
+  {
+   "subset": "Jumbo Rookie Swatch",
+   "name": "Green Prizm",
+   "serialRun": 5
+  },
+  {
+   "subset": "Jumbo Rookie Swatch",
+   "name": "Black Prizm Brand Logo",
+   "serialRun": 1
+  },
+  {
+   "subset": "Jumbo Rookie Swatch",
+   "name": "Black Prizm Laundry Nike",
+   "serialRun": 1
+  },
+  {
+   "subset": "Jumbo Rookie Swatch",
+   "name": "Black Prizm NFL Shield",
+   "serialRun": 1
+  },
+  {
+   "subset": "Sparks Prizm Relics",
+   "name": "White Prizm",
+   "serialRun": 99
+  },
+  {
+   "subset": "Sparks Prizm Relics",
+   "name": "Tie-Dye Prizm",
+   "serialRun": 25
+  },
+  {
+   "subset": "Sparks Prizm Relics",
+   "name": "Gold Prizm",
+   "serialRun": 10
+  },
+  {
+   "subset": "Sparks Prizm Relics",
+   "name": "Green Prizm",
+   "serialRun": 5
+  },
+  {
+   "subset": "Sparks Prizm Relics",
+   "name": "Black Prizm Laundry NFL Player's Logo",
+   "serialRun": 1
+  },
+  {
+   "subset": "Sparks Prizm Relics",
+   "name": "Black Prizm Laundry Nike Swoosh",
+   "serialRun": 1
+  },
+  {
+   "subset": "Sparks Prizm Relics",
+   "name": "Black Prizm Laundry NFL Shield",
+   "serialRun": 1
+  },
+  {
+   "subset": "Alter Ego",
+   "name": "Gold Prizm",
+   "serialRun": 10
+  },
+  {
+   "subset": "Alter Ego",
+   "name": "Black Prizm",
+   "serialRun": 1
+  },
+  {
+   "subset": "Color Wheel",
+   "name": "Gold Prizm",
+   "serialRun": 10
+  },
+  {
+   "subset": "Color Wheel",
+   "name": "Black Prizm",
+   "serialRun": 1
+  },
+  {
+   "subset": "Neon Icons",
+   "name": "Prizm",
+   "serialRun": null
+  },
+  {
+   "subset": "Neon Icons",
+   "name": "Zebra Prizm",
+   "serialRun": null
+  },
+  {
+   "subset": "Neon Icons",
+   "name": "Tie-Dye Prizm",
+   "serialRun": 25
+  },
+  {
+   "subset": "Neon Icons",
+   "name": "Gold Prizm",
+   "serialRun": 10
+  },
+  {
+   "subset": "Neon Icons",
+   "name": "Green Prizm",
+   "serialRun": 5
+  },
+  {
+   "subset": "Neon Icons",
+   "name": "Green & Black Snakeskin Prizm",
+   "serialRun": 2
+  },
+  {
+   "subset": "Neon Icons",
+   "name": "Black Prizm",
+   "serialRun": 1
+  },
+  {
+   "subset": "On Target",
+   "name": "Prizm",
+   "serialRun": null
+  },
+  {
+   "subset": "On Target",
+   "name": "Zebra Prizm",
+   "serialRun": null
+  },
+  {
+   "subset": "On Target",
+   "name": "Tie-Dye Prizm",
+   "serialRun": 25
+  },
+  {
+   "subset": "On Target",
+   "name": "Gold Prizm",
+   "serialRun": 10
+  },
+  {
+   "subset": "On Target",
+   "name": "Green Prizm",
+   "serialRun": 5
+  },
+  {
+   "subset": "On Target",
+   "name": "Green & Black Snakeskin Prizm",
+   "serialRun": 2
+  },
+  {
+   "subset": "On Target",
+   "name": "Black Prizm",
+   "serialRun": 1
+  },
+  {
+   "subset": "Phenomenon",
+   "name": "Prizm",
+   "serialRun": null
+  },
+  {
+   "subset": "Phenomenon",
+   "name": "Zebra Prizm",
+   "serialRun": null
+  },
+  {
+   "subset": "Phenomenon",
+   "name": "Tie-Dye Prizm",
+   "serialRun": 25
+  },
+  {
+   "subset": "Phenomenon",
+   "name": "Gold Prizm",
+   "serialRun": 10
+  },
+  {
+   "subset": "Phenomenon",
+   "name": "Green Prizm",
+   "serialRun": 5
+  },
+  {
+   "subset": "Phenomenon",
+   "name": "Green & Black Snakeskin Prizm",
+   "serialRun": 2
+  },
+  {
+   "subset": "Phenomenon",
+   "name": "Black Prizm",
+   "serialRun": 1
+  },
+  {
+   "subset": "Score Select Throwback",
+   "name": "Prizm",
+   "serialRun": null
+  },
+  {
+   "subset": "Score Select Throwback",
+   "name": "Zebra Prizm",
+   "serialRun": null
+  },
+  {
+   "subset": "Score Select Throwback",
+   "name": "Tie-Dye Prizm",
+   "serialRun": 25
+  },
+  {
+   "subset": "Score Select Throwback",
+   "name": "Gold Prizm",
+   "serialRun": 10
+  },
+  {
+   "subset": "Score Select Throwback",
+   "name": "Green Prizm",
+   "serialRun": 5
+  },
+  {
+   "subset": "Score Select Throwback",
+   "name": "Green & Black Snakeskin Prizm",
+   "serialRun": 2
+  },
+  {
+   "subset": "Score Select Throwback",
+   "name": "Black Prizm",
+   "serialRun": 1
+  },
+  {
+   "subset": "Select Certified Rookies",
+   "name": "Prizm",
+   "serialRun": null
+  },
+  {
+   "subset": "Select Certified Rookies",
+   "name": "Zebra Prizm",
+   "serialRun": null
+  },
+  {
+   "subset": "Select Certified Rookies",
+   "name": "Tie-Dye Prizm",
+   "serialRun": 25
+  },
+  {
+   "subset": "Select Certified Rookies",
+   "name": "Gold Prizm",
+   "serialRun": 10
+  },
+  {
+   "subset": "Select Certified Rookies",
+   "name": "Green Prizm",
+   "serialRun": 5
+  },
+  {
+   "subset": "Select Certified Rookies",
+   "name": "Green & Black Snakeskin Prizm",
+   "serialRun": 2
+  },
+  {
+   "subset": "Select Certified Rookies",
+   "name": "Black Prizm",
+   "serialRun": 1
+  },
+  {
+   "subset": "Select Future",
+   "name": "Prizm",
+   "serialRun": null
+  },
+  {
+   "subset": "Select Future",
+   "name": "Zebra Prizm",
+   "serialRun": null
+  },
+  {
+   "subset": "Select Future",
+   "name": "Tie-Dye Prizm",
+   "serialRun": 25
+  },
+  {
+   "subset": "Select Future",
+   "name": "Gold Prizm",
+   "serialRun": 10
+  },
+  {
+   "subset": "Select Future",
+   "name": "Green Prizm",
+   "serialRun": 5
+  },
+  {
+   "subset": "Select Future",
+   "name": "Green & Black Snakeskin Prizm",
+   "serialRun": 2
+  },
+  {
+   "subset": "Select Future",
+   "name": "Black Prizm",
+   "serialRun": 1
+  },
+  {
+   "subset": "Select Numbers",
+   "name": "Prizm",
+   "serialRun": null
+  },
+  {
+   "subset": "Select Numbers",
+   "name": "Zebra Prizm",
+   "serialRun": null
+  },
+  {
+   "subset": "Select Numbers",
+   "name": "Tie-Dye Prizm",
+   "serialRun": 25
+  },
+  {
+   "subset": "Select Numbers",
+   "name": "Gold Prizm",
+   "serialRun": 10
+  },
+  {
+   "subset": "Select Numbers",
+   "name": "Green Prizm",
+   "serialRun": 5
+  },
+  {
+   "subset": "Select Numbers",
+   "name": "Green & Black Snakeskin Prizm",
+   "serialRun": 2
+  },
+  {
+   "subset": "Select Numbers",
+   "name": "Black Prizm",
+   "serialRun": 1
+  },
+  {
+   "subset": "Solar Eclipse",
+   "name": "Gold Prizm",
+   "serialRun": 10
+  },
+  {
+   "subset": "Solar Eclipse",
+   "name": "Black Prizm",
+   "serialRun": 1
+  },
+  {
+   "subset": "Starcade",
+   "name": "Gold Prizm",
+   "serialRun": 10
+  },
+  {
+   "subset": "Starcade",
+   "name": "Black Prizm",
+   "serialRun": 1
+  },
+  {
+   "subset": "Turbocharged",
+   "name": "Prizm",
+   "serialRun": null
+  },
+  {
+   "subset": "Turbocharged",
+   "name": "Zebra Prizm",
+   "serialRun": null
+  },
+  {
+   "subset": "Turbocharged",
+   "name": "Tie-Dye Prizm",
+   "serialRun": 25
+  },
+  {
+   "subset": "Turbocharged",
+   "name": "Gold Prizm",
+   "serialRun": 10
+  },
+  {
+   "subset": "Turbocharged",
+   "name": "Green Prizm",
+   "serialRun": 5
+  },
+  {
+   "subset": "Turbocharged",
+   "name": "Green & Black Snakeskin Prizm",
+   "serialRun": 2
+  },
+  {
+   "subset": "Turbocharged",
+   "name": "Black Prizm",
+   "serialRun": 1
+  }
+ ]
+}

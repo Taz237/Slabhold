@@ -1,0 +1,2060 @@
+{
+ "sport": "Basketball",
+ "yearLabel": "2025-26",
+ "product": "Panini Select",
+ "manufacturer": "Panini",
+ "source": "https://www.checklistinsider.com/2025-26-panini-select-basketball",
+ "official": false,
+ "parallels": [
+  {
+   "subset": "Base Concourse",
+   "name": "Blue Cracked Ice Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Blue Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Cosmic Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Disco Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Dragon Scale Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Elephant Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Gold Glitter Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Green Mojo Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Orange Flash Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Red Cracked Ice Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Scope Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Silver Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Tiger Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "White Sparkle Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Zebra Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Light Blue Prizms",
+   "serialRun": 299
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Red Flash Prizms",
+   "serialRun": 299
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Orange Cracked Ice Prizms",
+   "serialRun": 275
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Blue Scope Prizms",
+   "serialRun": 249
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Purple Flash Prizms",
+   "serialRun": 249
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Stars Prizms",
+   "serialRun": 225
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Light Blue Cracked Ice Prizms",
+   "serialRun": 199
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Red Prizms",
+   "serialRun": 199
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Maroon Prizms",
+   "serialRun": 175
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "White Prizms",
+   "serialRun": 149
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Red Disco Prizms",
+   "serialRun": 135
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Purple Prizms",
+   "serialRun": 125
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Blue Camo Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Blue Flash Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Pink Cracked Ice Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Purple Cracked Ice Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Neon Green Prizms",
+   "serialRun": 75
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Orange Prizms",
+   "serialRun": 65
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Bronze Checker Prizms",
+   "serialRun": 49
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "White Wave Prizms",
+   "serialRun": 49
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "White Scope Prizms",
+   "serialRun": 35
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Green Wave Prizms",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Tie-Dye Prizms",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Red Mojo Prizms",
+   "serialRun": 20
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Gold Cracked Ice Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Gold Flash Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Gold Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Spectris Gold FOTL",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Green Prizms",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Silver Vinyl Prizms",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Spectris Green FOTL",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Black Finite Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Black Snake Skin Prizms FOTL",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Concourse",
+   "name": "Gold Vinyl Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Blue Cracked Ice Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Blue Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Cosmic Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Disco Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Dragon Scale Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Elephant Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Gold Glitter Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Green Mojo Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Orange Flash Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Red Cracked Ice Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Scope Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Silver Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Tiger Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "White Sparkle Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Zebra Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Light Blue Prizms",
+   "serialRun": 299
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Red Flash Prizms",
+   "serialRun": 299
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Orange Cracked Ice Prizms",
+   "serialRun": 275
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Purple Flash Prizms",
+   "serialRun": 249
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Red Scope Prizms",
+   "serialRun": 249
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Light Blue Cracked Ice Prizms",
+   "serialRun": 199
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Red Prizms",
+   "serialRun": 199
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Maroon Prizms",
+   "serialRun": 175
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "White Prizms",
+   "serialRun": 149
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Red Disco Prizms",
+   "serialRun": 135
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Green Camo Prizms",
+   "serialRun": 125
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Blue Flash Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Pink Cracked Ice Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Purple Cracked Ice Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Purple Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Neon Green Prizms",
+   "serialRun": 75
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Orange Prizms",
+   "serialRun": 65
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Bronze Checker Prizms",
+   "serialRun": 49
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "White Wave Prizms",
+   "serialRun": 49
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "White Scope Prizms",
+   "serialRun": 35
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Green Wave Prizms",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Tie-Dye Prizms",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Red Mojo Prizms",
+   "serialRun": 20
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Gold Cracked Ice Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Gold Flash Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Gold Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Spectris Gold FOTL",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Green Prizms",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Silver Vinyl Prizms",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Spectris Green FOTL",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Black Finite Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Black Snake Skin Pulsar Prizms FOTL",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Premier Level",
+   "name": "Gold Vinyl Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Courtside",
+   "name": "Blue Cracked Ice Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Courtside",
+   "name": "Blue Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Courtside",
+   "name": "Cosmic Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Courtside",
+   "name": "Dragon Scale Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Courtside",
+   "name": "Elephant Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Courtside",
+   "name": "Gold Glitter Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Courtside",
+   "name": "Green Mojo Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Courtside",
+   "name": "Orange Flash Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Courtside",
+   "name": "Red Cracked Ice Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Courtside",
+   "name": "Silver Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Courtside",
+   "name": "Tiger Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Courtside",
+   "name": "White Sparkle Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Courtside",
+   "name": "Zebra Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Courtside",
+   "name": "Blue Flash Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base Courtside",
+   "name": "Pink Cracked Ice Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base Courtside",
+   "name": "Purple Cracked Ice Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base Courtside",
+   "name": "White Wave Prizms",
+   "serialRun": 49
+  },
+  {
+   "subset": "Base Courtside",
+   "name": "Green Wave Prizms",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Courtside",
+   "name": "Tie-Dye Prizms",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Courtside",
+   "name": "Red Mojo Prizms",
+   "serialRun": 20
+  },
+  {
+   "subset": "Base Courtside",
+   "name": "Gold Cracked Ice Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Courtside",
+   "name": "Gold Flash Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Courtside",
+   "name": "Gold Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Courtside",
+   "name": "Spectris Gold FOTL",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Courtside",
+   "name": "Green Prizms",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Courtside",
+   "name": "Silver Vinyl Prizms",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Courtside",
+   "name": "Spectris Green FOTL",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Courtside",
+   "name": "Black Finite Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Courtside",
+   "name": "Black Snake Skin Pulsar Prizms FOTL",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Courtside",
+   "name": "Gold Vinyl Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Mezzanine Level",
+   "name": "Blue Cracked Ice Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Mezzanine Level",
+   "name": "Blue Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Mezzanine Level",
+   "name": "Elephant Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Mezzanine Level",
+   "name": "Green Mojo Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Mezzanine Level",
+   "name": "Orange Flash Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Mezzanine Level",
+   "name": "Red Cracked Ice Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Mezzanine Level",
+   "name": "Silver Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Mezzanine Level",
+   "name": "Tiger Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Mezzanine Level",
+   "name": "Zebra Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Mezzanine Level",
+   "name": "Red Flash Prizms",
+   "serialRun": 299
+  },
+  {
+   "subset": "Base Mezzanine Level",
+   "name": "Orange Cracked Ice Prizms",
+   "serialRun": 275
+  },
+  {
+   "subset": "Base Mezzanine Level",
+   "name": "Purple Flash Prizms",
+   "serialRun": 249
+  },
+  {
+   "subset": "Base Mezzanine Level",
+   "name": "Light Blue Cracked Ice Prizms",
+   "serialRun": 199
+  },
+  {
+   "subset": "Base Mezzanine Level",
+   "name": "Blue Flash Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base Mezzanine Level",
+   "name": "Pink Cracked Ice Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base Mezzanine Level",
+   "name": "Purple Cracked Ice Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base Mezzanine Level",
+   "name": "White Mojo Prizms",
+   "serialRun": 49
+  },
+  {
+   "subset": "Base Mezzanine Level",
+   "name": "Tie-Dye Prizms",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Mezzanine Level",
+   "name": "Red Mojo Prizms",
+   "serialRun": 20
+  },
+  {
+   "subset": "Base Mezzanine Level",
+   "name": "Gold Cracked Ice Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Mezzanine Level",
+   "name": "Gold Flash Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Mezzanine Level",
+   "name": "Gold Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Mezzanine Level",
+   "name": "Green Prizms",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Mezzanine Level",
+   "name": "Silver Vinyl Prizms",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Mezzanine Level",
+   "name": "Black Finite Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "Colorgraphs",
+   "name": "Blue Prizms",
+   "serialRun": 49
+  },
+  {
+   "subset": "Colorgraphs",
+   "name": "Tie-Dye Prizms",
+   "serialRun": 25
+  },
+  {
+   "subset": "Colorgraphs",
+   "name": "Gold Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Colorgraphs",
+   "name": "Spectris Gold FOTL",
+   "serialRun": 10
+  },
+  {
+   "subset": "Colorgraphs",
+   "name": "Black Finite Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "Colorgraphs",
+   "name": "Black Snake Skin Pulsar Prizms FOTL",
+   "serialRun": 1
+  },
+  {
+   "subset": "Flawless Autographs",
+   "name": "Pink",
+   "serialRun": 15
+  },
+  {
+   "subset": "Flawless Autographs",
+   "name": "Gold",
+   "serialRun": 10
+  },
+  {
+   "subset": "Flawless Autographs",
+   "name": "Green",
+   "serialRun": 5
+  },
+  {
+   "subset": "Flawless Autographs",
+   "name": "Platinum",
+   "serialRun": 1
+  },
+  {
+   "subset": "Immaculate Rookie Introductions",
+   "name": "Pink",
+   "serialRun": 25
+  },
+  {
+   "subset": "Immaculate Rookie Introductions",
+   "name": "Gold",
+   "serialRun": 10
+  },
+  {
+   "subset": "Immaculate Rookie Introductions",
+   "name": "Green",
+   "serialRun": 5
+  },
+  {
+   "subset": "Immaculate Rookie Introductions",
+   "name": "Platinum",
+   "serialRun": 1
+  },
+  {
+   "subset": "Immaculate Rookie Patch Autographs",
+   "name": "Pink",
+   "serialRun": 25
+  },
+  {
+   "subset": "Immaculate Rookie Patch Autographs",
+   "name": "Gold",
+   "serialRun": 10
+  },
+  {
+   "subset": "Immaculate Rookie Patch Autographs",
+   "name": "Green",
+   "serialRun": 5
+  },
+  {
+   "subset": "Immaculate Rookie Patch Autographs",
+   "name": "Platinum",
+   "serialRun": 1
+  },
+  {
+   "subset": "Immaculate Signatures",
+   "name": "Pink",
+   "serialRun": 25
+  },
+  {
+   "subset": "Immaculate Signatures",
+   "name": "Gold",
+   "serialRun": 10
+  },
+  {
+   "subset": "Immaculate Signatures",
+   "name": "Green",
+   "serialRun": 5
+  },
+  {
+   "subset": "Immaculate Signatures",
+   "name": "Platinum",
+   "serialRun": 1
+  },
+  {
+   "subset": "International Notoriety Signatures",
+   "name": "Pink",
+   "serialRun": 25
+  },
+  {
+   "subset": "International Notoriety Signatures",
+   "name": "Gold",
+   "serialRun": 10
+  },
+  {
+   "subset": "International Notoriety Signatures",
+   "name": "Green",
+   "serialRun": 5
+  },
+  {
+   "subset": "International Notoriety Signatures",
+   "name": "Platinum",
+   "serialRun": 1
+  },
+  {
+   "subset": "NT Rookie Patch Autographs",
+   "name": "Pink",
+   "serialRun": 25
+  },
+  {
+   "subset": "NT Rookie Patch Autographs",
+   "name": "Gold",
+   "serialRun": 10
+  },
+  {
+   "subset": "NT Rookie Patch Autographs",
+   "name": "Green",
+   "serialRun": 5
+  },
+  {
+   "subset": "NT Rookie Patch Autographs",
+   "name": "Platinum",
+   "serialRun": 1
+  },
+  {
+   "subset": "NT Signatures",
+   "name": "Pink",
+   "serialRun": 25
+  },
+  {
+   "subset": "NT Signatures",
+   "name": "Gold",
+   "serialRun": 10
+  },
+  {
+   "subset": "NT Signatures",
+   "name": "Green",
+   "serialRun": 5
+  },
+  {
+   "subset": "NT Signatures",
+   "name": "Platinum",
+   "serialRun": 1
+  },
+  {
+   "subset": "Premium Patch Autographs",
+   "name": "Pink",
+   "serialRun": 25
+  },
+  {
+   "subset": "Premium Patch Autographs",
+   "name": "Gold",
+   "serialRun": 10
+  },
+  {
+   "subset": "Premium Patch Autographs",
+   "name": "Green",
+   "serialRun": 5
+  },
+  {
+   "subset": "Premium Patch Autographs",
+   "name": "Platinum",
+   "serialRun": 1
+  },
+  {
+   "subset": "Rookie Jersey Autographs",
+   "name": "Base Auto",
+   "serialRun": 99
+  },
+  {
+   "subset": "Rookie Jersey Autographs",
+   "name": "Red Prizms",
+   "serialRun": 75
+  },
+  {
+   "subset": "Rookie Jersey Autographs",
+   "name": "Blue Prizms",
+   "serialRun": 49
+  },
+  {
+   "subset": "Rookie Jersey Autographs",
+   "name": "Tie-Dye Prizms",
+   "serialRun": 25
+  },
+  {
+   "subset": "Rookie Jersey Autographs",
+   "name": "Gold Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Rookie Jersey Autographs",
+   "name": "Spectris Gold FOTL",
+   "serialRun": 10
+  },
+  {
+   "subset": "Rookie Jersey Autographs",
+   "name": "Spectris Green FOTL",
+   "serialRun": 5
+  },
+  {
+   "subset": "Rookie Jersey Autographs",
+   "name": "Dragon Scale Prizms",
+   "serialRun": 3
+  },
+  {
+   "subset": "Rookie Jersey Autographs",
+   "name": "Black Finite Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "Rookie Jersey Autographs",
+   "name": "Black Snake Skin Pulsar Prizms FOTL",
+   "serialRun": 1
+  },
+  {
+   "subset": "Rookie Signatures",
+   "name": "Base Auto",
+   "serialRun": 249
+  },
+  {
+   "subset": "Rookie Signatures",
+   "name": "Orange Prizms",
+   "serialRun": 149
+  },
+  {
+   "subset": "Rookie Signatures",
+   "name": "Red Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Rookie Signatures",
+   "name": "Purple Prizms",
+   "serialRun": 75
+  },
+  {
+   "subset": "Rookie Signatures",
+   "name": "Blue Prizms",
+   "serialRun": 49
+  },
+  {
+   "subset": "Rookie Signatures",
+   "name": "Tie-Dye Prizms",
+   "serialRun": 25
+  },
+  {
+   "subset": "Rookie Signatures",
+   "name": "Gold Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Rookie Signatures",
+   "name": "Spectris Gold FOTL",
+   "serialRun": 10
+  },
+  {
+   "subset": "Rookie Signatures",
+   "name": "Green Prizms",
+   "serialRun": 5
+  },
+  {
+   "subset": "Rookie Signatures",
+   "name": "Spectris Green FOTL",
+   "serialRun": 5
+  },
+  {
+   "subset": "Rookie Signatures",
+   "name": "Black Finite Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "Rookie Signatures",
+   "name": "Black Snake Skin Pulsar Prizms FOTL",
+   "serialRun": 1
+  },
+  {
+   "subset": "Rookie Signatures",
+   "name": "White Sparkle Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "Select Few Signatures",
+   "name": "Base Auto /49 or",
+   "serialRun": 35
+  },
+  {
+   "subset": "Select Few Signatures",
+   "name": "Tie-Dye Prizms",
+   "serialRun": 25
+  },
+  {
+   "subset": "Select Few Signatures",
+   "name": "Gold Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Select Few Signatures",
+   "name": "Green Prizms",
+   "serialRun": 5
+  },
+  {
+   "subset": "Select Few Signatures",
+   "name": "Spectris Green FOTL",
+   "serialRun": 5
+  },
+  {
+   "subset": "Select Few Signatures",
+   "name": "Black Finite Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "Select Few Signatures",
+   "name": "Black Snake Skin Pulsar Prizms FOTL",
+   "serialRun": 1
+  },
+  {
+   "subset": "Select Pairings Signatures",
+   "name": "Tie-Dye Prizms",
+   "serialRun": 25
+  },
+  {
+   "subset": "Select Pairings Signatures",
+   "name": "Gold Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Select Pairings Signatures",
+   "name": "Green Prizms",
+   "serialRun": 5
+  },
+  {
+   "subset": "Select Pairings Signatures",
+   "name": "Black Finite Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "Select Pairings Signatures",
+   "name": "Black Snake Skin Pulsar Prizms FOTL",
+   "serialRun": 1
+  },
+  {
+   "subset": "Selection Committee Signatures",
+   "name": "Orange Flash Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Selection Committee Signatures",
+   "name": "Pink Cracked Ice Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Selection Committee Signatures",
+   "name": "Purple Cracked Ice Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Selection Committee Signatures",
+   "name": "Blue Flash Prizms",
+   "serialRun": 35
+  },
+  {
+   "subset": "Selection Committee Signatures",
+   "name": "Green Mojo Prizms",
+   "serialRun": 35
+  },
+  {
+   "subset": "Selection Committee Signatures",
+   "name": "White Cracked Ice Prizms",
+   "serialRun": 25
+  },
+  {
+   "subset": "Selection Committee Signatures",
+   "name": "Gold Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Selection Committee Signatures",
+   "name": "Silver Vinyl Prizms",
+   "serialRun": 5
+  },
+  {
+   "subset": "Selection Committee Signatures",
+   "name": "Gold Vinyl Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "Signatures",
+   "name": "Orange Prizms",
+   "serialRun": 149
+  },
+  {
+   "subset": "Signatures",
+   "name": "Red Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Signatures",
+   "name": "Purple Prizms",
+   "serialRun": 75
+  },
+  {
+   "subset": "Signatures",
+   "name": "Blue Prizms",
+   "serialRun": 49
+  },
+  {
+   "subset": "Signatures",
+   "name": "Tie-Dye Prizms",
+   "serialRun": 25
+  },
+  {
+   "subset": "Signatures",
+   "name": "Gold Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Signatures",
+   "name": "Spectris Gold FOTL",
+   "serialRun": 10
+  },
+  {
+   "subset": "Signatures",
+   "name": "Green Prizms",
+   "serialRun": 5
+  },
+  {
+   "subset": "Signatures",
+   "name": "Spectris Green FOTL",
+   "serialRun": 5
+  },
+  {
+   "subset": "Signatures",
+   "name": "Black Finite Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "Signatures",
+   "name": "Black Snake Skin Pulsar Prizms FOTL",
+   "serialRun": 1
+  },
+  {
+   "subset": "Silhouette Autographs",
+   "name": "Pink",
+   "serialRun": 25
+  },
+  {
+   "subset": "Silhouette Autographs",
+   "name": "Gold",
+   "serialRun": 10
+  },
+  {
+   "subset": "Silhouette Autographs",
+   "name": "Green",
+   "serialRun": 5
+  },
+  {
+   "subset": "Silhouette Autographs",
+   "name": "Platinum",
+   "serialRun": 1
+  },
+  {
+   "subset": "Star Swatch Signatures",
+   "name": "Pink",
+   "serialRun": 15
+  },
+  {
+   "subset": "Star Swatch Signatures",
+   "name": "Gold",
+   "serialRun": 10
+  },
+  {
+   "subset": "Star Swatch Signatures",
+   "name": "Green",
+   "serialRun": 5
+  },
+  {
+   "subset": "Star Swatch Signatures",
+   "name": "Platinum",
+   "serialRun": 1
+  },
+  {
+   "subset": "Treasured Talents Signatures",
+   "name": "Pink",
+   "serialRun": 25
+  },
+  {
+   "subset": "Treasured Talents Signatures",
+   "name": "Gold",
+   "serialRun": 10
+  },
+  {
+   "subset": "Treasured Talents Signatures",
+   "name": "Green",
+   "serialRun": 5
+  },
+  {
+   "subset": "Treasured Talents Signatures",
+   "name": "Platinum",
+   "serialRun": 1
+  },
+  {
+   "subset": "Debut Memorabilia",
+   "name": "Blue Flash Prizms",
+   "serialRun": 35
+  },
+  {
+   "subset": "Debut Memorabilia",
+   "name": "Pink Cracked Ice Prizms",
+   "serialRun": 25
+  },
+  {
+   "subset": "Debut Memorabilia",
+   "name": "Purple Cracked Ice Prizms",
+   "serialRun": 20
+  },
+  {
+   "subset": "Debut Memorabilia",
+   "name": "Red Mojo Prizms",
+   "serialRun": 20
+  },
+  {
+   "subset": "Debut Memorabilia",
+   "name": "Gold Cracked Ice Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Debut Memorabilia",
+   "name": "Gold Flash Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Debut Memorabilia",
+   "name": "Gold Vinyl Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "Draft Selections Memorabilia",
+   "name": "Red Prizms",
+   "serialRun": 75
+  },
+  {
+   "subset": "Draft Selections Memorabilia",
+   "name": "Copper Prizms",
+   "serialRun": 49
+  },
+  {
+   "subset": "Draft Selections Memorabilia",
+   "name": "Tie-Dye Prizms",
+   "serialRun": 25
+  },
+  {
+   "subset": "Draft Selections Memorabilia",
+   "name": "Gold Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Draft Selections Memorabilia",
+   "name": "Black Finite Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "Jumbo Rookie Swatches",
+   "name": "Red Prizms",
+   "serialRun": 75
+  },
+  {
+   "subset": "Jumbo Rookie Swatches",
+   "name": "Copper Prizms",
+   "serialRun": 49
+  },
+  {
+   "subset": "Jumbo Rookie Swatches",
+   "name": "Tie-Dye Prizms",
+   "serialRun": 25
+  },
+  {
+   "subset": "Jumbo Rookie Swatches",
+   "name": "Gold Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Jumbo Rookie Swatches",
+   "name": "Black Finite Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "Select Memorabilia",
+   "name": "Blue Flash Prizms",
+   "serialRun": 35
+  },
+  {
+   "subset": "Select Memorabilia",
+   "name": "Pink Cracked Ice Prizms",
+   "serialRun": 25
+  },
+  {
+   "subset": "Select Memorabilia",
+   "name": "Purple Cracked Ice Prizms",
+   "serialRun": 20
+  },
+  {
+   "subset": "Select Memorabilia",
+   "name": "Red Mojo Prizms",
+   "serialRun": 20
+  },
+  {
+   "subset": "Select Memorabilia",
+   "name": "Gold Cracked Ice Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Select Memorabilia",
+   "name": "Gold Flash Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Select Memorabilia",
+   "name": "Gold Vinyl Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "Select Relics",
+   "name": "Blue Flash Prizms",
+   "serialRun": 35
+  },
+  {
+   "subset": "Select Relics",
+   "name": "Pink Cracked Ice Prizms",
+   "serialRun": 25
+  },
+  {
+   "subset": "Select Relics",
+   "name": "Purple Cracked Ice Prizms",
+   "serialRun": 20
+  },
+  {
+   "subset": "Select Relics",
+   "name": "Red Mojo Prizms",
+   "serialRun": 20
+  },
+  {
+   "subset": "Select Relics",
+   "name": "Gold Cracked Ice Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Select Relics",
+   "name": "Gold Flash Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Select Relics",
+   "name": "Gold Vinyl Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "Select Swatches",
+   "name": "Red Prizms",
+   "serialRun": 75
+  },
+  {
+   "subset": "Select Swatches",
+   "name": "Copper Prizms",
+   "serialRun": 49
+  },
+  {
+   "subset": "Select Swatches",
+   "name": "Tie-Dye Prizms /25 or",
+   "serialRun": 23
+  },
+  {
+   "subset": "Select Swatches",
+   "name": "Gold Prizms /10 or",
+   "serialRun": 5
+  },
+  {
+   "subset": "Select Swatches",
+   "name": "Black Finite Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "Select Threads",
+   "name": "Blue Flash Prizms",
+   "serialRun": 35
+  },
+  {
+   "subset": "Select Threads",
+   "name": "Pink Cracked Ice Prizms",
+   "serialRun": 25
+  },
+  {
+   "subset": "Select Threads",
+   "name": "Purple Cracked Ice Prizms",
+   "serialRun": 20
+  },
+  {
+   "subset": "Select Threads",
+   "name": "Red Mojo Prizms",
+   "serialRun": 20
+  },
+  {
+   "subset": "Select Threads",
+   "name": "Gold Cracked Ice Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Select Threads",
+   "name": "Gold Flash Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Select Threads",
+   "name": "Gold Vinyl Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "Sparks Relics",
+   "name": "Red Prizms",
+   "serialRun": 75
+  },
+  {
+   "subset": "Sparks Relics",
+   "name": "Copper Prizms",
+   "serialRun": 49
+  },
+  {
+   "subset": "Sparks Relics",
+   "name": "Tie-Dye Prizms",
+   "serialRun": 25
+  },
+  {
+   "subset": "Sparks Relics",
+   "name": "Gold Prizms /10 or",
+   "serialRun": 5
+  },
+  {
+   "subset": "Sparks Relics",
+   "name": "Black Finite Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "En Fuego",
+   "name": "Silver Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "En Fuego",
+   "name": "White Prizms",
+   "serialRun": 149
+  },
+  {
+   "subset": "En Fuego",
+   "name": "Purple Prizms",
+   "serialRun": 135
+  },
+  {
+   "subset": "En Fuego",
+   "name": "Red Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "En Fuego",
+   "name": "Blue Prizms",
+   "serialRun": 75
+  },
+  {
+   "subset": "En Fuego",
+   "name": "Orange Prizms",
+   "serialRun": 65
+  },
+  {
+   "subset": "En Fuego",
+   "name": "Bronze Prizms",
+   "serialRun": 49
+  },
+  {
+   "subset": "En Fuego",
+   "name": "Tie-Dye Prizms",
+   "serialRun": 25
+  },
+  {
+   "subset": "En Fuego",
+   "name": "Gold Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "En Fuego",
+   "name": "Green Prizms",
+   "serialRun": 5
+  },
+  {
+   "subset": "En Fuego",
+   "name": "Black Finite Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "Hot Stars",
+   "name": "Green Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Hot Stars",
+   "name": "Red Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Hot Stars",
+   "name": "Silver Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Hot Stars",
+   "name": "Blue Flash Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Hot Stars",
+   "name": "Pink Cracked Ice Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Hot Stars",
+   "name": "Purple Cracked Ice Prizms",
+   "serialRun": 75
+  },
+  {
+   "subset": "Hot Stars",
+   "name": "White Wave Prizms",
+   "serialRun": 49
+  },
+  {
+   "subset": "Hot Stars",
+   "name": "Red Mojo Prizms",
+   "serialRun": 20
+  },
+  {
+   "subset": "Hot Stars",
+   "name": "Gold Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Hot Stars",
+   "name": "Gold Vinyl Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "Introductions",
+   "name": "Silver Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Introductions",
+   "name": "White Prizms",
+   "serialRun": 149
+  },
+  {
+   "subset": "Introductions",
+   "name": "Purple Prizms",
+   "serialRun": 135
+  },
+  {
+   "subset": "Introductions",
+   "name": "Red Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Introductions",
+   "name": "Blue Prizms",
+   "serialRun": 75
+  },
+  {
+   "subset": "Introductions",
+   "name": "Orange Prizms",
+   "serialRun": 65
+  },
+  {
+   "subset": "Introductions",
+   "name": "Bronze Prizms",
+   "serialRun": 49
+  },
+  {
+   "subset": "Introductions",
+   "name": "Tie-Dye Prizms",
+   "serialRun": 25
+  },
+  {
+   "subset": "Introductions",
+   "name": "Gold Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Introductions",
+   "name": "Green Prizms",
+   "serialRun": 5
+  },
+  {
+   "subset": "Introductions",
+   "name": "Black Finite Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "Lodestars",
+   "name": "Green Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Lodestars",
+   "name": "Red Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Lodestars",
+   "name": "Silver Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Lodestars",
+   "name": "Blue Flash Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Lodestars",
+   "name": "Pink Cracked Ice Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Lodestars",
+   "name": "Purple Cracked Ice Prizms",
+   "serialRun": 75
+  },
+  {
+   "subset": "Lodestars",
+   "name": "White Wave Prizms",
+   "serialRun": 49
+  },
+  {
+   "subset": "Lodestars",
+   "name": "Red Mojo Prizms",
+   "serialRun": 20
+  },
+  {
+   "subset": "Lodestars",
+   "name": "Gold Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Lodestars",
+   "name": "Gold Vinyl Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "Neon Icon",
+   "name": "Green Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Neon Icon",
+   "name": "Red Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Neon Icon",
+   "name": "Silver Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Neon Icon",
+   "name": "Blue Flash Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Neon Icon",
+   "name": "Pink Cracked Ice Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Neon Icon",
+   "name": "Purple Cracked Ice Prizms",
+   "serialRun": 75
+  },
+  {
+   "subset": "Neon Icon",
+   "name": "White Wave Prizms",
+   "serialRun": 49
+  },
+  {
+   "subset": "Neon Icon",
+   "name": "Red Mojo Prizms",
+   "serialRun": 20
+  },
+  {
+   "subset": "Neon Icon",
+   "name": "Gold Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Neon Icon",
+   "name": "Gold Vinyl Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "Notoriety",
+   "name": "Silver Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Notoriety",
+   "name": "White Prizms",
+   "serialRun": 149
+  },
+  {
+   "subset": "Notoriety",
+   "name": "Purple Prizms",
+   "serialRun": 135
+  },
+  {
+   "subset": "Notoriety",
+   "name": "Red Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Notoriety",
+   "name": "Blue Prizms",
+   "serialRun": 75
+  },
+  {
+   "subset": "Notoriety",
+   "name": "Orange Prizms",
+   "serialRun": 65
+  },
+  {
+   "subset": "Notoriety",
+   "name": "Bronze Prizms",
+   "serialRun": 49
+  },
+  {
+   "subset": "Notoriety",
+   "name": "Tie-Dye Prizms",
+   "serialRun": 25
+  },
+  {
+   "subset": "Notoriety",
+   "name": "Gold Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Notoriety",
+   "name": "Green Prizms",
+   "serialRun": 5
+  },
+  {
+   "subset": "Notoriety",
+   "name": "Black Finite Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "Rookie Revolution",
+   "name": "Green Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Rookie Revolution",
+   "name": "Red Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Rookie Revolution",
+   "name": "Silver Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Rookie Revolution",
+   "name": "Blue Flash Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Rookie Revolution",
+   "name": "Pink Cracked Ice Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Rookie Revolution",
+   "name": "Purple Cracked Ice Prizms",
+   "serialRun": 75
+  },
+  {
+   "subset": "Rookie Revolution",
+   "name": "White Wave Prizms",
+   "serialRun": 49
+  },
+  {
+   "subset": "Rookie Revolution",
+   "name": "Red Mojo Prizms",
+   "serialRun": 20
+  },
+  {
+   "subset": "Rookie Revolution",
+   "name": "Gold Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Rookie Revolution",
+   "name": "Gold Vinyl Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "Select Buckets",
+   "name": "Silver Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Select Buckets",
+   "name": "White Prizms",
+   "serialRun": 149
+  },
+  {
+   "subset": "Select Buckets",
+   "name": "Purple Prizms",
+   "serialRun": 135
+  },
+  {
+   "subset": "Select Buckets",
+   "name": "Red Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Select Buckets",
+   "name": "Blue Prizms",
+   "serialRun": 75
+  },
+  {
+   "subset": "Select Buckets",
+   "name": "Orange Prizms",
+   "serialRun": 65
+  },
+  {
+   "subset": "Select Buckets",
+   "name": "Bronze Prizms",
+   "serialRun": 49
+  },
+  {
+   "subset": "Select Buckets",
+   "name": "Tie-Dye Prizms",
+   "serialRun": 25
+  },
+  {
+   "subset": "Select Buckets",
+   "name": "Gold Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Select Buckets",
+   "name": "Green Prizms",
+   "serialRun": 5
+  },
+  {
+   "subset": "Select Buckets",
+   "name": "Black Finite Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "Select Certified",
+   "name": "Green Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Select Certified",
+   "name": "Red Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Select Certified",
+   "name": "Silver Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Select Certified",
+   "name": "Blue Flash Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Select Certified",
+   "name": "Pink Cracked Ice Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Select Certified",
+   "name": "Purple Cracked Ice Prizms",
+   "serialRun": 75
+  },
+  {
+   "subset": "Select Certified",
+   "name": "White Wave Prizms",
+   "serialRun": 49
+  },
+  {
+   "subset": "Select Certified",
+   "name": "Red Mojo Prizms",
+   "serialRun": 20
+  },
+  {
+   "subset": "Select Certified",
+   "name": "Gold Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Select Certified",
+   "name": "Gold Vinyl Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "Select Future",
+   "name": "Silver Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Select Future",
+   "name": "White Prizms",
+   "serialRun": 149
+  },
+  {
+   "subset": "Select Future",
+   "name": "Purple Prizms",
+   "serialRun": 135
+  },
+  {
+   "subset": "Select Future",
+   "name": "Red Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Select Future",
+   "name": "Blue Prizms",
+   "serialRun": 75
+  },
+  {
+   "subset": "Select Future",
+   "name": "Orange Prizms",
+   "serialRun": 65
+  },
+  {
+   "subset": "Select Future",
+   "name": "Bronze Prizms",
+   "serialRun": 49
+  },
+  {
+   "subset": "Select Future",
+   "name": "Tie-Dye Prizms",
+   "serialRun": 25
+  },
+  {
+   "subset": "Select Future",
+   "name": "Gold Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Select Future",
+   "name": "Green Prizms",
+   "serialRun": 5
+  },
+  {
+   "subset": "Select Future",
+   "name": "Black Finite Prizms",
+   "serialRun": 1
+  }
+ ]
+}

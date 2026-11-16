@@ -28,6 +28,10 @@ All pages were fetched on **2026-11-13** (Fri, America/New_York) with curl, then
 | 2025-26-basketball-bowman.csv | Basketball | 2025-26 | Bowman | 1493 | 200 (Base) | 357 | https://www.checklistinsider.com/2025-26-bowman-basketball |
 | 2025-26-basketball-topps-chrome.csv | Basketball | 2025-26 | Topps Chrome | 1208 | 299 (Base) | 529 | https://www.checklistinsider.com/2025-26-topps-chrome-basketball |
 | 2025-football-topps-chrome.csv | Football | 2025 | Topps Chrome | 1570 | 300 (Base) + 100 (Base Rookies) | 417 | https://www.checklistinsider.com/2025-topps-chrome-football |
+| 2025-football-panini-select.csv | Football | 2025 | Panini Select | 1497 | 500 (Base Concourse to Field Level) | 323 | https://www.checklistinsider.com/2025-panini-select-football |
+| 2025-football-donruss-optic.csv | Football | 2025 | Donruss Optic | 1101 | 200 (Base) + 100 (Base Rated Rookie) | 188 | https://www.checklistinsider.com/2025-donruss-optic-football |
+| 2025-football-panini-mosaic.csv | Football | 2025 | Panini Mosaic | 1074 | 250 (Base) + 100 (Base Rookies) | 0 (page layout not read; Panini's list is used) | https://www.checklistinsider.com/2025-panini-mosaic-football |
+| 2025-26-basketball-panini-select.csv | Basketball | 2025-26 | Panini Select | 1242 | 400 (Base Concourse to Mezzanine Level) | 410 | https://www.checklistinsider.com/2025-26-panini-select-basketball |
 | 2026-baseball-topps-series-1.csv | Baseball | 2026 | Topps | 1301 | 330 (Base) | 252 | https://www.checklistinsider.com/2026-topps-series-1-baseball |
 
 ## Cross-check
