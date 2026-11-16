@@ -24,6 +24,8 @@ export type ProductRecord = {
   manufacturer: string;
   source?: string;
   official?: boolean;
+  /** Where the print runs came from, when not from `source` (scripts/merge-print-runs.ts). */
+  runsFrom?: string;
   parallels: ProductParallelRow[];
 };
 
