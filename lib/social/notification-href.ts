@@ -16,7 +16,7 @@ export type NotificationTarget = {
 /**
  * Where a notice opens. The in-app list and push notifications both use this,
  * so a tap lands on the same screen either way: follows open the profile,
- * DMs the chat, quotes the quoting post, and the rest the post itself.
+ * DMs and DM reactions the chat, quotes the quoting post, and the rest the post itself.
  */
 export function notificationHref(target: NotificationTarget): string {
   const { kind, postId, actorUsername, storedHref } = target;
@@ -26,7 +26,7 @@ export function notificationHref(target: NotificationTarget): string {
   if (kind === "deal_confirm") {
     return dealNotificationHref(target.actorId ?? null, actorUsername, storedHref);
   }
-  if (kind === "dm") return actorUsername ? userHref(actorUsername, "messages") : "/messages";
+  if (kind === "dm" || kind === "dm_reaction") return actorUsername ? userHref(actorUsername, "messages") : "/messages";
   if (kind === "follow") return actorUsername ? userHref(actorUsername) : "/profile";
   return postId ? `/posts/${encodeURIComponent(postId)}` : "/";
 }

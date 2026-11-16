@@ -31,6 +31,23 @@ import { userHref } from "@/lib/social/user-href";
 import { MESSAGE_LIMIT, type DirectMessage } from "@/lib/social/types";
 import { TeamBadge } from "@/components/team-badge";
 import { useKeyboardInset } from "@/lib/ui/use-keyboard-inset";
+import {
+  ReactionBar,
+  ReactionPillButton,
+  ReactionsSheet,
+  reactionHaptic,
+  useBubbleGestures,
+  type ReactionPerson,
+} from "@/components/message-reactions";
+import {
+  DOUBLE_TAP_EMOJI,
+  REACTION_NAMES,
+  reactionPill,
+  reactionsFor,
+  type MessageReaction,
+  type ReactionEmoji,
+} from "@/lib/social/message-reactions";
+import { useMessageReactions } from "@/lib/social/use-message-reactions";
 import { followsNewMessage, threadAtBottom, threadHeight } from "@/lib/ui/thread-height";
 
 /**
@@ -167,6 +184,24 @@ export function MessageThread({ username }: { username: string }) {
   const fresh = useFreshKeys(
     shownThread.map((message) => message.id),
     ready && Boolean(partner),
+  );
+
+  // Reactions: double-tap for a heart, long-press for the bar. Live for both people.
+  const { reactions, available: reactionsOn, react } = useMessageReactions(
+    partner ? (user?.id ?? null) : null,
+    thread.map((message) => message.id),
+  );
+  /** The message whose emoji bar is open. One at a time. */
+  const [barFor, setBarFor] = useState<string | null>(null);
+  /** The message whose "who reacted" sheet is open. */
+  const [sheetFor, setSheetFor] = useState<string | null>(null);
+  const reactTo = useCallback(
+    (messageId: string, emoji: ReactionEmoji) => {
+      void react(messageId, emoji).then((result) => {
+        if (result.error) setError(result.error);
+      });
+    },
+    [react],
   );
 
   // Opening jumps to the newest message. Later messages glide into view.
@@ -382,7 +417,19 @@ export function MessageThread({ username }: { username: string }) {
       ) : null}
       <DealThreadPanel partnerId={partner.id} />
 
-      <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-3 pb-2">
+      {sheetFor ? (
+        <ReactionsSheet
+          people={reactionPeople(reactionsFor(reactions, sheetFor), user, partner)}
+          onRemove={() => {
+            const mine = reactionsFor(reactions, sheetFor).find((item) => item.userId === user.id);
+            setSheetFor(null);
+            if (mine) reactTo(sheetFor, mine.emoji);
+          }}
+          onClose={() => setSheetFor(null)}
+        />
+      ) : null}
+
+      <div ref={scroller} data-thread-scroller="" className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-3 pb-2">
         {partnerId && threadMore(partnerId) ? (
           <div className="flex justify-center pb-2">
             <button
@@ -417,9 +464,26 @@ export function MessageThread({ username }: { username: string }) {
                 </p>
               );
             }
+            const rowReactions = reactionsFor(reactions, row.message.id);
             return (
               <MessageRow
                 key={row.key}
+                reactions={rowReactions}
+                viewerId={user.id}
+                partnerName={partner.displayName}
+                canReact={reactionsOn && !row.message.id.startsWith("sending-")}
+                barOpen={barFor === row.message.id}
+                onOpenBar={() => setBarFor(row.message.id)}
+                onCloseBar={() => setBarFor((current) => (current === row.message.id ? null : current))}
+                onReact={(emoji, via) => {
+                  const mine = rowReactions.find((item) => item.userId === user.id)?.emoji ?? null;
+                  setBarFor(null);
+                  reactionHaptic(via);
+                  // A double tap only ever adds the heart; it never takes it away.
+                  if (via === "double" && mine === emoji) return;
+                  reactTo(row.message.id, emoji);
+                }}
+                onShowReactions={() => setSheetFor(row.message.id)}
                 message={row.message}
                 mine={row.mine}
                 first={row.first}
@@ -484,6 +548,27 @@ export function MessageThread({ username }: { username: string }) {
   );
 }
 
+type Person = { id: string; displayName: string; username: string; avatarDataUrl: string | null; accent: string };
+
+/** The people in a pill, oldest reaction first, for the sheet. */
+function reactionPeople(list: MessageReaction[], user: Person, partner: Person): ReactionPerson[] {
+  return list.flatMap((item) => {
+    const person = item.userId === user.id ? user : item.userId === partner.id ? partner : null;
+    if (!person) return [];
+    return [
+      {
+        userId: item.userId,
+        emoji: item.emoji,
+        you: person.id === user.id,
+        name: person.displayName,
+        username: person.username,
+        avatar: person.avatarDataUrl,
+        accent: person.accent,
+      },
+    ];
+  });
+}
+
 function MessageRow({
   message,
   mine,
@@ -494,7 +579,26 @@ function MessageRow({
   onToggleTime,
   seen,
   sending = false,
+  reactions,
+  viewerId,
+  partnerName,
+  canReact,
+  barOpen,
+  onOpenBar,
+  onCloseBar,
+  onReact,
+  onShowReactions,
 }: {
+  reactions: MessageReaction[];
+  viewerId: string;
+  partnerName: string;
+  /** Off while sending, or before the reactions table exists. */
+  canReact: boolean;
+  barOpen: boolean;
+  onOpenBar: () => void;
+  onCloseBar: () => void;
+  onReact: (emoji: ReactionEmoji, via: "double" | "bar") => void;
+  onShowReactions: () => void;
   message: DirectMessage;
   mine: boolean;
   first: boolean;
@@ -515,6 +619,30 @@ function MessageRow({
   const tone = mine
     ? "bg-[#7C3AED] text-white"
     : "bg-zinc-200 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100";
+  const reactable = canReact && Boolean(text);
+  const bubbleRef = useRef<HTMLDivElement>(null);
+  const [below, setBelow] = useState(false);
+  const gestures = useBubbleGestures({
+    enabled: reactable,
+    onTap: onToggleTime,
+    onDoubleTap: () => onReact(DOUBLE_TAP_EMOJI, "double"),
+    onLongPress: () => {
+      // Near the top of the thread the bar would be cut off: open it under the bubble.
+      const bubble = bubbleRef.current?.getBoundingClientRect();
+      const scroller = bubbleRef.current?.closest("[data-thread-scroller]")?.getBoundingClientRect();
+      setBelow(Boolean(bubble && scroller && bubble.top - scroller.top < 64));
+      onOpenBar();
+    },
+  });
+  const pill = reactionPill(reactions, viewerId);
+  const mineReaction = pill?.mine ?? null;
+  const pillLabel = reactions
+    .map((item) => `${item.userId === viewerId ? "You" : partnerName} reacted ${REACTION_NAMES[item.emoji]}`)
+    .join(", ");
+  const closeBar = () => {
+    onCloseBar();
+    bubbleRef.current?.focus({ preventScroll: true });
+  };
   return (
     <div
       data-message-row=""
@@ -531,17 +659,29 @@ function MessageRow({
         {text ? (
           <div data-bubble={mine ? "mine" : "theirs"} className={`relative ${tone} ${shape}`}>
             {/* A div, not a button, so the text can still be long-pressed and copied on iOS. */}
+            {/* With reactions on, a long-press opens the bar (with Copy) instead of the iOS callout. */}
             <div
+              ref={bubbleRef}
               role="button"
               tabIndex={0}
               aria-expanded={timeOpen}
-              onClick={onToggleTime}
+              aria-haspopup={reactable ? "menu" : undefined}
+              aria-keyshortcuts={reactable ? "Shift+F10" : undefined}
+              {...gestures}
               onKeyDown={(event) => {
+                if (reactable && (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10"))) {
+                  event.preventDefault();
+                  setBelow(false);
+                  onOpenBar();
+                  return;
+                }
                 if (event.key !== "Enter" && event.key !== " ") return;
                 event.preventDefault();
                 onToggleTime();
               }}
-              className="cursor-default rounded-[inherit] px-3.5 py-2 text-15 leading-5 break-words whitespace-pre-wrap outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+              className={`cursor-default rounded-[inherit] px-3.5 py-2 text-15 leading-5 break-words whitespace-pre-wrap outline-none focus-visible:ring-2 focus-visible:ring-violet-400 ${
+                reactable ? "touch-manipulation select-none [-webkit-touch-callout:none]" : ""
+              }`}
             >
               <MentionText
                 text={message.content}
@@ -553,8 +693,25 @@ function MessageRow({
               />
             </div>
             {last ? <BubbleTail mine={mine} /> : null}
+            {barOpen ? (
+              <ReactionBar
+                mine={mine}
+                current={mineReaction}
+                below={below}
+                onPick={(emoji) => {
+                  onReact(emoji, "bar");
+                  bubbleRef.current?.focus({ preventScroll: true });
+                }}
+                onCopy={() => {
+                  void navigator.clipboard?.writeText(message.content).catch(() => {});
+                  closeBar();
+                }}
+                onClose={closeBar}
+              />
+            ) : null}
           </div>
         ) : null}
+        {pill ? <ReactionPillButton pill={pill} mine={mine} label={pillLabel} onOpen={onShowReactions} /> : null}
         {text ? <MessageAttachments text={text} /> : null}
         {timeOpen ? (
           <time

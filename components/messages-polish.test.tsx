@@ -390,3 +390,92 @@ describe("conversation", () => {
     assert.match(source, /offerCardForThread\(/);
   });
 });
+
+describe("reactions", () => {
+  const firstBubble = () => document.querySelector("[data-bubble] [role=button]");
+  const pill = () => document.querySelector("[data-reaction-pill]");
+  const bar = () => document.querySelector("[data-reaction-bar]");
+  function openBar(bubble: Element | null) {
+    assert.ok(bubble, "bubble to press");
+    // A right-click (or Android's long-press) starts with a pointerdown, then contextmenu.
+    act(() => {
+      bubble.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, button: 2 }));
+      bubble.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
+    });
+  }
+  function pick(name: string) {
+    click(bar()?.querySelector(`[aria-label="React with ${name}"]`));
+  }
+
+  it("double-tap hearts a message, and leaves the time as it was", () => {
+    thread([dm("1", "ada", "me", 0, { content: "Still have the Love?" })]);
+    assert.equal(pill(), null);
+    const bubble = firstBubble();
+    click(bubble);
+    click(bubble);
+    assert.equal(pill()?.textContent, "❤️");
+    assert.match(pill()?.getAttribute("aria-label") ?? "", /You reacted heart\. Show who reacted/);
+    assert.equal(bubble?.getAttribute("aria-expanded"), "false");
+    // Another double tap keeps the heart: it only ever adds.
+    click(bubble);
+    click(bubble);
+    assert.equal(pill()?.textContent, "❤️");
+  });
+
+  it("long-press opens the six-emoji bar; the same emoji removes, another swaps", () => {
+    thread([dm("1", "ada", "me", 0)]);
+    openBar(firstBubble());
+    assert.ok(bar());
+    assert.equal(bar()?.getAttribute("role"), "menu");
+    assert.deepEqual(
+      [...(bar()?.querySelectorAll("[role=menuitemradio]") ?? [])].map((item) => item.textContent),
+      ["❤️", "👍", "😂", "😮", "😢", "🔥"],
+    );
+    assert.ok(bar()?.querySelector('[aria-label="Copy message"]'));
+    pick("fire");
+    assert.equal(bar(), null);
+    assert.equal(pill()?.textContent, "🔥");
+
+    openBar(firstBubble());
+    assert.equal(bar()?.querySelector('[aria-checked="true"]')?.textContent, "🔥");
+    pick("laughing");
+    assert.equal(pill()?.textContent, "😂");
+
+    openBar(firstBubble());
+    pick("laughing");
+    assert.equal(pill(), null);
+  });
+
+  it("opens the bar after a still hold, not a tap", async () => {
+    thread([dm("1", "ada", "me", 0)]);
+    const bubble = firstBubble()!;
+    act(() => {
+      bubble.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, clientX: 10, clientY: 10 }));
+    });
+    assert.equal(bar(), null);
+    await act(() => new Promise((resolve) => setTimeout(resolve, 480)));
+    assert.ok(bar());
+    // The click after the hold doesn't also open the time.
+    click(bubble);
+    assert.equal(bubble.getAttribute("aria-expanded"), "false");
+    // Escape closes it.
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
+    assert.equal(bar(), null);
+  });
+
+  it("tapping the pill shows who reacted, and your own row removes it", () => {
+    thread([dm("1", "ada", "me", 0)]);
+    openBar(firstBubble());
+    pick("surprised");
+    click(pill());
+    const sheet = document.querySelector("[data-reactions-sheet]");
+    assert.ok(sheet);
+    assert.match(sheet?.textContent ?? "", /You/);
+    assert.match(sheet?.textContent ?? "", /😮/);
+    click(sheet?.querySelector('[aria-label="You reacted surprised. Tap to remove"]'));
+    assert.equal(document.querySelector("[data-reactions-sheet]"), null);
+    assert.equal(pill(), null);
+  });
+});

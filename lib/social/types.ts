@@ -133,7 +133,9 @@ export type NotificationKind =
   | "mention"
   | "quote"
   | "want_alert"
-  | "deal_confirm";
+  | "deal_confirm"
+  /** Someone reacted to your DM. Quiet: never a push. */
+  | "dm_reaction";
 
 export type Notification = {
   id: string;
