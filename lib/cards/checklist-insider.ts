@@ -54,6 +54,57 @@ export function parseParallelLine(line: string): { name: string; serialRun: numb
   return { name, serialRun: null };
 }
 
+/**
+ * Known slips on a page, fixed by hand after review: a name the page misspells, and a row that
+ * contradicts the base checklist. Only names a person checked are here; nothing is guessed, and a
+ * card is never dropped for its spelling. Keyed by the page's product title.
+ */
+export type PageCorrections = {
+  /** The page's spelling → the player's name. */
+  names?: Readonly<Record<string, string>>;
+  /** Rows the page lists that aren't real cards. */
+  drop?: readonly { set: string; number: string; player: string }[];
+};
+
+export const PAGE_CORRECTIONS: Readonly<Record<string, PageCorrections>> = {
+  "2025 Topps Chrome Football": {
+    names: {
+      "Kale! Mullings": "Kaleb Mullings",
+      "Kurds Rourke": "Kurtis Rourke",
+      "Jandae Barron": "Jahdae Barron",
+      // The page's apostrophe came through as "T".
+      "JaTMarr Chase": "Ja'Marr Chase",
+    },
+    // Base Rookies #313 is Pat Bryant; the etch list's "Antwane Wells Jr." at #313 is a leftover.
+    drop: [{ set: "Base Rookies Chrome Etch Variations", number: "313", player: "Antwane Wells Jr." }],
+  },
+};
+
+/** The page's cards with its known slips fixed. Reports each correction that matched nothing. */
+export function applyCorrections(cards: readonly InsiderCard[], corrections: PageCorrections | undefined): { cards: InsiderCard[]; unused: string[] } {
+  if (!corrections) return { cards: [...cards], unused: [] };
+  const names = corrections.names ?? {};
+  const drops = corrections.drop ?? [];
+  const usedNames = new Set<string>();
+  const usedDrops = new Set<number>();
+  const out: InsiderCard[] = [];
+  for (const card of cards) {
+    const dropAt = drops.findIndex((row) => row.set === card.set && row.number === card.number && row.player === card.player);
+    if (dropAt >= 0) {
+      usedDrops.add(dropAt);
+      continue;
+    }
+    const fixed = names[card.player];
+    if (fixed) usedNames.add(card.player);
+    out.push(fixed ? { ...card, player: fixed } : card);
+  }
+  const unused = [
+    ...Object.keys(names).filter((name) => !usedNames.has(name)).map((name) => `name "${name}"`),
+    ...drops.filter((_row, index) => !usedDrops.has(index)).map((row) => `drop ${row.set} #${row.number} ${row.player}`),
+  ];
+  return { cards: out, unused };
+}
+
 export function parseInsiderPage(html: string, productTitle: string): InsiderPage {
   const lines = pageLines(html);
   const cards: InsiderCard[] = [];

@@ -149,6 +149,12 @@ Its base and rookie parallel list is not official. Topps' own odds sheet
 the same parallels with no print runs. The page gives two rookie runs that differ from the
 veterans' (Green Wave /100 and Purple Wave /76, against /99 and /75): those two are left unknown.
 
+The page's slips are fixed by `PAGE_CORRECTIONS` in `lib/cards/checklist-insider.ts`, and only those
+a person checked: "Kale! Mullings" is Kaleb Mullings (Base Rookies #309 and his two autographs),
+"Kurds Rourke" is Kurtis Rourke (#307), "Jandae Barron" is Jahdae Barron (#359), and "JaTMarr
+Chase" (a broken apostrophe) is Ja'Marr Chase. The etch list's "Antwane Wells Jr." at #313 is
+dropped: Base Rookies #313 is Pat Bryant.
+
 Until a product is in the store, the scanner falls back to the sold titles for that year, set and
 card # (below).
 

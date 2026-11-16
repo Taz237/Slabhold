@@ -16,7 +16,7 @@
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { insiderCsv, parseInsiderPage } from "@/lib/cards/checklist-insider";
+import { applyCorrections, insiderCsv, PAGE_CORRECTIONS, parseInsiderPage } from "@/lib/cards/checklist-insider";
 import { checklistFileName } from "@/lib/cards/checklists";
 
 function flag(name: string): string {
@@ -39,7 +39,11 @@ async function main() {
   const local = !/^https?:\/\//i.test(from);
   const source = local ? flag("source") : from;
   const html = local ? readFileSync(from, "utf8") : await (await fetch(from, { headers: { "User-Agent": "Mozilla/5.0 (checklist import)" } })).text();
-  const page = parseInsiderPage(html, title);
+  const parsed = parseInsiderPage(html, title);
+  // The page's known slips (lib/cards/checklist-insider.ts): misspelled names fixed, leftover rows dropped.
+  const corrected = applyCorrections(parsed.cards, PAGE_CORRECTIONS[title]);
+  if (corrected.unused.length > 0) console.warn(`Corrections that matched nothing on this page: ${corrected.unused.join("; ")}`);
+  const page = { ...parsed, cards: corrected.cards };
   if (page.cards.length < 20) {
     console.error(`Only ${page.cards.length} cards read: not a checklist page this script can read. Nothing written.`);
     process.exit(1);

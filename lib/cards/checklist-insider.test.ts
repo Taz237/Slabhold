@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { insiderCsv, parseInsiderPage, parseParallelLine } from "./checklist-insider";
+import { applyCorrections, insiderCsv, PAGE_CORRECTIONS, parseInsiderPage, parseParallelLine } from "./checklist-insider";
 
 /** A made-up page in the layout Checklist Insider uses. */
 const PAGE = `
@@ -56,5 +56,31 @@ describe("a Checklist Insider page", () => {
   it("writes the checklist CSV the earlier imports used", () => {
     const csv = insiderCsv(parseInsiderPage(PAGE, "2025 Fixture Chrome Football").cards.slice(2, 3));
     assert.equal(csv, "CARD SET,CARD NUMBER,ATHLETE,TEAM,RC\nBase Rookies,306,Rookie Fixture,New York Giants,RC\n");
+  });
+});
+
+describe("a page's known slips", () => {
+  const card = (set: string, number: string, player: string) => ({ set, number, player, team: "Fixture Team", rookie: false });
+
+  it("fixes a misspelled name everywhere it appears, and drops only the listed leftover row", () => {
+    const { cards, unused } = applyCorrections(
+      [card("Base Rookies", "309", "Kale! Mullings"), card("Rookies Autographs", "RA-KMU", "Kale! Mullings"), card("Base Rookies Chrome Etch Variations", "313", "Antwane Wells Jr."), card("Rookies Autographs", "RA-AW", "Antwane Wells Jr.")],
+      PAGE_CORRECTIONS["2025 Topps Chrome Football"],
+    );
+    assert.deepEqual(
+      cards.map((row) => [row.set, row.number, row.player]),
+      [
+        ["Base Rookies", "309", "Kaleb Mullings"],
+        ["Rookies Autographs", "RA-KMU", "Kaleb Mullings"],
+        ["Rookies Autographs", "RA-AW", "Antwane Wells Jr."],
+      ],
+    );
+    // The fixture didn't carry every slip: those are reported, so a re-read that no longer has them shows.
+    assert.ok(unused.some((line) => line.includes("Kurds Rourke")));
+  });
+
+  it("a page with no corrections is unchanged", () => {
+    const rows = [card("Base", "1", "Fixture Player")];
+    assert.deepEqual(applyCorrections(rows, undefined), { cards: rows, unused: [] });
   });
 });
