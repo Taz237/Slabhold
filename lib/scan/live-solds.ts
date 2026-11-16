@@ -101,9 +101,9 @@ export type LiveSoldsResult = {
   similar?: ScanEstimateResult;
 };
 
-/** A slab with its parallel open and versions to choose from ("Which version?"). */
+/** A slab with its parallel open and versions to choose from ("Which version?"), even if Base is the only one. */
 export function awaitsVersion(match: ScanMatch | undefined): boolean {
-  return Boolean(match?.grade) && !match!.parallel && match!.serialRun == null && match!.parallelOptions.length > 1;
+  return Boolean(match?.grade) && !match!.parallel && match!.serialRun == null && match!.parallelOptions.length > 0;
 }
 
 /** Pinned down enough to trust a cached price: the card backed the set and the number (or a slab label did). */

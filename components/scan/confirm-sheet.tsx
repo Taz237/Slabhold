@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { PrimaryButton, QuietButton, focusRing } from "@/components/add-card/flow-ui";
 import {
   LastSold,
@@ -25,6 +25,7 @@ import {
   readyToSave,
   type ParallelPick,
 } from "@/lib/scan/confirm";
+import { rowsWithVersion } from "@/lib/scan/version-reread";
 import type { ProductParallel } from "@/lib/cards/product-data";
 import type { ScanMatch } from "@/lib/scan/match";
 
@@ -49,7 +50,7 @@ type Props = {
   /** "Is this Sapphire?": read the card again as its Sapphire Edition and look its sales up. */
   onSapphire?: () => void;
   /** "Which version?": read the slab again as the version picked and look that version's sales up. */
-  onVersion?: (version: string) => void;
+  onVersion?: (version: string, rows: ScanMatch[]) => void;
   onClose: () => void;
 };
 
@@ -100,7 +101,7 @@ function Ready({
   /** The scan, shown beside a sold listing's photo when one is enlarged. */
   photo?: string | null;
   onSapphire?: () => void;
-  onVersion?: (version: string) => void;
+  onVersion?: (version: string, rows: ScanMatch[]) => void;
   onConfirm: (match: ScanMatch, options: { save: boolean }) => void;
   onStepByStep: () => void;
   onRetake: () => void;
@@ -115,13 +116,18 @@ function Ready({
   const serialId = useId();
   const errorId = useId();
 
-  // A slab waiting on its version ("Which version?"): once one is picked, the scan is read again
-  // with it as the label's own line, and that version's sales load. Tapped early or late.
-  const awaitingVersion = top === matches[0] && solds?.status === "done" && solds.comp.status === "version";
-  const pickedVersion = pick?.name ?? null;
+  // A slab waiting on its version ("Which version?"): once the collector picks one (on any row they
+  // promoted), the scan is read again with it as the label's own line and that version's sales load.
+  // Tapped early or late. A row's own parallel, set by promoting it, is not a pick.
+  const [picked, setPicked] = useState(false);
+  const awaitingVersion = solds?.status === "done" && solds.comp.status === "version";
+  // Each pick is read once, even if the sheet re-renders before the read starts.
+  const asked = useRef<string | null>(null);
   useEffect(() => {
-    if (awaitingVersion && pickedVersion && onVersion) onVersion(pickedVersion);
-  }, [awaitingVersion, pickedVersion, onVersion]);
+    if (!awaitingVersion || !picked || !pick || !onVersion || asked.current === pick.name) return;
+    asked.current = pick.name;
+    onVersion(pick.name, rowsWithVersion(rows, pick, serialNo));
+  }, [awaitingVersion, picked, pick, rows, serialNo, onVersion]);
 
   if (!top) return null;
 
@@ -132,9 +138,11 @@ function Ready({
     setDeferred(false);
     setSerialNo(next[0].serialNo);
     setError(null);
+    setPicked(false);
   }
 
   function choose(next: ParallelPick) {
+    setPicked(next !== null);
     setPick(next);
     setDeferred(next === null);
     setError(null);

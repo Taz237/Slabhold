@@ -352,6 +352,8 @@ const TEAM_COLOR_NAMES = [
   "blue jackets",
   "blue devils",
   "red raiders",
+  "yellow jackets",
+  "tulsa shock",
 ] as const;
 
 function stripTeamNames(text: string): string {

@@ -1072,22 +1072,21 @@ export function yearBefore(label: string): string {
 const CLOSEST_VERSIONS = 5;
 
 /**
- * The versions that read the same as Base on a label that names no parallel: unnumbered, and
- * with no color of their own (Refractor, X-Fractor, Silver, Holo). Plain names lead ("Refractor"
- * before "Negative Refractor"). A color or a numbered parallel is never a guess here.
+ * The versions closest to Base on a label that names no parallel, always unnumbered (a numbered
+ * card prints its run). First the look-alikes, with no color of their own (Refractor, X-Fractor,
+ * Silver, Holo). A set with none of those offers its unnumbered colors instead. Plain names lead
+ * ("Refractor" before "Negative Refractor"). Empty when the list has neither: then only Base.
  */
-function baseLookalikes(checklist: readonly ProductParallel[]): ProductParallel[] {
-  const rank = (option: ProductParallel) => (parallelSwatch(option.name).kind === "shimmer" ? 0 : 1);
+function closestToBase(checklist: readonly ProductParallel[]): ProductParallel[] {
   const spaced = (name: string) => name.trim().split(/\s+/).length;
-  return checklist
-    .map((option, index) => ({ option, index }))
-    .filter(({ option }) => {
-      if (option.serialRun != null || option.runVaries) return false;
-      if (parallelMatchKey(option.name) === "base") return false;
-      const kind = parallelSwatch(option.name).kind;
-      return kind === "shimmer" || kind === "neutral";
-    })
-    .sort((a, b) => rank(a.option) - rank(b.option) || spaced(a.option.name) - spaced(b.option.name) || a.index - b.index)
+  const unnumbered = checklist
+    .map((option, index) => ({ option, index, kind: parallelSwatch(option.name).kind }))
+    .filter(({ option }) => option.serialRun == null && !option.runVaries && parallelMatchKey(option.name) !== "base");
+  const lookalike = (kind: string) => kind === "shimmer" || kind === "neutral";
+  const pool = unnumbered.some(({ kind }) => lookalike(kind)) ? unnumbered.filter(({ kind }) => lookalike(kind)) : unnumbered;
+  const rank = (kind: string) => (kind === "shimmer" ? 0 : 1);
+  return pool
+    .sort((a, b) => rank(a.kind) - rank(b.kind) || spaced(a.option.name) - spaced(b.option.name) || a.index - b.index)
     .slice(0, CLOSEST_VERSIONS - 1)
     .map(({ option }) => option);
 }
@@ -1109,10 +1108,8 @@ function pickParallel(
       if (labelRun != null) return { parallel: "", sureness: "unsure", serialRun: labelRun, options: [] };
       const base = checklist.find((option) => parallelMatchKey(option.name) === "base") ?? { name: "Base", serialRun: null };
       // A base label prints no variety line, and neither does one whose variety line didn't read.
-      // When the set has versions that look like Base, we ask. Never Base on our say-so.
-      const lookalikes = baseLookalikes(checklist);
-      if (lookalikes.length > 0) return { parallel: "", sureness: "unsure", serialRun: null, options: [base, ...lookalikes] };
-      return { parallel: "Base", sureness: "sure", serialRun: null, options: [base] };
+      // So we always ask "Which version?", Base first, in every set. Never Base on our say-so.
+      return { parallel: "", sureness: "unsure", serialRun: null, options: [base, ...closestToBase(checklist)] };
     }
     const named = coveringLabel(checklist, evidence.parallelWords);
     if (named.length === 1) {

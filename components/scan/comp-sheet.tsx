@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { rowsWithVersion } from "@/lib/scan/version-reread";
 import { Chip, PrimaryButton, QuietButton, SectionLabel } from "@/components/add-card/flow-ui";
 import { MoveArrow } from "@/components/move-arrow";
 import type { ConfirmSheetState } from "@/components/scan/confirm-sheet";
@@ -60,7 +61,7 @@ type Props = {
   /** "Is this Sapphire?": read the card again as its Sapphire Edition and look its sales up. */
   onSapphire?: () => void;
   /** "Which version?": read the slab again as the version picked and look that version's sales up. */
-  onVersion?: (version: string) => void;
+  onVersion?: (version: string, rows: ScanMatch[]) => void;
   onClose: () => void;
 };
 
@@ -171,7 +172,7 @@ function Ready({
   onScanAnother: () => void;
   onSearch: () => void;
   onSapphire?: () => void;
-  onVersion?: (version: string) => void;
+  onVersion?: (version: string, rows: ScanMatch[]) => void;
 }) {
   const [rows, setRows] = useState(matches);
   const top = rows[0];
@@ -187,7 +188,7 @@ function Ready({
   const serialRun = pick?.serialRun ?? top?.serialRun ?? null;
   // A numbered card, an autograph and a named variation are never Base: with the parallel open, nothing reads as Base.
   // A slab waiting on its version ("Which version?") is never shown as Base: nothing is priced until the pick.
-  const awaitingVersion = top === matches[0] && solds?.status === "done" && solds.comp.status === "version";
+  const awaitingVersion = solds?.status === "done" && solds.comp.status === "version";
   const assumedBase = Boolean(target?.assumedBase) && top?.serialRun == null && !top?.isAuto && !top?.subset && !awaitingVersion;
   const key = target ? compQueryString(target.identity, serialRun) : "";
   // The card the live search priced: the top match as it arrived, with its own parallel and grade.
@@ -201,11 +202,16 @@ function Ready({
   const [retriedScan, setRetriedScan] = useState(false);
   const fromScan = solds?.status === "done" && key === scanKey && !retriedScan ? solds.comp : undefined;
 
-  // The version picked: the scan is read again with it as the label's own line, and its sales load.
-  const pickedVersion = pick?.name ?? null;
+  // The version the collector picked (on any row they promoted): the scan is read again with it as
+  // the label's own line, and its sales load. A row's own parallel, set by promoting it, is not a pick.
+  const [picked, setPicked] = useState(false);
+  // Each pick is read once, even if the sheet re-renders before the read starts.
+  const asked = useRef<string | null>(null);
   useEffect(() => {
-    if (awaitingVersion && pickedVersion && onVersion) onVersion(pickedVersion);
-  }, [awaitingVersion, pickedVersion, onVersion]);
+    if (!awaitingVersion || !picked || !pick || !onVersion || asked.current === pick.name) return;
+    asked.current = pick.name;
+    onVersion(pick.name, rowsWithVersion(rows, pick, rows[0]?.serialNo ?? ""));
+  }, [awaitingVersion, picked, pick, rows, onVersion]);
 
   useEffect(() => {
     if (!target || results.has(key) || looking || fromScan || awaitingVersion) return;
@@ -226,6 +232,7 @@ function Ready({
     setRows(next);
     setPick(initialChoice(next[0]));
     setGrade(scanCompGrade(next[0]));
+    setPicked(false);
   }
 
   function retry() {
@@ -283,7 +290,10 @@ function Ready({
                 ? COMP_COPY.yearAgoParallels
                 : null
         }
-        onChoose={setPick}
+        onChoose={(next) => {
+          setPicked(next !== null);
+          setPick(next);
+        }}
       />
 
       <div>

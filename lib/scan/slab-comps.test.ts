@@ -146,6 +146,28 @@ describe("a slab's sold prices are its own version's", () => {
   });
 });
 
+describe("a slab with only Base to pick still waits for the pick", () => {
+  it("nothing is searched or priced until Base is picked", async () => {
+    const { deps, queries } = harness();
+    const products = async () => [
+      {
+        sport: "Football",
+        yearLabel: "2025",
+        product: "Topps Chrome",
+        manufacturer: "Topps",
+        parallels: [
+          { subset: "Base", name: "Base", serialRun: null },
+          { subset: "Base", name: "Gold", serialRun: 50 },
+        ],
+      },
+    ];
+    const result = await lookupLiveSolds({ capture: capture(LABEL), rows: [] }, "fixture-user", { ...deps, products });
+    assert.deepEqual(result.comp, { status: "version" });
+    assert.equal(queries.length, 0);
+    assert.deepEqual(result.matches[0]?.parallelOptions.map((option) => option.name), ["Base"]);
+  });
+});
+
 describe("the picked version is read as a label line", () => {
   it("adds the version in the label's own style, once, and leaves the scan as it was", () => {
     const scan = capture(LABEL);

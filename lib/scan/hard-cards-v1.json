@@ -2262,6 +2262,34 @@
    ],
    "listing_titles_modeled": true,
    "confidence": "player, year, set, card #, parallel and grade from the collector's report of the slab; not checked against a checklist (we have none for this set); label and listing titles modeled, not captured"
+  },
+  {
+   "id": "hc-078",
+   "category": "slab_set_without_parallels",
+   "year": "1986-87",
+   "manufacturer": "Fleer",
+   "product": "Fleer Basketball",
+   "card_number": "57",
+   "player": "Michael Jordan",
+   "team": "Chicago Bulls",
+   "parallel": null,
+   "print_run": null,
+   "sport": "basketball",
+   "is_rookie": true,
+   "kind": "slab",
+   "typical_ocr_front": [
+    "1986 FLEER #57",
+    "MICHAEL JORDAN",
+    "NM-MT 8",
+    "PSA",
+    "10234567"
+   ],
+   "why_hard": "A set with no parallels at all (1986-87 Fleer printed none). A slab label with no variety line must never come back as Base, marked sure: the sheet asks \"Which version?\" with Base first. Base is the right answer here, so leaving it open counts as right. Our lists have no parallel list for this set, so the options shown come from the general list. Label lines and the cert are modeled, not captured.",
+   "source_urls": [
+    "lib/cards/data/checklists/1986-87-basketball-fleer.json"
+   ],
+   "listing_title_examples": [],
+   "confidence": "player, year, set and card # checked against the store's 1986-87 Fleer Basketball checklist (Base #57 Michael Jordan); label lines and the cert modeled, not captured"
   }
  ]
 }

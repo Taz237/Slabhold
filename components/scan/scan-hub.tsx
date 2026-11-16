@@ -16,6 +16,7 @@ import { compQueryString, type ScanCompResult } from "@/lib/scan/comp";
 import { newScanId, scanAddPath, scanHandoffFrom } from "@/lib/scan/handoff";
 import type { LiveSoldsResult } from "@/lib/scan/live-solds";
 import type { ScanMatch, ScanMatchResult, SoldTitle } from "@/lib/scan/match";
+import { versionRereadSheet } from "@/lib/scan/version-reread";
 import { HUB_COPY, scanReadFrom, sheetStateFrom, withVersionLine, type ScanCapture, type ScanPurpose } from "@/lib/scan/session";
 
 export type ScanHubDeps = {
@@ -226,15 +227,29 @@ export function ScanHub({
 
   /**
    * The collector picked the slab's version ("Which version?"): the same scan is read again as if
-   * the label printed it, and that version's sales are looked up by the label's wording.
+   * the label printed it, and that version's sales are looked up by the label's wording. The sheet
+   * stays as they left it (the row they promoted, the serial they typed). A failed or offline read
+   * keeps the pick and says sold prices are unavailable.
    */
   const asVersion = useCallback(
-    (version: string) => {
+    async (version: string, rows: ScanMatch[]) => {
       const capture = lastCapture.current;
-      if (!capture) return;
-      void identify(withVersionLine(capture, version));
+      if (!capture || rows.length === 0) return;
+      run.current?.abort();
+      const controller = new AbortController();
+      run.current = controller;
+      const next = withVersionLine(capture, version);
+      lastCapture.current = next;
+      setSheet({ kind: "ready", matches: rows, solds: { status: "looking" } });
+      if (!deps.online()) {
+        setSheet(versionRereadSheet(rows, null));
+        return;
+      }
+      const solds = await deps.solds(next, rows, controller.signal).catch(() => null);
+      if (controller.signal.aborted) return;
+      setSheet(versionRereadSheet(rows, solds));
     },
-    [identify],
+    [deps],
   );
 
   const startScan = useCallback(async () => {
