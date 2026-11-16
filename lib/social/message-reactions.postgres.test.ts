@@ -99,6 +99,22 @@ alter table public.notifications enable row level security;
 grant select, insert on public.notifications to authenticated;
 create policy "Read own notifications" on public.notifications
   for select using (auth.uid() = recipient_id);
+
+-- A stand-in for prod's private.notification_insert_allowed: like it, it
+-- allows only the kinds it knows, so an unknown kind such as dm_reaction is
+-- refused. The reactions migration must leave this policy alone.
+create or replace function private.notification_insert_allowed(p_kind text)
+returns boolean language sql stable as $$
+  select p_kind in ('like', 'comment', 'follow', 'repost', 'mention');
+$$;
+grant execute on function private.notification_insert_allowed(text) to authenticated;
+create policy "Create notifications as yourself" on public.notifications
+  for insert with check (
+    auth.uid() = actor_id
+    and actor_id <> recipient_id
+    and private.notification_insert_allowed(kind)
+    and not private.is_blocked(auth.uid(), recipient_id)
+  );
 `;
 
 const A = "11111111-1111-4111-8111-111111111111";
@@ -185,6 +201,8 @@ ${as(
   exception
     when insufficient_privilege then null;
   end;
+  -- The migration left the insert policy alone: a known kind still works.
+  insert into public.notifications (recipient_id, actor_id, kind) values ('${B}', '${A}', 'follow');
 `,
 )}
 
@@ -263,8 +281,8 @@ begin
   if not exists (select 1 from public.notifications where kind = 'dm_reaction') then
     raise exception 'the notice is missing';
   end if;
-  -- The seeded DM queues its own 'dm' push; nothing else may.
-  if exists (select 1 from private.push_outbox where kind <> 'dm') then
+  -- The seeded DM and the policy check's follow queue their own pushes; nothing else may.
+  if exists (select 1 from private.push_outbox where kind not in ('dm', 'follow')) then
     raise exception 'a reaction queued a push';
   end if;
 end

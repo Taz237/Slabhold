@@ -20,7 +20,11 @@
 --   the notice. One notice per person per message (a partial unique index).
 --   'dm_reaction' is not a push kind: the push outbox trigger only queues
 --   like, comment, follow, repost, mention, quote and dm, so this never
---   sends a push. Clients cannot write 'dm_reaction' notices themselves.
+--   sends a push. Clients still cannot write 'dm_reaction' notices: the
+--   live "Create notifications as yourself" policy goes through
+--   private.notification_insert_allowed, which returns false for any kind it
+--   doesn't know. This migration leaves that policy untouched; only the
+--   definer trigger below writes these notices.
 --
 -- Realtime: the table joins the supabase_realtime publication (best effort,
 -- like the other live tables in schema.sql).
@@ -116,21 +120,6 @@ alter table public.notifications
 create unique index if not exists notifications_dm_reaction_once
   on public.notifications (actor_id, ((metadata ->> 'message_id')))
   where kind = 'dm_reaction';
-
--- Same as 20261023010000_deal_log.sql, plus dm_reaction: only the trigger below writes those.
-drop policy if exists "Create notifications as yourself" on public.notifications;
-create policy "Create notifications as yourself"
-  on public.notifications
-  for insert
-  with check (
-    auth.uid() = actor_id
-    and actor_id <> recipient_id
-    and kind <> 'quote'
-    and kind <> 'want_alert'
-    and kind <> 'deal_confirm'
-    and kind <> 'dm_reaction'
-    and not private.is_blocked(auth.uid(), recipient_id)
-  );
 
 create or replace function private.message_reaction_notice()
 returns trigger
