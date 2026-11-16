@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { rowsWithVersion } from "@/lib/scan/version-reread";
+import { rowsWithVersion, versionReadKey } from "@/lib/scan/version-reread";
 import { Chip, PrimaryButton, QuietButton, SectionLabel } from "@/components/add-card/flow-ui";
 import { MoveArrow } from "@/components/move-arrow";
 import type { ConfirmSheetState } from "@/components/scan/confirm-sheet";
@@ -204,17 +204,24 @@ function Ready({
 
   // The version the collector picked (on any row they promoted): the scan is read again with it as
   // the label's own line, and its sales load. A row's own parallel, set by promoting it, is not a pick.
+  // After a read, another version reads again, and any tap after a failed read tries again.
   const [picked, setPicked] = useState(false);
-  // Each pick is read once, even if the sheet re-renders before the read starts.
+  const [taps, setTaps] = useState(0);
+  const readKey = versionReadKey(solds, pick, picked, taps);
+  // Each tap is read once, even if the sheet re-renders before the read starts.
   const asked = useRef<string | null>(null);
   useEffect(() => {
-    if (!awaitingVersion || !picked || !pick || !onVersion || asked.current === pick.name) return;
-    asked.current = pick.name;
+    if (!readKey || !pick || !onVersion || asked.current === readKey) return;
+    asked.current = readKey;
     onVersion(pick.name, rowsWithVersion(rows, pick, rows[0]?.serialNo ?? ""));
-  }, [awaitingVersion, picked, pick, rows, onVersion]);
+  }, [readKey, pick, rows, onVersion]);
+  // A slab read as one version: the sheet's sales are that version's. Another pick waits for its
+  // own read, never a cached lookup. A grade change on the same version looks up as before.
+  const versionRead = solds?.status === "done" && Boolean(solds.version) && Boolean(onVersion);
+  const versionPending = versionRead && solds?.status === "done" && pick?.name !== solds.version;
 
   useEffect(() => {
-    if (!target || results.has(key) || looking || fromScan || awaitingVersion) return;
+    if (!target || results.has(key) || looking || fromScan || awaitingVersion || versionPending) return;
     let live = true;
     const store = (result: ScanCompResult) => {
       if (live) setResults((prev) => new Map(prev).set(key, result));
@@ -223,7 +230,7 @@ function Ready({
     return () => {
       live = false;
     };
-  }, [awaitingVersion, fromScan, key, looking, lookup, query, results, serialRun, target]);
+  }, [awaitingVersion, fromScan, key, looking, lookup, query, results, serialRun, target, versionPending]);
 
   if (!top) return null;
 
@@ -236,6 +243,11 @@ function Ready({
   }
 
   function retry() {
+    // A slab's version read failed: read it again, never a cached lookup.
+    if (versionRead && key === scanKey && pick && onVersion) {
+      onVersion(pick.name, rowsWithVersion(rows, pick, rows[0]?.serialNo ?? ""));
+      return;
+    }
     if (key === scanKey) setRetriedScan(true);
     setResults((prev) => {
       const next = new Map(prev);
@@ -292,6 +304,7 @@ function Ready({
         }
         onChoose={(next) => {
           setPicked(next !== null);
+          if (next) setTaps((count) => count + 1);
           setPick(next);
         }}
       />

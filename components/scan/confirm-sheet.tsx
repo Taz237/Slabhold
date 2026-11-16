@@ -25,7 +25,7 @@ import {
   readyToSave,
   type ParallelPick,
 } from "@/lib/scan/confirm";
-import { rowsWithVersion } from "@/lib/scan/version-reread";
+import { rowsWithVersion, soldsForPick, versionReadKey } from "@/lib/scan/version-reread";
 import type { ProductParallel } from "@/lib/cards/product-data";
 import type { ScanMatch } from "@/lib/scan/match";
 
@@ -119,15 +119,19 @@ function Ready({
   // A slab waiting on its version ("Which version?"): once the collector picks one (on any row they
   // promoted), the scan is read again with it as the label's own line and that version's sales load.
   // Tapped early or late. A row's own parallel, set by promoting it, is not a pick.
+  // After a read, another version reads again, and any tap after a failed read tries again.
   const [picked, setPicked] = useState(false);
-  const awaitingVersion = solds?.status === "done" && solds.comp.status === "version";
-  // Each pick is read once, even if the sheet re-renders before the read starts.
+  const [taps, setTaps] = useState(0);
+  const readKey = versionReadKey(solds, pick, picked, taps);
+  // Each tap is read once, even if the sheet re-renders before the read starts.
   const asked = useRef<string | null>(null);
   useEffect(() => {
-    if (!awaitingVersion || !picked || !pick || !onVersion || asked.current === pick.name) return;
-    asked.current = pick.name;
+    if (!readKey || !pick || !onVersion || asked.current === readKey) return;
+    asked.current = readKey;
     onVersion(pick.name, rowsWithVersion(rows, pick, serialNo));
-  }, [awaitingVersion, picked, pick, rows, serialNo, onVersion]);
+  }, [readKey, pick, rows, serialNo, onVersion]);
+  // Never one version's prices under another pick.
+  const shownSolds = soldsForPick(solds, pick?.name ?? null);
 
   if (!top) return null;
 
@@ -143,6 +147,7 @@ function Ready({
 
   function choose(next: ParallelPick) {
     setPicked(next !== null);
+    if (next) setTaps((count) => count + 1);
     setPick(next);
     setDeferred(next === null);
     setError(null);
@@ -164,17 +169,17 @@ function Ready({
       <RevealName match={top} parallel={pick?.name ?? null} photo={photo} />
       {/* The last solds are for the card as read; picking another row hides them. */}
       <SetNotes match={top} onSapphire={top === matches[0] ? onSapphire : undefined} center />
-      {solds && top === matches[0] ? (
+      {shownSolds && top === matches[0] ? (
         // A parallel the sales name is one tap, from the sales row or from its chip below.
-        <LastSold solds={solds} pick={pick?.name ?? null} onPick={(label) => choose({ name: label, serialRun: top.serialRun })} />
+        <LastSold solds={shownSolds} pick={pick?.name ?? null} onPick={(label) => choose({ name: label, serialRun: top.serialRun })} />
       ) : null}
 
       <div>
         <ParallelStrip
           options={withYearAgoParallels(
-            withSoldGroups(parallelOptionsFor(top), top === matches[0] ? solds : undefined, top.serialRun, false),
+            withSoldGroups(parallelOptionsFor(top), top === matches[0] ? shownSolds : undefined, top.serialRun, false),
             top,
-            top === matches[0] ? solds : undefined,
+            top === matches[0] ? shownSolds : undefined,
           )}
           pick={pick}
           deferred={deferred}

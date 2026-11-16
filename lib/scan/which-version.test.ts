@@ -106,6 +106,39 @@ describe("a slab label that names no parallel", () => {
   });
 });
 
+describe("a set with no parallel list", () => {
+  it("before 1993: Base and Something else only (1986-87 Fleer printed no parallels)", async () => {
+    const top = await slab(["1986 FLEER #57", "MICHAEL JORDAN", "NM-MT 8", "PSA", "10234567"]);
+    assert.equal(top.parallel, "");
+    assert.equal(top.sureness.parallel, "unsure");
+    assert.deepEqual(names(top), ["Base"]);
+  });
+
+  it("1993 on keeps the general list: a 1993 Finest can be a Refractor", async () => {
+    const top = await slab(["1993 FINEST #1", "MICHAEL JORDAN", "GEM MT 10", "PSA", "10234568"]);
+    assert.equal(top.parallel, "");
+    assert.equal(names(top)[0], "Base");
+    assert.ok(names(top).includes("Refractor"), names(top).join(", "));
+  });
+
+  it("a vintage set we do have a list for keeps its list", async () => {
+    const products: ProductRecord[] = [
+      {
+        sport: "Basketball",
+        yearLabel: "1986-87",
+        product: "Fleer",
+        manufacturer: "Fleer",
+        parallels: [
+          { subset: "Base", name: "Base", serialRun: null },
+          { subset: "Base", name: "Fixture Glossy", serialRun: null },
+        ],
+      },
+    ];
+    const top = await slab(["1986 FLEER #57", "MICHAEL JORDAN", "NM-MT 8", "PSA", "10234567"], products);
+    assert.deepEqual(names(top), ["Base", "Fixture Glossy"]);
+  });
+});
+
 describe("the sheet asks, and nothing is saved until a version is picked", () => {
   it("no chip is preselected, the hint is 'Which version?', and one tap can't save it", async () => {
     const top = await slab(["2025 TOPPS CHROME #306", "JAXSON DART", "GEM MT 10", "PSA", "98765432"]);

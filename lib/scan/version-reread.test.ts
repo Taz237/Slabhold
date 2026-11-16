@@ -26,12 +26,12 @@ describe("reading a slab again as the version picked", () => {
     const rows = rowsWithVersion([PREVIEW_SLAB_VERSION, other], { name: "X-Fractor", serialRun: null }, "");
     const found = versionRereadSheet(rows, { matches: [{ ...rows[0], catalogId: "fresh" }], comp: OK!, query: "q" });
     assert.equal(found.matches, rows);
-    assert.deepEqual(found.solds, { status: "done", comp: OK, query: "q" });
+    assert.deepEqual(found.solds, { status: "done", comp: OK, query: "q", version: "X-Fractor" });
   });
 
   it("another card's or another version's prices are never shown: unavailable instead", () => {
     const rows = rowsWithVersion([other], { name: "X-Fractor", serialRun: null }, "");
-    const unavailable = { status: "done", comp: { status: "unavailable" }, query: null };
+    const unavailable = { status: "done", comp: { status: "unavailable" }, query: null, version: "X-Fractor" };
     assert.deepEqual(versionRereadSheet(rows, { matches: [PREVIEW_SLAB_VERSION], comp: OK!, query: "q" }).solds, unavailable);
     assert.deepEqual(versionRereadSheet(rows, { matches: [{ ...rows[0], parallel: "Refractor" }], comp: OK!, query: "q" }).solds, unavailable);
     assert.deepEqual(versionRereadSheet(rows, null).solds, unavailable);
