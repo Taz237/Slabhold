@@ -17,7 +17,13 @@
 --   A new reaction writes one quiet 'dm_reaction' notice for the message's
 --   sender ("reacted ❤️ to your message"). A swap changes that notice's
 --   emoji in place; it is not a new notice. Removing the reaction removes
---   the notice. One notice per person per message (a partial unique index).
+--   the notice. One notice per inbox, person and message (a partial unique
+--   index on recipient_id, actor_id and metadata->>'message_id').
+--   The trigger only swaps or removes the notice in the message sender's
+--   inbox, so a stray dm_reaction row in anyone else's inbox is never
+--   touched. A delete also clears a notice whose actor is already null.
+--   A reaction can't be moved to another message or person: an update that
+--   changes message_id or user_id is refused (42501).
 --   'dm_reaction' is not a push kind: the push outbox trigger only queues
 --   like, comment, follow, repost, mention, quote and dm, so this never
 --   sends a push. Clients still cannot write 'dm_reaction' notices: the
@@ -117,8 +123,11 @@ alter table public.notifications
     'dm_reaction'
   ));
 
-create unique index if not exists notifications_dm_reaction_once
-  on public.notifications (actor_id, ((metadata ->> 'message_id')))
+-- One notice per inbox, person and message. The recipient is part of the
+-- key, so a stray dm_reaction row in someone else's inbox can't collide.
+drop index if exists public.notifications_dm_reaction_once;
+create unique index notifications_dm_reaction_once
+  on public.notifications (recipient_id, actor_id, ((metadata ->> 'message_id')))
   where kind = 'dm_reaction';
 
 create or replace function private.message_reaction_notice()
@@ -133,20 +142,33 @@ declare
   preview text;
 begin
   if tg_op = 'DELETE' then
+    -- Only the notice in the message sender's inbox. The actor may already
+    -- be null (a deleted account). With the message gone too (a cascade),
+    -- the author is null and any inbox's notice for it goes.
+    select m.sender_id into author from public.messages m where m.id = old.message_id;
     delete from public.notifications n
     where n.kind = 'dm_reaction'
-      and n.actor_id = old.user_id
-      and n.metadata ->> 'message_id' = old.message_id::text;
+      and (n.actor_id = old.user_id or n.actor_id is null)
+      and n.metadata ->> 'message_id' = old.message_id::text
+      and (author is null or n.recipient_id = author);
     return old;
   end if;
 
   if tg_op = 'UPDATE' then
+    -- A reaction is only ever re-picked in place. Moving it would leave its
+    -- notice pointing at the wrong message or person.
+    if new.message_id is distinct from old.message_id or new.user_id is distinct from old.user_id then
+      raise exception 'a reaction cannot move to another message or person'
+        using errcode = '42501';
+    end if;
     if new.emoji is distinct from old.emoji then
+      select m.sender_id into author from public.messages m where m.id = new.message_id;
       update public.notifications n
       set metadata = pg_catalog.jsonb_set(coalesce(n.metadata, '{}'::jsonb), '{emoji}', pg_catalog.to_jsonb(new.emoji))
       where n.kind = 'dm_reaction'
         and n.actor_id = new.user_id
-        and n.metadata ->> 'message_id' = new.message_id::text;
+        and n.metadata ->> 'message_id' = new.message_id::text
+        and n.recipient_id = author;
     end if;
     return new;
   end if;

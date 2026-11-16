@@ -289,6 +289,72 @@ end
 $$;
 `;
 
+// B's 👍 on M1 is live, with its notice in A's inbox. A planted dm_reaction
+// row in C's inbox names the same actor and message: the trigger must only
+// touch the notice in the message sender's inbox.
+const spoofSql = `
+insert into public.notifications (recipient_id, actor_id, kind, metadata)
+values ('${C}', '${B}', 'dm_reaction', jsonb_build_object('message_id', '${M1}', 'emoji', '❤️'));
+
+${as(B, `update public.message_reactions set emoji = '😮' where message_id = '${M1}' and user_id = '${B}';`)}
+
+do $$
+begin
+  if (select metadata ->> 'emoji' from public.notifications where kind = 'dm_reaction' and recipient_id = '${A}') <> '😮' then
+    raise exception 'the real notice did not swap';
+  end if;
+  if (select metadata ->> 'emoji' from public.notifications where kind = 'dm_reaction' and recipient_id = '${C}') <> '❤️' then
+    raise exception 'a swap updated a dm_reaction row in another inbox';
+  end if;
+end
+$$;
+
+-- A reaction never moves to another message or person, not even past RLS.
+${as(
+  B,
+  `
+  begin
+    update public.message_reactions set message_id = '${M2}' where message_id = '${M1}' and user_id = '${B}';
+    raise exception 'a reaction moved to another message';
+  exception
+    when insufficient_privilege then null;
+  end;
+`,
+)}
+
+do $$
+begin
+  begin
+    update public.message_reactions set user_id = '${C}' where message_id = '${M1}' and user_id = '${B}';
+    raise exception 'a reaction moved to another person';
+  exception
+    when insufficient_privilege then null;
+  end;
+  begin
+    update public.message_reactions set message_id = '${M2}' where message_id = '${M1}' and user_id = '${B}';
+    raise exception 'a reaction moved to another message as the owner';
+  exception
+    when insufficient_privilege then null;
+  end;
+end
+$$;
+
+${as(B, `delete from public.message_reactions where message_id = '${M1}' and user_id = '${B}';`)}
+
+do $$
+begin
+  if exists (select 1 from public.notifications where kind = 'dm_reaction' and recipient_id = '${A}') then
+    raise exception 'removing the reaction left the real notice';
+  end if;
+  if not exists (select 1 from public.notifications where kind = 'dm_reaction' and recipient_id = '${C}') then
+    raise exception 'removing a reaction deleted a dm_reaction row in another inbox';
+  end if;
+end
+$$;
+
+delete from public.notifications where recipient_id = '${C}';
+`;
+
 const blockSql = `
 insert into public.blocks (blocker_id, blocked_id) values ('${A}', '${B}');
 
@@ -340,6 +406,7 @@ describe("message reactions migration", () => {
       db.run(seedSql, "seed");
       db.run(reactSql, "react");
       db.run(pushSql, "no push");
+      db.run(spoofSql, "only the sender's notice, and reactions never move");
       db.run(blockSql, "blocks and deletes");
     },
   );
