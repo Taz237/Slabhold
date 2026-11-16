@@ -8,6 +8,8 @@ const AUTHOR = "11111111-1111-4111-8111-111111111111";
 const OTHER = "22222222-2222-4222-8222-222222222222";
 const FILE = "33333333-3333-4333-8333-333333333333";
 const POSTER = "44444444-4444-4444-8444-444444444444";
+/** Has hex letters, so its uppercase spelling really differs. */
+const LETTERS = "abcdef12-3456-4789-8abc-def012345678";
 const BASE = "https://knuwflptobyutrauxblj.supabase.co/storage/v1/object/public/post-videos";
 
 function video(over: Record<string, unknown> = {}, owner = AUTHOR): string {
@@ -150,7 +152,8 @@ ${fails(`insert into storage.objects (bucket_id, name) values ('post-videos', '$
 ${fails(`insert into storage.objects (bucket_id, name) values ('post-videos', '${AUTHOR}/${FILE}.MOV');`, "an uppercase extension")}
 ${fails(`insert into storage.objects (bucket_id, name) values ('post-videos', '${AUTHOR}/sub/${FILE}.mov');`, "a subfolder")}
 ${fails(`insert into storage.objects (bucket_id, name) values ('post-videos', '${AUTHOR}/IMG_0001.mov');`, "a name that isn't a uuid")}
-${fails(`insert into storage.objects (bucket_id, name) values ('post-videos', '${AUTHOR}/${FILE.toUpperCase()}.mov');`, "an uppercase uuid")}
+${fails(`insert into storage.objects (bucket_id, name) values ('post-videos', '${AUTHOR}/${LETTERS.toUpperCase()}.mov');`, "an uppercase uuid")}
+insert into storage.objects (bucket_id, name) values ('post-videos', '${AUTHOR}/${LETTERS}.mov');
 ${fails(`insert into storage.objects (bucket_id, name) values ('post-videos', '${AUTHOR}/${FILE}.webm');`, "another file type")}
 select set_config('app.user_id', '${OTHER}', false);
 ${expect("not exists (select 1 from storage.objects where bucket_id = 'post-videos')", "someone else can list your videos")}
