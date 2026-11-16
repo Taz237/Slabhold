@@ -16,6 +16,7 @@ import {
   PREVIEW_RAW,
   PREVIEW_SLAB,
   PREVIEW_SLAB_VERSION,
+  PREVIEW_SLAB_VERSION_PICKED,
   PREVIEW_FROM_SALES,
   PREVIEW_SOLDS,
   PREVIEW_SOLDS_PARALLEL,
@@ -57,6 +58,7 @@ export type PreviewKind =
   | "comp-sapphire-ask"
   | "slab-looking"
   | "slab-version"
+  | "slab-version-unavailable"
   | "from-sales"
   | "comp-from-sales"
   | "comp-run-only"
@@ -73,6 +75,7 @@ const STATES: Record<Exclude<PreviewKind, "hub" | "hub-comp" | "door">, ConfirmS
   slab: { kind: "ready", matches: [PREVIEW_SLAB], solds: PREVIEW_SOLDS },
   "slab-looking": { kind: "ready", matches: [PREVIEW_SLAB], solds: PREVIEW_SOLDS_LOOKING },
   "slab-version": { kind: "ready", matches: [PREVIEW_SLAB_VERSION], solds: { status: "done", comp: { status: "version" }, query: null } },
+  "slab-version-unavailable": { kind: "ready", matches: [PREVIEW_SLAB_VERSION_PICKED], solds: { status: "done", comp: { status: "unavailable" }, query: null } },
   "from-sales": { kind: "ready", matches: [PREVIEW_FROM_SALES], solds: PREVIEW_SOLDS_PARALLEL },
   "comp-from-sales": { kind: "ready", matches: [PREVIEW_FROM_SALES], solds: PREVIEW_SOLDS_PARALLEL },
   "comp-run-only": { kind: "ready", matches: [PREVIEW_RUN_ONLY], solds: PREVIEW_SOLDS_RUN_ONLY },
@@ -121,6 +124,7 @@ const LABELS: Record<PreviewKind, string> = {
   "comp-sapphire-ask": "Comp, is this Sapphire?",
   "slab-looking": "Slab, looking up",
   "slab-version": "Slab, which version",
+  "slab-version-unavailable": "Slab, version picked, read failed",
   "from-sales": "Parallel from sales",
   "comp-from-sales": "Comp, parallel from sales",
   "comp-run-only": "Comp, numbered, no color named",

@@ -91,6 +91,31 @@ describe("a team name is not a parallel", () => {
   });
 });
 
+describe("college and WNBA team names are not parallels either", () => {
+  const georgiaTech: MatchCard = { ...dart, playerName: "Haynes King", year: 2025, yearLabel: "2025", setBrand: "Bowman U Chrome", cardNumber: "45", conditionType: "raw", grade: "Raw" };
+  const tulsa: MatchCard = { ...dart, playerName: "Skylar Diggins", year: 2015, yearLabel: "2015", setBrand: "Panini Prizm", cardNumber: "12", conditionType: "raw", grade: "Raw" };
+
+  it("Base keeps a Georgia Tech Yellow Jackets title and a Tulsa Shock title", () => {
+    assert.equal(titleMatchesCard("2025 Bowman U Chrome Haynes King #45 Georgia Tech Yellow Jackets", georgiaTech), true);
+    assert.equal(titleMatchesCard("2025 Bowman U Chrome Haynes King #45 Yellow Jackets RC", georgiaTech), true);
+    assert.equal(titleMatchesCard("2015 Panini Prizm Skylar Diggins #12 Tulsa Shock", tulsa), true);
+  });
+
+  it("Base still drops a real Yellow or Shock parallel beside the team name", () => {
+    assert.equal(titleMatchesCard("2025 Bowman U Chrome Haynes King #45 Yellow Refractor Georgia Tech Yellow Jackets", georgiaTech), false);
+    assert.equal(titleMatchesCard("2015 Panini Prizm Skylar Diggins #12 Shock Tulsa Shock", tulsa), false);
+  });
+
+  it("a Yellow card never keeps a sale whose only yellow is the team name; a Shock card never keeps 'Tulsa Shock' alone", () => {
+    const yellow = { ...georgiaTech, parallel: "Yellow" };
+    assert.equal(titleMatchesCard("2025 Bowman U Chrome Haynes King #45 Georgia Tech Yellow Jackets", yellow), false);
+    assert.equal(titleMatchesCard("2025 Bowman U Chrome Haynes King #45 Yellow Refractor Georgia Tech Yellow Jackets", yellow), true);
+    const shock = { ...tulsa, parallel: "Shock" };
+    assert.equal(titleMatchesCard("2015 Panini Prizm Skylar Diggins #12 Tulsa Shock", shock), false);
+    assert.equal(titleMatchesCard("2015 Panini Prizm Skylar Diggins #12 Shock Prizm Tulsa Shock", shock), true);
+  });
+});
+
 describe("a picked version keeps only its own sales", () => {
   it("X-Fractor keeps every spelling, before or after the card #", () => {
     for (const words of ["#306 X-Fractor RC", "X-Fractor #306", "Xfractor Rookie #306", "X Fractor #306", "#306 XFractor", "#306 X-Fractor Refractor"]) {

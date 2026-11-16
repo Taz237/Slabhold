@@ -52,7 +52,29 @@ describe("a slab label that names no parallel", () => {
     assert.ok(top.parallelOptions.every((option) => option.serialRun == null));
   });
 
-  it("a set whose only other parallels are numbered or colored is Base, sure: nothing else looks like it", async () => {
+  it("a set with no look-alikes is still open: Base first, then its unnumbered colors, never a numbered one", async () => {
+    const products: ProductRecord[] = [
+      {
+        sport: "Football",
+        yearLabel: "2025",
+        product: "Topps Chrome",
+        manufacturer: "Topps",
+        parallels: [
+          { subset: "Base", name: "Base", serialRun: null },
+          { subset: "Base", name: "Pink Wave", serialRun: null },
+          { subset: "Base", name: "Green", serialRun: null },
+          { subset: "Base", name: "Gold", serialRun: 50 },
+          { subset: "Base", name: "Red", serialRun: 5 },
+        ],
+      },
+    ];
+    const top = await slab(["2025 TOPPS CHROME #306", "JAXSON DART", "GEM MT 10", "PSA", "98765432"], products);
+    assert.equal(top.parallel, "");
+    assert.equal(top.sureness.parallel, "unsure");
+    assert.deepEqual(names(top), ["Base", "Green", "Pink Wave"]);
+  });
+
+  it("a set whose list has nothing but Base and numbered parallels: just Base to pick, never Base on our say-so", async () => {
     const products: ProductRecord[] = [
       {
         sport: "Football",
@@ -67,8 +89,13 @@ describe("a slab label that names no parallel", () => {
       },
     ];
     const top = await slab(["2025 TOPPS CHROME #306", "JAXSON DART", "GEM MT 10", "PSA", "98765432"], products);
-    assert.equal(top.parallel, "Base");
-    assert.equal(top.sureness.parallel, "sure");
+    assert.equal(top.parallel, "");
+    assert.equal(top.sureness.parallel, "unsure");
+    assert.deepEqual(names(top), ["Base"]);
+    // The sheet asks, and nothing saves in one tap until Base (or Something else) is picked.
+    assert.equal(initialChoice(top), null);
+    assert.equal(parallelHint(top, null, false), CONFIRM_COPY.whichVersion);
+    assert.equal(readyToSave(top), false);
   });
 
   it("a numbered label with no parallel named is still open, and never offers Base", async () => {

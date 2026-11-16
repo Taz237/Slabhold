@@ -64,6 +64,13 @@ export const PREVIEW_SLAB_VERSION: ScanMatch = {
   ],
 };
 
+/** The same slab after X-Fractor was picked and the read again failed: the pick stays, prices say unavailable. */
+export const PREVIEW_SLAB_VERSION_PICKED: ScanMatch = {
+  ...PREVIEW_SLAB_VERSION,
+  parallel: "X-Fractor",
+  sureness: { ...PREVIEW_SLAB_VERSION.sureness, parallel: "sure" },
+};
+
 const RAW_OPTIONS = [
   { name: "Base", serialRun: null },
   { name: "Silver", serialRun: null },

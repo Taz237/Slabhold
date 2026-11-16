@@ -391,3 +391,121 @@ describe("ScanHub from the Add card sheet's Upload photo", () => {
     }
   });
 });
+
+describe("ScanHub: a slab's version picked from \"Which version?\"", () => {
+  /** Two rows for a label that named no parallel. Made-up players. */
+  function rows(): ScanMatch[] {
+    const first = fixtures.PREVIEW_SLAB_VERSION;
+    const second: ScanMatch = {
+      ...first,
+      catalogId: "fixture-second",
+      playerName: "Second Player",
+      cardNumber: "307",
+      parallelOptions: [
+        { name: "Base", serialRun: null },
+        { name: "X-Fractor", serialRun: null },
+        { name: "Gold", serialRun: 50 },
+      ],
+    };
+    return [first, second];
+  }
+
+  const waiting = (matches: ScanMatch[]) => ({ matches, comp: { status: "version" as const }, query: null });
+  const pressed = (name: string) => button(name).getAttribute("aria-pressed") === "true";
+  const promote = async (player: string) => {
+    const row = [...win.document.querySelectorAll("button")].find((node) => node.textContent?.includes(player) && node.textContent?.includes("#"));
+    assert.ok(row, `row ${player}`);
+    await act(async () => (row as HTMLElement).click());
+  };
+
+  it("keeps the promoted row and the pick through the read, and a failed read says unavailable instead of losing the sheet", async () => {
+    const reads: { lines: string[]; rows: ScanMatch[] }[] = [];
+    const view = await mount(
+      "add",
+      nativeDeps({
+        identify: async () => result(rows()),
+        solds: async (capture, matches) => {
+          reads.push({ lines: capture.lines, rows: matches });
+          return reads.length === 1 ? waiting(matches) : null;
+        },
+      }),
+    );
+    try {
+      await waitFor(() => text().includes("Pick the version to see its sold prices"));
+      await promote("Second Player");
+      await act(async () => button("X-Fractor").click());
+      await waitFor(() => reads.length === 2 && text().includes("We couldn't load sold prices"));
+      // The read was the label plus the pick, for the row the collector promoted.
+      assert.equal(reads[1].lines.at(-1), "X-FRACTOR");
+      assert.equal(reads[1].rows[0].playerName, "Second Player");
+      assert.equal(reads[1].rows[0].parallel, "X-Fractor");
+      // The sheet is still theirs: same row on top, the pick kept, nothing re-asked.
+      assert.match(text(), /Second Player/);
+      assert.equal(pressed("X-Fractor"), true);
+      assert.doesNotMatch(text(), /Which version\?/);
+      assert.ok(!text().includes("We couldn't find this one yet"));
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("offline: no read is tried, the pick stays, and sold prices say unavailable", async () => {
+    let onlineChecks = 0;
+    let reads = 0;
+    const view = await mount(
+      "add",
+      nativeDeps({
+        identify: async () => result(rows()),
+        online: () => onlineChecks++ < 1,
+        solds: async (_capture, matches) => (reads++, waiting(matches)),
+      }),
+    );
+    try {
+      await waitFor(() => text().includes("Pick the version to see its sold prices"));
+      await act(async () => button("Refractor").click());
+      await waitFor(() => text().includes("We couldn't load sold prices"));
+      assert.equal(reads, 1, "no second read while offline");
+      assert.equal(pressed("Refractor"), true);
+      assert.match(text(), /Fixture Player/);
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("a serial typed while the read runs is still there when its sold prices land", async () => {
+    let release: (value: unknown) => void = () => {};
+    let reads = 0;
+    const view = await mount(
+      "add",
+      nativeDeps({
+        identify: async () => result(rows()),
+        solds: async (_capture, matches) => {
+          reads += 1;
+          if (reads === 1) return waiting(matches);
+          await new Promise((resolve) => (release = resolve));
+          const top = { ...matches[0], parallel: "Gold" };
+          return { matches: [top, ...matches.slice(1)], comp: fixtures.PREVIEW_SOLDS.status === "done" ? fixtures.PREVIEW_SOLDS.comp : { status: "none" as const }, query: "fixture" };
+        },
+      }),
+    );
+    try {
+      await waitFor(() => text().includes("Pick the version to see its sold prices"));
+      await promote("Second Player");
+      await act(async () => button("Gold, numbered to 50").click());
+      await waitFor(() => reads === 2 && Boolean(win.document.querySelector('input[inputmode="numeric"]')));
+      const input = win.document.querySelector('input[inputmode="numeric"]') as HTMLInputElement;
+      await act(async () => {
+        Object.getOwnPropertyDescriptor(win.HTMLInputElement.prototype, "value")?.set?.call(input, "12");
+        input.dispatchEvent(new win.Event("input", { bubbles: true }));
+      });
+      await act(async () => release(null));
+      await waitFor(() => text().includes("Last sold"));
+      const after = win.document.querySelector('input[inputmode="numeric"]') as HTMLInputElement;
+      assert.equal(after.value, "12");
+      assert.equal(pressed("Gold, numbered to 50"), true);
+      assert.match(text(), /Second Player/);
+    } finally {
+      view.unmount();
+    }
+  });
+});
