@@ -12,6 +12,7 @@ export { looksLikeCatalogSku };
 import type { SlabLabelRead } from "./slab-label";
 import { MARKET_ALONE_MIN_VOTES, marketPlayer, nameKey, namesAgree, surnameAgrees, withoutSuffix, type LookupCard } from "./player-lookup";
 import { TITLE_LOT, titleRuns } from "./title-facts";
+import { rankVersionsByLook, type PhotoLook } from "./photo-look";
 import { SAPPHIRE_WORD, inSapphireFamily, isSapphireSet, sapphireOf, sapphireOptionFor, sapphireSearchSet } from "./sapphire";
 
 /**
@@ -47,6 +48,8 @@ export type ScanRead =
       back?: RawCardRead | null;
       /** The border's color name from the photo (pink, red, purple...), read on the phone. Only breaks ties. */
       border?: string | null;
+      /** The photo's look (border color, rainbow sheen). Only orders "Which version?": it never names a parallel. */
+      look?: PhotoLook | null;
     };
 
 export type FieldSureness = "sure" | "likely" | "unsure";
@@ -211,6 +214,8 @@ type Evidence = {
   subset: string;
   /** The border color read from the photo, for ties only. */
   border: string | null;
+  /** The photo's look, raw cards only. Orders "Which version?" and nothing else. */
+  look?: PhotoLook | null;
   yearLabel: string;
   copyrightYear: string;
   /** The last season the back's stat table lists ("2019"), or "". A year only once a checklist confirms it. */
@@ -412,6 +417,7 @@ function evidenceFrom(read: ScanRead, directory: readonly IndexedDirectoryPlayer
     insert: sides.map((side) => side.insert).find(Boolean) ?? "",
     subset: sides.map((side) => side.subset ?? "").find(Boolean) ?? "",
     border: read.border ?? null,
+    ...(read.look ? { look: read.look } : {}),
     yearLabel,
     copyrightYear,
     ...(statSeason ? { statSeason } : {}),
@@ -1283,7 +1289,10 @@ function pickParallel(
     ...(neverBase ? [] : pool.filter((option) => !named.includes(option) && parallelMatchKey(option.name) === "base")),
     ...pool.filter((option) => !named.includes(option) && parallelMatchKey(option.name) !== "base"),
   ];
-  return { parallel: "", sureness: "unsure", serialRun: run, options: ordered.slice(0, MAX_PARALLEL_OPTIONS) };
+  // The photo's look (border color, rainbow sheen) puts the closest versions first and trims the
+  // far colors. It only orders the picker: the parallel stays open, and Base is never chosen for them.
+  const looked = evidence.look ? rankVersionsByLook(ordered, evidence.look, { runRead: run != null }) : ordered;
+  return { parallel: "", sureness: "unsure", serialRun: run, options: looked.slice(0, MAX_PARALLEL_OPTIONS) };
 }
 
 function sureness(evidence: Evidence, card: Candidate, parallel: ParallelPick): ScanMatch["sureness"] {

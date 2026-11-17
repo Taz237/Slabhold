@@ -751,7 +751,11 @@
     "2025 Panini Prizm - Rookie Variation Cam Ward #441 Silver Prizm (RC) #441",
     "2025 Panini Prizm - Rookie Variation Cam Ward #441 Silver Prizm (RC) Titans #441"
    ],
-   "confidence": "verified"
+   "confidence": "verified",
+   "photo_look": {
+    "border": null,
+    "sheen": "rainbow"
+   }
   },
   {
    "id": "hc-027",
@@ -809,7 +813,11 @@
     "2025 Panini Prizm Travis Hunter Silver Prizm Image Variation #418 Jaguars RC #418",
     "(RC) Travis Hunter Silver Prizm Rookie Variation 2025 Panini Prizm Jax Jags 🔥  #418"
    ],
-   "confidence": "verified"
+   "confidence": "verified",
+   "photo_look": {
+    "border": null,
+    "sheen": "rainbow"
+   }
   },
   {
    "id": "hc-029",
@@ -896,7 +904,11 @@
     "Chase Burns Rookie 2026 Topps #312 Cincinnati Reds #312",
     "Chase Burns Rookie 2026 Topps #312 Reds #312"
    ],
-   "confidence": "verified"
+   "confidence": "verified",
+   "photo_look": {
+    "border": "white",
+    "sheen": "flat"
+   }
   },
   {
    "id": "hc-032",
@@ -983,7 +995,11 @@
     "2025 Topps Chrome - Luisangel Acuna #56 X-Fractor (RC) #56",
     "Luisangel Acuna – 2025 Topps Chrome X-Fractor – Rookie Card #56"
    ],
-   "confidence": "verified"
+   "confidence": "verified",
+   "photo_look": {
+    "border": null,
+    "sheen": "rainbow"
+   }
   },
   {
    "id": "hc-035",
@@ -1157,7 +1173,11 @@
     "JJ Wetherholt 2025 Bowman Chrome Prospect 1st Fuchsia Refractor /199 #BCP-22",
     "JJ WETHERHOLT 2025 BOWMAN CHROME 1ST PROSPECT FUCHSIA REFRACTOR /199 Q4846 #BCP-22"
    ],
-   "confidence": "verified"
+   "confidence": "verified",
+   "photo_look": {
+    "border": "pink",
+    "sheen": "rainbow"
+   }
   },
   {
    "id": "hc-041",
@@ -1273,7 +1293,11 @@
     "Santiago Suarez 2025 Bowman 1st Green Pattern Parallel /99 Prospect #BP-142 Rays #In Title",
     "2025 Bowman #BP-142 Santiago Suarez Prospects Green Pattern Border #/99 #BP-142"
    ],
-   "confidence": "verified"
+   "confidence": "verified",
+   "photo_look": {
+    "border": "green",
+    "sheen": "flat"
+   }
   },
   {
    "id": "hc-045",
@@ -2320,7 +2344,11 @@
     "2025 Topps Chrome Football Jaxson Dart Xfractor Rookie #306"
    ],
    "listing_titles_modeled": true,
-   "confidence": "player, card # and team checked against the 2025 Topps Chrome Football checklist (Checklist Insider, Base Rookies #306); X-Fractor is in its parallel list, unnumbered; front lines and titles modeled, not captured"
+   "confidence": "player, card # and team checked against the 2025 Topps Chrome Football checklist (Checklist Insider, Base Rookies #306); X-Fractor is in its parallel list, unnumbered; front lines and titles modeled, not captured",
+   "photo_look": {
+    "border": null,
+    "sheen": "rainbow"
+   }
   },
   {
    "id": "hc-080",
@@ -2356,6 +2384,197 @@
    ],
    "listing_titles_modeled": true,
    "confidence": "card #, parallel and run checked against the 2025-26 Panini Prizm Basketball checklist and parallel list (#103 Labaron Philon, Orange Pulsar /175); label lines, cert and title modeled, not captured"
+  },
+  {
+   "id": "hc-081",
+   "category": "photo_look_parallel",
+   "year": "2025",
+   "manufacturer": "Topps",
+   "product": "Topps Chrome Football",
+   "card_number": "306",
+   "player": "Jaxson Dart",
+   "team": "New York Giants",
+   "parallel": "Refractor",
+   "print_run": null,
+   "sport": "football",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "TOPPS CHROME",
+    "JAXSON DART",
+    "NEW YORK GIANTS",
+    "QUARTERBACK",
+    "RC"
+   ],
+   "photo_look": {
+    "border": null,
+    "sheen": "rainbow"
+   },
+   "why_hard": "The raw Jaxson Dart #306 Refractor. The front prints no parallel word and the Refractor is unnumbered, so the text alone reads the same as Base and X-Fractor. Only the chrome rainbow on the border sets it apart, and that is a hint for the picker, never a pick. Front lines, look and titles modeled, not captured.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-topps-chrome-football"
+   ],
+   "listing_title_examples": [
+    "2025 Topps Chrome Jaxson Dart Refractor #306 RC Giants"
+   ],
+   "listing_titles_modeled": true,
+   "confidence": "player, card # and team checked against the 2025 Topps Chrome Football checklist (Base Rookies #306); Refractor is in its parallel list, unnumbered; front lines and titles modeled; photo_look modeled from how this parallel prints (its border and finish), not measured from a photo"
+  },
+  {
+   "id": "hc-082",
+   "category": "photo_look_parallel",
+   "year": "2024",
+   "manufacturer": "Panini",
+   "product": "Panini Prizm Football",
+   "card_number": "329",
+   "player": "Drake Maye",
+   "team": "New England Patriots",
+   "parallel": "Silver",
+   "print_run": null,
+   "sport": "football",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "DRAKE MAYE",
+    "PATRIOTS",
+    "RC"
+   ],
+   "photo_look": {
+    "border": null,
+    "sheen": "rainbow"
+   },
+   "why_hard": "The raw Drake Maye 2024 Prizm #329 Silver. Prizm prints no parallel word, and Silver is unnumbered: text alone can't tell it from the base card. Before the photo look, Silver wasn't even in the first 8 chips. Front lines, look and titles modeled, not captured.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2024-panini-prizm-football"
+   ],
+   "listing_title_examples": [
+    "2024 Panini Prizm Drake Maye Silver Prizm RC #329 Patriots"
+   ],
+   "listing_titles_modeled": true,
+   "confidence": "player and card # checked against the 2024 Panini Prizm Football checklist (#329 Drake Maye RC); Silver is in its parallel list, unnumbered; front lines and titles modeled; photo_look modeled from how this parallel prints (its border and finish), not measured from a photo"
+  },
+  {
+   "id": "hc-083",
+   "category": "photo_look_parallel",
+   "year": "2024",
+   "manufacturer": "Panini",
+   "product": "Panini Prizm Football",
+   "card_number": "329",
+   "player": "Drake Maye",
+   "team": "New England Patriots",
+   "parallel": "Orange",
+   "print_run": 249,
+   "sport": "football",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "DRAKE MAYE",
+    "PATRIOTS",
+    "RC"
+   ],
+   "why_hard": "hc-050's Orange /249 Maye with the serial missed (glare on the foil stamp). No run read, so the run can't pin it, and Orange was not in the first 8 chips. The orange border is the only clue: a hint for the picker, never a pick. Front lines and look modeled.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2024-panini-prizm-football",
+    "https://www.sportscardspro.com/game/football-cards-2024-panini-prizm/drake-maye-orange-329"
+   ],
+   "listing_title_examples": [
+    "2024 Panini Prizm Patriots Drake Maye RC Orange /249 #329",
+    "DRAKE MAYE 2024 PANINI PRIZM FOOTBALL ORANGE ROOKIE RC /249 #329 PATRIOTS Q7128 #329"
+   ],
+   "confidence": "verified; front lines modeled with the serial unread; photo_look modeled from how this parallel prints (its border and finish), not measured from a photo",
+   "photo_look": {
+    "border": "orange",
+    "sheen": "flat"
+   }
+  },
+  {
+   "id": "hc-084",
+   "category": "photo_look_parallel",
+   "year": "2025",
+   "manufacturer": "Topps",
+   "product": "Bowman Baseball (paper Prospects, BP-)",
+   "card_number": "BP-38",
+   "player": "Luis Pena",
+   "team": "Milwaukee Brewers",
+   "parallel": "Fuchsia Border",
+   "print_run": 299,
+   "sport": "baseball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "LUIS PENA",
+    "BREWERS"
+   ],
+   "why_hard": "hc-041's paper Fuchsia Border /299 with the serial missed. Paper Bowman prints the color only as the border, so the border is the clue. Fuchsia is pink to a camera; Purple Border sits close. Front lines and look modeled.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-bowman-baseball",
+    "https://www.sportscardspro.com/game/baseball-cards-2025-bowman-prospects/luis-pena-fuchsia-bp-38"
+   ],
+   "listing_title_examples": [
+    "2025 Bowman - Prospects Luis Pena #BP-38 Fuchsia /299 (RC) #BP-38",
+    "2025 Bowman #BP-38 Luis Pena Prospects Fuchsia #/299 #BP-38"
+   ],
+   "confidence": "verified; front lines modeled with the serial unread; photo_look modeled from how this parallel prints (its border and finish), not measured from a photo",
+   "photo_look": {
+    "border": "pink",
+    "sheen": "flat"
+   }
+  },
+  {
+   "id": "hc-085",
+   "category": "photo_look_parallel",
+   "year": "2025",
+   "manufacturer": "Topps",
+   "product": "Topps Chrome Baseball",
+   "card_number": "56",
+   "player": "Luisangel Acuña",
+   "team": "New York Mets",
+   "parallel": "Green Refractor",
+   "print_run": 99,
+   "sport": "baseball",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "LUISANGEL ACUÑA",
+    "METS",
+    "RC"
+   ],
+   "photo_look": {
+    "border": "green",
+    "sheen": "rainbow"
+   },
+   "why_hard": "A colored, numbered Chrome refractor with the serial missed: Green Refractor /99. With no run read, every green /99 version (Lava, Wave, Raywave, Geometric) and every other color stays possible from the text. The green border puts the greens first and drops the far colors; it still never picks one. Front lines, look and titles modeled.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-topps-chrome-baseball"
+   ],
+   "listing_title_examples": [
+    "2025 Topps Chrome Luisangel Acuna Green Refractor /99 RC #56 Mets"
+   ],
+   "listing_titles_modeled": true,
+   "confidence": "player and card # checked against the 2025 Topps Chrome Baseball checklist (#56 RC); Green Refractor /99 is in its parallel list; front lines and titles modeled with the serial unread; photo_look modeled from how this parallel prints (its border and finish), not measured from a photo"
+  },
+  {
+   "id": "hc-086",
+   "category": "photo_look_unclear",
+   "year": "2025",
+   "manufacturer": "Topps",
+   "product": "Topps Chrome Football",
+   "card_number": "306",
+   "player": "Jaxson Dart",
+   "team": "New York Giants",
+   "parallel": "X-Fractor",
+   "print_run": null,
+   "sport": "football",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "TOPPS CHROME",
+    "JAXSON DART",
+    "NEW YORK GIANTS",
+    "QUARTERBACK",
+    "RC"
+   ],
+   "why_hard": "hc-079 again with an unclear photo (glare across the border): no look, so the picker must be exactly as it was, whole. Front lines and titles modeled.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-topps-chrome-football"
+   ],
+   "listing_title_examples": [],
+   "listing_titles_modeled": true,
+   "confidence": "player, card # and team checked against the 2025 Topps Chrome Football checklist (Base Rookies #306); front lines modeled; no photo_look on purpose"
   }
  ]
 }

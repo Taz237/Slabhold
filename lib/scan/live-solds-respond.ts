@@ -1,6 +1,7 @@
 import type { CatalogCard } from "@/lib/card-catalog";
 import { scanCaptureFrom } from "@/lib/ios/scanner";
 import type { LiveSoldsInput, LiveSoldsResult } from "./live-solds";
+import { lookFromBody } from "./photo-look";
 
 export const LIVE_SOLDS_RATE_MESSAGE = "You're scanning quickly. Try again in a few minutes";
 
@@ -68,6 +69,8 @@ export async function respondLiveSolds(request: Request, deps: LiveSoldsRouteDep
         backLines: capture.backLines,
         kind: capture.kind,
         border: typeof body?.border === "string" && BORDER_NAMES.has(body.border) ? body.border : null,
+        // The photo's look as names only (a border color, a sheen). Never the photo.
+        look: lookFromBody(body?.look),
       },
       rows: rowsFromBody(body?.rows),
     },

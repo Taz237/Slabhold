@@ -1,6 +1,7 @@
 import type { ConfirmSheetState } from "@/components/scan/confirm-sheet";
 import type { IndexedDirectoryPlayer } from "@/lib/players/types";
 import type { ScanMatchResult, ScanRead } from "./match";
+import { withNativeBorder, type PhotoLook } from "./photo-look";
 import { findPlayers, readRawCardText } from "./raw-text";
 import { looksLikeSlabLabel, readSlabLabel } from "./slab-label";
 
@@ -25,6 +26,8 @@ export type ScanCapture = {
   versionLine?: string | null;
   /** The border's color name from the photo (pink, red, purple...), read on the phone. Null when unclear. */
   border?: string | null;
+  /** The photo's look (border color, rainbow sheen), read from `image` on the phone. Null when unclear. */
+  look?: PhotoLook | null;
   /** Each line's next best readings, same order as `lines`. Only ever used to fill an open field (alternates.ts). */
   alternates?: string[][] | null;
   /** The same for `backLines`. */
@@ -52,6 +55,7 @@ export function scanReadFrom(capture: ScanCapture, directory: readonly IndexedDi
     front: readRawCardText(capture.lines, directory, { side: "front" }),
     back: capture.backLines ? readRawCardText(capture.backLines, directory, { side: "back" }) : null,
     border: capture.border ?? null,
+    look: withNativeBorder(capture.look ?? null, capture.border),
   };
 }
 

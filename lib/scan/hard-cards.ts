@@ -1,5 +1,6 @@
 import { sameParallelLoosely } from "@/lib/cards/parallels";
 import { productPhrase } from "@/lib/cards/product-data";
+import type { PhotoLook } from "./photo-look";
 import { nameKey } from "./player-lookup";
 
 /**
@@ -43,6 +44,8 @@ export type HardCard = {
   typical_ocr_front: string[];
   /** The back as read off a real photo. Without it the back is built from the card #, the year and the product. */
   typical_ocr_back?: string[];
+  /** The photo's look as the phone would read it. Modeled, not measured. None: an unclear photo. */
+  photo_look?: PhotoLook;
   why_hard: string;
   source_urls: string[];
   /** Real seller titles for the card: the mocked sold listings, never fetched. */

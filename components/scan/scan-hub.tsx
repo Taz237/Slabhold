@@ -17,6 +17,7 @@ import { compQueryString, type ScanCompResult } from "@/lib/scan/comp";
 import { newScanId, scanAddPath, scanHandoffFrom } from "@/lib/scan/handoff";
 import type { LiveSoldsResult } from "@/lib/scan/live-solds";
 import type { ScanMatch, ScanMatchResult, SoldTitle } from "@/lib/scan/match";
+import type { PhotoLook } from "@/lib/scan/photo-look";
 import { versionRereadSheet } from "@/lib/scan/version-reread";
 import { HUB_COPY, scanReadFrom, sheetStateFrom, withVersionLine, type ScanCapture, type ScanPurpose } from "@/lib/scan/session";
 
@@ -30,6 +31,8 @@ export type ScanHubDeps = {
   openSettings: () => Promise<unknown>;
   /** A library photo, read the same way. */
   pickAndRead: () => Promise<ScanCapture | null>;
+  /** The photo's look (border color, rainbow sheen), read on the phone. Null when unclear. Only orders "Which version?". */
+  look: (image: string) => Promise<PhotoLook | null>;
   /** Fills open fields from the phone's alternate readings, before anything reads the capture. */
   settle: (capture: ScanCapture) => Promise<ScanCapture>;
   /** Read and match against the catalog. Null when the search failed. */
@@ -94,6 +97,8 @@ async function defaultSolds(capture: ScanCapture, matches: ScanMatch[], signal: 
       backLines: capture.backLines,
       kind: capture.kind,
       border: capture.border ?? null,
+      // Names only (a border color, a sheen): the photo itself never leaves the phone here.
+      look: capture.look ?? null,
       rows: matches.filter((match) => match.catalogId).map((match) => ({
         catalogId: match.catalogId,
         playerName: match.playerName,
@@ -134,6 +139,7 @@ const defaultDeps: ScanHubDeps = {
   canOpenSettings: async () => isNativeApp() && (await loadNative()).appSettingsAvailable(),
   openSettings: async () => (await loadNative()).openAppSettings(),
   pickAndRead: defaultPickAndRead,
+  look: async (image) => (await import("@/lib/scan/photo-look-browser")).readPhotoLook(image),
   settle: defaultSettle,
   identify: defaultIdentify,
   solds: defaultSolds,
@@ -216,8 +222,13 @@ export function ScanHub({
       setPhoto(scanned.image);
       setSheet({ kind: "matching" });
       // Alternates are settled once, here, so the phone and the server read the same lines.
-      const capture = await deps.settle(scanned).catch(() => scanned);
+      const settled = await deps.settle(scanned).catch(() => scanned);
       if (controller.signal.aborted) return;
+      // A raw card's photo look orders "Which version?". A slab's photo is mostly its case and label.
+      // Read once per photo: a front kept for "Flip it over" carries its look (or null) back in.
+      const look = settled.look === undefined && settled.image && settled.kind !== "slab" ? await deps.look(settled.image).catch(() => null) : (settled.look ?? null);
+      if (controller.signal.aborted) return;
+      const capture: ScanCapture = look ? { ...settled, look } : settled;
       lastCapture.current = { ...capture, versionLine: scanned.versionLine ?? null };
       const result = await deps.identify(capture, controller.signal).catch(() => null);
       if (controller.signal.aborted) return;
@@ -230,7 +241,7 @@ export function ScanHub({
       // The front alone can't pin the card: ask for the back first. No sold search runs until
       // the collector scans it or skips.
       if (source && needsBackStep(capture, result, source)) {
-        waitingBack.current = { front: scanned, capture, result };
+        waitingBack.current = { front: { ...scanned, look }, capture, result };
         setSheet({ kind: "back", matches: result.matches });
         return;
       }

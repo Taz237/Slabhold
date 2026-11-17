@@ -41,7 +41,7 @@ function shownLine(match: ScanMatch | undefined): string {
 
 const label = (card: HardCard) => `${card.id} ${card.player}, ${card.year} ${hardCardSet(card.product)} #${card.card_number}${card.parallel ? ` ${card.parallel}` : ""}${card.print_run ? ` /${card.print_run}` : ""}`;
 const row = (card: HardCard, match: ScanMatch | undefined): Row => ({ id: card.id, label: label(card), ...marks(match, card), shown: shownLine(match) });
-const capture = (card: HardCard) => ({ lines: card.typical_ocr_front, backLines: hardCardBack(card), kind: card.kind ?? ("card" as const) });
+const capture = (card: HardCard) => ({ lines: card.typical_ocr_front, backLines: hardCardBack(card), kind: card.kind ?? ("card" as const), look: card.photo_look ?? null });
 
 async function scanAlone(card: HardCard): Promise<Row> {
   const read = scanReadFrom({ ...capture(card), image: null, alternates: null, backAlternates: null, cert: null }, SCAN_DIRECTORY);
