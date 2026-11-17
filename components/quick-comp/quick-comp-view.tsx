@@ -1,14 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
-import { Search, X } from "lucide-react";
+import { ArrowLeft, Search, SlidersHorizontal, UserRound, X } from "lucide-react";
 import { HUB_COPY, quickCompScanHref, scannerEnabled } from "@/lib/scan/entry";
 import type { SalesChart as SalesChartType } from "@/components/sales-chart";
 import { preloadCompsList } from "@/components/card-page-parts";
 import { CATALOG_SEARCH_TIMEOUT_MESSAGE } from "@/lib/catalog/catalog-search-session";
 import { searchCatalogRemote } from "@/lib/catalog/search-remote";
 import type { CatalogCard } from "@/lib/card-catalog";
-import { parseYearLabel } from "@/lib/card-options";
 import { money } from "@/lib/format";
 import {
   createLookupGate,
@@ -34,6 +33,21 @@ import {
   quickCompLimitMessage,
 } from "@/lib/quick-comp/respond";
 import { createSuggestionTyping, SUGGEST_MIN_CHARS, type SuggestionState } from "@/lib/quick-comp/typing";
+import { manualYearError, readManualYear, splitManualQuery } from "@/lib/quick-comp/manual-year";
+import { PLAYER_LIMIT_CAPTION, playerLimitMessage } from "@/lib/quick-comp/player-limits";
+import {
+  currentPlayerItems,
+  fetchPlayerFeed,
+  fillFromSale,
+  playerSuggestUrl,
+  readPlayerSuggestions,
+  sameFilter,
+  wantsPlayerSuggestions,
+  type FeedFilters,
+  type PlayerFeedOutcome,
+  type PlayerSale,
+  type PlayerSuggestion,
+} from "@/lib/quick-comp/player-feed";
 import { catalogResultLine } from "@/lib/search/catalog-results";
 import { useProductData } from "@/lib/cards/use-product-data";
 import { isVersion, quickCompVersions, withVersion, type QuickVersion } from "@/lib/quick-comp/versions";
@@ -43,6 +57,7 @@ import { QuickCompResult, identityLine } from "./quick-comp-result";
 import { NoticeButton, QuickCompLoading, QuickCompNotice } from "./quick-comp-states";
 import { CompsEmpty, RecentComps, ScanHero } from "./comp-home";
 import { SlabholdRail } from "./slabhold-rail";
+import { PlayerFeed, SaleSheet, type FeedState } from "./player-feed";
 import { control, feedback, focusRing, textMuted, textSecondary } from "./tokens";
 
 export const SEARCH_LABEL = "Player, year, set or number";
@@ -142,63 +157,138 @@ function SuggestionSkeleton() {
   );
 }
 
+export type ManualFields = { player: string; year: string; set: string; number: string };
+
+export const MANUAL_SUBMIT = "Check sold prices";
+export const MANUAL_BUSY = "Checking sold prices";
+
+function Spinner() {
+  return (
+    <span
+      aria-hidden="true"
+      data-manual-spinner=""
+      className="size-4 shrink-0 rounded-full border-2 border-white/40 border-t-white motion-safe:animate-[qc-busy-turn_700ms_linear_infinite]"
+    />
+  );
+}
+
+/**
+ * Player and year, with set and number optional. The year reads however a phone
+ * types it, its error shows under the field the moment it's wrong, and a tap
+ * that sends shows a spinner and can't send twice.
+ */
 function ManualForm({
   initial,
+  busy,
+  note,
   onSubmit,
   onCancel,
 }: {
-  initial: string;
-  onSubmit: (fields: { player: string; year: string; set: string; number: string }) => void;
+  initial: Partial<ManualFields>;
+  busy: boolean;
+  /** "Gold Refractor /50, from the sale": the version Comp this card carries in. */
+  note?: string | null;
+  onSubmit: (fields: ManualFields) => void;
   onCancel: () => void;
 }) {
-  const [player, setPlayer] = useState(initial);
-  const [year, setYear] = useState("");
-  const [set, setSet] = useState("");
-  const [number, setNumber] = useState("");
-  const [tried, setTried] = useState(false);
-  const yearOk = parseYearLabel(year) != null;
-  const playerOk = player.trim().length > 0;
+  const ids = useId();
+  const [player, setPlayer] = useState(initial.player ?? "");
+  const [year, setYear] = useState(initial.year ?? "");
+  const [set, setSet] = useState(initial.set ?? "");
+  const [number, setNumber] = useState(initial.number ?? "");
+  const [touched, setTouched] = useState({ player: false, year: false });
+  /** Blocks a second send between the tap and the parent's busy state. */
+  const sent = useRef(false);
+  const playerRef = useRef<HTMLInputElement>(null);
+  const yearRef = useRef<HTMLInputElement>(null);
+  const playerError = player.trim() ? "" : "Add the player";
+  const yearError = manualYearError(year);
+  // An error shows once a field was left or a send was tried, and while a typed year can't be one.
+  const showYearError = Boolean(yearError) && (touched.year || year.trim().length >= 4);
+  const showPlayerError = Boolean(playerError) && touched.player;
+
+  useEffect(() => {
+    if (!busy) sent.current = false;
+  }, [busy]);
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    setTried(true);
-    if (!playerOk || !yearOk) return;
+    if (busy || sent.current) return;
+    setTouched({ player: true, year: true });
+    if (playerError) {
+      playerRef.current?.focus();
+      return;
+    }
+    if (yearError) {
+      yearRef.current?.focus();
+      return;
+    }
+    sent.current = true;
     onSubmit({ player, year, set, number });
   }
 
   const input = `${control} w-full px-3 text-base sm:text-sm placeholder:text-zinc-400 dark:placeholder:text-zinc-500`;
+  // Important, so it beats the control's own hairline color in both themes.
+  const invalid = "ring-rose-600/70! dark:ring-rose-400/70!";
   const label = `mb-1.5 block text-13 leading-5 font-medium ${textSecondary}`;
+  const error = "mt-1 text-xs leading-4 text-rose-700 dark:text-rose-300";
   return (
-    <form data-quick-comp-state="manual" onSubmit={submit} noValidate className="flex flex-col gap-3 rounded-2xl p-4 ring-1 ring-zinc-950/10 dark:ring-white/10">
+    <form data-quick-comp-state="manual" onSubmit={submit} noValidate aria-busy={busy || undefined} className="flex flex-col gap-3 rounded-2xl p-4 ring-1 ring-zinc-950/10 dark:ring-white/10">
       <div className="flex h-5 items-center justify-between">
         <h2 className="text-15 leading-5 font-medium">Enter the card</h2>
       </div>
       <div className="grid grid-cols-[1fr_7rem] gap-2">
-        <label className="block min-w-0">
-          <span className={label}>Player</span>
+        <div className="min-w-0">
+          <label htmlFor={`${ids}-player`} className={label}>
+            Player
+          </label>
           <input
+            ref={playerRef}
+            id={`${ids}-player`}
             value={player}
             onChange={(event) => setPlayer(event.target.value)}
+            onBlur={() => setTouched((now) => ({ ...now, player: true }))}
             maxLength={80}
             autoComplete="off"
             required
-            aria-invalid={tried && !playerOk}
-            className={input}
+            aria-invalid={showPlayerError}
+            aria-describedby={showPlayerError ? `${ids}-player-error` : undefined}
+            className={`${input} ${showPlayerError ? invalid : ""}`}
           />
-        </label>
-        <label className="block">
-          <span className={label}>Year</span>
+          {showPlayerError ? (
+            <p id={`${ids}-player-error`} role="alert" className={error}>
+              {playerError}
+            </p>
+          ) : null}
+        </div>
+        <div>
+          <label htmlFor={`${ids}-year`} className={label}>
+            Year
+          </label>
+          {/* Text, not the number pad: the iPhone pad has no dash for 2023-24. */}
           <input
+            ref={yearRef}
+            id={`${ids}-year`}
             value={year}
             onChange={(event) => setYear(event.target.value)}
-            inputMode="numeric"
-            placeholder="2023"
-            maxLength={9}
+            onBlur={() => setTouched((now) => ({ ...now, year: true }))}
+            inputMode="text"
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck={false}
+            placeholder="YYYY"
+            maxLength={12}
             required
-            aria-invalid={tried && !yearOk}
-            className={`${input} tabular-nums`}
+            aria-invalid={showYearError}
+            aria-describedby={showYearError ? `${ids}-year-error` : undefined}
+            className={`${input} tabular-nums ${showYearError ? invalid : ""}`}
           />
-        </label>
+          {showYearError ? (
+            <p id={`${ids}-year-error`} role="alert" className={error}>
+              {yearError}
+            </p>
+          ) : null}
+        </div>
       </div>
       <div className="grid grid-cols-[1fr_7rem] gap-2">
         <label className="block min-w-0">
@@ -220,28 +310,33 @@ function ManualForm({
           />
         </label>
       </div>
-      {tried && (!playerOk || !yearOk) ? (
-        <p role="alert" className="text-13 leading-5 text-rose-700 dark:text-rose-300">
-          {!playerOk ? "Add the player" : "Add a year like 2023 or 2023-24"}
-        </p>
-      ) : null}
+      {note ? <p className={`text-13 leading-5 ${textMuted}`}>{note}</p> : null}
       <div className="flex gap-2">
         <button
           type="submit"
-          className={`inline-flex min-h-11 flex-1 items-center justify-center rounded-full bg-violet-600 px-4 text-sm font-medium text-white hover:bg-violet-700 ${feedback} ${focusRing}`}
+          disabled={busy}
+          aria-disabled={busy || undefined}
+          className={`inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full bg-violet-600 px-4 text-sm font-medium text-white hover:bg-violet-700 active:scale-[0.98] active:bg-violet-800 disabled:cursor-progress disabled:opacity-80 motion-safe:transition-[background-color,transform] motion-safe:duration-150 ${focusRing}`}
         >
-          Check sold prices
+          {busy ? <Spinner /> : null}
+          {busy ? MANUAL_BUSY : MANUAL_SUBMIT}
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className={`inline-flex min-h-11 items-center justify-center rounded-full px-4 text-sm font-medium ring-1 ring-zinc-950/10 hover:bg-zinc-950/[0.03] dark:ring-white/10 dark:hover:bg-white/5 ${feedback} ${focusRing}`}
+          className={`inline-flex min-h-11 items-center justify-center rounded-full px-4 text-sm font-medium ring-1 ring-zinc-950/10 hover:bg-zinc-950/[0.03] active:bg-zinc-950/[0.06] dark:ring-white/10 dark:hover:bg-white/5 dark:active:bg-white/10 ${feedback} ${focusRing}`}
         >
           Cancel
         </button>
       </div>
     </form>
   );
+}
+
+function versionNote(version: Pick<QuickCompIdentity, "parallel" | "serialRun"> | null): string | null {
+  if (!version) return null;
+  const parts = [version.parallel && version.parallel !== "Base" ? version.parallel : "", version.serialRun ? `/${version.serialRun}` : ""].filter(Boolean);
+  return parts.length ? `${parts.join(" ")}, from the sale's title` : null;
 }
 
 export function QuickCompView({ userId }: { userId: string | null }) {
@@ -267,6 +362,27 @@ export function QuickCompView({ userId }: { userId: string | null }) {
   const [chartAttempt, setChartAttempt] = useState(0);
   const token = useRef(0);
   const gradeTimer = useRef<number | null>(null);
+  /** The manual form's starting values, and a key so a new start resets it. */
+  const [manualStart, setManualStart] = useState<{ key: number; fields: Partial<ManualFields>; version: Pick<QuickCompIdentity, "parallel" | "serialRun"> | null }>({
+    key: 0,
+    fields: {},
+    version: null,
+  });
+  /** A manual send is out: the button spins until the lookup lands, then the form closes. */
+  const [manualBusy, setManualBusy] = useState(false);
+  /** The lookup a manual send started: when it lands, the form closes. */
+  const manualSend = useRef(0);
+  const [players, setPlayers] = useState<{ query: string; items: PlayerSuggestion[] }>({ query: "", items: [] });
+  const playerTimer = useRef<number | null>(null);
+  const playerAbort = useRef<AbortController | null>(null);
+  /** Player mode: whose sales, the chip a phrase turned on, and whether the feed is showing (not a card comped from it). */
+  const [feedFor, setFeedFor] = useState<{ player: string; filter: Partial<FeedFilters>; key: number } | null>(null);
+  const [feed, setFeed] = useState<PlayerFeedOutcome | { status: "loading" }>({ status: "loading" });
+  const [feedShown, setFeedShown] = useState(false);
+  const [sheetSale, setSheetSale] = useState<PlayerSale | null>(null);
+  const feedToken = useRef(0);
+  /** Remounts the feed when a phrase changes its chip, without a new search. */
+  const feedView = useRef(0);
 
   function cancelGradeLookup() {
     if (gradeTimer.current !== null) window.clearTimeout(gradeTimer.current);
@@ -280,6 +396,13 @@ export function QuickCompView({ userId }: { userId: string | null }) {
     [],
   );
   useEffect(() => () => typing.dispose(), [typing]);
+  useEffect(
+    () => () => {
+      if (playerTimer.current !== null) window.clearTimeout(playerTimer.current);
+      playerAbort.current?.abort();
+    },
+    [],
+  );
 
   // The #157 comp card and the sales list each load from their own chunk.
   useEffect(preloadCompsList, []);
@@ -318,14 +441,19 @@ export function QuickCompView({ userId }: { userId: string | null }) {
   );
 
   const results = suggestions.status === "ready" ? suggestions.results : [];
+  /** Player names first for a name with no digits; a card search ("2023 prizm") shows cards only. */
+  const playerItems = currentPlayerItems(players, query);
+  const playerCount = playerItems.length;
+  const manualAt = playerCount + results.length;
   const showList = open && suggestions.status !== "idle" && query.trim().length > 0;
-  const optionCount = results.length + 1;
+  const optionCount = manualAt + 1;
 
+  /** Looks up a card. Returns the lookup's id: a new one, or the one already out for this card. */
   const run = useCallback(
-    (next: Picked) => {
+    (next: Picked): number => {
       const key = quickCompIdentityKey(next.identity);
       // A double tap on the same card and grade while it loads does nothing more.
-      if (gate.pending(next.identity) && picked && quickCompIdentityKey(picked.identity) === key) return;
+      if (gate.pending(next.identity) && picked && quickCompIdentityKey(picked.identity) === key) return token.current;
       const id = ++token.current;
       setVersion(null);
       setPicked(next);
@@ -335,6 +463,12 @@ export function QuickCompView({ userId }: { userId: string | null }) {
         if (id !== token.current) return;
         const state = outcomeToState(outcome);
         setComp(state);
+        // The manual form spun until now; its card is showing, so it closes.
+        if (manualSend.current === id) {
+          manualSend.current = 0;
+          setManualBusy(false);
+          setManual(false);
+        }
         if (state.status === "ready") {
           setRecent(
             rememberRecentComp(browserRecentStore(), userId, {
@@ -347,12 +481,40 @@ export function QuickCompView({ userId }: { userId: string | null }) {
           );
         }
       });
+      return id;
     },
     [gate, picked, userId],
   );
 
+  /** Player names for the typed text, 250ms after the last key. Reads names only: never a sold search. */
+  function askPlayers(text: string) {
+    if (playerTimer.current !== null) window.clearTimeout(playerTimer.current);
+    playerTimer.current = null;
+    playerAbort.current?.abort();
+    playerAbort.current = null;
+    const q = text.trim();
+    // The old list goes the moment the text changes: nothing stale to tap while the new one loads.
+    setPlayers({ query: "", items: [] });
+    if (!wantsPlayerSuggestions(q)) return;
+    playerTimer.current = window.setTimeout(() => {
+      playerTimer.current = null;
+      const controller = new AbortController();
+      playerAbort.current = controller;
+      Promise.resolve()
+        .then(() => fetch(playerSuggestUrl(q), { signal: controller.signal }))
+        .then((response) => (response.ok ? response.json() : null))
+        .then((body) => {
+          if (!controller.signal.aborted) setPlayers({ query: q, items: readPlayerSuggestions(body) });
+        })
+        .catch(() => {
+          if (!controller.signal.aborted) setPlayers({ query: q, items: [] });
+        });
+    }, 250);
+  }
+
   function clearSearch() {
     typing.type("");
+    askPlayers("");
     setQuery("");
     setOpen(false);
     setActive(0);
@@ -377,13 +539,104 @@ export function QuickCompView({ userId }: { userId: string | null }) {
     selectGrade(chosen);
     clearSearch();
     setManual(false);
+    setFeedShown(false);
     inputRef.current?.blur();
     run({ identity, catalog: card, alternatives: from.filter((row) => row.id !== card.id).slice(0, 3) });
   }
 
-  function openManual() {
+  function startManual(fields: Partial<ManualFields>, version: Pick<QuickCompIdentity, "parallel" | "serialRun"> | null = null) {
+    setManualStart((now) => ({ key: now.key + 1, fields, version }));
+    setManualBusy(false);
     setManual(true);
     setOpen(false);
+  }
+
+  /** The search text fills the form, a typed year in Year (not left in Player) and a grade left out. */
+  function openManual() {
+    startManual(splitManualQuery(splitQueryGrade(query).rest));
+  }
+
+  function loadFeed(player: string, filter: Partial<FeedFilters>) {
+    const id = ++feedToken.current;
+    const key = ++feedView.current;
+    setFeedFor({ player, filter, key });
+    setFeedShown(true);
+    setFeed({ status: "loading" });
+    void fetchPlayerFeed(player, (url) => fetch(url, { cache: "no-store" })).then((outcome) => {
+      if (id !== feedToken.current) return;
+      setFeed(outcome);
+      if (outcome.status === "ready") setFeedFor((now) => (now && now.player === player ? { ...now, player: outcome.body.player } : now));
+    });
+  }
+
+  /**
+   * A player picked from the list: their sales, any card. The same player and chip again
+   * does nothing more; the same player with another chip ("Acuff Prizm" after "Acuff auto")
+   * switches the chip on the sales already loading or loaded, with no second search.
+   */
+  function openPlayer(item: PlayerSuggestion) {
+    cancelGradeLookup();
+    token.current += 1;
+    clearSearch();
+    setManual(false);
+    setManualBusy(false);
+    setPicked(null);
+    setComp({ status: "idle" });
+    setSheetSale(null);
+    inputRef.current?.blur();
+    const filter = item.filter ?? {};
+    const samePlayer = feedFor != null && feedFor.player === item.player && (feed.status === "loading" || feed.status === "ready");
+    if (samePlayer) {
+      setFeedShown(true);
+      if (!sameFilter(feedFor.filter, filter)) setFeedFor({ player: item.player, filter, key: ++feedView.current });
+      return;
+    }
+    loadFeed(item.player, filter);
+  }
+
+  function backToFeed() {
+    cancelGradeLookup();
+    token.current += 1;
+    setPicked(null);
+    setComp({ status: "idle" });
+    setManual(false);
+    setFeedShown(true);
+  }
+
+  /** "Comp this card": the sale's printed facts into the normal Quick Comp. No year printed: the form asks. */
+  function compSale(sale: PlayerSale) {
+    if (!feedFor) return;
+    const fill = fillFromSale(feedFor.player, sale);
+    const version = { parallel: fill.parallel, serialRun: fill.serialRun };
+    setSheetSale(null);
+    if (fill.grade) selectGrade(fill.grade);
+    const year = readManualYear(fill.year);
+    try {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch {
+      // Not every test DOM scrolls.
+    }
+    if (!year) {
+      startManual({ player: fill.player, year: "", set: fill.set, number: fill.number }, version);
+      return;
+    }
+    cancelGradeLookup();
+    setManual(false);
+    setFeedShown(false);
+    run({
+      identity: {
+        playerName: fill.player,
+        year: year.year,
+        yearLabel: year.yearLabel,
+        setBrand: fill.set,
+        cardNumber: fill.number,
+        parallel: fill.parallel,
+        ...(fill.serialRun ? { serialRun: fill.serialRun } : {}),
+        grade: fill.grade ?? grade,
+      },
+      catalog: null,
+      alternatives: [],
+    });
   }
 
   /** One lookup for the grade and version still selected after the settle time. */
@@ -419,6 +672,7 @@ export function QuickCompView({ userId }: { userId: string | null }) {
     setOtherOpen(false);
     setVersion(null);
     setSaleId(null);
+    setFeedShown(false);
     setPicked({ identity: item.identity, catalog: item.catalog, alternatives: [] });
     setComp({ status: "ready", payload: item.payload, savedAt: item.savedAt });
   }
@@ -431,14 +685,22 @@ export function QuickCompView({ userId }: { userId: string | null }) {
       openManual();
       return;
     }
+    if (showList && active < playerCount && playerItems[active]) {
+      openPlayer(playerItems[active]);
+      return;
+    }
     setOpen(true);
     const current = suggestions.status !== "idle" && suggestions.status !== "loading" && suggestions.query === text;
     if (current && suggestions.status === "ready") {
-      const card = results[active] ?? results[0];
+      const card = results[active - playerCount] ?? results[0];
       if (card) pick(card, results);
       return;
     }
-    if (current && suggestions.status === "miss") return;
+    if (current && suggestions.status === "miss") {
+      // No card in the catalog, but a player by that name: their sales.
+      if (playerItems[0]) openPlayer(playerItems[0]);
+      return;
+    }
     if (current && suggestions.status === "trouble") {
       typing.type(query);
       return;
@@ -472,11 +734,31 @@ export function QuickCompView({ userId }: { userId: string | null }) {
     event.preventDefault();
     // The manual option is hidden while suggestions load, so there is nothing to move to.
     if (suggestions.status === "loading") return;
-    const from = movedToManual ? results.length : active;
+    const from = movedToManual ? manualAt : active;
     const next = event.key === "ArrowDown" ? (from + 1) % optionCount : (from - 1 + optionCount) % optionCount;
     setActive(next);
-    setMovedToManual(next === results.length);
+    setMovedToManual(next === manualAt);
   }
+
+  const closeSheet = useCallback(() => setSheetSale(null), []);
+  const feedState: FeedState =
+    feed.status === "loading"
+      ? { status: "loading" }
+      : feed.status === "ready"
+        ? { status: "ready", sales: feed.body.sales }
+        : {
+            status: "notice",
+            notice:
+              feed.status === "limited" ? (
+                <QuickCompNotice
+                  state="player-limit"
+                  title={playerLimitMessage(feed.reason)}
+                  caption={feed.reason === "daily" && resetTime(feed.resetAt) ? `${PLAYER_LIMIT_CAPTION}. More players from ${resetTime(feed.resetAt)}` : PLAYER_LIMIT_CAPTION}
+                />
+              ) : (
+                <CompStateNotice state={feed} onRetry={() => feedFor && loadFeed(feedFor.player, feedFor.filter)} />
+              ),
+          };
 
   const manualShown = suggestions.status !== "loading";
   const activeId = !showList
@@ -485,9 +767,11 @@ export function QuickCompView({ userId }: { userId: string | null }) {
       ? manualShown
         ? `${listId}-manual`
         : undefined
-      : results[active]
-        ? `${listId}-${results[active].id}`
-        : undefined;
+      : active < playerCount
+        ? `${listId}-p-${active}`
+        : results[active - playerCount]
+          ? `${listId}-${results[active - playerCount].id}`
+          : undefined;
   const optionClass = (on: boolean) =>
     `flex min-h-14 w-full flex-col justify-center px-3 py-2 text-left ${feedback} ${on ? "bg-zinc-950/[0.04] dark:bg-white/[0.06]" : "hover:bg-zinc-950/[0.03] dark:hover:bg-white/[0.04]"}`;
 
@@ -517,6 +801,7 @@ export function QuickCompView({ userId }: { userId: string | null }) {
               setActive(0);
               setMovedToManual(false);
               typing.type(next);
+              askPlayers(next);
             }}
             onFocus={() => setOpen(true)}
             onBlur={() => {
@@ -557,7 +842,6 @@ export function QuickCompView({ userId }: { userId: string | null }) {
             aria-busy={suggestions.status === "loading" || undefined}
             className="absolute inset-x-0 top-full z-20 mt-2 max-h-[22rem] overflow-y-auto rounded-xl bg-[var(--background)] py-1 shadow-[0_8px_24px_rgb(0_0_0/0.08)] ring-1 ring-zinc-950/10 dark:shadow-none dark:ring-white/10"
           >
-            {suggestions.status === "loading" ? <SuggestionSkeleton /> : null}
             {suggestions.status === "trouble" ? (
               <li className={`px-3 py-3 text-sm ${textSecondary}`}>
                 {CATALOG_SEARCH_TIMEOUT_MESSAGE}
@@ -571,13 +855,13 @@ export function QuickCompView({ userId }: { userId: string | null }) {
                 </button>
               </li>
             ) : null}
-            {suggestions.status === "miss" ? (
+            {suggestions.status === "miss" && playerCount === 0 ? (
               <li data-quick-comp-state="no-match" className={`px-3 pt-3 pb-1 text-sm ${textSecondary}`}>
                 No match in the catalog
               </li>
             ) : null}
-            {results.map((card, index) => (
-              <li key={card.id} id={`${listId}-${card.id}`} role="option" aria-selected={!movedToManual && index === active}>
+            {playerItems.map((item, index) => (
+              <li key={`p-${item.label}`} id={`${listId}-p-${index}`} role="option" aria-selected={!movedToManual && index === active} data-player-option="">
                 <button
                   type="button"
                   tabIndex={-1}
@@ -586,8 +870,34 @@ export function QuickCompView({ userId }: { userId: string | null }) {
                     setActive(index);
                     setMovedToManual(false);
                   }}
+                  onClick={() => openPlayer(item)}
+                  className={`${optionClass(!movedToManual && index === active)} !flex-row items-center !justify-start gap-3`}
+                >
+                  <span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-full bg-violet-600/10 text-violet-700 dark:bg-violet-400/15 dark:text-violet-300">
+                    {item.filter ? <SlidersHorizontal size={15} strokeWidth={1.75} /> : <UserRound size={16} strokeWidth={1.75} />}
+                  </span>
+                  <span className="flex min-w-0 flex-col">
+                    <span className="truncate text-sm leading-5 font-medium">{item.label}</span>
+                    <span className={`truncate text-xs leading-4 ${textMuted}`}>
+                      {item.filter ? `${item.player}, recent sales` : "Recent sales, any card"}
+                    </span>
+                  </span>
+                </button>
+              </li>
+            ))}
+            {suggestions.status === "loading" ? <SuggestionSkeleton /> : null}
+            {results.map((card, index) => (
+              <li key={card.id} id={`${listId}-${card.id}`} role="option" aria-selected={!movedToManual && index + playerCount === active}>
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onMouseEnter={() => {
+                    setActive(index + playerCount);
+                    setMovedToManual(false);
+                  }}
                   onClick={() => pick(card, results)}
-                  className={optionClass(!movedToManual && index === active)}
+                  className={optionClass(!movedToManual && index + playerCount === active)}
                 >
                   <span className="truncate text-sm leading-5 font-medium">{card.playerName}</span>
                   <span className={`truncate text-xs leading-4 ${textMuted}`}>{catalogResultLine(card)}</span>
@@ -601,7 +911,7 @@ export function QuickCompView({ userId }: { userId: string | null }) {
                   tabIndex={-1}
                   onMouseDown={(event) => event.preventDefault()}
                   onMouseEnter={() => {
-                    setActive(results.length);
+                    setActive(manualAt);
                     setMovedToManual(true);
                   }}
                   onClick={openManual}
@@ -627,25 +937,35 @@ export function QuickCompView({ userId }: { userId: string | null }) {
 
       {manual ? (
         <ManualForm
-          initial={splitQueryGrade(query).rest.trim()}
-          onCancel={() => setManual(false)}
+          key={manualStart.key}
+          initial={manualStart.fields}
+          busy={manualBusy}
+          note={versionNote(manualStart.version)}
+          onCancel={() => {
+            setManual(false);
+            setManualBusy(false);
+          }}
           onSubmit={(fields) => {
-            const year = parseYearLabel(fields.year);
-            if (!year) return;
+            const year = readManualYear(fields.year);
+            if (!year || manualBusy) return;
             // A grade change still waiting to settle must not replace this card.
             cancelGradeLookup();
             const chosen = gradeForPick();
             selectGrade(chosen);
-            setManual(false);
             clearSearch();
-            run({
+            setFeedShown(false);
+            // Comp this card's version, from the sale's title, rides along; typed by hand, it's Base.
+            const version = manualStart.version;
+            setManualBusy(true);
+            manualSend.current = run({
               identity: {
                 playerName: fields.player.trim(),
                 year: year.year,
                 yearLabel: year.yearLabel,
                 setBrand: fields.set.trim(),
                 cardNumber: fields.number.trim().replace(/^#/, ""),
-                parallel: "Base",
+                parallel: version?.parallel || "Base",
+                ...(version?.serialRun ? { serialRun: version.serialRun } : {}),
                 grade: chosen,
               },
               catalog: null,
@@ -653,6 +973,21 @@ export function QuickCompView({ userId }: { userId: string | null }) {
             });
           }}
         />
+      ) : null}
+
+      {feedFor && feedShown && !picked ? (
+        <PlayerFeed key={feedFor.key} player={feedFor.player} state={feedState} initialFilters={feedFor.filter} onOpenSale={setSheetSale} />
+      ) : null}
+
+      {picked && feedFor && !feedShown ? (
+        <button
+          type="button"
+          onClick={backToFeed}
+          className={`-ml-1 -mb-2 inline-flex min-h-11 items-center gap-1.5 self-start rounded-[10px] px-1 text-13 font-medium ${textSecondary} hover:text-zinc-950 dark:hover:text-zinc-50 ${feedback} ${focusRing}`}
+        >
+          <ArrowLeft aria-hidden="true" size={16} strokeWidth={1.5} />
+          {feedFor.player} sales
+        </button>
       ) : null}
 
       {picked ? (
@@ -708,12 +1043,14 @@ export function QuickCompView({ userId }: { userId: string | null }) {
             <CompStateNotice state={comp} onRetry={() => run(picked)} />
           )}
         </div>
-      ) : !manual ? (
+      ) : !manual && !(feedFor && feedShown) ? (
         <>
           {recent.length > 0 ? <RecentComps items={recent} onOpen={openRecent} /> : <CompsEmpty />}
           <SlabholdRail />
         </>
       ) : null}
+
+      {sheetSale ? <SaleSheet sale={sheetSale} onClose={closeSheet} onComp={compSale} /> : null}
     </div>
   );
 }

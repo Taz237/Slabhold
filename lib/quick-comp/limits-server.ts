@@ -2,6 +2,7 @@ import "server-only";
 
 import { consumeRateLimit, consumeTrawlLimit } from "@/lib/comps/rate-limit";
 import { makeTeamCheck, type UsernameLookup } from "@/lib/social/team-check-server";
+import { makePlayerSearchLimits } from "./player-limits";
 import {
   QUICK_COMP_DAILY_LIMIT,
   QUICK_COMP_DAY_BUCKET,
@@ -23,9 +24,18 @@ export function consumeTeamSafetyLimit(userId: string): Promise<boolean> {
 
 export { makeTeamCheck, type UsernameLookup };
 
+const teamCheck = makeTeamCheck();
+
 export const serverQuickCompLimits: QuickCompLimitDeps = {
   consumeDaily: consumeQuickCompDayLimit,
   consumeHourly: consumeTrawlLimit,
-  isUnlimited: makeTeamCheck(),
+  isUnlimited: teamCheck,
   consumeTeamSafety: consumeTeamSafetyLimit,
 };
+
+/**
+ * Player search's own buckets: 5 a day and 3 an hour, never Quick Comp's day cap
+ * or the shared Trawl hour cap. Fails closed after a lost write, like Quick Comp.
+ */
+/** Player search: 5 a day, 3 an hour, in its own buckets. Fails closed after a lost write, like Quick Comp. */
+export const serverPlayerSearchLimits: QuickCompLimitDeps = makePlayerSearchLimits(consumeRateLimit, teamCheck);
