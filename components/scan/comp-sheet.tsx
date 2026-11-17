@@ -10,7 +10,6 @@ import {
   CardPhoto,
   FlipStep,
   MatchSummary,
-  MatchingSkeleton,
   OtherMatches,
   SetNotes,
   withSoldGroups,
@@ -39,6 +38,10 @@ import { CONFIRM_COPY, confirmMatch, initialChoice, matchesKey, promoteMatch, re
 import type { ScanEstimate } from "@/lib/scan/estimate";
 import type { ScanMatch } from "@/lib/scan/match";
 import { isUnnamedRunLabel } from "@/lib/scan/scan-sales";
+import { REVEAL_COPY, matchIsSure, revealLines, typingPlan } from "@/lib/scan/reveal";
+import { QUICK_ADD_COPY } from "@/lib/scan/quick-add";
+import { PickCard } from "@/components/scan/pick-card";
+import { RevealLabel, RevealSpinCard } from "@/components/scan/scan-reveal";
 
 /**
  * Sold prices for another parallel or grade on this sheet. GET /api/scan/comp
@@ -52,6 +55,8 @@ export type CompLookup = (
 
 type Props = {
   photo: string | null;
+  /** The back's photo, when the camera took the back too: the reveal card turns to it. */
+  backPhoto?: string | null;
   state: ConfirmSheetState;
   lookup: CompLookup;
   /** Add to collection: the match with the picked parallel. save when nothing is left to ask. */
@@ -76,11 +81,11 @@ type Props = {
  * sales we already have). A different parallel, grade or card is one tap, and
  * its prices load in place from the same search. No sales is said plainly.
  */
-export function CompSheet({ photo, state, lookup, onAdd, onScanAnother, onSearch, onSapphire, onVersion, onScanBack, onSkipBack, onClose }: Props) {
-  const title = state.kind === "none" ? CONFIRM_COPY.noMatchTitle : COMP_COPY.title;
+export function CompSheet({ photo, backPhoto = null, state, lookup, onAdd, onScanAnother, onSearch, onSapphire, onVersion, onScanBack, onSkipBack, onClose }: Props) {
+  const steps = useScanSteps(state);
+  const title = state.kind === "none" ? CONFIRM_COPY.noMatchTitle : steps.view === "list" ? REVEAL_COPY.pickTitle : COMP_COPY.title;
   return (
     <SheetFrame title={title} busy={state.kind === "matching"} onClose={onClose}>
-      {state.kind === "matching" ? <MatchingSkeleton photo={photo} label={CONFIRM_COPY.finding} /> : null}
       {state.kind === "back" ? (
         <div className="space-y-6">
           <div className="flex justify-center">
@@ -103,12 +108,12 @@ export function CompSheet({ photo, state, lookup, onAdd, onScanAnother, onSearch
           </div>
         </div>
       ) : null}
-      {state.kind === "ready" ? (
-        <Ready
-          key={matchesKey(state.matches)}
+      {state.kind === "matching" || state.kind === "ready" ? (
+        <ScanSteps
+          state={state}
+          steps={steps}
           photo={photo}
-          matches={state.matches}
-          solds={state.solds}
+          backPhoto={backPhoto}
           lookup={lookup}
           onAdd={onAdd}
           onScanAnother={onScanAnother}
@@ -166,9 +171,16 @@ function gradeChoices(scanned: string): string[] {
   return presets.includes(scanned) ? presets : [scanned, ...presets];
 }
 
-function Ready({
+/**
+ * The price screen for one card, Quick Comp style: its value from recent sold prices, its parallel
+ * and grade one tap each, and a big Add to collection. `scanMatch` is the card the scan's own live
+ * search priced (the top match as it arrived): its sales only ever show for that card.
+ * With `onBack` (the card was picked from "Pick your card"), the way out is back to the list.
+ */
+export function CardPrice({
   photo,
   matches,
+  scanMatch = matches[0],
   solds,
   lookup,
   onAdd,
@@ -176,9 +188,11 @@ function Ready({
   onSearch,
   onSapphire,
   onVersion,
+  onBack,
 }: {
   photo: string | null;
   matches: ScanMatch[];
+  scanMatch?: ScanMatch;
   solds?: SoldsState;
   lookup: CompLookup;
   onAdd: Props["onAdd"];
@@ -186,6 +200,7 @@ function Ready({
   onSearch: () => void;
   onSapphire?: () => void;
   onVersion?: (version: string, rows: ScanMatch[]) => void;
+  onBack?: () => void;
 }) {
   const [rows, setRows] = useState(matches);
   const top = rows[0];
@@ -202,12 +217,17 @@ function Ready({
   // A numbered card, an autograph and a named variation are never Base: with the parallel open, nothing reads as Base.
   // A slab waiting on its version ("Which version?") is never shown as Base: nothing is priced until the pick.
   const awaitingVersion = solds?.status === "done" && solds.comp.status === "version";
-  const assumedBase = Boolean(target?.assumedBase) && top?.serialRun == null && !top?.isAuto && !top?.subset && !awaitingVersion;
+  // Never a silent Base: with the version neither read off the card nor picked, nothing is priced.
+  // "Which version?" asks, with the card's real parallels (or Base alone, to say so in one tap).
+  const versionOpen = !pick;
+  const assumedBase = false;
+  // Set when Add was tapped before the version: the button says so instead of guessing.
+  const [addError, setAddError] = useState<string | null>(null);
   const key = target ? compQueryString(target.identity, serialRun) : "";
   // The card the live search priced: the top match as it arrived, with its own parallel and grade.
   const [scanKey] = useState(() => {
-    const first = top ? compIdentityFromMatch({ ...top, parallel: initialChoice(top)?.name ?? "" }, scanCompGrade(top)) : null;
-    return first ? compQueryString(first.identity, top?.serialRun ?? null) : "";
+    const first = scanMatch ? compIdentityFromMatch({ ...scanMatch, parallel: initialChoice(scanMatch)?.name ?? "" }, scanCompGrade(scanMatch)) : null;
+    return first ? compQueryString(first.identity, scanMatch?.serialRun ?? null) : "";
   });
   const query = solds?.status === "done" ? solds.query : null;
   const looking = solds?.status === "looking" && key === scanKey;
@@ -234,7 +254,7 @@ function Ready({
   const versionPending = versionRead && solds?.status === "done" && pick?.name !== solds.version;
 
   useEffect(() => {
-    if (!target || results.has(key) || looking || fromScan || awaitingVersion || versionPending) return;
+    if (!target || versionOpen || results.has(key) || looking || fromScan || awaitingVersion || versionPending) return;
     let live = true;
     const store = (result: ScanCompResult) => {
       if (live) setResults((prev) => new Map(prev).set(key, result));
@@ -243,7 +263,7 @@ function Ready({
     return () => {
       live = false;
     };
-  }, [awaitingVersion, fromScan, key, looking, lookup, query, results, serialRun, target, versionPending]);
+  }, [awaitingVersion, fromScan, key, looking, lookup, query, results, serialRun, target, versionOpen, versionPending]);
 
   if (!top) return null;
 
@@ -269,18 +289,39 @@ function Ready({
     });
   }
 
+  /** One tap: the card as read, with the version picked. Never before the version: no silent Base. */
   function add() {
+    if (!pick) {
+      setAddError(QUICK_ADD_COPY.pickFirst);
+      return;
+    }
     const result = confirmMatch(top, pick, top.serialNo);
-    const match = "match" in result ? result.match : { ...top, parallel: "" };
+    // A numbered card whose own number didn't read still adds: the number can be filled in later.
+    const match = "match" in result ? result.match : { ...top, parallel: pick.name, serialRun: pick.serialRun, serialNo: "", sureness: { ...top.sureness, parallel: "sure" as const } };
     onAdd(match, { save: readyToSave(match) });
   }
 
-  const result = key ? (fromScan ?? results.get(key)) : undefined;
+  // With the version open, only the sales the search split by parallel show (tap one to pick it);
+  // anything else waits for the pick.
+  // Sales named by the print run alone ("/299": a numbered card whose sales name no color) are this
+  // card's too, and never called Base, so they show.
+  const scanNamed =
+    fromScan?.status === "split" || (fromScan?.status === "ok" && fromScan.parallel && isUnnamedRunLabel(fromScan.parallel)) ? fromScan : undefined;
+  const result: ScanCompResult | undefined = versionOpen
+    ? looking
+      ? undefined
+      : (scanNamed ?? { status: "version" })
+    : key
+      ? (fromScan ?? results.get(key))
+      : undefined;
+  // No list of ours for this card: Base alone, to say it in one tap. Never on a card that can't be Base.
+  const canBeBase = top.serialRun == null && !top.isAuto && !top.subset;
+  const versionChoices = parallelOptionsFor(top).length > 0 ? parallelOptionsFor(top) : canBeBase ? [{ name: "Base", serialRun: null }] : [];
 
   return (
     <div className="space-y-6">
       <MatchSummary photo={photo} match={top} />
-      <SetNotes match={top} onSapphire={top === matches[0] ? onSapphire : undefined} />
+      <SetNotes match={top} onSapphire={matchesKey([top]) === matchesKey([scanMatch]) ? onSapphire : undefined} />
 
       {target ? (
         <ValuePanel
@@ -289,7 +330,10 @@ function Ready({
           onRetry={retry}
           assumedBase={assumedBase}
           serialRun={serialRun}
-          onPick={(label) => setPick({ name: label, serialRun: top.serialRun })}
+          onPick={(label) => {
+            setPick({ name: label, serialRun: top.serialRun });
+            setAddError(null);
+          }}
           // Only beside the scan's own "No sales yet": another parallel or grade tapped has no estimate.
           estimate={fromScan && solds?.status === "done" ? (solds.similar?.estimate ?? null) : null}
         />
@@ -298,16 +342,14 @@ function Ready({
       )}
 
       <ParallelStrip
-        options={withSoldGroups(parallelOptionsFor(top), solds, top.serialRun, assumedBase)}
-        // The prices shown are Base's, so Base reads selected until another parallel is tapped.
-        pick={pick ?? (assumedBase ? { name: "Base", serialRun: null } : null)}
+        options={withSoldGroups(versionChoices, solds, top.serialRun, assumedBase)}
+        pick={pick}
         somethingElse={false}
         hint={
-          // With no Base sales the panel already says so and asks for a tap.
-          awaitingVersion && !pick
+          versionOpen
             ? CONFIRM_COPY.whichVersion
-            : assumedBase && !(result?.status === "split" && result.missing)
-            ? COMP_COPY.assumedBase
+            : top.parallelSource === "card" && pick?.name === top.parallel
+              ? COMP_COPY.matchedFromPhoto
             : top.parallelSource === "sales" && pick?.name === top.parallel
               ? COMP_COPY.matchedFromSalesTap
               : // The chips offered are last year's parallels at this print run, not a read of this card.
@@ -319,6 +361,7 @@ function Ready({
           setPicked(next !== null);
           if (next) setTaps((count) => count + 1);
           setPick(next);
+          setAddError(null);
         }}
       />
 
@@ -343,20 +386,160 @@ function Ready({
       </div>
 
       <div className="space-y-2">
-        <PrimaryButton onClick={add}>{COMP_COPY.add}</PrimaryButton>
+        <PrimaryButton onClick={add} className="min-h-14 text-15" aria-describedby={addError ? "scan-add-error" : undefined}>
+          {QUICK_ADD_COPY.add}
+        </PrimaryButton>
+        {addError ? (
+          <p id="scan-add-error" role="alert" className="text-center text-sm text-rose-600 dark:text-rose-400">
+            {addError}
+          </p>
+        ) : null}
         <div className="flex justify-center">
           <QuietButton onClick={onScanAnother}>{COMP_COPY.next}</QuietButton>
         </div>
       </div>
 
-      <OtherMatches rows={rows} onPromote={promote} photo={photo} />
-
-      <div className="flex justify-center">
-        <QuietButton onClick={onSearch}>{CONFIRM_COPY.noneOfThese}</QuietButton>
-      </div>
+      {onBack ? (
+        <div className="flex justify-center">
+          <QuietButton onClick={onBack}>{REVEAL_COPY.pickAnother}</QuietButton>
+        </div>
+      ) : (
+        <>
+          <OtherMatches rows={rows} onPromote={promote} photo={photo} />
+          <div className="flex justify-center">
+            <QuietButton onClick={onSearch}>{CONFIRM_COPY.noneOfThese}</QuietButton>
+          </div>
+        </>
+      )}
     </div>
   );
 }
+
+/** Where the scan is: being read, its reveal typing in, the list to pick from, or one card's price. */
+export type ScanView = "reading" | "reveal" | "list" | "card";
+
+/**
+ * The scan's steps after the camera. Being read: the card turns. Read: it lands on its front and its
+ * details type in, then (unless the collector taps through) "Pick your card" when the match is
+ * unsure, or straight to the card's price when it's sure. The sheet holds this so its title follows.
+ */
+export function useScanSteps(state: ConfirmSheetState) {
+  const matches = state.kind === "ready" ? state.matches : null;
+  // The card picked, by who it is (not its parallel): a re-read for a version, or sales that name its
+  // parallel, keep the price screen on the same card.
+  const [picked, setPicked] = useState<string | null>(null);
+  // "Not this one? Pick another" on a card shown without the list: the list, on request.
+  const [listAsked, setListAsked] = useState(false);
+  const [revealed, setRevealed] = useState(false);
+  // A new scan starts over: its reveal plays, nothing is picked.
+  if (state.kind === "matching" && (revealed || picked || listAsked)) {
+    setRevealed(false);
+    setPicked(null);
+    setListAsked(false);
+  }
+  const at = picked && matches ? matches.findIndex((match) => cardIdentity(match) === picked) : -1;
+  const sure = matches ? matchIsSure(matches) : false;
+  const index = at >= 0 ? at : sure && !listAsked ? 0 : null;
+  const view: ScanView = !matches ? "reading" : !revealed ? "reveal" : index != null ? "card" : "list";
+  return {
+    view,
+    index,
+    /** Only a card shown from the list, or one of several, can go back to the list. */
+    canPickAnother: Boolean(matches && matches.length > 1),
+    reveal: () => setRevealed(true),
+    pick: (next: number) => {
+      if (matches?.[next]) setPicked(cardIdentity(matches[next]));
+    },
+    backToList: () => {
+      setPicked(null);
+      setListAsked(true);
+    },
+  };
+}
+
+/** Who a card is, apart from its parallel: the player, year, set and card #. */
+function cardIdentity(match: ScanMatch): string {
+  return [match.playerName, match.yearLabel, match.setBrand, match.cardNumber].join("~");
+}
+
+export function ScanSteps({
+  state,
+  steps,
+  photo,
+  backPhoto = null,
+  lookup,
+  onAdd,
+  onScanAnother,
+  onSearch,
+  onSapphire,
+  onVersion,
+}: {
+  state: Extract<ConfirmSheetState, { kind: "matching" | "ready" }>;
+  steps: ReturnType<typeof useScanSteps>;
+  photo: string | null;
+  backPhoto?: string | null;
+  lookup: CompLookup;
+  onAdd: Props["onAdd"];
+  onScanAnother: () => void;
+  onSearch: () => void;
+  onSapphire?: () => void;
+  onVersion?: (version: string, rows: ScanMatch[]) => void;
+}) {
+  const ready = state.kind === "ready" ? state : null;
+  const key = ready ? matchesKey(ready.matches) : "";
+  const top = ready?.matches[0] ?? null;
+  const { view, index, reveal } = steps;
+
+  // The reveal types in, then the next step comes on its own; a tap on the label skips ahead.
+  const typing = useMemo(() => (top ? typingPlan(revealLines(top)).totalMs : 0), [top]);
+  useEffect(() => {
+    if (view !== "reveal") return;
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    const timer = window.setTimeout(reveal, reduce ? REVEAL_REDUCED_MS : typing + REVEAL_HOLD_MS);
+    return () => window.clearTimeout(timer);
+  }, [view, typing, reveal]);
+
+  if (ready && view === "card" && index != null && ready.matches[index]) {
+    return (
+      <CardPrice
+        key={`${key}#${index}`}
+        photo={photo}
+        matches={promoteMatch(ready.matches, index)}
+        scanMatch={ready.matches[0]}
+        solds={ready.solds}
+        lookup={lookup}
+        onAdd={onAdd}
+        onScanAnother={onScanAnother}
+        onSearch={onSearch}
+        onSapphire={index === 0 ? onSapphire : undefined}
+        onVersion={onVersion}
+        onBack={steps.canPickAnother ? steps.backToList : undefined}
+      />
+    );
+  }
+  if (ready && view === "list") {
+    return (
+      <div className="space-y-6">
+        <RevealSpinCard photo={photo} backPhoto={backPhoto} motion="rest" size="small" />
+        <PickCard matches={ready.matches} onPick={steps.pick} />
+        <div className="flex justify-center">
+          <QuietButton onClick={onSearch}>{CONFIRM_COPY.noneOfThese}</QuietButton>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-4">
+      <RevealSpinCard photo={photo} backPhoto={backPhoto} motion={ready ? "landing" : "reading"} />
+      <RevealLabel match={top} onDone={ready ? reveal : undefined} />
+    </div>
+  );
+}
+
+/** After the label has typed in, it holds a beat before the next step. */
+const REVEAL_HOLD_MS = 500;
+/** With reduced motion the label shows at once: a short beat to read it. */
+const REVEAL_REDUCED_MS = 900;
 
 const TREND_TEXT = { up: "Trending up", down: "Trending down", flat: "Steady" } as const;
 

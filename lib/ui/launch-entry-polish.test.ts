@@ -35,10 +35,10 @@ function memoryStore(): KeyValueStore {
 }
 
 describe("launch entry points", () => {
-  it("labels the camera tab and the purple Post button", () => {
+  it("labels the camera tab (Scan) and the purple Post button", () => {
     const shell = read("components/app-shell.tsx");
-    assert.match(shell, /aria-label="Add card"/);
-    assert.match(shell, />\s*Add card\s*</);
+    assert.match(shell, /aria-label="Scan"/);
+    assert.match(shell, />\s*Scan\s*</);
     assert.match(shell, /bg-violet-600/);
     const menu = read("components/create-menu.tsx");
     assert.match(menu, /aria-label="Post"/);

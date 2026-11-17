@@ -23,6 +23,11 @@ struct CardRead {
     var lines: [String]
     var backLines: [String]?
     var image: UIImage?
+    /// The back's straightened photo, when the camera took the back too. The web flips the
+    /// reveal card to it while the card is read.
+    var backImage: UIImage? = nil
+    /// The camera asked for the back (front then back), whether it was taken or skipped.
+    var backAsked = false
     /// "card", "slab", or nil when no card edge was found.
     var kind: String?
     /// The outer frame's average color as hue, saturation, brightness (0...1). Raw cards only.
@@ -54,6 +59,8 @@ struct CardRead {
         }
         if let cert { object["cert"] = cert }
         if let image, let dataUrl = CardTextReader.jpegDataUrl(image) { object["image"] = dataUrl }
+        if let backImage, let dataUrl = CardTextReader.jpegDataUrl(backImage) { object["backImage"] = dataUrl }
+        if backAsked { object["backAsked"] = true }
         return object
     }
 }

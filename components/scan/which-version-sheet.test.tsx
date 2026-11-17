@@ -35,6 +35,22 @@ after(() => win.close());
 
 const WAITING = { status: "done", comp: { status: "version" }, query: null } as const;
 
+/** Taps the first row of "Pick your card", when the list shows: the price screen is one tap away. */
+async function pickFirst(host: HTMLElement) {
+  // The reveal types in first: a tap on its label goes on.
+  const label = host.querySelector<HTMLElement>('[data-reveal="label"]');
+  if (label) {
+    await act(async () => {
+      label.click();
+    });
+  }
+  const row = host.querySelector<HTMLButtonElement>('[data-pick="list"] button');
+  if (!row) return;
+  await act(async () => {
+    row.click();
+  });
+}
+
 async function mount(sheet: "comp" | "confirm", state: ConfirmSheetState) {
   const calls = { versions: [] as string[], lookups: 0 };
   const { createRoot } = await import("react-dom/client");
@@ -58,6 +74,7 @@ async function mount(sheet: "comp" | "confirm", state: ConfirmSheetState) {
         : createElement(ConfirmSheet, { ...shared, onConfirm: () => {}, onStepByStep: () => {}, onRetake: () => {} }),
     );
   });
+  await pickFirst(host);
   const chip = (name: string) => [...host.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.getAttribute("aria-label") === name || button.textContent?.trim() === name);
   return {
     host,
@@ -96,16 +113,6 @@ describe("a slab waiting on its version", () => {
       assert.match(view.host.textContent ?? "", /Pick the version to see its sold prices/);
       await act(async () => view.chip("Refractor")!.click());
       assert.deepEqual(view.calls.versions, ["Refractor"]);
-    } finally {
-      view.unmount();
-    }
-  });
-
-  it("'Something else' picks no version: nothing is read again", async () => {
-    const view = await mount("confirm", { kind: "ready", matches: [fixtures.PREVIEW_SLAB_VERSION], solds: WAITING });
-    try {
-      await act(async () => view.chip("Something else")!.click());
-      assert.deepEqual(view.calls.versions, []);
     } finally {
       view.unmount();
     }

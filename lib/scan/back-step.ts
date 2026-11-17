@@ -25,8 +25,8 @@ export type ScanSource = "camera" | "library";
 
 /**
  * The phone's own camera already asks for the back when the front prints no card # line
- * (CardScannerViewController.needsBack). The same test here, so a collector who skipped it there
- * is never asked twice.
+ * (CardScannerViewController.needsBack, before it asked on every raw card). The same test here, so
+ * a collector who skipped it there is never asked twice. Newer builds say so outright (backAsked).
  */
 export function nativeAskedForBack(lines: readonly string[]): boolean {
   return !lines.some((line) => /(#|\bNO\.)\s*[A-Z0-9]/i.test(line));
@@ -52,6 +52,7 @@ export function needsBackStep(capture: ScanCapture, result: ScanMatchResult | nu
   if (capture.kind === "slab" || result.matches[0]?.grade?.company) return false;
   if (capture.backLines?.length) return false;
   if (capture.lines.length === 0) return false;
+  if (capture.backAsked) return false;
   if (source === "camera" && nativeAskedForBack(capture.lines)) return false;
   return missingFields(result.matches[0]).length > 0;
 }
@@ -64,6 +65,6 @@ export function needsBackStep(capture: ScanCapture, result: ScanMatchResult | nu
 export function withBack(front: ScanCapture, back: ScanCapture): ScanCapture {
   const backLines = [...back.lines, ...(back.backLines ?? [])];
   const sameShape = back.alternates?.length === back.lines.length && !back.backLines?.length;
-  const combined: ScanCapture = { ...front, backLines, backAlternates: sameShape ? back.alternates : null };
+  const combined: ScanCapture = { ...front, backLines, backAlternates: sameShape ? back.alternates : null, backImage: back.image ?? null };
   return combined;
 }

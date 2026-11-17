@@ -25,6 +25,10 @@ export type RawScan = {
   backAlternates?: unknown;
   /** A slab's cert number from its barcode. */
   cert?: unknown;
+  /** The back's straightened photo (front then back), for the reveal. */
+  backImage?: unknown;
+  /** The camera asked for the back, whether it was taken or skipped. */
+  backAsked?: unknown;
 };
 
 export const SCANNER_PLUGIN = "SlabholdScanner";
@@ -89,6 +93,10 @@ export function scanCaptureFrom(raw: unknown): ScanCapture | null {
   if (backAlternates) capture.backAlternates = backAlternates;
   const barcode = cert(scan.cert);
   if (barcode) capture.cert = barcode;
+  // Front then back: the back's photo, only beside its read, and that the camera asked at all.
+  const backPhoto = back ? image(scan.backImage) : null;
+  if (backPhoto) capture.backImage = backPhoto;
+  if (scan.backAsked === true) capture.backAsked = true;
   return capture;
 }
 

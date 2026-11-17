@@ -55,7 +55,6 @@ import { trapTabTarget } from "@/lib/social/collect-interests";
 import type { Profile } from "@/lib/social/types";
 import { userHref } from "@/lib/social/user-href";
 import { useInviteShare } from "@/components/invite/invite-button";
-import { quickCompEnabled } from "@/lib/quick-comp/flag";
 import { sideMenuItems } from "@/lib/ui/side-menu-items";
 import { edgeSwipeClaims } from "@/lib/ui/nav-motion";
 import {
@@ -561,7 +560,7 @@ export function SideMenu({
     window.setTimeout(startTour, TOUR_AFTER_CLOSE_MS);
   }
 
-  const items = sideMenuItems(quickCompEnabled()).filter((item) => item.href !== "/achievements" || hosted);
+  const items = sideMenuItems().filter((item) => item.href !== "/achievements" || hosted);
 
   return (
     <>

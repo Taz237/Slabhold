@@ -25,6 +25,23 @@ export const PREVIEW_PHOTO = `data:image/svg+xml;utf8,${encodeURIComponent(
 </svg>`,
 )}`;
 
+/** A made-up card back: a code, a name bar and lines of text. No logos, no photo. */
+export const PREVIEW_BACK_PHOTO = `data:image/svg+xml;utf8,${encodeURIComponent(
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 350">
+<rect width="250" height="350" rx="14" fill="#27272a"/>
+<rect x="14" y="14" width="222" height="322" rx="8" fill="#3f3f46"/>
+<rect x="100" y="34" width="50" height="14" rx="3" fill="#e4e4e7"/>
+<rect x="60" y="120" width="130" height="14" rx="3" fill="#f4f4f5"/>
+<rect x="72" y="142" width="106" height="10" rx="3" fill="#a1a1aa"/>
+<rect x="40" y="186" width="170" height="7" rx="3" fill="#71717a"/>
+<rect x="46" y="200" width="158" height="7" rx="3" fill="#71717a"/>
+<rect x="40" y="214" width="170" height="7" rx="3" fill="#71717a"/>
+<rect x="56" y="228" width="138" height="7" rx="3" fill="#71717a"/>
+<rect x="40" y="300" width="170" height="5" rx="2" fill="#52525b"/>
+<rect x="60" y="310" width="130" height="5" rx="2" fill="#52525b"/>
+</svg>`,
+)}`;
+
 const SURE = { player: "sure", year: "sure", set: "sure", number: "sure", parallel: "sure" } as const;
 
 export const PREVIEW_SLAB: ScanMatch = {

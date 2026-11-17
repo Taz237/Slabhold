@@ -62,14 +62,12 @@ export function oldPromptsHidden(input: { setupActive: boolean; celebrating: boo
   return input.setupActive || input.celebrating || input.tourOpen;
 }
 
-export type TourTarget = "menu" | "add-card" | "leaderboard" | "quick-comp" | "collection" | "messages";
+export type TourTarget = "menu" | "add-card" | "catalog" | "collection" | "messages";
 
 export const TOUR_STEPS: readonly { target: TourTarget; title: string; body: string }[] = [
   { target: "menu", title: "Your menu", body: "Your menu: profile, achievements, Moving today, settings." },
-  { target: "add-card", title: "Add card", body: "Add a card in seconds. We match it to real sold prices." },
-  { target: "leaderboard", title: "Leaderboard", body: "Climb the weekly board." },
-  // Only a build with Quick Comp has the /comp tab; elsewhere this stop is skipped.
-  { target: "quick-comp", title: "Quick Comp", body: "Comp any card without adding it." },
+  { target: "add-card", title: "Scan", body: "Scan a card to see what it sold for, then add it in one tap." },
+  { target: "catalog", title: "Catalog", body: "Browse public cards from collectors." },
   { target: "collection", title: "Collection", body: "Your cards and their value." },
   { target: "messages", title: "Messages", body: "DM other collectors." },
 ];

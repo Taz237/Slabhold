@@ -1,69 +1,42 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, it } from "node:test";
-import { BOTTOM_NAV, QUICK_COMP_TAB, bottomNavLabelsFit, bottomNavTabs, labelWidthFits } from "./bottom-nav";
+import { BOTTOM_NAV, SCAN_TAB_HREF, bottomNavLabelsFit } from "./bottom-nav";
 import { SIDE_MENU_ITEMS } from "./side-menu";
 import { sideMenuItems } from "./side-menu-items";
-import { isRootScreen, navKind } from "./nav-motion";
 
-describe("Quick Comp in the nav lists", () => {
-  it("keeps today's bar with the flag off", () => {
-    assert.equal(bottomNavTabs(false), BOTTOM_NAV);
+/** One Scan flow: Quick Comp lives on the Scan screen, Catalog takes its slot on the bar. */
+describe("the nav with one Scan flow", () => {
+  it("the bar is Home, Catalog, Scan, Collection, Messages: no Quick Comp, no Add card tab", () => {
     assert.deepEqual(
-      bottomNavTabs(false).map((tab) => [tab.href, tab.label]),
       BOTTOM_NAV.map((tab) => [tab.href, tab.label]),
+      [
+        ["/", "Home"],
+        ["/catalog", "Catalog"],
+        ["/scan", "Scan"],
+        ["/collection", "Collection"],
+        ["/messages", "Messages"],
+      ],
     );
+    assert.equal(SCAN_TAB_HREF, "/scan");
+    assert.equal(bottomNavLabelsFit(BOTTOM_NAV.map((tab) => tab.label)), true);
   });
 
-  it("swaps Leaderboard for Quick Comp in slot 2 with the flag on", () => {
-    const tabs = bottomNavTabs(true);
-    assert.deepEqual(
-      tabs.map((tab) => tab.label),
-      ["Home", "Quick Comp", "Add card", "Collection", "Messages"],
-    );
-    assert.equal(tabs[1]?.href, "/comp");
-    assert.equal(tabs[2]?.href, "/cards/new");
-    assert.equal(tabs.some((tab) => tab.href === "/leaderboard"), false);
-    assert.deepEqual(QUICK_COMP_TAB, { href: "/comp", label: "Quick Comp" });
-  });
-
-  it("fits the flag-on labels at 390px and 320px like Leaderboard does", () => {
-    const labels = bottomNavTabs(true).map((tab) => tab.label);
-    assert.equal(bottomNavLabelsFit(labels), true);
-    assert.equal(labelWidthFits("Quick Comp", 5), true);
-    // Never wider than the label it replaces, so 320px behaves the same.
-    assert.ok("Quick Comp".length <= "Leaderboard".length);
-  });
-
-  it("keeps today's drawer with the flag off", () => {
-    assert.equal(sideMenuItems(false), SIDE_MENU_ITEMS);
-  });
-
-  it("puts Quick Comp right above Add card with the flag on and keeps Leaderboard", () => {
-    const items = sideMenuItems(true);
-    const labels = items.map((item) => item.label);
-    const quick = labels.indexOf("Quick Comp");
-    assert.ok(quick >= 0);
-    assert.equal(labels[quick + 1], "Add card");
-    assert.equal(items[quick]?.href, "/comp");
+  it("the drawer has no Catalog and no Quick Comp; Add card by hand and Leaderboard stay", () => {
+    const labels: string[] = sideMenuItems().map((item) => item.label);
+    assert.equal(sideMenuItems(), SIDE_MENU_ITEMS);
+    assert.ok(!labels.includes("Catalog"));
+    assert.ok(!labels.includes("Quick Comp"));
+    assert.ok(labels.includes("Add card"));
     assert.ok(labels.includes("Leaderboard"));
-    assert.equal(items.length, SIDE_MENU_ITEMS.length + 1);
   });
 
-  it("treats /comp as a root screen only with the flag on", () => {
-    // Unset in tests: /comp is a pushed screen, as before.
-    assert.equal(process.env.NEXT_PUBLIC_QUICK_COMP, undefined);
-    assert.equal(isRootScreen("/comp"), false);
-    assert.equal(navKind({ from: "/", to: "/comp", direction: "push" }), "forward");
-    process.env.NEXT_PUBLIC_QUICK_COMP = "1";
-    try {
-      assert.equal(isRootScreen("/comp"), true);
-      assert.equal(isRootScreen("/comp/"), true);
-      assert.equal(isRootScreen("/comp/abc"), false);
-      assert.equal(isRootScreen("/leaderboard"), true);
-      assert.equal(navKind({ from: "/", to: "/comp", direction: "push" }), "fade");
-    } finally {
-      delete process.env.NEXT_PUBLIC_QUICK_COMP;
-    }
-    assert.equal(isRootScreen("/comp"), false);
+  it("the center Scan tab goes straight to the Scan screen: no Add card sheet in between", () => {
+    const shell = readFileSync(join(process.cwd(), "components/app-shell.tsx"), "utf8");
+    assert.match(shell, /if \(tab\.href === SCAN_TAB_HREF\)/);
+    assert.match(shell, /aria-label="Scan"/);
+    assert.doesNotMatch(shell, /openAddCardSheet\(\)/);
+    assert.doesNotMatch(shell, /NEXT_PUBLIC_QUICK_COMP/);
   });
 });

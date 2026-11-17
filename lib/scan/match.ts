@@ -1,6 +1,6 @@
 import { parallelSwatch } from "@/lib/cards/parallel-swatch";
 import type { CatalogCard } from "@/lib/card-catalog";
-import { parallelMatchKey, parallelsForSet, sameParallelLoosely } from "@/lib/cards/parallels";
+import { parallelMatchKey, parallelSetFamily, parallelsForSet, sameParallelLoosely } from "@/lib/cards/parallels";
 import { baseSetHits, checklistNumberKey, isBaseSection, playersAt, toppsMade, type ChecklistHit, type ChecklistProduct } from "@/lib/cards/checklists";
 import { parallelsIn, productForSet, productPhrase, sameSeason, type ProductParallel, type ProductRecord } from "@/lib/cards/product-data";
 import { setMatchPhrase } from "@/lib/comps/match";
@@ -1134,7 +1134,9 @@ function checklistFor(
   // An insert (Rookie Code RC-3) has its own parallels: the set's list counts only when its rows name this code's prefix.
   if (insert) return listed.length > 0 && productCovers(products!, card) ? listed : [];
   if (listed.length > 0) return listed;
-  return parallelsForSet(card.setBrand).map((name) => ({ name, serialRun: null }));
+  // A set family we know (Prizm, Optic, Chrome…) has its real parallels. Any other set gets none:
+  // a generic Base, Silver, Refractor, Gold list would be a guess dressed up as a choice.
+  return parallelSetFamily(card.setBrand) ? parallelsForSet(card.setBrand).map((name) => ({ name, serialRun: null })) : [];
 }
 
 /** The checklist puts this card # (a letter code) in an insert section only, never the base set. */
@@ -1362,6 +1364,14 @@ function pickParallel(
     const backed = namedBy(only, evidence.parallelWords) || (Boolean(soldColor) && sameParallelLoosely(parallelLabel([soldColor]), only.name));
     if (backed) return { parallel: only.name, sureness: "sure", serialRun: run, options: fitsRun };
     return { parallel: only.name, sureness: "likely", serialRun: run, options: fitsRun, source: "run" };
+  }
+  // The card is numbered (15/97) and our list has a few parallels at that run: the photo's border
+  // color picks one, only when exactly one of them names that color and nothing printed or sold
+  // says otherwise. Likely, never sure: the collector sees it and can change it.
+  if (run != null && fitsRun.length > 1 && !printedColor && !soldColor && evidence.border) {
+    const border = evidence.border.toLowerCase();
+    const colored = fitsRun.filter((option) => words(option.name).includes(border));
+    if (colored.length === 1) return { parallel: colored[0].name, sureness: "likely", serialRun: run, options: fitsRun, source: "card" };
   }
   const named = longestNamed(fitsRun, evidence.parallelWords);
   if (named.length === 1) {

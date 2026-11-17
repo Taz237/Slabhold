@@ -1606,6 +1606,103 @@ html[data-nav="none"]::view-transition-new(.page-in) {
 }
 
 /* Scan reveal: the photo flips in from its back, once. Skipped for reduced motion. */
+/* A scanned card added in one tap (components/scan/added-pop.tsx): a quick swell, then it settles. */
+@keyframes added-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* The scan reveal's card while it is read (components/scan/scan-reveal.tsx): it shows its front,
+   turns to the back, holds, and turns home. Transform only. Never runs under reduced motion. */
+@keyframes reveal-turn {
+  0%,
+  30% {
+    transform: rotateY(-10deg) rotateX(4deg);
+  }
+  50%,
+  80% {
+    transform: rotateY(170deg) rotateX(4deg);
+  }
+  100% {
+    transform: rotateY(350deg) rotateX(4deg);
+  }
+}
+
+/* The read is in: the card spins from its back to its front, once. */
+@keyframes reveal-land {
+  from {
+    transform: rotateY(180deg);
+  }
+  to {
+    transform: rotateY(0deg);
+  }
+}
+
+/* Only a front: a short turn home. */
+@keyframes reveal-land-front {
+  from {
+    transform: rotateY(-28deg);
+  }
+  to {
+    transform: rotateY(0deg);
+  }
+}
+
+/* A band of light sweeping across the card. */
+@keyframes reveal-glare {
+  0% {
+    opacity: 0;
+    transform: translateX(0) skewX(-12deg);
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(300%) skewX(-12deg);
+  }
+}
+
+/* The reveal's label types in, a character at a time (steps), clipped, never resized. */
+@keyframes reveal-type {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+/* The caret while the card is still being read. */
+@keyframes reveal-caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* Only a front: a slow tilt side to side, so the screen is never still while it reads. */
+@keyframes reveal-tilt {
+  from {
+    transform: rotateY(-12deg) rotateX(5deg);
+  }
+  to {
+    transform: rotateY(12deg) rotateX(-3deg);
+  }
+}
+
 @keyframes card-flip-in {
   0% {
     opacity: 0;

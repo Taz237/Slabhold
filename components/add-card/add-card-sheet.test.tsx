@@ -181,10 +181,11 @@ describe("Add card sheet", () => {
 });
 
 describe("Add card buttons open the sheet", () => {
-  it("the Add card tab, Add a card links, the create menu and the ghost tile", () => {
+  it("Add a card links, the create menu and the ghost tile (the bar's center tab is Scan now)", () => {
     const shell = read("components/app-shell.tsx");
-    assert.match(shell, /if \(!opensAddSheet\(event\)\) return;\s*event\.preventDefault\(\);\s*openAddCardSheet\(\);/);
+    // The sheet stays mounted for every Add card button; the center tab goes straight to /scan.
     assert.match(shell, /<AddCardSheetSlot \/>/);
+    assert.match(shell, /if \(tab\.href === SCAN_TAB_HREF\)/);
     assert.match(read("components/add-card-link.tsx"), /onClick=\{openSheetFromLink\}/);
     assert.match(read("components/create-menu.tsx"), /openSheetFromLink\(event\)/);
     assert.match(read("components/collection-grid.tsx"), /onClick=\{openSheetFromLink\}/);

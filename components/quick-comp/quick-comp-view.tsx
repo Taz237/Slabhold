@@ -339,7 +339,12 @@ function versionNote(version: Pick<QuickCompIdentity, "parallel" | "serialRun"> 
   return parts.length ? `${parts.join(" ")}, from the sale's title` : null;
 }
 
-export function QuickCompView({ userId }: { userId: string | null }) {
+/**
+ * `embedded`: on the Scan screen, under the Scan button. Just the search and what it opens: no
+ * header and no "Scan a card" entry of its own (the Scan screen is that entry). Same lookups, same
+ * daily cap.
+ */
+export function QuickCompView({ userId, embedded = false }: { userId: string | null; embedded?: boolean }) {
   const scanHref = quickCompScanHref(scannerEnabled());
   const listId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -777,12 +782,14 @@ export function QuickCompView({ userId }: { userId: string | null }) {
 
   return (
     <div data-quick-comp="" className="flex flex-col gap-5 pt-1">
-      <header>
-        <h1 className="text-xl leading-7 font-semibold tracking-tight">Quick Comp</h1>
-        <p className={`mt-1 text-sm leading-5 ${textSecondary}`}>Recent sold prices, without adding it to your collection</p>
-      </header>
+      {embedded ? null : (
+        <header>
+          <h1 className="text-xl leading-7 font-semibold tracking-tight">Quick Comp</h1>
+          <p className={`mt-1 text-sm leading-5 ${textSecondary}`}>Recent sold prices, without adding it to your collection</p>
+        </header>
+      )}
 
-      {scanHref ? <ScanHero href={scanHref} title={HUB_COPY.compEntry} body={HUB_COPY.compEntryBody} /> : null}
+      {scanHref && !embedded ? <ScanHero href={scanHref} title={HUB_COPY.compEntry} body={HUB_COPY.compEntryBody} /> : null}
 
       <div className="relative">
         <label htmlFor={`${listId}-input`} className="sr-only">

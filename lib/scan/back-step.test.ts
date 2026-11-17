@@ -106,3 +106,16 @@ describe("the step's words", () => {
     assert.doesNotMatch(words.replace("Flip it over", ""), /\bflip/i);
   });
 });
+
+describe("front then back on the phone's camera", () => {
+  it("a camera that already asked for the back (taken or skipped) is never asked again on the sheet", () => {
+    assert.equal(needsBackStep({ ...FRONT, backAsked: true }, result(match({ yearLabel: "", setBrand: "", cardNumber: "" })), "camera"), false);
+  });
+
+  it("the back scanned on the sheet brings its photo along, for the reveal", () => {
+    const back: ScanCapture = { lines: ["RC-3"], backLines: null, image: "data:image/jpeg;base64,QkFDSw==", kind: "card" };
+    const both = withBack(FRONT, back);
+    assert.equal(both.image, FRONT.image, "the front stays the card's photo");
+    assert.equal(both.backImage, back.image);
+  });
+});

@@ -43,7 +43,7 @@ const router = {
   prefetch() {},
 };
 
-let ScanHub: ComponentType<{ purpose: ScanPurpose; start?: "camera" | "library"; deps?: Partial<ScanHubDeps> }>;
+let ScanHub: ComponentType<{ start?: "camera" | "library"; search?: ReactNode; deps?: Partial<ScanHubDeps> }>;
 let fixtures: typeof import("@/lib/scan/preview-fixtures");
 
 before(async () => {
@@ -65,7 +65,8 @@ function result(matches: ScanMatch[]): ScanMatchResult {
   return { matches, settled: true };
 }
 
-async function mount(purpose: ScanPurpose, deps: Partial<ScanHubDeps>) {
+/** `_purpose`: kept so each test still says which way in it was written for; there is one Scan flow now. */
+async function mount(_purpose: ScanPurpose, deps: Partial<ScanHubDeps>, search: ReactNode = null) {
   pushed.length = 0;
   win.sessionStorage.clear();
   const { createRoot } = await import("react-dom/client");
@@ -73,7 +74,7 @@ async function mount(purpose: ScanPurpose, deps: Partial<ScanHubDeps>) {
   win.document.body.appendChild(host);
   const root = createRoot(host);
   await act(async () => {
-    root.render(createElement(AppRouterContext.Provider, { value: router }, createElement(ScanHub, { purpose, deps })));
+    root.render(createElement(AppRouterContext.Provider, { value: router }, createElement(ScanHub, { deps, search })));
   });
   return {
     unmount() {
@@ -95,8 +96,28 @@ function button(name: string): HTMLElement {
   return found as HTMLElement;
 }
 
+/**
+ * "Pick your card": these tests go on with the most likely card, so whenever the list shows its
+ * first row is tapped, like a collector who sees their card at the top.
+ */
+async function pickTopRow() {
+  // The reveal types in first: a tap on its label goes on.
+  const label = win.document.querySelector<HTMLElement>('[data-reveal="label"]');
+  if (label) {
+    await act(async () => {
+      label.click();
+    });
+  }
+  const row = win.document.querySelector<HTMLButtonElement>('[data-pick="list"] button');
+  if (!row) return;
+  await act(async () => {
+    row.click();
+  });
+}
+
 async function waitFor(check: () => boolean, attempts = 80) {
   for (let i = 0; i < attempts; i += 1) {
+    await pickTopRow();
     if (check()) return;
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 20));
@@ -123,9 +144,9 @@ describe("ScanHub with the native scanner", () => {
     let scans = 0;
     const view = await mount("add", nativeDeps({ scan: async () => (scans++, CAPTURE) }));
     try {
-      await waitFor(() => text().includes("Is this your card?"));
+      await waitFor(() => text().includes("Your card"));
       assert.equal(scans, 1, "no tap needed to open the camera");
-      await act(async () => button("Yes, add it").click());
+      await act(async () => button("Add to my collection").click());
       assert.match(pushed[0] ?? "", /^\/cards\/new\?scan=[a-z0-9]+$/);
       const stored = JSON.parse(win.sessionStorage.getItem("cardflip.scan-match") ?? "{}");
       assert.equal(stored.autoSave, true);
@@ -206,7 +227,7 @@ describe("ScanHub with the native scanner", () => {
     try {
       await waitFor(() => text().includes("Camera is off for Slabhold"));
       await act(async () => button("Scan a card").click());
-      await waitFor(() => text().includes("Is this your card?"));
+      await waitFor(() => text().includes("Your card"));
       assert.equal(text().includes("Camera is off for Slabhold"), false);
     } finally {
       view.unmount();
@@ -228,7 +249,7 @@ describe("ScanHub with the native scanner", () => {
     try {
       await waitFor(() => text().includes("Choose a photo"));
       await act(async () => button("Choose a photo").click());
-      await waitFor(() => text().includes("Is this your card?"));
+      await waitFor(() => text().includes("Your card"));
       assert.equal(reads, 1);
     } finally {
       view.unmount();
@@ -255,7 +276,7 @@ describe("ScanHub: identify, then last eBay solds", () => {
       await waitFor(() => text().includes("Looking up last solds…"));
       assert.ok(text().includes("Luka Doncic"), "the identity shows while the search runs");
       release();
-      await waitFor(() => text().includes("Last sold"));
+      await waitFor(() => text().includes("Last sales"));
     } finally {
       view.unmount();
     }
@@ -340,11 +361,13 @@ describe("ScanHub without the native scanner", () => {
     }
   });
 
-  it("sends comp to the search by name", async () => {
-    const view = await mount("comp", { scannerAvailable: async () => false });
+  it("puts Quick Comp's search under the Scan button, on the same screen", async () => {
+    const view = await mount("add", { scannerAvailable: async () => false }, createElement("div", { "data-fixture-search": "" }, "search"));
     try {
-      await waitFor(() => text().includes("Find it by name"));
-      assert.equal(button("Find it by name").getAttribute("href"), "/comp");
+      await waitFor(() => text().includes("Search sold prices"));
+      const section = win.document.querySelector('section[aria-labelledby="scan-search"]');
+      assert.ok(section?.querySelector("[data-fixture-search]"), "the search sits in its own section");
+      assert.ok(text().indexOf("Scan a card") < text().indexOf("Search sold prices"), "under the Scan button");
     } finally {
       view.unmount();
     }
@@ -377,11 +400,16 @@ describe("ScanHub from the Add card sheet's Upload photo", () => {
     const deps = nativeDeps({ scan: async () => (scans++, CAPTURE), pickAndRead: async () => (reads++, CAPTURE) });
     await act(async () => {
       root.render(
-        createElement(AppRouterContext.Provider, { value: router }, createElement(ScanHub, { purpose: "add", start: "library", deps })),
+        createElement(AppRouterContext.Provider, { value: router }, createElement(ScanHub, { start: "library", deps })),
       );
     });
     try {
-      await waitFor(() => text().includes("Is this your card?"));
+      // The same reveal as the camera (waited for without tapping through it).
+      for (let i = 0; i < 80 && !win.document.querySelector('[data-reveal="label"] [data-line]'); i += 1) {
+        await act(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 20));
+        });
+      }
       assert.equal(reads, 1);
       assert.equal(scans, 0, "the camera stays closed");
       assert.ok(win.document.querySelector('[data-reveal="scan-card"]'), "the same flip-in reveal");
@@ -412,8 +440,10 @@ describe("ScanHub: a slab's version picked from \"Which version?\"", () => {
 
   const waiting = (matches: ScanMatch[]) => ({ matches, comp: { status: "version" as const }, query: null });
   const pressed = (name: string) => button(name).getAttribute("aria-pressed") === "true";
+  /** "Not this one? Pick another", then that player's row on "Pick your card". */
   const promote = async (player: string) => {
-    const row = [...win.document.querySelectorAll("button")].find((node) => node.textContent?.includes(player) && node.textContent?.includes("#"));
+    await act(async () => button("Not this one? Pick another").click());
+    const row = [...win.document.querySelectorAll('[data-pick="list"] button')].find((node) => node.textContent?.includes(player));
     assert.ok(row, `row ${player}`);
     await act(async () => (row as HTMLElement).click());
   };
@@ -472,42 +502,6 @@ describe("ScanHub: a slab's version picked from \"Which version?\"", () => {
     }
   });
 
-  it("a serial typed while the read runs is still there when its sold prices land", async () => {
-    let release: (value: unknown) => void = () => {};
-    let reads = 0;
-    const view = await mount(
-      "add",
-      nativeDeps({
-        identify: async () => result(rows()),
-        solds: async (_capture, matches) => {
-          reads += 1;
-          if (reads === 1) return waiting(matches);
-          await new Promise((resolve) => (release = resolve));
-          const top = { ...matches[0], parallel: "Gold" };
-          return { matches: [top, ...matches.slice(1)], comp: fixtures.PREVIEW_SOLDS.status === "done" ? fixtures.PREVIEW_SOLDS.comp : { status: "none" as const }, query: "fixture" };
-        },
-      }),
-    );
-    try {
-      await waitFor(() => text().includes("Pick the version to see its sold prices"));
-      await promote("Second Player");
-      await act(async () => button("Gold, numbered to 50").click());
-      await waitFor(() => reads === 2 && Boolean(win.document.querySelector('input[inputmode="numeric"]')));
-      const input = win.document.querySelector('input[inputmode="numeric"]') as HTMLInputElement;
-      await act(async () => {
-        Object.getOwnPropertyDescriptor(win.HTMLInputElement.prototype, "value")?.set?.call(input, "12");
-        input.dispatchEvent(new win.Event("input", { bubbles: true }));
-      });
-      await act(async () => release(null));
-      await waitFor(() => text().includes("Last sold"));
-      const after = win.document.querySelector('input[inputmode="numeric"]') as HTMLInputElement;
-      assert.equal(after.value, "12");
-      assert.equal(pressed("Gold, numbered to 50"), true);
-      assert.match(text(), /Second Player/);
-    } finally {
-      view.unmount();
-    }
-  });
 });
 
 describe("ScanHub: picking another version after a read", () => {
@@ -679,7 +673,7 @@ describe("ScanHub: Flip it over", () => {
     win.document.body.appendChild(host);
     const root = createRoot(host);
     await act(async () => {
-      root.render(createElement(AppRouterContext.Provider, { value: router }, createElement(ScanHub, { purpose: "add", start: "library", deps })));
+      root.render(createElement(AppRouterContext.Provider, { value: router }, createElement(ScanHub, { start: "library", deps })));
     });
     return { unmount: () => (act(() => root.unmount()), host.remove()) };
   }
@@ -885,7 +879,7 @@ describe("ScanHub: the photo's look for Which version?", () => {
       },
     });
     await act(async () => {
-      root.render(createElement(AppRouterContext.Provider, { value: router }, createElement(ScanHub, { purpose: "add", start: "library", deps })));
+      root.render(createElement(AppRouterContext.Provider, { value: router }, createElement(ScanHub, { start: "library", deps })));
     });
     try {
       await waitFor(() => text().includes("Flip it over"));
@@ -898,6 +892,64 @@ describe("ScanHub: the photo's look for Which version?", () => {
       assert.deepEqual(identified[1].backLines, BACK.lines);
       assert.equal(identified[1].image, RAW.image, "the front's photo stays the card's photo");
       assert.deepEqual(sold[0].look, { border: "green", sheen: "rainbow" });
+    } finally {
+      act(() => root.unmount());
+      host.remove();
+    }
+  });
+});
+
+describe("ScanHub: Add to my collection is one tap", () => {
+  it("saves the card right there: a pop with a light haptic, then the collection, with no Add card sheet", async () => {
+    const { CollectionContext } = await import("@/components/collection-provider");
+    const added: unknown[] = [];
+    const collection = {
+      ready: true,
+      loaded: true,
+      loadFailed: false,
+      cards: [],
+      syncError: null,
+      getCard: () => undefined,
+      addCard: (input: Record<string, unknown>) => {
+        added.push(input);
+        const card = { ...input, id: "new", createdAt: "", updatedAt: "" };
+        return { card, saved: Promise.resolve() };
+      },
+      updateCard: () => {
+        throw new Error("not here");
+      },
+      removeCard: () => {},
+      reload: async () => [],
+    };
+    pushed.length = 0;
+    win.sessionStorage.clear();
+    const { createRoot } = await import("react-dom/client");
+    const host = win.document.createElement("div");
+    win.document.body.appendChild(host);
+    const root = createRoot(host);
+    await act(async () => {
+      root.render(
+        createElement(
+          AppRouterContext.Provider,
+          { value: router },
+          createElement(CollectionContext.Provider, { value: collection as never }, createElement(ScanHub, { deps: nativeDeps() })),
+        ),
+      );
+    });
+    try {
+      await waitFor(() => text().includes("Add to my collection"));
+      await act(async () => button("Add to my collection").click());
+      assert.equal(added.length, 1, "saved once, right here");
+      const card = added[0] as { playerName: string; parallel: string; grade: string; certNumber: string };
+      assert.equal(card.playerName, fixtures.PREVIEW_SLAB.playerName);
+      assert.equal(card.parallel, "Silver");
+      assert.equal(card.grade, "PSA 10");
+      assert.equal(card.certNumber, "00000000");
+      assert.ok(win.document.querySelector("[data-added-pop]"), "the pop");
+      assert.equal(win.document.querySelector('[role="dialog"]'), null, "no sheet after it");
+      assert.equal(win.sessionStorage.getItem("cardflip.scan-match"), null, "no Add card handoff");
+      await waitFor(() => pushed.includes("/collection"));
+      assert.ok(!pushed.some((path) => /cards\/new|market|sell/.test(path)), pushed.join(", "));
     } finally {
       act(() => root.unmount());
       host.remove();

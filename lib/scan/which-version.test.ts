@@ -128,11 +128,10 @@ describe("a set with no parallel list", () => {
     assert.ok(names(top).length > 1, names(top).join(", "));
   });
 
-  it("1993 on keeps the general list: a 1993 Finest can be a Refractor", async () => {
+  it("a set with no parallel list of ours offers only what's real: Base, never a made-up general list", async () => {
     const top = await slab(["1993 FINEST #1", "MICHAEL JORDAN", "GEM MT 10", "PSA", "10234568"]);
-    assert.equal(top.parallel, "");
-    assert.equal(names(top)[0], "Base");
-    assert.ok(names(top).includes("Refractor"), names(top).join(", "));
+    assert.equal(top.parallel, "", "still asked, never Base on our say-so");
+    assert.deepEqual(names(top), ["Base"]);
   });
 
   it("a vintage set we do have a list for keeps its list", async () => {
