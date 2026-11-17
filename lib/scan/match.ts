@@ -1,7 +1,7 @@
 import { parallelSwatch } from "@/lib/cards/parallel-swatch";
 import type { CatalogCard } from "@/lib/card-catalog";
 import { parallelMatchKey, parallelsForSet, sameParallelLoosely } from "@/lib/cards/parallels";
-import { baseSetHits, isBaseSection, playersAt, type ChecklistHit, type ChecklistProduct } from "@/lib/cards/checklists";
+import { baseSetHits, isBaseSection, playersAt, toppsMade, type ChecklistHit, type ChecklistProduct } from "@/lib/cards/checklists";
 import { parallelsIn, productPhrase, sameSeason, type ProductParallel, type ProductRecord } from "@/lib/cards/product-data";
 import { setMatchPhrase } from "@/lib/comps/match";
 import type { IndexedDirectoryPlayer } from "@/lib/players/types";
@@ -226,6 +226,11 @@ type Evidence = {
    */
   yearOpen?: boolean;
   setNames: string[];
+  /**
+   * A raw card whose back signs only "© 2025 THE TOPPS COMPANY": no product named on either side,
+   * and no other maker. Its set is the one Topps checklist with this player at this # (withSetFromToppsBack).
+   */
+  toppsBack?: boolean;
   /** A slab's printed set when it isn't one of SETS. */
   setText: string;
   cardNumber: string;
@@ -423,6 +428,7 @@ function evidenceFrom(read: ScanRead, directory: readonly IndexedDirectoryPlayer
     ...(statSeason ? { statSeason } : {}),
     ...(yearOpen ? { yearOpen: true } : {}),
     setNames,
+    ...(plainToppsBack(read, setNames) ? { toppsBack: true } : {}),
     setText: "",
     cardNumber,
     backNumbers: loneNumbers(read.back),
@@ -432,6 +438,18 @@ function evidenceFrom(read: ScanRead, directory: readonly IndexedDirectoryPlayer
     isAuto: sides.some((side) => side.isAuto) || AUTO_CODE_PREFIX.test(numberPrefix),
     grade: null,
   };
+}
+
+/** The back's legal line signs Topps: "© 2025 THE TOPPS COMPANY, INC.", "© 2025 TOPPS". */
+const TOPPS_LEGAL = /\btopps\s+company\b|(?:©|\(c\))\s*\d{4}\s+(?:the\s+)?topps\b/i;
+/** Another maker or a Topps-made product line that isn't plain Topps: never a plain Topps back. */
+const NOT_PLAIN_TOPPS = /\b(?:bowman|panini|donruss|upper\s+deck|leaf|fleer|skybox|o-?pee-?chee)\b/i;
+
+/** Both sides read no set, and the back signs only Topps: the set is for the Topps checklists to settle. */
+function plainToppsBack(read: Extract<ScanRead, { kind: "raw" }>, setNames: readonly string[]): boolean {
+  if (!read.back || setNames.length > 0) return false;
+  const lines = [...read.front.lines, ...read.back.lines];
+  return read.back.lines.some((line) => TOPPS_LEGAL.test(line)) && !lines.some((line) => NOT_PLAIN_TOPPS.test(line));
 }
 
 /** "Makai Lemon" is ML; "Ja'Marr Chase" is JC. First and last word only. */
@@ -598,7 +616,22 @@ function slabCardKey(evidence: Evidence): ScanCardKey | null {
 
 /** The card a scan read (year, set, card #), so its checklist can be loaded before ranking. */
 /** Which checklist files a scan needs: its year and set. */
-export type ScanChecklistKey = { years: string[]; setBrand: string; sport: string; allYears?: boolean };
+export type ScanChecklistKey = { years: string[]; setBrand: string; sport: string; allYears?: boolean; family?: "topps" };
+
+/** Plain Topps backs are read for these sports only: baseball's Topps backs are left as they were. */
+const TOPPS_BACK_SPORTS = new Set(["Basketball", "Football"]);
+
+/** A plain Topps back with what the Topps checklists need: the player, the card's sport, a year and a card # (or one bare number). */
+function toppsBackReady(evidence: Evidence, years: readonly string[]): boolean {
+  return (
+    Boolean(evidence.toppsBack) &&
+    !evidence.setNames[0] &&
+    Boolean(bestPlayerName(evidence)) &&
+    TOPPS_BACK_SPORTS.has(evidence.sport) &&
+    years.length > 0 &&
+    (Boolean(evidence.cardNumber) || evidence.backNumbers.length > 0)
+  );
+}
 
 /**
  * The year and set to load checklists for. The card # isn't needed here: with a player read and a
@@ -615,6 +648,8 @@ export function scanChecklistKey(read: ScanRead, directory: readonly IndexedDire
   if (!evidence.slab && !evidence.setNames[0] && bestPlayerName(evidence) && isPaperProspectCode(evidence.cardNumber)) {
     return { years, setBrand: PAPER_PROSPECT_SET, sport: evidence.sport || "Baseball", ...(years.length === 0 ? { allYears: true } : {}) };
   }
+  // No set read, a back that signs only Topps: every Topps product for the year, to find the one with him at this #.
+  if (!evidence.slab && toppsBackReady(evidence, years)) return { years, setBrand: "Topps", sport: evidence.sport, family: "topps" };
   const setBrand = evidence.setNames[0] ?? "";
   if (evidence.slab || !setBrand || !bestPlayerName(evidence)) return null;
   // No year at all: every year of the set, in the sport the card names, to find the one with him at this #.
@@ -655,6 +690,36 @@ function withSetFromProspectCode(evidence: Evidence, checklists: readonly Checkl
 }
 
 /**
+ * A plain Topps back (basketball, football): it signs "© 2025 THE TOPPS COMPANY" and names no
+ * product. Flagship, Chrome, Update and Finest backs can all read that way, so the set is the one
+ * Topps product whose checklist, for the © year or the year before (or the year the card printed),
+ * has this player at this card #. Two products with him there (flagship #201 and Finest's #201),
+ * or none: the set stays open. The year becomes that checklist's year only when none was printed.
+ */
+function withSetFromToppsBack(evidence: Evidence, checklists: readonly ChecklistProduct[], name: string): Evidence {
+  const years = checklistYears(evidence);
+  if (!toppsBackReady(evidence, years)) return evidence;
+  const numbers = evidence.cardNumber ? [evidence.cardNumber] : evidence.backNumbers;
+  const found = new Map<string, { setBrand: string; yearLabel: string; cardNumber: string }>();
+  for (const product of checklists) {
+    if (!toppsMade(product)) continue;
+    if (product.sport.toLowerCase() !== evidence.sport.toLowerCase()) continue;
+    if (!years.some((yearLabel) => sameSeason(product.yearLabel, yearLabel))) continue;
+    for (const cardNumber of numbers) {
+      const at = playersAt([product], { yearLabel: product.yearLabel, setBrand: product.product, cardNumber, sport: product.sport });
+      if (at.some((hit) => namesAgree(hit.player, name))) {
+        found.set(`${productPhrase(product.product)}|${product.yearLabel}|${cardNumber}`, { setBrand: product.product, yearLabel: product.yearLabel, cardNumber });
+      }
+    }
+  }
+  if (found.size !== 1) return evidence;
+  const [pick] = found.values();
+  // Bowman and Hoops backs print their own names: a plain back that only one of them fits stays open.
+  if (!/^topps\b/.test(productPhrase(pick.setBrand))) return evidence;
+  return { ...evidence, setNames: [pick.setBrand], cardNumber: pick.cardNumber, yearLabel: evidence.yearLabel || pick.yearLabel };
+}
+
+/**
  * No card # read, but the back has bare numbers and the card names its player: a number is the card
  * # when the checklist for the year and set the card read has this player at it. Exactly one such
  * number, or the # stays open. A jersey or an age the checklist doesn't put him at never counts.
@@ -664,6 +729,7 @@ function withChecklistNumber(evidence: Evidence, checklists: readonly ChecklistP
   if (!checklists?.length || evidence.slab) return evidence;
   const name = bestPlayerName(evidence);
   evidence = withSetFromProspectCode(evidence, checklists, name);
+  evidence = withSetFromToppsBack(evidence, checklists, name);
   const setBrand = evidence.setNames[0] ?? "";
   const years = checklistYears(evidence);
   if (!name || !setBrand) return evidence;

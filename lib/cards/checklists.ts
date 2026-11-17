@@ -75,6 +75,19 @@ export function sameChecklistProduct(
   return Boolean(phrase) && sameSeason(entry.yearLabel, card.yearLabel) && productPhrase(entry.product) === phrase;
 }
 
+/** First year of Hoops under Topps: from 2025-26 its backs sign "© THE TOPPS COMPANY" too. */
+const TOPPS_HOOPS_FROM = 2025;
+
+/**
+ * A product Topps makes: Topps, Bowman, and Hoops from 2025-26. A plain Topps back could be any of
+ * them, so all of them are checked; only a product named Topps is ever picked (lib/scan/match.ts).
+ */
+export function toppsMade(entry: { product: string; yearLabel: string }): boolean {
+  const phrase = productPhrase(entry.product);
+  if (/^(?:topps|bowman)\b/.test(phrase)) return true;
+  return phrase === productPhrase("Hoops") && Number(/^\d{4}/.exec(entry.yearLabel)?.[0] ?? 0) >= TOPPS_HOOPS_FROM;
+}
+
 /** Words a base section's name can carry after "Base": the base set under its own name, never a variation or an autograph. */
 const BASE_SECTION = /^base(?:\s+(?:set|rookies?|paper|chrome|sapphire|prospects|young|guns))*$/i;
 

@@ -13,6 +13,7 @@ import { nameKey } from "./player-lookup";
  *
  * Optional on a card: "typical_ocr_back", the back as a real photo read (else it is built);
  * "kind": "slab" for a graded slab (the front is its label);
+ * "back_modeled", a typical_ocr_back written the way the back prints, not read off a photo;
  * "parallel_unconfirmed" and "listing_titles_modeled" (see the file's notes);
  * "parallel_also", other names for the same parallel that count as right
  * (the checklist's name beside the sellers' name), and "player_also", the same person as our
@@ -44,6 +45,8 @@ export type HardCard = {
   typical_ocr_front: string[];
   /** The back as read off a real photo. Without it the back is built from the card #, the year and the product. */
   typical_ocr_back?: string[];
+  /** typical_ocr_back is written the way the back prints, not read off a photo of this card. */
+  back_modeled?: boolean;
   /** The photo's look as the phone would read it. Modeled, not measured. None: an unclear photo. */
   photo_look?: PhotoLook;
   why_hard: string;

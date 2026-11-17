@@ -11,7 +11,8 @@
   "\"parallel_unconfirmed\": the card is a parallel whose name no checklist confirms: showing nothing is open, showing any name is wrong. \"listing_titles_modeled\": the titles are written to match a sale the app showed, not copied from real listings (hc-074: the James Wood sale the wrong answer came from).",
   "\"kind\": \"slab\" scans the card as a graded slab: the front is the label as read, the back is the slab's back (hc-075).",
   "hc-076 is the Nov 16 device miss (Jaxson Dart X-Fractor slab shown as Base). Here the label's variety line reads; the same slab with that line missed is the open case tracked in docs/scanner-audit.md (fix B). Its Quick Comp side is tested in lib/quick-comp/versions.test.ts.",
-  "hc-087 to hc-090 are one-word names (Ludacris, Ichiro, MIYAVI) the checklist import used to drop; hc-091 to hc-100 come from the 2023-2026 checklists added on 2026-11-17. Their fronts and titles are modeled (\"listing_titles_modeled\"); player and card # are checked against the checklist page each names."
+  "hc-087 to hc-090 are one-word names (Ludacris, Ichiro, MIYAVI) the checklist import used to drop; hc-091 to hc-100 come from the 2023-2026 checklists added on 2026-11-17. Their fronts and titles are modeled (\"listing_titles_modeled\"); player and card # are checked against the checklist page each names.",
+  "hc-101 to hc-107 test plain Topps backs (no product printed: the set comes from the Topps checklists, or stays open) and Hoops backs (the year from the © or the \"2025-26 NBA HOOPS\" line, never a stat row). No real back photos of these cards yet: fronts, backs and titles are modeled (\"back_modeled\", \"listing_titles_modeled\"); player and card # are checked against each checklist page."
  ],
  "cards": [
   {
@@ -2979,6 +2980,273 @@
    ],
    "listing_titles_modeled": true,
    "confidence": "player, card # checked against the 2023-24 Topps Chrome checklist (Base #1); front and titles modeled"
+  },
+  {
+   "id": "hc-101",
+   "category": "plain_topps_back",
+   "year": "2025-26",
+   "manufacturer": "Topps",
+   "product": "Topps Basketball",
+   "card_number": "1",
+   "player": "Jayson Tatum",
+   "team": "Boston Celtics",
+   "parallel": null,
+   "print_run": null,
+   "sport": "basketball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "JAYSON TATUM",
+    "BOSTON CELTICS"
+   ],
+   "typical_ocr_back": [
+    "1",
+    "JAYSON TATUM",
+    "CELTICS - F",
+    "HT: 6'8\" WT: 210",
+    "BORN: 3-3-98, ST. LOUIS, MO",
+    "© 2025 THE TOPPS COMPANY, INC. ALL RIGHTS RESERVED.",
+    "TOPPS IS A REGISTERED TRADEMARK OF THE TOPPS COMPANY, INC."
+   ],
+   "back_modeled": true,
+   "why_hard": "Plain Topps back: it signs only © THE TOPPS COMPANY and names no product, so the set was open. Only flagship has Tatum at #1.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-26-topps-basketball"
+   ],
+   "listing_title_examples": [
+    "2025-26 Topps Basketball Jayson Tatum #1 Celtics",
+    "Jayson Tatum 2025-26 Topps Flagship #1"
+   ],
+   "listing_titles_modeled": true,
+   "confidence": "player, card # checked against the 2025-26 Topps Basketball checklist (Base #1); front, back and titles modeled"
+  },
+  {
+   "id": "hc-102",
+   "category": "plain_topps_back",
+   "year": "2025-26",
+   "manufacturer": "Topps",
+   "product": "Topps Basketball",
+   "card_number": "250",
+   "player": "Tyrese Proctor",
+   "team": "Cleveland Cavaliers",
+   "parallel": null,
+   "print_run": null,
+   "sport": "basketball",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "TYRESE PROCTOR",
+    "CLEVELAND CAVALIERS",
+    "RC"
+   ],
+   "typical_ocr_back": [
+    "250",
+    "TYRESE PROCTOR",
+    "CAVALIERS - G",
+    "HT: 6'5\" WT: 183",
+    "COLLEGE: DUKE",
+    "© 2025 THE TOPPS COMPANY, INC. ALL RIGHTS RESERVED.",
+    "TOPPS IS A REGISTERED TRADEMARK OF THE TOPPS COMPANY, INC."
+   ],
+   "back_modeled": true,
+   "why_hard": "Plain Topps back on a rookie: no product printed, and a front with no logo read.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-26-topps-basketball"
+   ],
+   "listing_title_examples": [
+    "2025-26 Topps Tyrese Proctor #250 RC Cavaliers",
+    "Tyrese Proctor 2025-26 Topps Basketball Rookie #250"
+   ],
+   "listing_titles_modeled": true,
+   "confidence": "player, card # checked against the 2025-26 Topps Basketball checklist (Base #250); front, back and titles modeled"
+  },
+  {
+   "id": "hc-103",
+   "category": "plain_topps_back",
+   "year": "2026",
+   "manufacturer": "Topps",
+   "product": "Topps Football",
+   "card_number": "100",
+   "player": "Travis Kelce",
+   "team": "Kansas City Chiefs",
+   "parallel": null,
+   "print_run": null,
+   "sport": "football",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "TRAVIS KELCE",
+    "KANSAS CITY CHIEFS",
+    "TIGHT END"
+   ],
+   "typical_ocr_back": [
+    "100",
+    "TRAVIS KELCE",
+    "CHIEFS - TE",
+    "HT: 6'5\" WT: 250",
+    "COLLEGE: CINCINNATI",
+    "© 2026 THE TOPPS COMPANY, INC. ALL RIGHTS RESERVED.",
+    "TOPPS IS A REGISTERED TRADEMARK OF THE TOPPS COMPANY, INC."
+   ],
+   "back_modeled": true,
+   "why_hard": "Plain Topps football back: © 2026 THE TOPPS COMPANY and no product name.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2026-topps-flagship-football"
+   ],
+   "listing_title_examples": [
+    "2026 Topps Football Travis Kelce #100 Chiefs",
+    "Travis Kelce 2026 Topps Flagship #100"
+   ],
+   "listing_titles_modeled": true,
+   "confidence": "player, card # checked against the 2026 Topps Football checklist (Base #100); front, back and titles modeled"
+  },
+  {
+   "id": "hc-104",
+   "category": "plain_topps_back",
+   "year": "2026",
+   "manufacturer": "Topps",
+   "product": "Topps Football",
+   "card_number": "301",
+   "player": "Fernando Mendoza",
+   "team": "Las Vegas Raiders",
+   "parallel": null,
+   "print_run": null,
+   "sport": "football",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "FERNANDO MENDOZA",
+    "LAS VEGAS RAIDERS",
+    "RC"
+   ],
+   "typical_ocr_back": [
+    "301",
+    "FERNANDO MENDOZA",
+    "RAIDERS - QB",
+    "HT: 6'5\" WT: 225",
+    "COLLEGE: INDIANA",
+    "© 2026 THE TOPPS COMPANY, INC. ALL RIGHTS RESERVED.",
+    "TOPPS IS A REGISTERED TRADEMARK OF THE TOPPS COMPANY, INC."
+   ],
+   "back_modeled": true,
+   "why_hard": "Plain Topps football back on a 2026 rookie.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2026-topps-flagship-football"
+   ],
+   "listing_title_examples": [
+    "2026 Topps Football Fernando Mendoza #301 RC Raiders",
+    "Fernando Mendoza 2026 Topps Rookie #301"
+   ],
+   "listing_titles_modeled": true,
+   "confidence": "player, card # checked against the 2026 Topps Football checklist (Base #301); front, back and titles modeled"
+  },
+  {
+   "id": "hc-105",
+   "category": "plain_topps_back",
+   "year": "2025-26",
+   "manufacturer": "Topps",
+   "product": "Topps Basketball",
+   "card_number": "201",
+   "player": "Cooper Flagg",
+   "team": "Dallas Mavericks",
+   "parallel": null,
+   "print_run": null,
+   "sport": "basketball",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "COOPER FLAGG",
+    "DALLAS MAVERICKS",
+    "RC"
+   ],
+   "typical_ocr_back": [
+    "201",
+    "COOPER FLAGG",
+    "MAVERICKS - F",
+    "HT: 6'9\" WT: 205",
+    "COLLEGE: DUKE",
+    "© 2025 THE TOPPS COMPANY, INC. ALL RIGHTS RESERVED.",
+    "TOPPS IS A REGISTERED TRADEMARK OF THE TOPPS COMPANY, INC."
+   ],
+   "back_modeled": true,
+   "why_hard": "Plain Topps back, but 2025-26 Finest also puts Flagg at #201 (Base Rare): the back can't tell them apart, so the set must stay open, never a guess.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-26-topps-basketball"
+   ],
+   "listing_title_examples": [
+    "2025-26 Topps Basketball Cooper Flagg #201 RC Mavericks",
+    "Cooper Flagg 2025-26 Topps Flagship Rookie #201"
+   ],
+   "listing_titles_modeled": true,
+   "confidence": "player, card # checked against the 2025-26 Topps Basketball and Topps Finest checklists (both #201); front, back and titles modeled"
+  },
+  {
+   "id": "hc-106",
+   "category": "hoops_back",
+   "year": "2025-26",
+   "manufacturer": "Topps",
+   "product": "NBA Hoops Basketball",
+   "card_number": "210",
+   "player": "Maxime Raynaud",
+   "team": "Sacramento Kings",
+   "parallel": null,
+   "print_run": null,
+   "sport": "basketball",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "HOOPS",
+    "MAXIME RAYNAUD",
+    "RC"
+   ],
+   "typical_ocr_back": [
+    "210",
+    "MAXIME RAYNAUD",
+    "CENTER",
+    "2025-26 NBA HOOPS"
+   ],
+   "back_modeled": true,
+   "why_hard": "Hoops back with no © read: the year is only on the \"2025-26 NBA HOOPS\" line, which used to read as no year.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-26-topps-nba-hoops-basketball"
+   ],
+   "listing_title_examples": [
+    "2025-26 Topps NBA Hoops Maxime Raynaud #210 RC Kings",
+    "Maxime Raynaud 2025-26 Hoops Rookie #210"
+   ],
+   "listing_titles_modeled": true,
+   "confidence": "player, card # checked against the 2025-26 NBA Hoops checklist (Base #210); front, back and titles modeled"
+  },
+  {
+   "id": "hc-107",
+   "category": "hoops_back",
+   "year": "2024-25",
+   "manufacturer": "Panini",
+   "product": "NBA Hoops Basketball",
+   "card_number": "1",
+   "player": "Devin Booker",
+   "team": "Phoenix Suns",
+   "parallel": null,
+   "print_run": null,
+   "sport": "basketball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "HOOPS",
+    "DEVIN BOOKER",
+    "SUNS"
+   ],
+   "typical_ocr_back": [
+    "1",
+    "DEVIN BOOKER",
+    "GUARD",
+    "2023-24 SUNS 68 27.1 4.5 6.9",
+    "© 2024 Panini America, Inc."
+   ],
+   "back_modeled": true,
+   "why_hard": "Hoops back whose stat line prints last season (2023-24): the year must come from the © line, never the stat row.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2024-25-nba-hoops-basketball"
+   ],
+   "listing_title_examples": [
+    "2024-25 Panini NBA Hoops Devin Booker #1 Suns",
+    "Devin Booker 2024-25 Hoops #1"
+   ],
+   "listing_titles_modeled": true,
+   "confidence": "player, card # checked against the 2024-25 NBA Hoops checklist (Base #1); front, back and titles modeled"
   }
  ]
 }

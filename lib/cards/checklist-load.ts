@@ -1,6 +1,6 @@
 import index from "@/lib/cards/data/checklists/index.json";
-import { sameChecklistProduct, type ChecklistIndexEntry, type ChecklistProduct } from "./checklists";
-import { productPhrase } from "./product-data";
+import { sameChecklistProduct, toppsMade, type ChecklistIndexEntry, type ChecklistProduct } from "./checklists";
+import { productPhrase, sameSeason } from "./product-data";
 
 /**
  * Loads checklist files on demand, the way product-data.ts loads the parallel lists: a dynamic
@@ -29,6 +29,8 @@ function loadFile(file: string): Promise<ChecklistProduct | null> {
 
 /** Most files one scan loads: a set name a few sports share in one year. */
 const MAX_FILES = 6;
+/** A plain Topps back names no product: every Topps product in the card's sport for two years. */
+const MAX_FAMILY_FILES = 16;
 /** No year read at all (a vintage card): every year of the set in its sport, up to this many. */
 const MAX_ANY_YEAR_FILES = 80;
 /**
@@ -44,9 +46,19 @@ const LAST_YEARLESS_YEAR = 1980;
  * year of that set, but only in a known sport (Topps is a set in four of them).
  */
 export function checklistFilesFor(
-  card: { years: readonly string[]; setBrand: string; sport?: string; allYears?: boolean },
+  card: { years: readonly string[]; setBrand: string; sport?: string; allYears?: boolean; family?: "topps" },
   entries: readonly ChecklistIndexEntry[] = CHECKLIST_INDEX,
 ): string[] {
+  // A plain Topps back: every product Topps makes for these years, in the card's sport only.
+  if (card.family === "topps") {
+    if (!card.sport || card.years.length === 0) return [];
+    return entries
+      .filter((entry) => entry.sport.toLowerCase() === card.sport!.toLowerCase())
+      .filter((entry) => toppsMade(entry))
+      .filter((entry) => card.years.some((yearLabel) => sameSeason(entry.yearLabel, yearLabel)))
+      .map((entry) => entry.file)
+      .slice(0, MAX_FAMILY_FILES);
+  }
   if (card.years.length === 0) {
     if (!card.sport) return [];
     const phrase = productPhrase(card.setBrand);
@@ -64,7 +76,7 @@ export function checklistFilesFor(
 }
 
 /** The checklists for the year and set a scan read. Empty when the store has none. */
-export async function loadChecklistsFor(card: { years: readonly string[]; setBrand: string; sport?: string; allYears?: boolean }): Promise<ChecklistProduct[]> {
+export async function loadChecklistsFor(card: { years: readonly string[]; setBrand: string; sport?: string; allYears?: boolean; family?: "topps" }): Promise<ChecklistProduct[]> {
   const products = await Promise.all(checklistFilesFor(card).map(loadFile));
   return products.filter((product): product is ChecklistProduct => Boolean(product));
 }
