@@ -75,6 +75,21 @@ describe("letter-prefixed card numbers", () => {
   });
 });
 
+describe("busy card art (falling binary digits on the real Boozer card)", () => {
+  it("a scrap like 'o 0' or 'O(€' never names O-Pee-Chee: one letter is never a set", () => {
+    for (const scrap of ["o 0", "o 3", "O(€", "0 1 0 1"]) assert.deepEqual(back([scrap]).setNames, [], scrap);
+    assert.deepEqual(back(["O-PEE-CHEE"]).setNames, ["O-Pee-Chee"]);
+  });
+
+  it("dozens of digit scraps never push the © line out: the year and the maker still read", () => {
+    const rain = Array.from({ length: 80 }, (_, index) => ["0", "1", "0 1", "o 0", "1 0 1"][index % 5]);
+    const read = readRawCardText(["1 RC-3 0", ...rain, "CAMERON BOOZER", "MEMPHIS", "©, TM & © 2026 The Topps Company, Inc. All rights rese"], SCAN_DIRECTORY, { side: "back" });
+    assert.equal(read.copyrightYear, "2026");
+    assert.equal(read.cardNumber, "RC-3");
+    assert.ok(read.lines.length <= 60);
+  });
+});
+
 describe("the Boozer Rookie Code RC-3", () => {
   it("reads 2026-27 Topps #RC-3 from front and back, whatever the bio and sold titles say", async () => {
     for (const backLines of [

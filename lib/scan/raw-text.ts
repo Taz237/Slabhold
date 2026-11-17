@@ -271,6 +271,16 @@ function emptyRead(): RawCardRead {
   };
 }
 
+/** How many raw lines are looked at before the noise is sorted out. */
+const MAX_RAW_LINES = 240;
+/** A scrap with no word in it ("0 1", "04", "1,3", "\\"): a pattern in the art, like falling binary digits. */
+const NOISE_LINE = /^[^A-Za-z]{0,6}$|^(?:[^A-Za-z]*[A-Za-z](?![A-Za-z]))+[^A-Za-z]*$/;
+
+/**
+ * At most MAX_LINES lines. A busy design (falling binary digits behind a Rookie Code card) can read as
+ * dozens of scraps; then the scraps go first, and the legal line at the bottom ("© 2026 THE TOPPS
+ * COMPANY") is always kept, since it carries the year and the maker.
+ */
 function cleanLines(lines: readonly string[]): string[] {
   const out: string[] = [];
   for (const raw of lines) {
@@ -278,9 +288,15 @@ function cleanLines(lines: readonly string[]): string[] {
     const line = raw.slice(0, MAX_LINE_LENGTH).replace(/\s+/g, " ").trim();
     if (!line) continue;
     out.push(line);
-    if (out.length >= MAX_LINES) break;
+    if (out.length >= MAX_RAW_LINES) break;
   }
-  return out;
+  if (out.length <= MAX_LINES) return out;
+  const kept = out.filter((line) => !NOISE_LINE.test(line) || LONE_NUMBER_LINE.test(line) && Number(line) > 1);
+  if (kept.length <= MAX_LINES) return kept;
+  const legal = kept.filter((line) => MAKER_LINE.test(line));
+  const room = Math.max(0, MAX_LINES - legal.length);
+  const head = new Set(kept.filter((line) => !MAKER_LINE.test(line)).slice(0, room));
+  return kept.filter((line) => head.has(line) || MAKER_LINE.test(line)).slice(0, MAX_LINES);
 }
 
 /** In a word that mixes letters and digits, 0, 1 and 5 are usually O, L and S. */
@@ -609,7 +625,8 @@ function readSets(lineWords: string[][], options: { back?: boolean } = {}): { na
     }
     // Named only in full or by the college rule (lib/scan/match.ts): "CHROME" alone never guesses it.
     if (RULE_ONLY_SETS.has(name)) return;
-    const distinct = words.filter((word) => !GENERIC_SET_WORDS.has(word));
+    // A one-letter word ("O" of O-Pee-Chee) is never a guess on its own: "o 0" is a scrap of the art.
+    const distinct = words.filter((word) => !GENERIC_SET_WORDS.has(word) && word.length > 1);
     const matched = distinct.filter((word) => present.has(word)).length;
     if (matched === 0) return;
     // "TOPPS CERTIFIED" is legal text, not Panini Certified: a one-word guess at another maker's set doesn't count.
