@@ -2,6 +2,8 @@
  * Writes lib/quick-comp/data/player-names.json: every player name in our checklists and both
  * player directories, once each. Quick Comp's player search suggests from it on the server.
  * Run after importing checklists: `npx tsx scripts/build-quick-comp-names.ts`.
+ * A name our sources spell more than one way keeps the spelling lib/quick-comp/data/player-name-aliases.json
+ * names; add a line there when a rebuild changes a spelling for the worse.
  */
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -24,6 +26,7 @@ const roster = JSON.parse(readFileSync(join(root, "lib/players/directory.json"),
 const more = JSON.parse(readFileSync(join(root, "lib/players/directory-more.json"), "utf8")) as Record<string, string[]>;
 names.push(...roster.map((row) => ({ name: row.name })), ...Object.values(more).flat().map((name) => ({ name })));
 
-const out = buildPlayerNames(names);
+const aliases = JSON.parse(readFileSync(join(root, "lib/quick-comp/data/player-name-aliases.json"), "utf8")) as Record<string, string[]>;
+const out = buildPlayerNames(names, aliases);
 writeFileSync(join(root, "lib/quick-comp/data/player-names.json"), `${JSON.stringify(out)}\n`);
 console.log(`${out.length} names`);
