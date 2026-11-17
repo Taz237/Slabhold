@@ -46,7 +46,7 @@ describe("back arrows", () => {
       "components/card-posts-list.tsx",
       "components/card-detail-shell.tsx",
       "components/public-card-view.tsx",
-      "components/catalog-page.tsx",
+      "components/catalog-feed.tsx",
     ]) {
       assert.match(read(file), /onClick=\{\(event\) => backLinkClick\(event, [^)]+\)\}/, file);
     }

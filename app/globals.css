@@ -548,6 +548,39 @@ img[data-fade]:not([data-loaded]) {
   }
 }
 
+/* Catalog feed: a double tap drops a big heart that pops, then floats up and fades. Centering is the element's own translate. */
+@keyframes feed-heart {
+  0% {
+    opacity: 0;
+    transform: scale(0.4) rotate(-8deg);
+  }
+  18% {
+    opacity: 1;
+    transform: scale(1.12) rotate(-8deg);
+  }
+  32% {
+    transform: scale(0.96) rotate(-8deg);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(-10%) scale(1) rotate(-8deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-40%) scale(1.05) rotate(-8deg);
+  }
+}
+
+/* Catalog feed: the comments sheet rises from the bottom. */
+@keyframes feed-sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
 /* Counts roll to the new number. */
 @keyframes count-up {
   from {
