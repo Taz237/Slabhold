@@ -3411,6 +3411,33 @@
   "cards": 520
  },
  {
+  "file": "2024-25-basketball-donruss-optic",
+  "sport": "Basketball",
+  "yearLabel": "2024-25",
+  "product": "Donruss Optic",
+  "source": "https://www.checklistinsider.com/2024-25-donruss-optic-basketball",
+  "read": "2026-11-17",
+  "cards": 998
+ },
+ {
+  "file": "2024-25-basketball-panini-donruss",
+  "sport": "Basketball",
+  "yearLabel": "2024-25",
+  "product": "Panini Donruss",
+  "source": "https://www.checklistinsider.com/2024-25-donruss-basketball",
+  "read": "2026-11-17",
+  "cards": 855
+ },
+ {
+  "file": "2024-25-basketball-panini-mosaic",
+  "sport": "Basketball",
+  "yearLabel": "2024-25",
+  "product": "Panini Mosaic",
+  "source": "https://www.checklistinsider.com/2024-25-panini-mosaic-basketball",
+  "read": "2026-11-17",
+  "cards": 1189
+ },
+ {
   "file": "2024-25-basketball-panini-prizm",
   "sport": "Basketball",
   "yearLabel": "2024-25",
@@ -3418,6 +3445,24 @@
   "source": "https://www.checklistinsider.com/2024-25-panini-prizm-basketball",
   "read": "2026-11-13",
   "cards": 928
+ },
+ {
+  "file": "2024-25-basketball-panini-select",
+  "sport": "Basketball",
+  "yearLabel": "2024-25",
+  "product": "Panini Select",
+  "source": "https://www.checklistinsider.com/2024-25-panini-select-basketball",
+  "read": "2026-11-17",
+  "cards": 1064
+ },
+ {
+  "file": "2024-25-basketball-topps-chrome",
+  "sport": "Basketball",
+  "yearLabel": "2024-25",
+  "product": "Topps Chrome",
+  "source": "https://www.checklistinsider.com/2024-25-topps-chrome-basketball",
+  "read": "2026-11-17",
+  "cards": 948
  },
  {
   "file": "2024-25-hockey-upper-deck",
@@ -3447,6 +3492,24 @@
   "cards": 668
  },
  {
+  "file": "2024-baseball-bowman-draft",
+  "sport": "Baseball",
+  "yearLabel": "2024",
+  "product": "Bowman Draft",
+  "source": "https://www.checklistinsider.com/2024-bowman-draft-baseball",
+  "read": "2026-11-17",
+  "cards": 696
+ },
+ {
+  "file": "2024-baseball-topps",
+  "sport": "Baseball",
+  "yearLabel": "2024",
+  "product": "Topps",
+  "source": "https://www.checklistinsider.com/2024-topps-series-1-baseball + https://www.checklistinsider.com/2024-topps-series-2-baseball",
+  "read": "2026-11-17",
+  "cards": 3636
+ },
+ {
   "file": "2024-baseball-topps-chrome",
   "sport": "Baseball",
   "yearLabel": "2024",
@@ -3454,6 +3517,24 @@
   "source": "https://www.checklistinsider.com/2024-topps-chrome-baseball",
   "read": "2026-11-13",
   "cards": 919
+ },
+ {
+  "file": "2024-baseball-topps-chrome-update",
+  "sport": "Baseball",
+  "yearLabel": "2024",
+  "product": "Topps Chrome Update",
+  "source": "https://www.checklistinsider.com/2024-topps-chrome-update-series-baseball",
+  "read": "2026-11-17",
+  "cards": 1143
+ },
+ {
+  "file": "2024-baseball-topps-update",
+  "sport": "Baseball",
+  "yearLabel": "2024",
+  "product": "Topps Update",
+  "source": "https://www.checklistinsider.com/2024-topps-update-series-baseball",
+  "read": "2026-11-17",
+  "cards": 1803
  },
  {
   "file": "2024-football-bowman-u-chrome",
@@ -3465,6 +3546,33 @@
   "cards": 626
  },
  {
+  "file": "2024-football-donruss-optic",
+  "sport": "Football",
+  "yearLabel": "2024",
+  "product": "Donruss Optic",
+  "source": "https://www.checklistinsider.com/2024-donruss-optic-football",
+  "read": "2026-11-17",
+  "cards": 769
+ },
+ {
+  "file": "2024-football-panini-donruss",
+  "sport": "Football",
+  "yearLabel": "2024",
+  "product": "Panini Donruss",
+  "source": "https://www.checklistinsider.com/2024-donruss-football",
+  "read": "2026-11-17",
+  "cards": 1290
+ },
+ {
+  "file": "2024-football-panini-mosaic",
+  "sport": "Football",
+  "yearLabel": "2024",
+  "product": "Panini Mosaic",
+  "source": "https://www.checklistinsider.com/2024-panini-mosaic-football",
+  "read": "2026-11-17",
+  "cards": 946
+ },
+ {
   "file": "2024-football-panini-prizm",
   "sport": "Football",
   "yearLabel": "2024",
@@ -3472,6 +3580,15 @@
   "source": "https://www.checklistinsider.com/2024-panini-prizm-football",
   "read": "2026-11-13",
   "cards": 890
+ },
+ {
+  "file": "2024-football-panini-select",
+  "sport": "Football",
+  "yearLabel": "2024",
+  "product": "Panini Select",
+  "source": "https://www.checklistinsider.com/2024-panini-select-football",
+  "read": "2026-11-17",
+  "cards": 1345
  },
  {
   "file": "2025-26-basketball-bowman",
@@ -3490,6 +3607,15 @@
   "source": "https://www.checklistinsider.com/2025-26-bowman-university-best-basketball",
   "read": "2026-11-17",
   "cards": 617
+ },
+ {
+  "file": "2025-26-basketball-panini-donruss",
+  "sport": "Basketball",
+  "yearLabel": "2025-26",
+  "product": "Panini Donruss",
+  "source": "https://www.checklistinsider.com/2025-26-donruss-basketball",
+  "read": "2026-11-17",
+  "cards": 730
  },
  {
   "file": "2025-26-basketball-panini-prizm",
@@ -3564,6 +3690,15 @@
   "cards": 746
  },
  {
+  "file": "2025-baseball-topps",
+  "sport": "Baseball",
+  "yearLabel": "2025",
+  "product": "Topps",
+  "source": "https://www.checklistinsider.com/2025-topps-series-1-baseball + https://www.checklistinsider.com/2025-topps-series-2-baseball",
+  "read": "2026-11-17",
+  "cards": 4225
+ },
+ {
   "file": "2025-baseball-topps-chrome",
   "sport": "Baseball",
   "yearLabel": "2025",
@@ -3600,6 +3735,15 @@
   "cards": 277
  },
  {
+  "file": "2025-baseball-topps-update",
+  "sport": "Baseball",
+  "yearLabel": "2025",
+  "product": "Topps Update",
+  "source": "https://www.checklistinsider.com/2025-topps-update-series-baseball",
+  "read": "2026-11-17",
+  "cards": 1914
+ },
+ {
   "file": "2025-football-bowman-u-best",
   "sport": "Football",
   "yearLabel": "2025",
@@ -3625,6 +3769,15 @@
   "source": "https://www.checklistinsider.com/2025-donruss-optic-football",
   "read": "2026-11-16",
   "cards": 715
+ },
+ {
+  "file": "2025-football-panini-donruss",
+  "sport": "Football",
+  "yearLabel": "2025",
+  "product": "Panini Donruss",
+  "source": "https://www.checklistinsider.com/2025-donruss-football",
+  "read": "2026-11-17",
+  "cards": 1338
  },
  {
   "file": "2025-football-panini-mosaic",
@@ -3676,8 +3829,8 @@
   "sport": "Baseball",
   "yearLabel": "2026",
   "product": "Topps",
-  "source": "https://www.checklistinsider.com/2026-topps-series-1-baseball",
-  "read": "2026-11-13",
-  "cards": 1246
+  "source": "https://www.checklistinsider.com/2026-topps-series-1-baseball + https://www.checklistinsider.com/2026-topps-series-2-baseball",
+  "read": "2026-11-17",
+  "cards": 3113
  }
 ]

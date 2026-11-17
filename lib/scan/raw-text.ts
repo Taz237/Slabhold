@@ -487,8 +487,17 @@ function readSerial(lines: string[], scanned = false): RawCardRead["serial"] {
     const run = Number(match[2]);
     if (number >= 1 && run >= 1 && number <= run) return { number: String(number), run: String(run) };
   }
+  // Foil and glare often drop the stamped number and leave the run: a line that is only "/175"
+  // is the card's print run. Nothing else on a card is a slash and a number alone on a line.
+  for (const line of lines) {
+    const bare = BARE_RUN.exec(line);
+    if (bare && Number(bare[1]) >= 1) return { number: "", run: String(Number(bare[1])) };
+  }
   return null;
 }
+
+/** "/175", "/ 25": a print run alone on its line, its stamped number unread. */
+const BARE_RUN = /^\s*\/\s*(\d{1,4})\s*$/;
 
 /** A line with three or more numbers besides the ratio: a row of a stat table. */
 function statRow(line: string): boolean {

@@ -82,6 +82,14 @@ export const PAGE_CORRECTIONS: Readonly<Record<string, PageCorrections>> = {
   "2025-26 Bowman University Best Basketball": {
     names: { "Tarris Reed JR.": "Tarris Reed Jr.", "Zakiyah Johnson": "ZaKiyah Johnson" },
   },
+  // The Super Short Print's photo nickname is not part of his name.
+  // His card name is Enrique Hernández, as every earlier year in the store has him.
+  "2025 Topps Series 1 Baseball": { names: { "Kiké Hernández": "Enrique Hernández" } },
+  "2025 Topps Series 2 Baseball": { names: { "Kiké Hernández": "Enrique Hernández" } },
+  "2026 Topps Series 2 Baseball": { names: { "Kiké Hernández": "Enrique Hernández" } },
+  "2024 Topps Series 2 Baseball": {
+    names: { 'Jackson Holliday "Fun Face"': "Jackson Holliday" },
+  },
 };
 
 /** The page's cards with its known slips fixed. Reports each correction that matched nothing. */

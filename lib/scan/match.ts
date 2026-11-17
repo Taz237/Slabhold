@@ -604,8 +604,12 @@ export function scanChecklistKey(read: ScanRead, directory: readonly IndexedDire
   const evidence = evidenceFrom(read, directory);
   const slabCard = slabCardKey(evidence);
   if (slabCard) return { years: slabCard.years, setBrand: slabCard.setBrand, sport: slabCard.sport };
-  const setBrand = evidence.setNames[0] ?? "";
   const years = checklistYears(evidence);
+  // No set read, but a paper prospect code (BP-27): only Bowman prints those. Load its lists to check.
+  if (!evidence.slab && !evidence.setNames[0] && bestPlayerName(evidence) && isPaperProspectCode(evidence.cardNumber)) {
+    return { years, setBrand: PAPER_PROSPECT_SET, sport: evidence.sport || "Baseball", ...(years.length === 0 ? { allYears: true } : {}) };
+  }
+  const setBrand = evidence.setNames[0] ?? "";
   if (evidence.slab || !setBrand || !bestPlayerName(evidence)) return null;
   // No year at all: every year of the set, in the sport the card names, to find the one with him at this #.
   if (years.length === 0) {
@@ -618,6 +622,32 @@ export function scanChecklistKey(read: ScanRead, directory: readonly IndexedDire
   return { years, setBrand, sport: evidence.sport };
 }
 
+/** The one set that prints paper prospect codes (BP-27). Bowman Chrome's are BCP-, Bowman Draft's BD-. */
+const PAPER_PROSPECT_SET = "Bowman";
+
+function isPaperProspectCode(cardNumber: string): boolean {
+  return /^BP-?\d{1,3}$/i.test(cardNumber.trim());
+}
+
+/**
+ * The logo didn't read, but the card prints a BP- code and its player's name: it is Bowman once a
+ * Bowman checklist has this player at that code, for the card's year when it printed one. Never on
+ * the code alone, and never when the checklists put someone else there.
+ */
+function withSetFromProspectCode(evidence: Evidence, checklists: readonly ChecklistProduct[], name: string): Evidence {
+  if (evidence.setNames[0] || !name || !isPaperProspectCode(evidence.cardNumber)) return evidence;
+  const years = checklistYears(evidence);
+  const backed = checklists.some(
+    (product) =>
+      (years.length === 0 || years.includes(product.yearLabel)) &&
+      playersAt([product], { yearLabel: product.yearLabel, setBrand: PAPER_PROSPECT_SET, cardNumber: evidence.cardNumber, sport: product.sport }).some((hit) =>
+        namesAgree(hit.player, name),
+      ),
+  );
+  if (!backed) return evidence;
+  return { ...evidence, setNames: [PAPER_PROSPECT_SET], sport: evidence.sport || "Baseball" };
+}
+
 /**
  * No card # read, but the back has bare numbers and the card names its player: a number is the card
  * # when the checklist for the year and set the card read has this player at it. Exactly one such
@@ -627,6 +657,7 @@ function withChecklistNumber(evidence: Evidence, checklists: readonly ChecklistP
   // A slab's label prints its #: its checklist only ever backs the name (withLookedUpPlayer).
   if (!checklists?.length || evidence.slab) return evidence;
   const name = bestPlayerName(evidence);
+  evidence = withSetFromProspectCode(evidence, checklists, name);
   const setBrand = evidence.setNames[0] ?? "";
   const years = checklistYears(evidence);
   if (!name || !setBrand) return evidence;
