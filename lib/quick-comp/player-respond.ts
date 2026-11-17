@@ -2,7 +2,7 @@ import type { TrawlSoldResult } from "@/lib/comps/types";
 import type { LiveSearchResult } from "@/lib/scan/live-solds";
 import type { PlayerFeedBody, PlayerSale, PlayerSuggestion } from "./player-feed";
 import { nameKey } from "./player-names";
-import { quickCompLimitMessage } from "./respond";
+import { playerLimitMessage } from "./player-limits";
 
 /** A name as typed: letters, spaces, dots, apostrophes and hyphens, 2 to 60 characters. */
 const NAME_TEXT = /^[\p{L}][\p{L} .'’-]{1,59}$/u;
@@ -26,7 +26,7 @@ export type PlayerFeedDeps = {
   userId: () => Promise<string | null>;
   /** The canonical spelling of a known name, or null. */
   canonical: (text: string) => string | null;
-  /** Our existing sold search: Quick Comp's caps, spent only on a miss, shared 6 hours per query. */
+  /** Our existing sold search on player search's own caps (5 a day, 3 an hour), spent only on a miss, shared 6 hours per query. */
   liveSearch: (query: string, userId: string) => Promise<LiveSearchResult>;
   toSales: (results: readonly TrawlSoldResult[], player: string) => PlayerSale[];
 };
@@ -44,7 +44,7 @@ export async function respondPlayerFeed(request: Request, deps: PlayerFeedDeps):
   const result = await deps.liveSearch(playerSearchQuery(player), userId);
   if (!result.ok) {
     if (result.reason === "unavailable") return Response.json({ error: "We couldn't load recent sold prices" }, { status: 503, headers: NO_STORE });
-    return Response.json({ error: quickCompLimitMessage(result.reason), reason: result.reason, resetAt: result.resetAt }, { status: 429, headers: NO_STORE });
+    return Response.json({ error: playerLimitMessage(result.reason), reason: result.reason, resetAt: result.resetAt }, { status: 429, headers: NO_STORE });
   }
   const body: PlayerFeedBody = { player, sales: deps.toSales(result.results, player), fetchedAt: result.fetchedAt };
   return Response.json(body, { headers: NO_STORE });

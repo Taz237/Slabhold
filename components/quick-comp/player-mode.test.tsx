@@ -45,6 +45,12 @@ const lookups: URL[] = [];
 const feeds: URL[] = [];
 let holdLookup = false;
 let releaseLookup: (() => void) | null = null;
+/** Suggestion and feed answers wait here when a test holds them. */
+let holdSuggest = false;
+let heldSuggest: (() => void)[] = [];
+let holdFeed = false;
+let heldFeed: (() => void)[] = [];
+let feedLimited = false;
 
 function compsBody() {
   return { comps: [], history: [], median: null, p25: null, p75: null, count: 0, source: "trawl", cached: false, fetchedAt: null, query: "q", lowConfidence: false, sample: false, photo: null };
@@ -57,18 +63,29 @@ before(() => {
     if (url.includes("/rpc/search_cards")) return Response.json([]);
     if (url.startsWith(PLAYER_SUGGEST_API)) {
       const q = new URL(url, "http://localhost").searchParams.get("q") ?? "";
-      if (!/acuff/i.test(q)) return Response.json({ suggestions: [] });
-      return Response.json({
-        suggestions: [
-          { label: PLAYER, player: PLAYER },
-          { label: "Acuff auto", player: PLAYER, filter: { auto: true } },
-          { label: "Acuff Prizm", player: PLAYER, filter: { set: "Prizm" } },
-        ],
-      });
+      const respond = () =>
+        /acuff/i.test(q)
+          ? Response.json({
+              suggestions: [
+                { label: PLAYER, player: PLAYER },
+                { label: "Acuff auto", player: PLAYER, filter: { auto: true } },
+                { label: "Acuff Prizm", player: PLAYER, filter: { set: "Prizm" } },
+              ],
+            })
+          : /cooper/i.test(q)
+            ? Response.json({ suggestions: [{ label: "Fixture Cooper", player: "Fixture Cooper" }] })
+            : Response.json({ suggestions: [] });
+      if (!holdSuggest) return respond();
+      return new Promise<Response>((resolve) => heldSuggest.push(() => resolve(respond())));
     }
     if (url.startsWith(PLAYER_FEED_API)) {
       feeds.push(new URL(url, "http://localhost"));
-      return Response.json({ player: PLAYER, sales: SALES, fetchedAt: null });
+      const respond = () =>
+        feedLimited
+          ? Response.json({ error: "x", reason: "daily", resetAt: "2026-11-18T00:00:00Z" }, { status: 429 })
+          : Response.json({ player: PLAYER, sales: SALES, fetchedAt: null });
+      if (!holdFeed) return respond();
+      return new Promise<Response>((resolve) => heldFeed.push(() => resolve(respond())));
     }
     // The comp lookup only: /api/quick-comp/suggest and /player are their own routes.
     if (url.startsWith(`${QUICK_COMP_API}?`)) {
@@ -125,6 +142,11 @@ afterEach(async () => {
   feeds.length = 0;
   holdLookup = false;
   releaseLookup = null;
+  holdSuggest = false;
+  heldSuggest = [];
+  holdFeed = false;
+  heldFeed = [];
+  feedLimited = false;
   win.localStorage.clear();
 });
 
@@ -273,5 +295,88 @@ describe("Quick Comp player mode", () => {
     assert.equal(field("Year").value, "");
     assert.equal(field("Set").value, "Prizm");
     assert.equal(lookups.length, 0);
+  });
+});
+
+const playerOptions = () => options().filter((option) => option.hasAttribute("data-player-option"));
+const enter = () =>
+  act(async () => {
+    search().dispatchEvent(new win.KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+  });
+
+describe("Quick Comp player mode: stale suggestions", () => {
+  it("the old names go the moment the text changes; Enter or a tap can't open them", async () => {
+    await mount();
+    await fill(search(), "acuff");
+    await until(() => playerOptions().length > 0, "acuff suggestions");
+    holdSuggest = true;
+    await fill(search(), "cooper");
+    assert.equal(playerOptions().length, 0, "no Acuff left on screen for cooper");
+    await enter();
+    // Let the 250ms suggestion wait pass: the cooper answer is still held.
+    await act(async () => {
+      await wait(300);
+    });
+    assert.equal(playerOptions().length, 0);
+    await enter();
+    assert.equal(feeds.length, 0, "never opened a stale player");
+    for (const release of heldSuggest) release();
+    await until(() => playerOptions().some((option) => option.textContent?.includes("Fixture Cooper")), "cooper suggestions");
+    assert.ok(!playerOptions().some((option) => option.textContent?.includes("Acuff")));
+  });
+
+  it("an answer for older text never shows, even if it lands late", async () => {
+    await mount();
+    holdSuggest = true;
+    await fill(search(), "acuff");
+    await act(async () => {
+      await wait(300);
+    });
+    assert.equal(heldSuggest.length, 1);
+    await fill(search(), "acuff 2025");
+    for (const release of heldSuggest) release();
+    await act(async () => {
+      await wait(60);
+    });
+    assert.equal(playerOptions().length, 0, "a card search shows cards only");
+    await enter();
+    assert.equal(feeds.length, 0);
+  });
+
+  it("a different phrase for the same player goes through while it loads, with no second search", async () => {
+    await mount();
+    holdFeed = true;
+    await fill(search(), "acuff");
+    await until(() => playerOptions().length === 3, "suggestions");
+    await act(async () => playerOptions()[1].querySelector("button")!.click()); // Acuff auto
+    assert.equal(feeds.length, 1);
+    await act(async () => {
+      await wait(150);
+    });
+    await fill(search(), "acuff");
+    await until(() => playerOptions().length === 3, "suggestions again");
+    await act(async () => playerOptions()[2].querySelector("button")!.click()); // Acuff Prizm
+    assert.equal(feeds.length, 1, "same player: no second search, no second cap");
+    for (const release of heldFeed) release();
+    await until(() => !!host!.querySelector('[data-player-feed] ul[aria-label] li'), "feed");
+    const chips = host!.querySelector('[aria-label="Filters"]')!;
+    assert.equal(button("Prizm", chips)!.getAttribute("aria-pressed"), "true");
+    assert.equal(button("Auto", chips)!.getAttribute("aria-pressed"), "false");
+    assert.equal(host!.querySelectorAll('[data-player-feed] ul[aria-label] li').length, 2);
+  });
+});
+
+describe("Quick Comp player mode: its own cap", () => {
+  it("used up: a friendly note that says Quick Comp still works", async () => {
+    feedLimited = true;
+    await mount();
+    await fill(search(), "acuff");
+    await until(() => playerOptions().length > 0, "suggestions");
+    await act(async () => playerOptions()[0].querySelector("button")!.click());
+    await until(() => !!host!.querySelector('[data-quick-comp-state="player-limit"]'), "cap note");
+    const note = host!.querySelector('[data-quick-comp-state="player-limit"]')!.textContent ?? "";
+    assert.match(note, /You've looked up 5 players today/);
+    assert.match(note, /Quick Comp still works/);
+    assert.doesNotMatch(note, /today's comps/);
   });
 });

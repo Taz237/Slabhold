@@ -251,3 +251,18 @@ export function readPlayerSuggestions(body: unknown): PlayerSuggestion[] {
   }
   return out.slice(0, 8);
 }
+
+/**
+ * The suggestions to show for what's typed now: only the ones fetched for this exact
+ * text. Anything older is never shown, so a tap or Enter can't open another player.
+ */
+export function currentPlayerItems(players: { query: string; items: readonly PlayerSuggestion[] }, typed: string): PlayerSuggestion[] {
+  const q = typed.trim();
+  if (!wantsPlayerSuggestions(q) || players.query !== q) return [];
+  return [...players.items];
+}
+
+/** Two picks open the same view only with the same player and the same chip. */
+export function sameFilter(a: Partial<FeedFilters> | undefined, b: Partial<FeedFilters> | undefined): boolean {
+  return (a?.auto === true) === (b?.auto === true) && (a?.set ?? null) === (b?.set ?? null);
+}

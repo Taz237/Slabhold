@@ -34,11 +34,14 @@ import {
 } from "@/lib/quick-comp/respond";
 import { createSuggestionTyping, SUGGEST_MIN_CHARS, type SuggestionState } from "@/lib/quick-comp/typing";
 import { manualYearError, readManualYear, splitManualQuery } from "@/lib/quick-comp/manual-year";
+import { PLAYER_LIMIT_CAPTION, playerLimitMessage } from "@/lib/quick-comp/player-limits";
 import {
+  currentPlayerItems,
   fetchPlayerFeed,
   fillFromSale,
   playerSuggestUrl,
   readPlayerSuggestions,
+  sameFilter,
   wantsPlayerSuggestions,
   type FeedFilters,
   type PlayerFeedOutcome,
@@ -378,6 +381,8 @@ export function QuickCompView({ userId }: { userId: string | null }) {
   const [feedShown, setFeedShown] = useState(false);
   const [sheetSale, setSheetSale] = useState<PlayerSale | null>(null);
   const feedToken = useRef(0);
+  /** Remounts the feed when a phrase changes its chip, without a new search. */
+  const feedView = useRef(0);
 
   function cancelGradeLookup() {
     if (gradeTimer.current !== null) window.clearTimeout(gradeTimer.current);
@@ -437,7 +442,7 @@ export function QuickCompView({ userId }: { userId: string | null }) {
 
   const results = suggestions.status === "ready" ? suggestions.results : [];
   /** Player names first for a name with no digits; a card search ("2023 prizm") shows cards only. */
-  const playerItems = wantsPlayerSuggestions(query) ? players.items : [];
+  const playerItems = currentPlayerItems(players, query);
   const playerCount = playerItems.length;
   const manualAt = playerCount + results.length;
   const showList = open && suggestions.status !== "idle" && query.trim().length > 0;
@@ -488,10 +493,9 @@ export function QuickCompView({ userId }: { userId: string | null }) {
     playerAbort.current?.abort();
     playerAbort.current = null;
     const q = text.trim();
-    if (!wantsPlayerSuggestions(q)) {
-      setPlayers({ query: "", items: [] });
-      return;
-    }
+    // The old list goes the moment the text changes: nothing stale to tap while the new one loads.
+    setPlayers({ query: "", items: [] });
+    if (!wantsPlayerSuggestions(q)) return;
     playerTimer.current = window.setTimeout(() => {
       playerTimer.current = null;
       const controller = new AbortController();
@@ -554,17 +558,22 @@ export function QuickCompView({ userId }: { userId: string | null }) {
 
   function loadFeed(player: string, filter: Partial<FeedFilters>) {
     const id = ++feedToken.current;
-    setFeedFor({ player, filter, key: id });
+    const key = ++feedView.current;
+    setFeedFor({ player, filter, key });
     setFeedShown(true);
     setFeed({ status: "loading" });
     void fetchPlayerFeed(player, (url) => fetch(url, { cache: "no-store" })).then((outcome) => {
       if (id !== feedToken.current) return;
       setFeed(outcome);
-      if (outcome.status === "ready") setFeedFor((now) => (now && now.key === id ? { ...now, player: outcome.body.player } : now));
+      if (outcome.status === "ready") setFeedFor((now) => (now && now.player === player ? { ...now, player: outcome.body.player } : now));
     });
   }
 
-  /** A player picked from the list: their sales, any card. A second tap while it loads does nothing more. */
+  /**
+   * A player picked from the list: their sales, any card. The same player and chip again
+   * does nothing more; the same player with another chip ("Acuff Prizm" after "Acuff auto")
+   * switches the chip on the sales already loading or loaded, with no second search.
+   */
   function openPlayer(item: PlayerSuggestion) {
     cancelGradeLookup();
     token.current += 1;
@@ -575,8 +584,14 @@ export function QuickCompView({ userId }: { userId: string | null }) {
     setComp({ status: "idle" });
     setSheetSale(null);
     inputRef.current?.blur();
-    if (feedFor && feedShown && feed.status === "loading" && feedFor.player === item.player) return;
-    loadFeed(item.player, item.filter ?? {});
+    const filter = item.filter ?? {};
+    const samePlayer = feedFor != null && feedFor.player === item.player && (feed.status === "loading" || feed.status === "ready");
+    if (samePlayer) {
+      setFeedShown(true);
+      if (!sameFilter(feedFor.filter, filter)) setFeedFor({ player: item.player, filter, key: ++feedView.current });
+      return;
+    }
+    loadFeed(item.player, filter);
   }
 
   function backToFeed() {
@@ -733,12 +748,16 @@ export function QuickCompView({ userId }: { userId: string | null }) {
         ? { status: "ready", sales: feed.body.sales }
         : {
             status: "notice",
-            notice: (
-              <CompStateNotice
-                state={feed.status === "limited" ? { status: "limited", reason: feed.reason, resetAt: feed.resetAt } : feed}
-                onRetry={() => feedFor && loadFeed(feedFor.player, feedFor.filter)}
-              />
-            ),
+            notice:
+              feed.status === "limited" ? (
+                <QuickCompNotice
+                  state="player-limit"
+                  title={playerLimitMessage(feed.reason)}
+                  caption={feed.reason === "daily" && resetTime(feed.resetAt) ? `${PLAYER_LIMIT_CAPTION}. More players from ${resetTime(feed.resetAt)}` : PLAYER_LIMIT_CAPTION}
+                />
+              ) : (
+                <CompStateNotice state={feed} onRetry={() => feedFor && loadFeed(feedFor.player, feedFor.filter)} />
+              ),
           };
 
   const manualShown = suggestions.status !== "loading";

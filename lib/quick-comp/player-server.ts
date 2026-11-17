@@ -2,7 +2,12 @@ import "server-only";
 
 import { unstable_cache } from "next/cache";
 import { SCAN_DIRECTORY } from "@/lib/players/scan-directory";
-import { readLiveCache, serverLiveSoldsDeps } from "@/lib/scan/live-solds-server";
+import { getCompsSource } from "@/lib/comps";
+import { fetchTrawlSold, getTrawlApiKey } from "@/lib/comps/trawl";
+import { makeLiveSearch } from "@/lib/scan/live-search";
+import { readLiveCache } from "@/lib/scan/live-solds-server";
+import type { CacheFn } from "./cache";
+import { serverPlayerSearchLimits } from "./limits-server";
 import { searchCachedSoldTitles } from "@/lib/scan/sold-titles-server";
 import { getAuthUserId } from "@/lib/supabase/server";
 import namesFile from "./data/player-names.json";
@@ -37,11 +42,22 @@ const savedTitles = unstable_cache(
   { revalidate: 3600 },
 );
 
+/** Our existing sold search (same query, same shared 6-hour cache), spending player search's own caps on a miss. */
+const playerLiveSearch = makeLiveSearch({
+  source: getCompsSource,
+  hasTrawlKey: () => Boolean(getTrawlApiKey()),
+  fetchSold: fetchTrawlSold,
+  limits: serverPlayerSearchLimits,
+  cache: unstable_cache as CacheFn,
+  now: Date.now,
+  warn: (event) => console.warn("[player-search] search failed", JSON.stringify(event)),
+});
+
 export const serverPlayerFeedDeps: PlayerFeedDeps = {
   enabled: () => quickCompEnabled(),
   userId: getAuthUserId,
   canonical,
-  liveSearch: (query, userId) => serverLiveSoldsDeps.liveSearch(query, userId),
+  liveSearch: (query, userId) => playerLiveSearch(query, userId),
   toSales: (results, player) => playerSalesFrom(results, player, SCAN_DIRECTORY),
 };
 

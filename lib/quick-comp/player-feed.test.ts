@@ -80,3 +80,18 @@ describe("Player mode: reading the wire", () => {
     ]);
   });
 });
+
+describe("Player mode: stale suggestions", () => {
+  it("shows only the suggestions fetched for exactly what's typed", async () => {
+    const { currentPlayerItems, sameFilter } = await import("./player-feed");
+    const players = { query: "acuff", items: [{ label: "Darius Acuff Jr.", player: "Darius Acuff Jr." }] };
+    assert.equal(currentPlayerItems(players, "acuff").length, 1);
+    assert.equal(currentPlayerItems(players, " acuff ").length, 1);
+    assert.deepEqual(currentPlayerItems(players, "acuf"), []);
+    assert.deepEqual(currentPlayerItems(players, "cooper"), []);
+    assert.deepEqual(currentPlayerItems(players, "acuff 2025"), []);
+    assert.equal(sameFilter({ auto: true }, { auto: true }), true);
+    assert.equal(sameFilter({}, undefined), true);
+    assert.equal(sameFilter({ auto: true }, { set: "Prizm" }), false);
+  });
+});

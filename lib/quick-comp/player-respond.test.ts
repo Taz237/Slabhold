@@ -51,7 +51,9 @@ describe("GET /api/quick-comp/player", () => {
     const limited = feedDeps({ liveSearch: async () => ({ ok: false, reason: "daily", resetAt: "2026-11-18T05:00:00Z" }) });
     const response = await respondPlayerFeed(new Request(url("acuff")), limited.deps);
     assert.equal(response.status, 429);
-    assert.equal((await response.json()).reason, "daily");
+    const limitedBody = await response.json();
+    assert.equal(limitedBody.reason, "daily");
+    assert.equal(limitedBody.error, "You've looked up 5 players today");
     const down = feedDeps({ liveSearch: async () => ({ ok: false, reason: "unavailable" }) });
     assert.equal((await respondPlayerFeed(new Request(url("acuff")), down.deps)).status, 503);
   });
