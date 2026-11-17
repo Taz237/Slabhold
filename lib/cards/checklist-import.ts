@@ -55,11 +55,43 @@ function withoutNotes(text: string): string {
 /** One letter of a nameplate per card (2009 Topps' In the Name Letter Relics, KY5): no card for a player as such. */
 const LETTER_SECTION = /\bletters?\b.*\b(?:relics?|patch(?:es)?)\b/i;
 
+/**
+ * A one-word name is a real person only when it is one capitalized word ("Ludacris", "Ichiro",
+ * "MIYAVI") with the team after it on the line. These words are the page's own furniture (headings,
+ * set names, section words), never a person.
+ */
+const ONE_WORD_NAME = /^\p{Lu}\p{L}{2,}$/u;
+const NOT_A_ONE_WORD_NAME = new Set(
+  [
+    "base", "set", "sets", "card", "cards", "checklist", "checklists", "team", "teams", "mascot", "mascots", "rookie", "rookies",
+    "parallel", "parallels", "insert", "inserts", "autograph", "autographs", "auto", "autos", "relic", "relics", "memorabilia",
+    "patch", "patches", "variation", "variations", "variant", "variants", "short", "print", "prints", "odds", "hobby", "retail",
+    "blaster", "jumbo", "hanger", "mega", "fat", "pack", "packs", "box", "boxes", "case", "breaks", "legends", "legend",
+    "veterans", "prospects", "prospect", "draft", "update", "series", "chrome", "refractor", "refractors", "prizm", "prizms",
+    "topps", "bowman", "panini", "donruss", "optic", "select", "mosaic", "leaf", "upper", "deck", "fleer", "score", "hoops",
+    "contenders", "certified", "absolute", "phoenix", "finest", "sapphire", "resurgence", "baseball", "football", "basketball",
+    "hockey", "soccer", "music", "musician", "celebrity", "gold", "silver", "black", "red", "blue", "green", "orange", "purple",
+    "pink", "white", "none", "tbd", "unknown", "various", "multiple", "dual", "triple", "quad", "combo",
+  ],
+);
+/** Sections of mascot, cartoon and sticker cards: a one-word name there ("Paws", "Goofy", "Gator") is a character, not a player. */
+const CHARACTER_SECTION = /\bmascots?\b|\bmickey\b|\bdisney\b|\blooney\b|\bmuppets?\b|\bsesame\b|\bzoo'?s\s+who\b|\bstick-?ons?\b/i;
+
+function isOneWordPerson(player: string, team: string, section: string): boolean {
+  if (!team || !ONE_WORD_NAME.test(player) || NOT_A_ONE_WORD_NAME.has(player.toLowerCase())) return false;
+  if (CHARACTER_SECTION.test(section)) return false;
+  // "Angels - Los Angeles Angels" is the team by its nickname, and "Tiger - Detroit Tigers" too.
+  const word = player.toLowerCase();
+  return !team.toLowerCase().split(/\s+/).some((teamWord) => teamWord === word || teamWord === `${word}s` || teamWord === `${word}es`);
+}
+
 /** "339 C.J. Stroud - Houston Texans" → the card. Null when the line isn't one card with one player. */
 export function parseChecklistLine(
   line: string,
   /** Says a name is a person we know, for the few names that also read as a place ("Chan Ho Park"). */
   knownPerson: (name: string) => boolean = () => false,
+  /** The section the line is in: a one-word name in a mascot or cartoon section is a character. */
+  section = "",
 ): { number: string; player: string; team: string } | null {
   const text = decodeHtml(line.replace(/<[^>]+>/g, " "));
   const match = /^(\S+)\s+(.+)$/.exec(text);
@@ -75,7 +107,8 @@ export function parseChecklistLine(
   // Two players on one card name nobody on their own. A name is letters, not a sentence.
   if (!player || /[/&]| and |,/.test(player) || /\d/.test(player)) return null;
   const words = player.split(" ");
-  if (words.length < 2 || words.length > 4 || player.length > 40) return null;
+  if (words.length > 4 || player.length > 40) return null;
+  if (words.length === 1 && !isOneWordPerson(player, team, section)) return null;
   return { number: match[1].toUpperCase() === match[1] ? match[1] : match[1].toUpperCase(), player, team };
 }
 
@@ -101,7 +134,7 @@ export function sectionsFromChecklistPage(html: string, knownPerson?: (name: str
     const blocks = part.slice(end).matchAll(/<div[^>]*class="[^"]*tablechecklist[^"]*"[^>]*>([\s\S]*?)<\/div>/gi);
     for (const block of blocks) {
       for (const line of block[1].split(/<br\s*\/?>|\n/i)) {
-        const card = parseChecklistLine(line, knownPerson);
+        const card = parseChecklistLine(line, knownPerson, name);
         if (card) cards.push(card);
       }
     }
@@ -128,9 +161,10 @@ function sectionsWithoutHotTitles(html: string, knownPerson?: (name: string) => 
       continue;
     }
     const cards: ImportedSection["cards"] = [];
+    const headed = sectionName(heading);
     for (const block of piece.matchAll(/<div[^>]*class="[^"]*tablechecklist[^"]*"[^>]*>([\s\S]*?)<\/div>/gi)) {
       for (const line of block[1].split(/<br\s*\/?>|\n/i)) {
-        const card = parseChecklistLine(line, knownPerson);
+        const card = parseChecklistLine(line, knownPerson, sections.length === 0 ? "Base" : headed);
         if (card) cards.push(card);
       }
     }
@@ -189,13 +223,13 @@ export function sectionsFromMakerCsv(csv: string, knownPerson?: (name: string) =
   const seen = new Set<string>();
   for (const line of lines.slice(1)) {
     const cells = csvCells(line);
-    const card = parseChecklistLine(`${cells[number] ?? ""} ${cells[athlete] ?? ""}${team >= 0 && cells[team] ? ` - ${cells[team]}` : ""}`, knownPerson);
+    const name = (set >= 0 ? cells[set] : "") || "Base";
+    const card = parseChecklistLine(`${cells[number] ?? ""} ${cells[athlete] ?? ""}${team >= 0 && cells[team] ? ` - ${cells[team]}` : ""}`, knownPerson, name);
     if (!card) continue;
     // A parallel row ("Base Prizms Silver") is the same card as its "Base" row.
     const key = `${card.number.toLowerCase()}|${card.player.toLowerCase()}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    const name = (set >= 0 ? cells[set] : "") || "Base";
     const section = sections.find((item) => item.name === name);
     if (section) section.cards.push(card);
     else sections.push({ name, cards: [card] });
@@ -218,10 +252,15 @@ export function checklistProductFrom(
   };
   // A "player" that is one of the product's own teams is a team card.
   const teamNames = new Set(imported.flatMap((section) => section.cards.map((card) => card.team.toLowerCase())).filter(Boolean));
+  // A one-word "player" that is the first or last name of another player in the product is a cut-off name.
+  const nameEnds = new Set(
+    imported.flatMap((section) => section.cards.map((card) => card.player.toLowerCase().split(" "))).flatMap((words) => (words.length > 1 ? [words[0], words[words.length - 1]] : [])),
+  );
+  const keep = (card: ImportedSection["cards"][number]) => !teamNames.has(card.player.toLowerCase()) && !(!card.player.includes(" ") && nameEnds.has(card.player.toLowerCase()));
   const sections: ChecklistSection[] = imported
     .map((section) => ({
       name: section.name,
-      cards: section.cards.filter((card) => !teamNames.has(card.player.toLowerCase())).map((card): ChecklistRow => [card.number, card.player, teamIndex(card.team)]),
+      cards: section.cards.filter(keep).map((card): ChecklistRow => [card.number, card.player, teamIndex(card.team)]),
     }))
     .filter((section) => section.cards.length > 0);
   return { ...meta, teams, sections };

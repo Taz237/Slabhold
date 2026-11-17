@@ -211,12 +211,60 @@ Topps (Series 1 was already in). 2025-26 Optic and Mosaic Basketball still have 
 Until a product is in the store, the scanner falls back to the sold titles for that year, set and
 card # (below).
 
-Still not in the store, because no page with a player list was found for them: Bowman U before
-2023, the 2023 Select and Optic football sets, the 2023-24 NBA sets other than Prizm Draft Picks,
-and hockey before 2024-25.
+### One-word names (2026-11-17)
+
+The importer used to drop every one-word name, so Ludacris (2025-26 Prizm #136, Donruss #122),
+Ichiro, MIYAVI, Neymar and the like were missing. A one-word name now loads only when:
+
+- the line names a team after it ("136 Ludacris - Music"), so a heading or stray word never does;
+- it is one capitalized word of letters (accents are fine), three letters or more, and not one of
+  the page's own words (Base, Checklist, Cards, Rookies, Parallels, a set or maker name, a color);
+- it isn't the team itself ("Angels", "Tiger" on a Tigers card) or "Mascot";
+- it isn't in a mascot, cartoon or sticker section (Mascots, Mickey & Friends, 1975 Zoo's Who
+  Stick-Ons): "Paws", "Goofy" and "Gator" are characters;
+- it isn't the first or last name of another player in the same product: a cut-off name. That
+  leaves out "D'Angelo" (2023-24 Topps Chrome Finesse) and, to be safe, "Ichiro" in 2025 Bowman,
+  where a prospect is named Ichiro Cano Hernandez.
+
+The Checklist Insider files were imported again from their saved CSVs (same pages, same read
+days): 73 one-word cards were added and none removed. The Cardboard Connection files were read
+again from their pages and only the new one-word rows were added; every other row is as it was.
+Upper Deck's 2025-26 Young Guns #498 is Tusky, the Utah Mammoth's mascot, printed as a base card:
+it loads, since that is the card.
+
+### 2023-2026 sets (read 2026-11-17)
+
+62 more products from Checklist Insider, read with the page converter and loaded from the CSVs
+(card checklists only; no parallel list was read from these pages). Each page is in
+`scripts/checklist-csv/SOURCES.md`.
+
+- Basketball: 2023-24 Prizm, Optic, Select, Mosaic, Topps Chrome, Topps Finest and Bowman U Best;
+  2024-25 Hoops, Bowman U Best, Topps Finest and Prizm Draft Picks; 2025-26 Topps, Hoops, Topps
+  Chrome Update and Topps Finest; 2026-27 Topps and Hoops.
+- Football: 2023 Optic, Select and Contenders; 2024 Contenders, Score, Topps Chrome, Topps
+  Resurgence, Bowman U Best, Prizm Draft Picks and Topps Finest; 2025 Score, Prizm Draft Picks and
+  Topps Finest; 2026 Topps, Topps Chrome, Bowman, Donruss, Bowman U Best and Topps Heritage.
+- Baseball: 2024-2026 Topps Heritage, Topps Finest and Donruss; 2024-2025 Bowman's Best and Select;
+  2024-2026 Prizm; 2026 Bowman, Bowman Chrome, Topps Chrome, Topps Chrome Update and Topps Update;
+  2024 Topps Chrome Sapphire, Bowman Chrome Sapphire and Topps Chrome Update Sapphire; 2026 Topps
+  Chrome Sapphire and Bowman Chrome Sapphire.
+
+Five more had no Checklist Insider page but do have a Cardboard Connection checklist, read the
+usual way from the saved page on 2026-11-17: 2023 Bowman Chrome, 2023 Topps Chrome Update, 2023
+Topps Heritage and 2023 Bowman's Best baseball, and 2023-24 Hoops basketball.
+
+Still not in the store, because no page with a player list was found for them (checked on
+2026-11-17 against Checklist Insider's full page list and Cardboard Connection):
+
+- Basketball: 2023-24 Donruss, 2025-26 Optic and Mosaic, 2026-27 Donruss (the page has no
+  checklist yet).
+- Football: 2023 Score.
+- Leaf: no Leaf product has a page on Checklist Insider.
+- Panini Resurgence: there is no such product. Resurgence is Topps (2024 and 2025 are in).
+- Bowman U before 2023 and hockey before 2024-25, as before.
 
 Left out on purpose, so a row is always one player on one card: cards with two or more players,
-team cards, league leaders, checklists and empty slots.
+team cards, league leaders, checklists, empty slots, and mascots and cartoon characters.
 
 ## How the scanner uses it
 

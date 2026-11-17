@@ -86,6 +86,7 @@ export function sameSeason(left: string, right: string): boolean {
 /** Product names that differ from the Add card spelling of the same set. */
 const PHRASE_ALIASES: Record<string, string> = {
   optic: "donruss optic",
+  "nba hoops": "hoops",
 };
 
 export function productPhrase(name: string): string {
