@@ -63,12 +63,15 @@ export function checklistFileName(product: { sport: string; yearLabel: string; p
   return [slug(product.yearLabel), slug(product.sport), slug(product.product)].join("-");
 }
 
+/** "Topps Series 2" and "Upper Deck Series 1" are one checklist each in the store: "Topps", "Upper Deck". */
+const FLAGSHIP_SERIES = /^((?:topps|upper\s+deck))\s+series\s+[12]$/i;
+
 /** The same product: the same release year and the same set name ("Prizm" is "Panini Prizm"). */
 export function sameChecklistProduct(
   entry: { yearLabel: string; product: string },
   card: { yearLabel: string; setBrand: string },
 ): boolean {
-  const phrase = productPhrase(card.setBrand);
+  const phrase = productPhrase(card.setBrand.trim().replace(FLAGSHIP_SERIES, "$1"));
   return Boolean(phrase) && sameSeason(entry.yearLabel, card.yearLabel) && productPhrase(entry.product) === phrase;
 }
 

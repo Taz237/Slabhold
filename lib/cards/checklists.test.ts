@@ -51,6 +51,93 @@ describe("the checklist import", () => {
     assert.deepEqual(product.sections[0].cards.map((card) => card[1]), ["Byron Buxton"]);
   });
 
+  it("a real one-word name loads when the line names its team: Ludacris, Ichiro, MIYAVI", () => {
+    assert.deepEqual(parseChecklistLine("136 Ludacris - Music"), { number: "136", player: "Ludacris", team: "Music" });
+    assert.deepEqual(parseChecklistLine("CLA-I Ichiro - Seattle Mariners"), { number: "CLA-I", player: "Ichiro", team: "Seattle Mariners" });
+    assert.deepEqual(parseChecklistLine("FPA-MIY MIYAVI - Los Angeles Dodgers"), { number: "FPA-MIY", player: "MIYAVI", team: "Los Angeles Dodgers" });
+    assert.deepEqual(parseChecklistLine("FP-7 Neymar - LoanDepot Park"), { number: "FP-7", player: "Neymar", team: "LoanDepot Park" });
+    // The maker's CSV hands the line over the same way.
+    const csv = ["CARD SET,CARD NUMBER,ATHLETE,TEAM", "Base,122,Ludacris,Music", "Base,123,Kevin Durant,Phoenix Suns"].join("\n");
+    assert.deepEqual(sectionsFromMakerCsv(csv)[0].cards.map((card) => card.player), ["Ludacris", "Kevin Durant"]);
+  });
+
+  it("a one-word line that isn't a person stays out: headers, set names, checklists, team names", () => {
+    // No team on the line: a heading or a stray word, never a card.
+    assert.equal(parseChecklistLine("136 Ludacris"), null);
+    assert.equal(parseChecklistLine("2025 Checklist"), null);
+    assert.equal(parseChecklistLine("300 Cards"), null);
+    assert.equal(parseChecklistLine("100 Base - Set"), null);
+    assert.equal(parseChecklistLine("2023 Prizm - Panini"), null);
+    assert.equal(parseChecklistLine("1 Topps - Baseball"), null);
+    assert.equal(parseChecklistLine("1 Checklist - Base"), null);
+    assert.equal(parseChecklistLine("50 Parallels - Gold"), null);
+    assert.equal(parseChecklistLine("10 Rookies - Insert"), null);
+    assert.equal(parseChecklistLine("5 Autographs - Hobby"), null);
+    // A team named by its nickname is a team card.
+    assert.equal(parseChecklistLine("279 Angels - Los Angeles Angels"), null);
+    assert.equal(parseChecklistLine("279 Angels - Team Card"), null);
+    assert.equal(parseChecklistLine("M-3 Mascot - Baltimore Orioles"), null);
+    // Not a word: lower case, initials, a number, too short.
+    assert.equal(parseChecklistLine("12 cards - Music"), null);
+    assert.equal(parseChecklistLine("12 J.R. - Music"), null);
+    assert.equal(parseChecklistLine("12 Al - Music"), null);
+    // A team's nickname in the singular is the team ("Tiger" on a Tigers sticker).
+    assert.equal(parseChecklistLine("75Z-1 Tiger - Detroit Tigers"), null);
+    assert.equal(parseChecklistLine("75Z-2 Cardinal - St. Louis Cardinals"), null);
+    // An apostrophe or hyphen in one word is a cut-off name ("D'Angelo" for D'Angelo Russell).
+    assert.equal(parseChecklistLine("F-22 D'Angelo - Utah Jazz"), null);
+    // Accented letters are letters.
+    assert.equal(parseChecklistLine("HS-NE Nenê - Denver Nuggets")?.player, "Nenê");
+  });
+
+  it("a one-word name that is the start or end of another player's name in the same set is cut off: left out", () => {
+    const product = checklistProductFrom({ sport: "Basketball", yearLabel: "2023-24", product: "Topps Chrome", source: "test", read: "2026-11-17" }, [
+      { name: "Base", cards: [{ number: "58", player: "Kawhi Leonard", team: "Los Angeles Clippers" }, { number: "59", player: "Ichiro", team: "Seattle Mariners" }] },
+      { name: "Finesse", cards: [{ number: "F-22", player: "Kawhi", team: "Los Angeles Clippers" }, { number: "F-23", player: "Leonard", team: "Los Angeles Clippers" }] },
+    ]);
+    assert.deepEqual(product.sections.map((section) => section.cards.map((card) => card[1])), [["Kawhi Leonard", "Ichiro"]]);
+  });
+
+  it("a one-word name on a variation of someone else's base card is a photo variation (a mascot): left out", () => {
+    const product = checklistProductFrom({ sport: "Baseball", yearLabel: "2022", product: "Topps Update", source: "test", read: "2026-11-17" }, [
+      { name: "Base", cards: [{ number: "150", player: "Josiah Gray", team: "Washington Nationals" }, { number: "121", player: "Ichiro", team: "Seattle Mariners" }] },
+      { name: "Base Variations", cards: [{ number: "150", player: "Screech", team: "Washington Nationals" }, { number: "121", player: "Ichiro", team: "Seattle Mariners" }] },
+    ]);
+    assert.deepEqual(product.sections.map((section) => section.cards.map((card) => card[1])), [["Josiah Gray", "Ichiro"], ["Ichiro"]]);
+  });
+
+  it("on a plain-text checklist page a one-word name loads only for a known one-word athlete: the pages are noisy", () => {
+    const page = [
+      '<h3 class="hot-title">Base Set Checklist</h3><div class="tablechecklist">1 Ichiro - Seattle Mariners<br />2 Nene - Denver Nuggets<br />3 Mike Trout - Los Angeles Angels</div>',
+      '<h3 class="hot-title">Baseball Thrills Checklist</h3><div class="tablechecklist">461 Thrills - Babe Ruth Hits 60th Homer<br />462 Ganymede - Jupiter<br />463 Screech - Washington Nationals</div>',
+    ].join("\n");
+    assert.deepEqual(sectionsFromChecklistPage(page).map((section) => [section.name, section.cards.map((card) => card.player)]), [["Base", ["Ichiro", "Nene", "Mike Trout"]]]);
+  });
+
+  it("a short all-caps word is a placeholder, not a name: TBA, TBD, ACE", () => {
+    assert.equal(parseChecklistLine("ASST-OTO TBA - Los Angeles Angels"), null);
+    assert.equal(parseChecklistLine("M-28 ACE - Toronto Blue Jays"), null);
+    assert.equal(parseChecklistLine("FPA-MIY MIYAVI - Los Angeles Dodgers")?.player, "MIYAVI");
+  });
+
+  it("a one-word mascot or cartoon card is no player: its section is left out", () => {
+    const csv = [
+      "CARD SET,CARD NUMBER,ATHLETE,TEAM",
+      "Mascots,M-10,Paws,Detroit Tigers",
+      "Mascots Autographs,BCM-GT,Buzz,Georgia Tech",
+      "Mickey & Friends Away Jersey,MLBA-21,Goofy,Atlanta Braves",
+      "Mickey and Friends Sapphire,MLBA-22,Goofy,New York Mets",
+      "1975 Topps Zoo's Who Stick-Ons,75Z-9,Gator,New York Yankees",
+      "Stars of Japan,SOJ-7,Ichiro,Seattle Mariners",
+    ].join("\n");
+    assert.deepEqual(sectionsFromMakerCsv(csv).map((section) => [section.name, section.cards.map((card) => card.player)]), [["Stars of Japan", ["Ichiro"]]]);
+    const page = [
+      '<h3 class="hot-title">Mascots Checklist</h3><div class="tablechecklist">M-10 Paws - Detroit Tigers</div>',
+      '<h3 class="hot-title">Base Set Checklist</h3><div class="tablechecklist">1 Ichiro - Seattle Mariners<br />2 Mike Trout - Los Angeles Angels</div>',
+    ].join("\n");
+    assert.deepEqual(sectionsFromChecklistPage(page).map((section) => [section.name, section.cards.map((card) => card.player)]), [["Base", ["Ichiro", "Mike Trout"]]]);
+  });
+
   it("reads a checklist page: one section per heading, entities decoded", () => {
     const sections = sectionsFromChecklistPage(PAGE);
     assert.deepEqual(sections.map((section) => [section.name, section.cards.length]), [["Base", 4], ["Dual Autographs", 1]]);
@@ -159,6 +246,19 @@ describe("the checklist store", () => {
     assert.deepEqual(checklistFilesFor({ years: ["2023"], setBrand: "Prizm" }, entries), ["a", "b"]);
     assert.deepEqual(checklistFilesFor({ years: ["2023"], setBrand: "Prizm", sport: "Basketball" }, entries), ["b"]);
     assert.deepEqual(checklistFilesFor({ years: ["2024", "2023"], setBrand: "Panini Select" }, entries), ["d"]);
+    // Series 1 and Series 2 are one product in the store ("Topps", "Upper Deck"): a card that reads its series loads it.
+    const flagship = [
+      { file: "t", sport: "Baseball", yearLabel: "2025", product: "Topps", source: "s", read: "2026-11-17", cards: 1 },
+      { file: "tu", sport: "Baseball", yearLabel: "2025", product: "Topps Update", source: "s", read: "2026-11-17", cards: 1 },
+      { file: "ud", sport: "Hockey", yearLabel: "2025-26", product: "Upper Deck", source: "s", read: "2026-11-17", cards: 1 },
+    ];
+    assert.deepEqual(checklistFilesFor({ years: ["2025"], setBrand: "Topps Series 1" }, flagship), ["t"]);
+    assert.deepEqual(checklistFilesFor({ years: ["2025"], setBrand: "Topps Series 2" }, flagship), ["t"]);
+    assert.deepEqual(checklistFilesFor({ years: ["2025-26"], setBrand: "Upper Deck Series 2" }, flagship), ["ud"]);
+    assert.deepEqual(checklistFilesFor({ years: ["2025"], setBrand: "Topps Update" }, flagship), ["tu"]);
+    // "NBA Hoops", as the card and sellers print it, is the set Add card calls "Hoops".
+    const hoops = [{ file: "h", sport: "Basketball", yearLabel: "2024-25", product: "Hoops", source: "s", read: "2026-11-17", cards: 1 }];
+    assert.deepEqual(checklistFilesFor({ years: ["2024-25"], setBrand: "NBA Hoops" }, hoops), ["h"]);
     // No year read: every year of the set up to 1980 in that sport, and never across sports.
     const vintage = [
       { file: "t52", sport: "Baseball", yearLabel: "1952", product: "Topps", source: "s", read: "2026-11-15", cards: 1 },
@@ -189,7 +289,7 @@ describe("the checklist store", () => {
 
   it("the 2024-and-later files: the page each came from is logged, never a file name, and the spot cards are who the page says", async () => {
     const added = CHECKLIST_INDEX.filter((entry) => entry.source.includes("checklistinsider.com"));
-    assert.equal(added.length, 48);
+    assert.equal(added.length, 110);
     for (const entry of CHECKLIST_INDEX) assert.doesNotMatch(entry.source, /\.csv\b/i, entry.file);
     // Upper Deck Series 1 and Series 2 are one product, with both pages logged.
     for (const year of ["2024-25", "2025-26"]) {
@@ -233,6 +333,22 @@ describe("the checklist store", () => {
     assert.deepEqual(await only("Football", "2025", "Topps Resurgence", "11"), ["James Cook"]);
     assert.deepEqual(await only("Basketball", "2025-26", "Bowman U Best", "69"), ["Cameron Boozer"]);
     assert.deepEqual(await only("Basketball", "2025-26", "Bowman U Best", "97"), ["Cayden Boozer"]);
+    // One-word names (2026-11-17): the checklist names Ludacris, Ichiro and MIYAVI where the parser used to drop them.
+    assert.deepEqual(await only("Basketball", "2025-26", "Panini Prizm", "136"), ["Ludacris"]);
+    assert.deepEqual(await only("Basketball", "2025-26", "Panini Donruss", "122"), ["Ludacris"]);
+    assert.deepEqual(await only("Baseball", "2025", "Topps", "SOJ-7"), ["Ichiro"]);
+    assert.deepEqual(await only("Baseball", "2025", "Topps Update", "FPA-MIY"), ["MIYAVI"]);
+    // Mascots and cartoon characters stay out: 2025 Topps Mascots M-10 (Paws) has no player.
+    assert.deepEqual(await only("Baseball", "2025", "Topps", "M-10"), []);
+    // The 2023-2026 sets added the same day.
+    assert.deepEqual(await only("Basketball", "2023-24", "Panini Prizm", "136"), ["Victor Wembanyama"]);
+    assert.ok((await only("Basketball", "2025-26", "Topps", "201")).includes("Cooper Flagg"));
+    assert.ok((await only("Basketball", "2024-25", "Hoops", "1")).includes("Devin Booker"));
+    assert.ok((await only("Football", "2023", "Donruss Optic", "1")).includes("Anquan Boldin"));
+    assert.ok((await only("Football", "2024", "Topps Resurgence", "1")).includes("Kurt Warner"));
+    assert.ok((await only("Football", "2026", "Topps", "264")).includes("Cam Ward"));
+    assert.ok((await only("Baseball", "2026", "Topps Chrome", "1")).includes("Shohei Ohtani"));
+    assert.ok((await only("Baseball", "2024", "Topps Heritage", "1")).includes("Ronald Acuña Jr."));
     assert.deepEqual(await only("Basketball", "2025-26", "Bowman U Best", "9"), ["AJ Dybantsa"]);
     assert.deepEqual(await only("Football", "2025", "Bowman U Best", "1"), ["Avery Johnson"]);
     // The page's slips, fixed: "Tarris Reed JR." and "Zakiyah Johnson" in Game Graphs.

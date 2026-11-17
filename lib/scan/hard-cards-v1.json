@@ -10,7 +10,8 @@
   "A card may carry \"typical_ocr_back\": the back as read off a real photo, used in place of the built one (hc-074).",
   "\"parallel_unconfirmed\": the card is a parallel whose name no checklist confirms: showing nothing is open, showing any name is wrong. \"listing_titles_modeled\": the titles are written to match a sale the app showed, not copied from real listings (hc-074: the James Wood sale the wrong answer came from).",
   "\"kind\": \"slab\" scans the card as a graded slab: the front is the label as read, the back is the slab's back (hc-075).",
-  "hc-076 is the Nov 16 device miss (Jaxson Dart X-Fractor slab shown as Base). Here the label's variety line reads; the same slab with that line missed is the open case tracked in docs/scanner-audit.md (fix B). Its Quick Comp side is tested in lib/quick-comp/versions.test.ts."
+  "hc-076 is the Nov 16 device miss (Jaxson Dart X-Fractor slab shown as Base). Here the label's variety line reads; the same slab with that line missed is the open case tracked in docs/scanner-audit.md (fix B). Its Quick Comp side is tested in lib/quick-comp/versions.test.ts.",
+  "hc-087 to hc-090 are one-word names (Ludacris, Ichiro, MIYAVI) the checklist import used to drop; hc-091 to hc-100 come from the 2023-2026 checklists added on 2026-11-17. Their fronts and titles are modeled (\"listing_titles_modeled\"); player and card # are checked against the checklist page each names."
  ],
  "cards": [
   {
@@ -2575,6 +2576,409 @@
    "listing_title_examples": [],
    "listing_titles_modeled": true,
    "confidence": "player, card # and team checked against the 2025 Topps Chrome Football checklist (Base Rookies #306); front lines modeled; no photo_look on purpose"
+  },
+  {
+   "id": "hc-087",
+   "category": "one_word_name",
+   "year": "2025-26",
+   "manufacturer": "Panini",
+   "product": "Panini Prizm Basketball",
+   "card_number": "136",
+   "player": "Ludacris",
+   "team": "Music",
+   "parallel": null,
+   "print_run": null,
+   "sport": "basketball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "LUDACRIS"
+   ],
+   "why_hard": "One-word name: the checklist import used to drop every one-word name, so #136 had no player and a front with one word can't name anyone from our player list.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-26-panini-prizm-basketball"
+   ],
+   "listing_title_examples": [
+    "2025-26 Panini Prizm Ludacris #136",
+    "Ludacris 2025-26 Prizm Basketball #136 Music"
+   ],
+   "listing_titles_modeled": true,
+   "confidence": "player, card # checked against the 2025-26 Panini Prizm checklist (Base #136); front and titles modeled"
+  },
+  {
+   "id": "hc-088",
+   "category": "one_word_name",
+   "year": "2025-26",
+   "manufacturer": "Panini",
+   "product": "Panini Donruss Basketball",
+   "card_number": "122",
+   "player": "Ludacris",
+   "team": "Music",
+   "parallel": null,
+   "print_run": null,
+   "sport": "basketball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "DONRUSS",
+    "LUDACRIS"
+   ],
+   "why_hard": "One-word name on Donruss #122: dropped by the old import, so the checklist had no one at #122.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-26-donruss-basketball"
+   ],
+   "listing_title_examples": [
+    "2025-26 Donruss Basketball Ludacris #122",
+    "Ludacris 2025-26 Panini Donruss #122"
+   ],
+   "listing_titles_modeled": true,
+   "confidence": "player, card # checked against the 2025-26 Donruss checklist (Base #122); front and titles modeled"
+  },
+  {
+   "id": "hc-089",
+   "category": "one_word_name",
+   "year": "2025",
+   "manufacturer": "Topps",
+   "product": "Topps Series 1 Baseball",
+   "card_number": "SOJ-7",
+   "player": "Ichiro",
+   "team": "Seattle Mariners",
+   "parallel": null,
+   "print_run": null,
+   "sport": "baseball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "STARS OF JAPAN",
+    "ICHIRO",
+    "SEATTLE MARINERS"
+   ],
+   "why_hard": "One-word name on an insert: Ichiro prints only his first name. The old import dropped every Ichiro row.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-topps-series-1-baseball"
+   ],
+   "listing_title_examples": [
+    "2025 Topps Series 1 Stars of Japan Ichiro #SOJ-7 Mariners",
+    "Ichiro 2025 Topps Stars of Japan SOJ-7"
+   ],
+   "listing_titles_modeled": true,
+   "confidence": "player, card # checked against the 2025 Topps Series 1 checklist (Stars of Japan SOJ-7); front and titles modeled"
+  },
+  {
+   "id": "hc-090",
+   "category": "one_word_name",
+   "year": "2025",
+   "manufacturer": "Topps",
+   "product": "Topps Update Series Baseball",
+   "card_number": "FPU-3",
+   "player": "MIYAVI",
+   "team": "Los Angeles Dodgers",
+   "parallel": null,
+   "print_run": null,
+   "sport": "baseball",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "FIRST PITCH",
+    "MIYAVI",
+    "LOS ANGELES DODGERS"
+   ],
+   "why_hard": "One-word name, all caps, a musician on a First Pitch card. Dropped by the old import.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-topps-update-series-baseball"
+   ],
+   "listing_title_examples": [
+    "2025 Topps Update First Pitch MIYAVI #FPU-3 Dodgers",
+    "MIYAVI 2025 Topps Update First Pitch FPU-3"
+   ],
+   "listing_titles_modeled": true,
+   "confidence": "player, card # checked against the 2025 Topps Update checklist (First Pitch FPU-3); front and titles modeled"
+  },
+  {
+   "id": "hc-091",
+   "category": "new_checklist_2023_2026",
+   "year": "2023-24",
+   "manufacturer": "Panini",
+   "product": "Panini Prizm Basketball",
+   "card_number": "136",
+   "player": "Victor Wembanyama",
+   "team": "San Antonio Spurs",
+   "parallel": null,
+   "print_run": null,
+   "sport": "basketball",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "VICTOR WEMBANYAMA",
+    "SPURS",
+    "RC"
+   ],
+   "why_hard": "2023-24 Prizm had no checklist in the store (only Prizm Draft Picks).",
+   "source_urls": [
+    "https://www.checklistinsider.com/2023-24-panini-prizm-basketball"
+   ],
+   "listing_title_examples": [
+    "2023-24 Panini Prizm Victor Wembanyama #136 RC Spurs",
+    "Victor Wembanyama 2023 Prizm Rookie #136"
+   ],
+   "listing_titles_modeled": true,
+   "confidence": "player, card # checked against the 2023-24 Panini Prizm checklist (Base #136); front and titles modeled"
+  },
+  {
+   "id": "hc-092",
+   "category": "new_checklist_2023_2026",
+   "year": "2025-26",
+   "manufacturer": "Topps",
+   "product": "Topps Basketball",
+   "card_number": "201",
+   "player": "Cooper Flagg",
+   "team": "Dallas Mavericks",
+   "parallel": null,
+   "print_run": null,
+   "sport": "basketball",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "COOPER FLAGG",
+    "DALLAS MAVERICKS",
+    "RC"
+   ],
+   "why_hard": "2025-26 Topps flagship basketball is new to the store: Topps' first NBA flagship in years.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-26-topps-basketball"
+   ],
+   "listing_title_examples": [
+    "2025-26 Topps Basketball Cooper Flagg #201 RC Mavericks",
+    "Cooper Flagg 2025-26 Topps Flagship Rookie #201"
+   ],
+   "listing_titles_modeled": true,
+   "confidence": "player, card # checked against the 2025-26 Topps Basketball checklist (Base #201); front and titles modeled"
+  },
+  {
+   "id": "hc-093",
+   "category": "new_checklist_2023_2026",
+   "year": "2024-25",
+   "manufacturer": "Panini",
+   "product": "NBA Hoops Basketball",
+   "card_number": "231",
+   "player": "Zaccharie Risacher",
+   "team": "Atlanta Hawks",
+   "parallel": null,
+   "print_run": null,
+   "sport": "basketball",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "ZACCHARIE RISACHER",
+    "HAWKS",
+    "RC"
+   ],
+   "why_hard": "Hoops had no 2023-2026 checklist in the store.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2024-25-nba-hoops-basketball"
+   ],
+   "listing_title_examples": [
+    "2024-25 Panini NBA Hoops Zaccharie Risacher #231 RC",
+    "Zaccharie Risacher 2024-25 Hoops Rookie #231 Hawks"
+   ],
+   "listing_titles_modeled": true,
+   "confidence": "player, card # checked against the 2024-25 NBA Hoops checklist (Base #231); front and titles modeled"
+  },
+  {
+   "id": "hc-094",
+   "category": "new_checklist_2023_2026",
+   "year": "2023",
+   "manufacturer": "Panini",
+   "product": "Donruss Optic Football",
+   "card_number": "244",
+   "player": "C.J. Stroud",
+   "team": "Houston Texans",
+   "parallel": null,
+   "print_run": null,
+   "sport": "football",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "C.J. STROUD",
+    "TEXANS",
+    "RATED ROOKIE"
+   ],
+   "why_hard": "2023 Optic football had no checklist in the store.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2023-donruss-optic-football"
+   ],
+   "listing_title_examples": [
+    "2023 Donruss Optic C.J. Stroud Rated Rookie #244 Texans",
+    "CJ Stroud 2023 Optic RC #244"
+   ],
+   "listing_titles_modeled": true,
+   "confidence": "player, card # checked against the 2023 Donruss Optic checklist (Base Rated Rookie #244); front and titles modeled"
+  },
+  {
+   "id": "hc-095",
+   "category": "new_checklist_2023_2026",
+   "year": "2024",
+   "manufacturer": "Topps",
+   "product": "Topps Resurgence Football",
+   "card_number": "117",
+   "player": "Caleb Williams",
+   "team": "Chicago Bears",
+   "parallel": null,
+   "print_run": null,
+   "sport": "football",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "CALEB WILLIAMS",
+    "CHICAGO BEARS",
+    "RC"
+   ],
+   "why_hard": "2024 Topps Resurgence had no checklist in the store (2025 only).",
+   "source_urls": [
+    "https://www.checklistinsider.com/2024-topps-resurgence-football"
+   ],
+   "listing_title_examples": [
+    "2024 Topps Resurgence Caleb Williams #117 RC Bears",
+    "Caleb Williams 2024 Resurgence Rookie #117"
+   ],
+   "listing_titles_modeled": true,
+   "confidence": "player, card # checked against the 2024 Topps Resurgence checklist (Base Rookies #117); front and titles modeled"
+  },
+  {
+   "id": "hc-096",
+   "category": "new_checklist_2023_2026",
+   "year": "2026",
+   "manufacturer": "Topps",
+   "product": "Topps Football",
+   "card_number": "264",
+   "player": "Cam Ward",
+   "team": "Tennessee Titans",
+   "parallel": null,
+   "print_run": null,
+   "sport": "football",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "CAM WARD",
+    "TENNESSEE TITANS",
+    "QUARTERBACK"
+   ],
+   "why_hard": "2026 Topps flagship football is new to the store.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2026-topps-flagship-football"
+   ],
+   "listing_title_examples": [
+    "2026 Topps Football Cam Ward #264 Titans",
+    "Cam Ward 2026 Topps Flagship #264"
+   ],
+   "listing_titles_modeled": true,
+   "confidence": "player, card # checked against the 2026 Topps Football checklist (Base #264); front and titles modeled"
+  },
+  {
+   "id": "hc-097",
+   "category": "new_checklist_2023_2026",
+   "year": "2026",
+   "manufacturer": "Topps",
+   "product": "Topps Chrome Baseball",
+   "card_number": "74",
+   "player": "Konnor Griffin",
+   "team": "Pittsburgh Pirates",
+   "parallel": null,
+   "print_run": null,
+   "sport": "baseball",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "TOPPS CHROME",
+    "KONNOR GRIFFIN",
+    "PITTSBURGH PIRATES",
+    "RC"
+   ],
+   "why_hard": "2026 Topps Chrome baseball had no checklist in the store.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2026-topps-chrome-baseball"
+   ],
+   "listing_title_examples": [
+    "2026 Topps Chrome Konnor Griffin #74 RC Pirates",
+    "Konnor Griffin 2026 Topps Chrome Rookie #74"
+   ],
+   "listing_titles_modeled": true,
+   "confidence": "player, card # checked against the 2026 Topps Chrome checklist (Base #74); front and titles modeled"
+  },
+  {
+   "id": "hc-098",
+   "category": "new_checklist_2023_2026",
+   "year": "2024",
+   "manufacturer": "Topps",
+   "product": "Topps Heritage Baseball",
+   "card_number": "136",
+   "player": "Jackson Holliday",
+   "team": "Baltimore Orioles",
+   "parallel": null,
+   "print_run": null,
+   "sport": "baseball",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "JACKSON HOLLIDAY",
+    "ORIOLES"
+   ],
+   "why_hard": "Topps Heritage had no checklist after 2018 in the store.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2024-topps-heritage-baseball"
+   ],
+   "listing_title_examples": [
+    "2024 Topps Heritage Jackson Holliday #136 RC Orioles",
+    "Jackson Holliday 2024 Heritage Rookie #136"
+   ],
+   "listing_titles_modeled": true,
+   "confidence": "player, card # checked against the 2024 Topps Heritage checklist (Base #136); front and titles modeled"
+  },
+  {
+   "id": "hc-099",
+   "category": "new_checklist_2023_2026",
+   "year": "2025",
+   "manufacturer": "Topps",
+   "product": "Topps Finest Baseball",
+   "card_number": "250",
+   "player": "Nick Kurtz",
+   "team": "Athletics",
+   "parallel": null,
+   "print_run": null,
+   "sport": "baseball",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "FINEST",
+    "NICK KURTZ",
+    "ATHLETICS"
+   ],
+   "why_hard": "Topps Finest had no checklist after 2023 in the store.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2025-topps-finest-baseball"
+   ],
+   "listing_title_examples": [
+    "2025 Topps Finest Nick Kurtz #250 RC Athletics",
+    "Nick Kurtz 2025 Finest Rookie #250"
+   ],
+   "listing_titles_modeled": true,
+   "confidence": "player, card # checked against the 2025 Topps Finest checklist (Base #250); front and titles modeled"
+  },
+  {
+   "id": "hc-100",
+   "category": "new_checklist_2023_2026",
+   "year": "2023-24",
+   "manufacturer": "Topps",
+   "product": "Topps Chrome Basketball",
+   "card_number": "1",
+   "player": "Victor Wembanyama",
+   "team": "San Antonio Spurs",
+   "parallel": null,
+   "print_run": null,
+   "sport": "basketball",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "TOPPS CHROME",
+    "VICTOR WEMBANYAMA",
+    "RC"
+   ],
+   "why_hard": "2023-24 Topps Chrome basketball had no checklist in the store. Card #1 is a bare number on the back.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2023-24-topps-chrome-basketball"
+   ],
+   "listing_title_examples": [
+    "2023-24 Topps Chrome Victor Wembanyama #1 RC",
+    "Victor Wembanyama 2023-24 Topps Chrome Rookie #1"
+   ],
+   "listing_titles_modeled": true,
+   "confidence": "player, card # checked against the 2023-24 Topps Chrome checklist (Base #1); front and titles modeled"
   }
  ]
 }

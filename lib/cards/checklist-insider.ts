@@ -87,6 +87,8 @@ export const PAGE_CORRECTIONS: Readonly<Record<string, PageCorrections>> = {
   "2025 Topps Series 1 Baseball": { names: { "Kiké Hernández": "Enrique Hernández" } },
   "2025 Topps Series 2 Baseball": { names: { "Kiké Hernández": "Enrique Hernández" } },
   "2026 Topps Series 2 Baseball": { names: { "Kiké Hernández": "Enrique Hernández" } },
+  "2026 Topps Chrome Baseball": { names: { "Kiké Hernández": "Enrique Hernández" } },
+  "2026 Topps Chrome Update Baseball": { names: { "Kiké Hernández": "Enrique Hernández" } },
   "2024 Topps Series 2 Baseball": {
     names: { 'Jackson Holliday "Fun Face"': "Jackson Holliday" },
   },
