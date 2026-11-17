@@ -1,0 +1,2015 @@
+{
+ "sport": "Basketball",
+ "yearLabel": "2026-27",
+ "product": "Topps",
+ "manufacturer": "Topps",
+ "source": "https://www.checklistinsider.com/2026-27-topps-flagship-basketball",
+ "official": false,
+ "parallels": [
+  {
+   "subset": "Base",
+   "name": "Rainbow Foilboard",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Aqua Rainbow",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Gold",
+   "serialRun": 2026
+  },
+  {
+   "subset": "Base",
+   "name": "Yellow Rainbow",
+   "serialRun": 399
+  },
+  {
+   "subset": "Base",
+   "name": "Purple Rainbow",
+   "serialRun": 250
+  },
+  {
+   "subset": "Base",
+   "name": "Blue Rainbow",
+   "serialRun": 150
+  },
+  {
+   "subset": "Base",
+   "name": "Green Rainbow",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base",
+   "name": "Black",
+   "serialRun": 75
+  },
+  {
+   "subset": "Base",
+   "name": "Gold Rainbow",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base",
+   "name": "Orange Rainbow",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base",
+   "name": "Wood",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base",
+   "name": "Black Rainbow",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base",
+   "name": "Red Rainbow",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base",
+   "name": "First Card",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base",
+   "name": "Victory",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Sandglitter",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Blue Sandglitter",
+   "serialRun": 500
+  },
+  {
+   "subset": "Base",
+   "name": "Gold Sandglitter",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base",
+   "name": "Orange Sandglitter",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base",
+   "name": "Black Sandglitter",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base",
+   "name": "Red Sandglitter",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base",
+   "name": "Storm",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Holo Foil",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Pink Holo Foil",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Aqua Holo Foil",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Yellow Holo Foil",
+   "serialRun": 399
+  },
+  {
+   "subset": "Base",
+   "name": "Purple Holo Foil",
+   "serialRun": 250
+  },
+  {
+   "subset": "Base",
+   "name": "Blue Holo Foil",
+   "serialRun": 150
+  },
+  {
+   "subset": "Base",
+   "name": "Green Holo Foil",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base",
+   "name": "Gold Holo Foil",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base",
+   "name": "Orange Holo Foil",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base",
+   "name": "Black Holo Foil",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base",
+   "name": "Red Holo Foil",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base",
+   "name": "Rose Gold Holo Foil",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base",
+   "name": "Diamante",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Pink Diamante",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Green Diamante",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base",
+   "name": "Gold Diamante",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base",
+   "name": "Orange Diamante",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base",
+   "name": "Black Diamante",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base",
+   "name": "Red Diamante",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base",
+   "name": "Season Tip Off",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Season Tip Off Pink Foil",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Season Tip Off Green Foil",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base",
+   "name": "Season Tip Off Gold Foil",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base",
+   "name": "Season Tip Off Orange Foil",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base",
+   "name": "Season Tip Off Black Foil",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base",
+   "name": "Season Tip Off Red Foil",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base",
+   "name": "Season Tip Off Rose Gold Foil",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base",
+   "name": "Topps Foil Pattern",
+   "serialRun": null
+  },
+  {
+   "subset": "Base LeBron James 76ers SP",
+   "name": "Blue Rainbow",
+   "serialRun": 150
+  },
+  {
+   "subset": "Base LeBron James 76ers SP",
+   "name": "Green Rainbow",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base LeBron James 76ers SP",
+   "name": "Gold Rainbow",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base LeBron James 76ers SP",
+   "name": "Orange Rainbow",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base LeBron James 76ers SP",
+   "name": "Black Rainbow",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base LeBron James 76ers SP",
+   "name": "Red Rainbow",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base LeBron James 76ers SP",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base All-Star Game",
+   "name": "Green",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base All-Star Game",
+   "name": "Gold",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base All-Star Game",
+   "name": "Orange 25",
+   "serialRun": null
+  },
+  {
+   "subset": "Base All-Star Game",
+   "name": "Black",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base All-Star Game",
+   "name": "Red",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base All-Star Game",
+   "name": "Platinum",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base All-Star Game",
+   "name": "Full base set above",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Blackout",
+   "name": "Surge",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Blackout",
+   "name": "Flash Drop",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Blackout",
+   "name": "Cart Load",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Blackout",
+   "name": "Cyber Circuit",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Blackout",
+   "name": "Doorbuster",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Blackout",
+   "name": "Full base set above",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Break Point",
+   "name": "Blue Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Base Break Point",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base Break Point",
+   "name": "Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Base Break Point",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base Break Point",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Break Point",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Break Point",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Break Point",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Project Rookie",
+   "name": "Blue",
+   "serialRun": 150
+  },
+  {
+   "subset": "Base Project Rookie",
+   "name": "Green",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base Project Rookie",
+   "name": "Purple",
+   "serialRun": 75
+  },
+  {
+   "subset": "Base Project Rookie",
+   "name": "Gold",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base Project Rookie",
+   "name": "Orange",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Project Rookie",
+   "name": "Black",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Project Rookie",
+   "name": "Red",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Project Rookie",
+   "name": "Platinum",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Facsimile Autographs",
+   "name": "Lightning",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Facsimile Autographs",
+   "name": "Swirl",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Facsimile Autographs",
+   "name": "Fame",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Facsimile Autographs",
+   "name": "Explosion",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Facsimile Autographs",
+   "name": "Green",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base Facsimile Autographs",
+   "name": "Yellow",
+   "serialRun": 75
+  },
+  {
+   "subset": "Base Facsimile Autographs",
+   "name": "Gold",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base Facsimile Autographs",
+   "name": "Orange",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Facsimile Autographs",
+   "name": "Black",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Facsimile Autographs",
+   "name": "Red",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Facsimile Autographs",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Flagship Real One Autograph",
+   "name": "Gold Rainbow",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base Flagship Real One Autograph",
+   "name": "Orange Rainbow",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Flagship Real One Autograph",
+   "name": "Black Rainbow",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Flagship Real One Autograph",
+   "name": "Red Rainbow",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Flagship Real One Autograph",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Flagship Real One Autograph",
+   "name": "Gold Rainbow",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base Flagship Real One Autograph",
+   "name": "Orange Rainbow",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Flagship Real One Autograph",
+   "name": "Black Rainbow",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Flagship Real One Autograph",
+   "name": "Red Rainbow",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Flagship Real One Autograph",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Flagship Real One Autograph (LeBron/SGA)",
+   "name": "Orange Rainbow",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Flagship Real One Autograph (LeBron/SGA)",
+   "name": "Black Rainbow",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Flagship Real One Autograph (LeBron/SGA)",
+   "name": "Red Rainbow",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Flagship Real One Autograph (LeBron/SGA)",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Flagship Real One Autographs Dylan Wang",
+   "name": "Gold Rainbow",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base Flagship Real One Autographs Dylan Wang",
+   "name": "Black Rainbow",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Flagship Real One Autographs Dylan Wang",
+   "name": "Red Rainbow",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Flagship Real One Autographs Dylan Wang",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Flagship Real One Relics",
+   "name": "Gold Rainbow",
+   "serialRun": 50
+  },
+  {
+   "subset": "Flagship Real One Relics",
+   "name": "Orange Rainbow",
+   "serialRun": 25
+  },
+  {
+   "subset": "Flagship Real One Relics",
+   "name": "Black Rainbow",
+   "serialRun": 10
+  },
+  {
+   "subset": "Flagship Real One Relics",
+   "name": "Red Rainbow",
+   "serialRun": 5
+  },
+  {
+   "subset": "Flagship Real One Relics",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Flagship Real One Relics",
+   "name": "Gold Rainbow",
+   "serialRun": 50
+  },
+  {
+   "subset": "Flagship Real One Relics",
+   "name": "Orange Rainbow",
+   "serialRun": 25
+  },
+  {
+   "subset": "Flagship Real One Relics",
+   "name": "Black Rainbow",
+   "serialRun": 10
+  },
+  {
+   "subset": "Flagship Real One Relics",
+   "name": "Red Rainbow",
+   "serialRun": 5
+  },
+  {
+   "subset": "Flagship Real One Relics",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "1981-82 Topps Autographs",
+   "name": "Gold Rainbow",
+   "serialRun": 50
+  },
+  {
+   "subset": "1981-82 Topps Autographs",
+   "name": "Orange Rainbow",
+   "serialRun": 25
+  },
+  {
+   "subset": "1981-82 Topps Autographs",
+   "name": "Black Rainbow",
+   "serialRun": 10
+  },
+  {
+   "subset": "1981-82 Topps Autographs",
+   "name": "Red Rainbow",
+   "serialRun": 5
+  },
+  {
+   "subset": "1981-82 Topps Autographs",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "1981-82 Topps Rookie Autographs",
+   "name": "Gold Rainbow",
+   "serialRun": 50
+  },
+  {
+   "subset": "1981-82 Topps Rookie Autographs",
+   "name": "Orange Rainbow",
+   "serialRun": 25
+  },
+  {
+   "subset": "1981-82 Topps Rookie Autographs",
+   "name": "Black Rainbow",
+   "serialRun": 10
+  },
+  {
+   "subset": "1981-82 Topps Rookie Autographs",
+   "name": "Red Rainbow",
+   "serialRun": 5
+  },
+  {
+   "subset": "1981-82 Topps Rookie Autographs",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "1981-82 Topps Chrome Autographs Mojo",
+   "name": "Gold Mojo Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "1981-82 Topps Chrome Autographs Mojo",
+   "name": "Orange Mojo Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "1981-82 Topps Chrome Autographs Mojo",
+   "name": "Black Mojo Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "1981-82 Topps Chrome Autographs Mojo",
+   "name": "Red Mojo Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "1981-82 Topps Chrome Autographs Mojo",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "1981-82 Topps Chrome Rookie Autographs Mojo",
+   "name": "Gold Mojo Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "1981-82 Topps Chrome Rookie Autographs Mojo",
+   "name": "Orange Mojo Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "1981-82 Topps Chrome Rookie Autographs Mojo",
+   "name": "Black Mojo Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "1981-82 Topps Chrome Rookie Autographs Mojo",
+   "name": "Red Mojo Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "1981-82 Topps Chrome Rookie Autographs Mojo",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Contemporary Marks",
+   "name": "Rainbow Foilboard",
+   "serialRun": null
+  },
+  {
+   "subset": "Contemporary Marks",
+   "name": "Green Rainbow",
+   "serialRun": 99
+  },
+  {
+   "subset": "Contemporary Marks",
+   "name": "Gold Rainbow",
+   "serialRun": 50
+  },
+  {
+   "subset": "Contemporary Marks",
+   "name": "Orange Rainbow",
+   "serialRun": 25
+  },
+  {
+   "subset": "Contemporary Marks",
+   "name": "Black Rainbow",
+   "serialRun": 10
+  },
+  {
+   "subset": "Contemporary Marks",
+   "name": "Red Rainbow",
+   "serialRun": 5
+  },
+  {
+   "subset": "Contemporary Marks",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Game Script",
+   "name": "Rainbow Foilboard",
+   "serialRun": null
+  },
+  {
+   "subset": "Game Script",
+   "name": "Green Rainbow",
+   "serialRun": 99
+  },
+  {
+   "subset": "Game Script",
+   "name": "Gold Rainbow",
+   "serialRun": 50
+  },
+  {
+   "subset": "Game Script",
+   "name": "Orange Rainbow",
+   "serialRun": 25
+  },
+  {
+   "subset": "Game Script",
+   "name": "Black Rainbow",
+   "serialRun": 10
+  },
+  {
+   "subset": "Game Script",
+   "name": "Red Rainbow",
+   "serialRun": 5
+  },
+  {
+   "subset": "Game Script",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Level Up Signatures",
+   "name": "Rainbow Foilboard",
+   "serialRun": null
+  },
+  {
+   "subset": "Level Up Signatures",
+   "name": "Green Rainbow",
+   "serialRun": 99
+  },
+  {
+   "subset": "Level Up Signatures",
+   "name": "Gold Rainbow",
+   "serialRun": 50
+  },
+  {
+   "subset": "Level Up Signatures",
+   "name": "Orange Rainbow",
+   "serialRun": 25
+  },
+  {
+   "subset": "Level Up Signatures",
+   "name": "Black Rainbow",
+   "serialRun": 10
+  },
+  {
+   "subset": "Level Up Signatures",
+   "name": "Red Rainbow",
+   "serialRun": 5
+  },
+  {
+   "subset": "Level Up Signatures",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "New Applicants Autographs",
+   "name": "Rainbow Foilboard",
+   "serialRun": null
+  },
+  {
+   "subset": "New Applicants Autographs",
+   "name": "Green Rainbow",
+   "serialRun": 99
+  },
+  {
+   "subset": "New Applicants Autographs",
+   "name": "Gold Rainbow",
+   "serialRun": 50
+  },
+  {
+   "subset": "New Applicants Autographs",
+   "name": "Orange Rainbow",
+   "serialRun": 25
+  },
+  {
+   "subset": "New Applicants Autographs",
+   "name": "Black Rainbow",
+   "serialRun": 10
+  },
+  {
+   "subset": "New Applicants Autographs",
+   "name": "Red Rainbow",
+   "serialRun": 5
+  },
+  {
+   "subset": "New Applicants Autographs",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Rookie Pathway Signatures",
+   "name": "Gold Rainbow",
+   "serialRun": 50
+  },
+  {
+   "subset": "Rookie Pathway Signatures",
+   "name": "Orange Rainbow",
+   "serialRun": 25
+  },
+  {
+   "subset": "Rookie Pathway Signatures",
+   "name": "Black Rainbow",
+   "serialRun": 10
+  },
+  {
+   "subset": "Rookie Pathway Signatures",
+   "name": "Red Rainbow",
+   "serialRun": 5
+  },
+  {
+   "subset": "Rookie Pathway Signatures",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Rookie Photo Shoot Autographs",
+   "name": "Red",
+   "serialRun": 5
+  },
+  {
+   "subset": "Rookie Photo Shoot Autographs",
+   "name": "Platinum",
+   "serialRun": 1
+  },
+  {
+   "subset": "#Signed",
+   "name": "Rainbow Foilboard",
+   "serialRun": null
+  },
+  {
+   "subset": "#Signed",
+   "name": "Green Rainbow",
+   "serialRun": 99
+  },
+  {
+   "subset": "#Signed",
+   "name": "Gold Rainbow",
+   "serialRun": 50
+  },
+  {
+   "subset": "#Signed",
+   "name": "Orange Rainbow",
+   "serialRun": 25
+  },
+  {
+   "subset": "#Signed",
+   "name": "Black Rainbow",
+   "serialRun": 10
+  },
+  {
+   "subset": "#Signed",
+   "name": "Red Rainbow",
+   "serialRun": 5
+  },
+  {
+   "subset": "#Signed",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Franchise Fabrics",
+   "name": "Rainbow Foilboard",
+   "serialRun": null
+  },
+  {
+   "subset": "Franchise Fabrics",
+   "name": "Green Rainbow",
+   "serialRun": 99
+  },
+  {
+   "subset": "Franchise Fabrics",
+   "name": "Gold Rainbow",
+   "serialRun": 50
+  },
+  {
+   "subset": "Franchise Fabrics",
+   "name": "Orange Rainbow",
+   "serialRun": 25
+  },
+  {
+   "subset": "Franchise Fabrics",
+   "name": "Black Rainbow",
+   "serialRun": 10
+  },
+  {
+   "subset": "Franchise Fabrics",
+   "name": "Red Rainbow",
+   "serialRun": 5
+  },
+  {
+   "subset": "Franchise Fabrics",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Impact Relics",
+   "name": "Rainbow Foilboard",
+   "serialRun": null
+  },
+  {
+   "subset": "Impact Relics",
+   "name": "Green Rainbow",
+   "serialRun": 99
+  },
+  {
+   "subset": "Impact Relics",
+   "name": "Gold Rainbow",
+   "serialRun": 50
+  },
+  {
+   "subset": "Impact Relics",
+   "name": "Orange Rainbow",
+   "serialRun": 25
+  },
+  {
+   "subset": "Impact Relics",
+   "name": "Black Rainbow",
+   "serialRun": 10
+  },
+  {
+   "subset": "Impact Relics",
+   "name": "Red Rainbow",
+   "serialRun": 5
+  },
+  {
+   "subset": "Impact Relics",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Own the Game",
+   "name": "Rainbow Foilboard",
+   "serialRun": null
+  },
+  {
+   "subset": "Own the Game",
+   "name": "Green Rainbow",
+   "serialRun": 99
+  },
+  {
+   "subset": "Own the Game",
+   "name": "Gold Rainbow",
+   "serialRun": 50
+  },
+  {
+   "subset": "Own the Game",
+   "name": "Orange Rainbow",
+   "serialRun": 25
+  },
+  {
+   "subset": "Own the Game",
+   "name": "Black Rainbow",
+   "serialRun": 10
+  },
+  {
+   "subset": "Own the Game",
+   "name": "Red Rainbow",
+   "serialRun": 5
+  },
+  {
+   "subset": "Own the Game",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Rise to the Occasion Relics",
+   "name": "Rainbow Foilboard",
+   "serialRun": null
+  },
+  {
+   "subset": "Rise to the Occasion Relics",
+   "name": "Green Rainbow",
+   "serialRun": 99
+  },
+  {
+   "subset": "Rise to the Occasion Relics",
+   "name": "Gold Rainbow",
+   "serialRun": 50
+  },
+  {
+   "subset": "Rise to the Occasion Relics",
+   "name": "Orange Rainbow",
+   "serialRun": 25
+  },
+  {
+   "subset": "Rise to the Occasion Relics",
+   "name": "Black Rainbow",
+   "serialRun": 10
+  },
+  {
+   "subset": "Rise to the Occasion Relics",
+   "name": "Red Rainbow",
+   "serialRun": 5
+  },
+  {
+   "subset": "Rise to the Occasion Relics",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Rookie Roundball Remnants",
+   "name": "Rainbow Foilboard",
+   "serialRun": null
+  },
+  {
+   "subset": "Rookie Roundball Remnants",
+   "name": "Green Rainbow",
+   "serialRun": 99
+  },
+  {
+   "subset": "Rookie Roundball Remnants",
+   "name": "Gold Rainbow",
+   "serialRun": 50
+  },
+  {
+   "subset": "Rookie Roundball Remnants",
+   "name": "Orange Rainbow",
+   "serialRun": 25
+  },
+  {
+   "subset": "Rookie Roundball Remnants",
+   "name": "Black Rainbow",
+   "serialRun": 10
+  },
+  {
+   "subset": "Rookie Roundball Remnants",
+   "name": "Red Rainbow",
+   "serialRun": 5
+  },
+  {
+   "subset": "Rookie Roundball Remnants",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Woven Relics",
+   "name": "Rainbow Foilboard",
+   "serialRun": null
+  },
+  {
+   "subset": "Woven Relics",
+   "name": "Green Rainbow",
+   "serialRun": 99
+  },
+  {
+   "subset": "Woven Relics",
+   "name": "Gold Rainbow",
+   "serialRun": 50
+  },
+  {
+   "subset": "Woven Relics",
+   "name": "Orange Rainbow",
+   "serialRun": 25
+  },
+  {
+   "subset": "Woven Relics",
+   "name": "Black Rainbow",
+   "serialRun": 10
+  },
+  {
+   "subset": "Woven Relics",
+   "name": "Red Rainbow",
+   "serialRun": 5
+  },
+  {
+   "subset": "Woven Relics",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "1981-82 Topps",
+   "name": "Pink",
+   "serialRun": null
+  },
+  {
+   "subset": "1981-82 Topps",
+   "name": "Green",
+   "serialRun": 99
+  },
+  {
+   "subset": "1981-82 Topps",
+   "name": "Gold",
+   "serialRun": 50
+  },
+  {
+   "subset": "1981-82 Topps",
+   "name": "Orange",
+   "serialRun": 25
+  },
+  {
+   "subset": "1981-82 Topps",
+   "name": "Black",
+   "serialRun": 10
+  },
+  {
+   "subset": "1981-82 Topps",
+   "name": "Red",
+   "serialRun": 5
+  },
+  {
+   "subset": "1981-82 Topps",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "1981-82 Topps",
+   "name": "Base ASG",
+   "serialRun": null
+  },
+  {
+   "subset": "1981-82 Topps",
+   "name": "Green",
+   "serialRun": 99
+  },
+  {
+   "subset": "1981-82 Topps",
+   "name": "Gold",
+   "serialRun": 50
+  },
+  {
+   "subset": "1981-82 Topps",
+   "name": "Orange 25",
+   "serialRun": null
+  },
+  {
+   "subset": "1981-82 Topps",
+   "name": "Black",
+   "serialRun": 10
+  },
+  {
+   "subset": "1981-82 Topps",
+   "name": "Red",
+   "serialRun": 5
+  },
+  {
+   "subset": "1981-82 Topps",
+   "name": "Platinum",
+   "serialRun": 1
+  },
+  {
+   "subset": "1981-82 Topps Chrome Mojo",
+   "name": "Aqua Mojo Refractor",
+   "serialRun": 199
+  },
+  {
+   "subset": "1981-82 Topps Chrome Mojo",
+   "name": "Blue Mojo Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "1981-82 Topps Chrome Mojo",
+   "name": "Green Mojo Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "1981-82 Topps Chrome Mojo",
+   "name": "Gold Mojo Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "1981-82 Topps Chrome Mojo",
+   "name": "Orange Mojo Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "1981-82 Topps Chrome Mojo",
+   "name": "Black Mojo Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "1981-82 Topps Chrome Mojo",
+   "name": "Red Mojo Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "1981-82 Topps Chrome Mojo",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "All Kings",
+   "name": "Gold",
+   "serialRun": 1
+  },
+  {
+   "subset": "Class of 26",
+   "name": "Red",
+   "serialRun": 5
+  },
+  {
+   "subset": "Class of 26",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Crafted Excellence",
+   "name": "Green",
+   "serialRun": 99
+  },
+  {
+   "subset": "Crafted Excellence",
+   "name": "Yellow",
+   "serialRun": 75
+  },
+  {
+   "subset": "Crafted Excellence",
+   "name": "Gold",
+   "serialRun": 50
+  },
+  {
+   "subset": "Crafted Excellence",
+   "name": "Orange 25",
+   "serialRun": null
+  },
+  {
+   "subset": "Crafted Excellence",
+   "name": "Black",
+   "serialRun": 10
+  },
+  {
+   "subset": "Crafted Excellence",
+   "name": "Red",
+   "serialRun": 5
+  },
+  {
+   "subset": "Crafted Excellence",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Drivers",
+   "name": "Rainbow Foilboard",
+   "serialRun": null
+  },
+  {
+   "subset": "Drivers",
+   "name": "Purple Rainbow",
+   "serialRun": 250
+  },
+  {
+   "subset": "Drivers",
+   "name": "Blue Rainbow",
+   "serialRun": 150
+  },
+  {
+   "subset": "Drivers",
+   "name": "Green Rainbow",
+   "serialRun": 99
+  },
+  {
+   "subset": "Drivers",
+   "name": "Gold Rainbow",
+   "serialRun": 50
+  },
+  {
+   "subset": "Drivers",
+   "name": "Orange Rainbow",
+   "serialRun": 25
+  },
+  {
+   "subset": "Drivers",
+   "name": "Black Rainbow",
+   "serialRun": 10
+  },
+  {
+   "subset": "Drivers",
+   "name": "Red Rainbow",
+   "serialRun": 5
+  },
+  {
+   "subset": "Drivers",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "From The Stands",
+   "name": "Gold",
+   "serialRun": 50
+  },
+  {
+   "subset": "From The Stands",
+   "name": "Orange 25",
+   "serialRun": null
+  },
+  {
+   "subset": "From The Stands",
+   "name": "Black",
+   "serialRun": 10
+  },
+  {
+   "subset": "From The Stands",
+   "name": "Red",
+   "serialRun": 5
+  },
+  {
+   "subset": "From The Stands",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "From the Vault",
+   "name": "Green Rainbow",
+   "serialRun": 99
+  },
+  {
+   "subset": "From the Vault",
+   "name": "Gold Rainbow",
+   "serialRun": 50
+  },
+  {
+   "subset": "From the Vault",
+   "name": "Orange Rainbow",
+   "serialRun": 25
+  },
+  {
+   "subset": "From the Vault",
+   "name": "Black Rainbow",
+   "serialRun": 10
+  },
+  {
+   "subset": "From the Vault",
+   "name": "Red Rainbow",
+   "serialRun": 5
+  },
+  {
+   "subset": "From the Vault",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Generation Now",
+   "name": "Rainbow Foilboard",
+   "serialRun": null
+  },
+  {
+   "subset": "Generation Now",
+   "name": "Purple Rainbow",
+   "serialRun": 250
+  },
+  {
+   "subset": "Generation Now",
+   "name": "Blue Rainbow",
+   "serialRun": 150
+  },
+  {
+   "subset": "Generation Now",
+   "name": "Green Rainbow",
+   "serialRun": 99
+  },
+  {
+   "subset": "Generation Now",
+   "name": "Gold Rainbow",
+   "serialRun": 50
+  },
+  {
+   "subset": "Generation Now",
+   "name": "Orange Rainbow",
+   "serialRun": 25
+  },
+  {
+   "subset": "Generation Now",
+   "name": "Black Rainbow",
+   "serialRun": 10
+  },
+  {
+   "subset": "Generation Now",
+   "name": "Red Rainbow",
+   "serialRun": 5
+  },
+  {
+   "subset": "Generation Now",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Levitation",
+   "name": "Green Rainbow",
+   "serialRun": 99
+  },
+  {
+   "subset": "Levitation",
+   "name": "Gold Rainbow",
+   "serialRun": 50
+  },
+  {
+   "subset": "Levitation",
+   "name": "Orange Rainbow",
+   "serialRun": 25
+  },
+  {
+   "subset": "Levitation",
+   "name": "Black Rainbow",
+   "serialRun": 10
+  },
+  {
+   "subset": "Levitation",
+   "name": "Red Rainbow",
+   "serialRun": 5
+  },
+  {
+   "subset": "Levitation",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Levitation",
+   "name": "Green Rainbow",
+   "serialRun": 99
+  },
+  {
+   "subset": "Levitation",
+   "name": "Gold Rainbow",
+   "serialRun": 50
+  },
+  {
+   "subset": "Levitation",
+   "name": "Orange Rainbow",
+   "serialRun": 25
+  },
+  {
+   "subset": "Levitation",
+   "name": "Black Rainbow",
+   "serialRun": 10
+  },
+  {
+   "subset": "Levitation",
+   "name": "Red Rainbow",
+   "serialRun": 5
+  },
+  {
+   "subset": "Levitation",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Limited Stock",
+   "name": "Surge",
+   "serialRun": null
+  },
+  {
+   "subset": "Limited Stock",
+   "name": "Flash Drop",
+   "serialRun": null
+  },
+  {
+   "subset": "Limited Stock",
+   "name": "Cart Load",
+   "serialRun": null
+  },
+  {
+   "subset": "Limited Stock",
+   "name": "Cyber Circuit",
+   "serialRun": null
+  },
+  {
+   "subset": "Limited Stock",
+   "name": "Doorbuster",
+   "serialRun": null
+  },
+  {
+   "subset": "New School",
+   "name": "Green Rainbow",
+   "serialRun": 99
+  },
+  {
+   "subset": "New School",
+   "name": "Gold Rainbow",
+   "serialRun": 50
+  },
+  {
+   "subset": "New School",
+   "name": "Orange Rainbow",
+   "serialRun": 25
+  },
+  {
+   "subset": "New School",
+   "name": "Black Rainbow",
+   "serialRun": 10
+  },
+  {
+   "subset": "New School",
+   "name": "Red Rainbow",
+   "serialRun": 5
+  },
+  {
+   "subset": "New School",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "No Limit",
+   "name": "Rainbow Foilboard",
+   "serialRun": null
+  },
+  {
+   "subset": "No Limit",
+   "name": "Purple Rainbow",
+   "serialRun": 250
+  },
+  {
+   "subset": "No Limit",
+   "name": "Blue Rainbow",
+   "serialRun": 150
+  },
+  {
+   "subset": "No Limit",
+   "name": "Green Rainbow",
+   "serialRun": 99
+  },
+  {
+   "subset": "No Limit",
+   "name": "Gold Rainbow",
+   "serialRun": 50
+  },
+  {
+   "subset": "No Limit",
+   "name": "Orange Rainbow",
+   "serialRun": 25
+  },
+  {
+   "subset": "No Limit",
+   "name": "Black Rainbow",
+   "serialRun": 10
+  },
+  {
+   "subset": "No Limit",
+   "name": "Red Rainbow",
+   "serialRun": 5
+  },
+  {
+   "subset": "No Limit",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Oversized Topps Card",
+   "name": "Orange",
+   "serialRun": 25
+  },
+  {
+   "subset": "Oversized Topps Card",
+   "name": "Black",
+   "serialRun": 10
+  },
+  {
+   "subset": "Oversized Topps Card",
+   "name": "Red",
+   "serialRun": 5
+  },
+  {
+   "subset": "Oversized Topps Card",
+   "name": "Platinum",
+   "serialRun": 1
+  },
+  {
+   "subset": "Poster Factory",
+   "name": "Rainbow Foilboard",
+   "serialRun": null
+  },
+  {
+   "subset": "Poster Factory",
+   "name": "Purple Rainbow",
+   "serialRun": 250
+  },
+  {
+   "subset": "Poster Factory",
+   "name": "Blue Rainbow",
+   "serialRun": 150
+  },
+  {
+   "subset": "Poster Factory",
+   "name": "Green Rainbow",
+   "serialRun": 99
+  },
+  {
+   "subset": "Poster Factory",
+   "name": "Gold Rainbow",
+   "serialRun": 50
+  },
+  {
+   "subset": "Poster Factory",
+   "name": "Orange Rainbow",
+   "serialRun": 25
+  },
+  {
+   "subset": "Poster Factory",
+   "name": "Black Rainbow",
+   "serialRun": 10
+  },
+  {
+   "subset": "Poster Factory",
+   "name": "Red Rainbow",
+   "serialRun": 5
+  },
+  {
+   "subset": "Poster Factory",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Rookie Code",
+   "name": "Rainbow Foilboard",
+   "serialRun": null
+  },
+  {
+   "subset": "Rookie Code",
+   "name": "Purple Rainbow",
+   "serialRun": 250
+  },
+  {
+   "subset": "Rookie Code",
+   "name": "Blue Rainbow",
+   "serialRun": 150
+  },
+  {
+   "subset": "Rookie Code",
+   "name": "Green Rainbow",
+   "serialRun": 99
+  },
+  {
+   "subset": "Rookie Code",
+   "name": "Gold Rainbow",
+   "serialRun": 50
+  },
+  {
+   "subset": "Rookie Code",
+   "name": "Orange Rainbow",
+   "serialRun": 25
+  },
+  {
+   "subset": "Rookie Code",
+   "name": "Black Rainbow",
+   "serialRun": 10
+  },
+  {
+   "subset": "Rookie Code",
+   "name": "Red Rainbow",
+   "serialRun": 5
+  },
+  {
+   "subset": "Rookie Code",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Scan and Slam",
+   "name": "Surge",
+   "serialRun": null
+  },
+  {
+   "subset": "Scan and Slam",
+   "name": "Flash Drop",
+   "serialRun": null
+  },
+  {
+   "subset": "Scan and Slam",
+   "name": "Cart Load",
+   "serialRun": null
+  },
+  {
+   "subset": "Scan and Slam",
+   "name": "Cyber Circuit",
+   "serialRun": null
+  },
+  {
+   "subset": "Scan and Slam",
+   "name": "Doorbuster",
+   "serialRun": null
+  },
+  {
+   "subset": "Stars of Destiny",
+   "name": "Green",
+   "serialRun": 99
+  },
+  {
+   "subset": "Stars of Destiny",
+   "name": "Yellow",
+   "serialRun": 75
+  },
+  {
+   "subset": "Stars of Destiny",
+   "name": "Gold",
+   "serialRun": 50
+  },
+  {
+   "subset": "Stars of Destiny",
+   "name": "Orange 25",
+   "serialRun": null
+  },
+  {
+   "subset": "Stars of Destiny",
+   "name": "Black",
+   "serialRun": 10
+  },
+  {
+   "subset": "Stars of Destiny",
+   "name": "Red",
+   "serialRun": 5
+  },
+  {
+   "subset": "Stars of Destiny",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Stars of NBA",
+   "name": "Rainbow Foilboard",
+   "serialRun": null
+  },
+  {
+   "subset": "Stars of NBA",
+   "name": "Purple Rainbow",
+   "serialRun": 250
+  },
+  {
+   "subset": "Stars of NBA",
+   "name": "Blue Rainbow",
+   "serialRun": 150
+  },
+  {
+   "subset": "Stars of NBA",
+   "name": "Green Rainbow",
+   "serialRun": 99
+  },
+  {
+   "subset": "Stars of NBA",
+   "name": "Gold Rainbow",
+   "serialRun": 50
+  },
+  {
+   "subset": "Stars of NBA",
+   "name": "Orange Rainbow",
+   "serialRun": 25
+  },
+  {
+   "subset": "Stars of NBA",
+   "name": "Black Rainbow",
+   "serialRun": 10
+  },
+  {
+   "subset": "Stars of NBA",
+   "name": "Red Rainbow",
+   "serialRun": 5
+  },
+  {
+   "subset": "Stars of NBA",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "The Daily Dribble",
+   "name": "Green Rainbow",
+   "serialRun": 99
+  },
+  {
+   "subset": "The Daily Dribble",
+   "name": "Gold Rainbow",
+   "serialRun": 50
+  },
+  {
+   "subset": "The Daily Dribble",
+   "name": "Orange Rainbow",
+   "serialRun": 25
+  },
+  {
+   "subset": "The Daily Dribble",
+   "name": "Black Rainbow",
+   "serialRun": 10
+  },
+  {
+   "subset": "The Daily Dribble",
+   "name": "Red Rainbow",
+   "serialRun": 5
+  },
+  {
+   "subset": "The Daily Dribble",
+   "name": "FoilFractor 1/",
+   "serialRun": null
+  },
+  {
+   "subset": "The Daily Dribble",
+   "name": "Green Rainbow",
+   "serialRun": 99
+  },
+  {
+   "subset": "The Daily Dribble",
+   "name": "Gold Rainbow",
+   "serialRun": 50
+  },
+  {
+   "subset": "The Daily Dribble",
+   "name": "Orange Rainbow",
+   "serialRun": 25
+  },
+  {
+   "subset": "The Daily Dribble",
+   "name": "Black Rainbow",
+   "serialRun": 10
+  },
+  {
+   "subset": "The Daily Dribble",
+   "name": "Red Rainbow",
+   "serialRun": 5
+  },
+  {
+   "subset": "The Daily Dribble",
+   "name": "FoilFractor 1/",
+   "serialRun": null
+  },
+  {
+   "subset": "The Flagship Collection",
+   "name": "Blue",
+   "serialRun": 150
+  },
+  {
+   "subset": "The Flagship Collection",
+   "name": "Green",
+   "serialRun": 99
+  },
+  {
+   "subset": "The Flagship Collection",
+   "name": "Purple",
+   "serialRun": 75
+  },
+  {
+   "subset": "The Flagship Collection",
+   "name": "Gold",
+   "serialRun": 50
+  },
+  {
+   "subset": "The Flagship Collection",
+   "name": "Orange",
+   "serialRun": 25
+  },
+  {
+   "subset": "The Flagship Collection",
+   "name": "Black",
+   "serialRun": 10
+  },
+  {
+   "subset": "The Flagship Collection",
+   "name": "Red",
+   "serialRun": 5
+  },
+  {
+   "subset": "The Flagship Collection",
+   "name": "Platinum",
+   "serialRun": 1
+  },
+  {
+   "subset": "The Flagship Collection Chrome",
+   "name": "Blue Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "The Flagship Collection Chrome",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "The Flagship Collection Chrome",
+   "name": "Purple Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "The Flagship Collection Chrome",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "The Flagship Collection Chrome",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "The Flagship Collection Chrome",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "The Flagship Collection Chrome",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "The Flagship Collection Chrome",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "The Journey",
+   "name": "Green",
+   "serialRun": 99
+  },
+  {
+   "subset": "The Journey",
+   "name": "Yellow",
+   "serialRun": 75
+  },
+  {
+   "subset": "The Journey",
+   "name": "Gold",
+   "serialRun": 50
+  },
+  {
+   "subset": "The Journey",
+   "name": "Orange 25",
+   "serialRun": null
+  },
+  {
+   "subset": "The Journey",
+   "name": "Black",
+   "serialRun": 10
+  },
+  {
+   "subset": "The Journey",
+   "name": "Red",
+   "serialRun": 5
+  },
+  {
+   "subset": "The Journey",
+   "name": "FoilFractor",
+   "serialRun": 1
+  }
+ ]
+}

@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { describe, it } from "node:test";
 import type { TrawlSoldResult } from "@/lib/comps/types";
 import { INDEXED_DIRECTORY } from "@/lib/players/directory";
-import { listingPhotoFor, safeListingPhoto, safeListingUrl, withListingPhotos } from "./listing-photo";
+import { listingPhotoFor, safeListingPhoto, withListingPhotos } from "./listing-photo";
 import { rankScanMatches, type ScanMatch } from "./match";
 import { scanReadFrom } from "./session";
 
@@ -47,9 +47,9 @@ const RESULTS = [
 ];
 
 describe("listing photos", () => {
-  it("is the newest sold listing of that exact card and parallel, linked to the listing", () => {
+  it("is the newest sold listing of that exact card and parallel, with no link: a sold listing may be gone", () => {
     const photo = listingPhotoFor(miller("Pink/Red"), RESULTS, INDEXED_DIRECTORY);
-    assert.deepEqual(photo, { imageUrl: "https://i.ebayimg.com/images/g/new/s-l500.jpg", url: "https://www.ebay.com/itm/2", soldAt: "2026-11-05T18:00:00.000Z" });
+    assert.deepEqual(photo, { imageUrl: "https://i.ebayimg.com/images/g/new/s-l500.jpg", soldAt: "2026-11-05T18:00:00.000Z" });
   });
 
   it("is never another parallel's, another player's or a slab's photo", () => {
@@ -72,20 +72,17 @@ describe("listing photos", () => {
     assert.equal("listing" in only, false);
   });
 
-  it("only eBay's image host and eBay listing links pass, checked again on the phone", () => {
-    assert.equal(safeListingUrl("https://www.ebay.com/itm/1"), "https://www.ebay.com/itm/1");
-    for (const bad of ["http://www.ebay.com/itm/1", "https://ebay.com.evil.example/itm/1", "javascript:alert(1)", "https://user:pw@www.ebay.com/itm/1", "", null]) {
-      assert.equal(safeListingUrl(bad), null, String(bad));
-    }
-    assert.equal(safeListingPhoto({ imageUrl: "https://evil.example/a.jpg", url: "https://www.ebay.com/itm/1" }), null);
-    assert.deepEqual(safeListingPhoto({ imageUrl: IMG, url: "https://evil.example/", soldAt: 5 }), { imageUrl: IMG, url: null, soldAt: null });
+  it("only eBay's image host passes, checked again on the phone, and no listing link ever does", () => {
+    assert.equal(safeListingPhoto({ imageUrl: "https://evil.example/a.jpg" }), null);
+    assert.deepEqual(safeListingPhoto({ imageUrl: IMG, url: "https://www.ebay.com/itm/1", soldAt: 5 }), { imageUrl: IMG, soldAt: null });
   });
 
   it("thumbnails are lazy, sent with no referrer, and nothing writes them to our database or storage", () => {
     const view = readFileSync(join(process.cwd(), "components/scan/listing-photo.tsx"), "utf8");
     assert.match(view, /loading="lazy"/);
     assert.match(view, /referrerPolicy="no-referrer"/);
-    assert.match(view, /rel="noopener noreferrer"/);
+    // No "View the listing" link: we can't confirm a sold listing is still up.
+    assert.doesNotMatch(view, /href=|ebay\.com\/itm/);
     assert.match(view, /safeListingPhoto\(match\.listing\)/);
     for (const file of ["lib/scan/listing-photo.ts", "components/scan/listing-photo.tsx"]) {
       assert.doesNotMatch(readFileSync(join(process.cwd(), file), "utf8"), /supabase|storage\.|\.insert\(|\.upsert\(|localStorage|saveScan/i, file);

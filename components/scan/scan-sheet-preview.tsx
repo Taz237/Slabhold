@@ -44,6 +44,7 @@ export type PreviewKind =
   | "numbered"
   | "matching"
   | "none"
+  | "unpinned"
   | "offline"
   | "comp"
   | "comp-raw"
@@ -91,6 +92,7 @@ const STATES: Record<Exclude<PreviewKind, "hub" | "hub-comp" | "door">, ConfirmS
   "comp-flip": { kind: "back", matches: [{ ...PREVIEW_RAW[0], cardNumber: "", sureness: { ...PREVIEW_RAW[0].sureness, number: "unsure" } }] },
   none: { kind: "none" },
   offline: { kind: "none", offline: true },
+  unpinned: { kind: "none", unpinned: true },
   comp: { kind: "ready", matches: [PREVIEW_SLAB], solds: PREVIEW_SOLDS },
   "comp-raw": { kind: "ready", matches: PREVIEW_RAW },
   "comp-none": {
@@ -114,6 +116,7 @@ const LABELS: Record<PreviewKind, string> = {
   numbered: "Numbered",
   matching: "Matching",
   none: "No match",
+  unpinned: "Conflicts with the back",
   offline: "Offline",
   comp: "Comp a slab",
   "comp-raw": "Comp a raw card",

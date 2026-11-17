@@ -1,8 +1,8 @@
 import { parallelSwatch } from "@/lib/cards/parallel-swatch";
 import type { CatalogCard } from "@/lib/card-catalog";
 import { parallelMatchKey, parallelsForSet, sameParallelLoosely } from "@/lib/cards/parallels";
-import { baseSetHits, isBaseSection, playersAt, toppsMade, type ChecklistHit, type ChecklistProduct } from "@/lib/cards/checklists";
-import { parallelsIn, productPhrase, sameSeason, type ProductParallel, type ProductRecord } from "@/lib/cards/product-data";
+import { baseSetHits, checklistNumberKey, isBaseSection, playersAt, toppsMade, type ChecklistHit, type ChecklistProduct } from "@/lib/cards/checklists";
+import { parallelsIn, productForSet, productPhrase, sameSeason, type ProductParallel, type ProductRecord } from "@/lib/cards/product-data";
 import { setMatchPhrase } from "@/lib/comps/match";
 import type { IndexedDirectoryPlayer } from "@/lib/players/types";
 import { compactNorm, normInterest } from "@/lib/social/follow-rank";
@@ -13,6 +13,7 @@ import type { SlabLabelRead } from "./slab-label";
 import { MARKET_ALONE_MIN_VOTES, marketPlayer, nameKey, namesAgree, surnameAgrees, withoutSuffix, type LookupCard } from "./player-lookup";
 import { TITLE_LOT, titleRuns } from "./title-facts";
 import { rankVersionsByLook, type PhotoLook } from "./photo-look";
+import { backMakerOf, setMakerOf, type CardMaker } from "./maker";
 import { SAPPHIRE_WORD, inSapphireFamily, isSapphireSet, sapphireOf, sapphireOptionFor, sapphireSearchSet } from "./sapphire";
 
 /**
@@ -87,7 +88,7 @@ export type ScanMatch = {
   /** The insert or variation the back names ("Rookie Autograph Variations"). Never the parallel. */
   subset?: string;
   /** A photo of this exact card from a sold listing the scan's search returned. Never stored. */
-  listing?: { imageUrl: string; url: string | null; soldAt: string | null };
+  listing?: { imageUrl: string; soldAt: string | null };
   /** The set was named by most of this card's sold titles ("Sapphire"), not by the card's print. */
   setSource?: "sales";
   /** The Sapphire Edition of this set, offered as a quick pick while nothing confirms it. */
@@ -113,6 +114,11 @@ export type ScanMatch = {
 
 export type ScanMatchResult = {
   matches: ScanMatch[];
+  /**
+   * Every card we could find conflicts with what the back printed (another maker, another card #):
+   * none is shown. The sheet says "We couldn't pin this one down" and offers search, never a guess.
+   */
+  unpinned?: boolean;
   /** The top match is settled on the phone: no AI step needed. */
   settled: boolean;
 };
@@ -239,6 +245,10 @@ type Evidence = {
    * prints the same way), only a tie-break between real cards the sold titles name.
    */
   backNumbers: string[];
+  /** Codes read too loosely to trust alone ("RC 3", "RC" over "3"): a checklist must back one (RawCardRead.codeHints). */
+  codeHints: string[];
+  /** The one maker the back names (Topps, Panini, Leaf, Upper Deck). A card by another maker is never shown. */
+  backMaker: CardMaker | null;
   serial: { number: string; run: string } | null;
   /** The read run was replaced by the run sold titles agree on (OCR read /298, titles say /299). */
   runUnsure?: boolean;
@@ -322,6 +332,8 @@ function evidenceFrom(read: ScanRead, directory: readonly IndexedDirectoryPlayer
       // The label's # first; else the one the back prints the way a back does ("No. 47", "BP-27").
       cardNumber: (looksLikeCatalogSku(label.cardNumber) ? "" : label.cardNumber) || (read.back?.cardNumber && !looksLikeCatalogSku(read.back.cardNumber) ? read.back.cardNumber : ""),
       backNumbers: loneNumbers(read.back),
+      codeHints: [],
+      backMaker: null,
       serial: label.serial ?? null,
       parallelWords: slabParallelWords(label.varietyText),
       isRookie: label.isRookie,
@@ -432,6 +444,8 @@ function evidenceFrom(read: ScanRead, directory: readonly IndexedDirectoryPlayer
     setText: "",
     cardNumber,
     backNumbers: loneNumbers(read.back),
+    codeHints: [...(read.back?.codeHints ?? []), ...read.front.codeHints].filter((code, index, all) => all.indexOf(code) === index),
+    backMaker: read.back ? backMakerOf(read.back.lines) : null,
     serial: sides.map((side) => side.serial).find(Boolean) ?? null,
     parallelWords,
     isRookie: sides.some((side) => side.isRookie),
@@ -627,10 +641,18 @@ function toppsBackReady(evidence: Evidence, years: readonly string[]): boolean {
     Boolean(evidence.toppsBack) &&
     !evidence.setNames[0] &&
     Boolean(bestPlayerName(evidence)) &&
-    TOPPS_BACK_SPORTS.has(evidence.sport) &&
+    TOPPS_BACK_SPORTS.has(toppsBackSport(evidence)) &&
     years.length > 0 &&
-    (Boolean(evidence.cardNumber) || evidence.backNumbers.length > 0)
+    (Boolean(evidence.cardNumber) || evidence.backNumbers.length > 0 || evidence.codeHints.length > 0)
   );
+}
+
+/**
+ * The sport for a plain Topps back: the card's own (a team, a position, a league mark), else the
+ * sport of the player whose nameplate the card printed. Inserts often print no team or position.
+ */
+function toppsBackSport(evidence: Evidence): string {
+  return evidence.sport || (evidence.playerLocked ? (evidence.players[0]?.sport ?? "") : "");
 }
 
 /**
@@ -649,7 +671,7 @@ export function scanChecklistKey(read: ScanRead, directory: readonly IndexedDire
     return { years, setBrand: PAPER_PROSPECT_SET, sport: evidence.sport || "Baseball", ...(years.length === 0 ? { allYears: true } : {}) };
   }
   // No set read, a back that signs only Topps: every Topps product for the year, to find the one with him at this #.
-  if (!evidence.slab && toppsBackReady(evidence, years)) return { years, setBrand: "Topps", sport: evidence.sport, family: "topps" };
+  if (!evidence.slab && toppsBackReady(evidence, years)) return { years, setBrand: "Topps", sport: toppsBackSport(evidence), family: "topps" };
   const setBrand = evidence.setNames[0] ?? "";
   if (evidence.slab || !setBrand || !bestPlayerName(evidence)) return null;
   // No year at all: every year of the set, in the sport the card names, to find the one with him at this #.
@@ -699,11 +721,13 @@ function withSetFromProspectCode(evidence: Evidence, checklists: readonly Checkl
 function withSetFromToppsBack(evidence: Evidence, checklists: readonly ChecklistProduct[], name: string): Evidence {
   const years = checklistYears(evidence);
   if (!toppsBackReady(evidence, years)) return evidence;
-  const numbers = evidence.cardNumber ? [evidence.cardNumber] : evidence.backNumbers;
+  // The read # first, then the loose codes: "RC" over "3" is RC-3 when only that is his.
+  const numbers = [...(evidence.cardNumber ? [evidence.cardNumber] : evidence.backNumbers), ...evidence.codeHints];
+  const sport = toppsBackSport(evidence);
   const found = new Map<string, { setBrand: string; yearLabel: string; cardNumber: string }>();
   for (const product of checklists) {
     if (!toppsMade(product)) continue;
-    if (product.sport.toLowerCase() !== evidence.sport.toLowerCase()) continue;
+    if (product.sport.toLowerCase() !== sport.toLowerCase()) continue;
     if (!years.some((yearLabel) => sameSeason(product.yearLabel, yearLabel))) continue;
     for (const cardNumber of numbers) {
       const at = playersAt([product], { yearLabel: product.yearLabel, setBrand: product.product, cardNumber, sport: product.sport });
@@ -716,7 +740,7 @@ function withSetFromToppsBack(evidence: Evidence, checklists: readonly Checklist
   const [pick] = found.values();
   // Bowman and Hoops backs print their own names: a plain back that only one of them fits stays open.
   if (!/^topps\b/.test(productPhrase(pick.setBrand))) return evidence;
-  return { ...evidence, setNames: [pick.setBrand], cardNumber: pick.cardNumber, yearLabel: evidence.yearLabel || pick.yearLabel };
+  return { ...evidence, setNames: [pick.setBrand], cardNumber: pick.cardNumber, yearLabel: evidence.yearLabel || pick.yearLabel, sport: evidence.sport || sport };
 }
 
 /**
@@ -740,6 +764,12 @@ function withChecklistNumber(evidence: Evidence, checklists: readonly ChecklistP
   if (!next.cardNumber && next.backNumbers.length > 0) {
     const numbers = next.backNumbers.filter(his);
     if (numbers.length === 1) next = { ...next, cardNumber: numbers[0] };
+  }
+  // The # read isn't his on this checklist (a lone "3" whose "RC" read on its own line, a bio's #),
+  // and exactly one loose code is: that code is the card #.
+  if (!(next.cardNumber && his(next.cardNumber)) && next.codeHints.length > 0) {
+    const codes = next.codeHints.filter(his);
+    if (codes.length === 1) next = { ...next, cardNumber: codes[0] };
   }
   // No year printed: the year its stats point to, once that year's checklist has him at this #.
   const fromStats = statYear(next);
@@ -1095,10 +1125,30 @@ export function parallelLabel(colorWords: readonly string[]): string {
 function checklistFor(
   products: readonly ProductRecord[] | null,
   card: Pick<Candidate, "sport" | "yearLabel" | "setBrand" | "cardNumber">,
+  checklists: readonly ChecklistProduct[] | null | undefined = null,
 ): ProductParallel[] {
+  // No set: no list of parallels is this card's. Nothing to pick from beats a made-up list.
+  if (!card.setBrand.trim()) return [];
+  const insert = insertCode(card, checklists);
   const listed = products?.length ? parallelsIn(products, card.sport, card.yearLabel, card.setBrand, card.cardNumber) : [];
+  // An insert (Rookie Code RC-3) has its own parallels: the set's list counts only when its rows name this code's prefix.
+  if (insert) return listed.length > 0 && productCovers(products!, card) ? listed : [];
   if (listed.length > 0) return listed;
   return parallelsForSet(card.setBrand).map((name) => ({ name, serialRun: null }));
+}
+
+/** The checklist puts this card # (a letter code) in an insert section only, never the base set. */
+function insertCode(card: Pick<Candidate, "sport" | "yearLabel" | "setBrand" | "cardNumber">, checklists: readonly ChecklistProduct[] | null | undefined): boolean {
+  if (!checklists?.length || !/^[a-z]+\d*-?\d/i.test(card.cardNumber.trim())) return false;
+  const hits = playersAt(checklists, { yearLabel: card.yearLabel, setBrand: card.setBrand, cardNumber: card.cardNumber, sport: card.sport || undefined });
+  return hits.length > 0 && hits.every((hit) => !isBaseSection(hit.section));
+}
+
+/** The product's parallel rows name this card #'s prefix (Bowman's BP- rows), so they are this card's. */
+function productCovers(products: readonly ProductRecord[], card: Pick<Candidate, "sport" | "yearLabel" | "setBrand" | "cardNumber">): boolean {
+  const prefix = /^([a-z]+)/i.exec(card.cardNumber.trim())?.[1]?.toUpperCase() ?? "";
+  const product = productForSet(products, card.sport, card.yearLabel, card.setBrand);
+  return Boolean(prefix && product?.parallels.some((row) => row.cardPrefixes?.some((item) => item.toUpperCase() === prefix)));
 }
 
 /**
@@ -1804,7 +1854,7 @@ export function rankScanMatches(
       : card.titles;
     const lastYear = yearBefore(card.yearLabel);
     const yearAgo = lastYear && options.products?.length ? parallelsIn(options.products, card.sport, lastYear, card.setBrand, card.cardNumber) : [];
-    const parallel = pickParallel(evidence, checklistFor(options.products, card), titles, yearAgo, vintageWithoutList(options.products, card));
+    const parallel = pickParallel(evidence, checklistFor(options.products, card, options.checklists), titles, yearAgo, vintageWithoutList(options.products, card));
     const inDirectory = evidence.players.some((item) => compactName(item.name) === compactName(card.playerName));
     // A slab label prints no run: when every sold title for this parallel names the same one, use it.
     if (parallel.serialRun == null && parallel.parallel && card.titles?.length) {
@@ -1845,10 +1895,13 @@ export function rankScanMatches(
 
   // The card printed this player's name: never show anyone else.
   const locked = evidence.playerLocked ? compactName(bestPlayerName(evidence)) : "";
-  const matches = scored
+  const ranked = scored
     .filter((match) => !locked || compactName(match.playerName) === locked)
-    .sort((a, b) => b.score - a.score || Number(b.catalogId != null) - Number(a.catalogId != null))
-    .slice(0, MAX_MATCHES);
+    .sort((a, b) => b.score - a.score || Number(b.catalogId != null) - Number(a.catalogId != null));
+  // The hard guard: a card by another maker than the back signs, or with another card # than the
+  // card printed, is never shown, not even as an alternative. None left: open, never a guess.
+  const fitting = ranked.filter((match) => !conflictsWithCard(evidence, match));
+  const matches = fitting.slice(0, MAX_MATCHES);
   const top = matches[0];
   const settled = Boolean(
     top &&
@@ -1859,7 +1912,18 @@ export function rankScanMatches(
       top.sureness.number === "sure" &&
       top.sureness.parallel === "sure",
   );
-  return { matches, settled };
+  return { matches, settled, ...(ranked.length > 0 && fitting.length === 0 ? { unpinned: true } : {}) };
+}
+
+/** The match names another card # than the one the card printed, a season after its © year, or a set by another maker than the back signs. */
+function conflictsWithCard(evidence: Evidence, match: Pick<ScanMatch, "cardNumber" | "setBrand" | "yearLabel" | "sport">): boolean {
+  if (evidence.cardNumber && match.cardNumber && checklistNumberKey(match.cardNumber) !== checklistNumberKey(evidence.cardNumber)) return true;
+  // A card is never from a season that starts after the year its back was printed (© 2026 is never 2027-28).
+  const start = startYear(match.yearLabel);
+  if (/^\d{4}$/.test(evidence.copyrightYear) && start != null && start > Number(evidence.copyrightYear)) return true;
+  if (!evidence.backMaker || !match.setBrand) return false;
+  const maker = setMakerOf(match.setBrand, match.yearLabel, match.sport);
+  return Boolean(maker) && maker !== evidence.backMaker;
 }
 
 export type MatchScanDeps = {

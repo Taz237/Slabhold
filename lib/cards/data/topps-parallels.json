@@ -5437,5 +5437,2031 @@
         "serialRun": 2
       }
     ]
+  },
+  {
+    "sport": "Basketball",
+    "yearLabel": "2026-27",
+    "product": "Topps",
+    "manufacturer": "Topps",
+    "source": "https://www.checklistinsider.com/2026-27-topps-flagship-basketball",
+    "official": false,
+    "parallels": [
+      {
+        "subset": "Base",
+        "name": "Base",
+        "serialRun": null,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Rainbow Foilboard",
+        "serialRun": null,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Aqua Rainbow",
+        "serialRun": null,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Gold",
+        "serialRun": 2026,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Yellow Rainbow",
+        "serialRun": 399,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Purple Rainbow",
+        "serialRun": 250,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Blue Rainbow",
+        "serialRun": 150,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Green Rainbow",
+        "serialRun": 99,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Black",
+        "serialRun": 75,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Gold Rainbow",
+        "serialRun": 50,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Orange Rainbow",
+        "serialRun": 25,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Wood",
+        "serialRun": 25,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Black Rainbow",
+        "serialRun": 10,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Red Rainbow",
+        "serialRun": 5,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "FoilFractor",
+        "serialRun": 1,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "First Card",
+        "serialRun": 1,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Victory",
+        "serialRun": null,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Sandglitter",
+        "serialRun": null,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Blue Sandglitter",
+        "serialRun": 500,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Gold Sandglitter",
+        "serialRun": 50,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Orange Sandglitter",
+        "serialRun": 25,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Black Sandglitter",
+        "serialRun": 10,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Red Sandglitter",
+        "serialRun": 5,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Storm",
+        "serialRun": null,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Holo Foil",
+        "serialRun": null,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Pink Holo Foil",
+        "serialRun": null,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Aqua Holo Foil",
+        "serialRun": null,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Yellow Holo Foil",
+        "serialRun": 399,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Purple Holo Foil",
+        "serialRun": 250,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Blue Holo Foil",
+        "serialRun": 150,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Green Holo Foil",
+        "serialRun": 99,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Gold Holo Foil",
+        "serialRun": 50,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Orange Holo Foil",
+        "serialRun": 25,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Black Holo Foil",
+        "serialRun": 10,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Red Holo Foil",
+        "serialRun": 5,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Rose Gold Holo Foil",
+        "serialRun": 1,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Diamante",
+        "serialRun": null,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Pink Diamante",
+        "serialRun": null,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Green Diamante",
+        "serialRun": 99,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Gold Diamante",
+        "serialRun": 50,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Orange Diamante",
+        "serialRun": 25,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Black Diamante",
+        "serialRun": 10,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Red Diamante",
+        "serialRun": 5,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Season Tip Off",
+        "serialRun": null,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Season Tip Off Pink Foil",
+        "serialRun": null,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Season Tip Off Green Foil",
+        "serialRun": 99,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Season Tip Off Gold Foil",
+        "serialRun": 50,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Season Tip Off Orange Foil",
+        "serialRun": 25,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Season Tip Off Black Foil",
+        "serialRun": 10,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Season Tip Off Red Foil",
+        "serialRun": 5,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Season Tip Off Rose Gold Foil",
+        "serialRun": 1,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Base",
+        "name": "Topps Foil Pattern",
+        "serialRun": null,
+        "cardPrefixes": [
+          ""
+        ]
+      },
+      {
+        "subset": "Contemporary Marks",
+        "name": "Rainbow Foilboard",
+        "serialRun": null,
+        "cardPrefixes": [
+          "CM"
+        ]
+      },
+      {
+        "subset": "Contemporary Marks",
+        "name": "Green Rainbow",
+        "serialRun": 99,
+        "cardPrefixes": [
+          "CM"
+        ]
+      },
+      {
+        "subset": "Contemporary Marks",
+        "name": "Gold Rainbow",
+        "serialRun": 50,
+        "cardPrefixes": [
+          "CM"
+        ]
+      },
+      {
+        "subset": "Contemporary Marks",
+        "name": "Orange Rainbow",
+        "serialRun": 25,
+        "cardPrefixes": [
+          "CM"
+        ]
+      },
+      {
+        "subset": "Contemporary Marks",
+        "name": "Black Rainbow",
+        "serialRun": 10,
+        "cardPrefixes": [
+          "CM"
+        ]
+      },
+      {
+        "subset": "Contemporary Marks",
+        "name": "Red Rainbow",
+        "serialRun": 5,
+        "cardPrefixes": [
+          "CM"
+        ]
+      },
+      {
+        "subset": "Contemporary Marks",
+        "name": "FoilFractor",
+        "serialRun": 1,
+        "cardPrefixes": [
+          "CM"
+        ]
+      },
+      {
+        "subset": "Game Script",
+        "name": "Rainbow Foilboard",
+        "serialRun": null,
+        "cardPrefixes": [
+          "GS"
+        ]
+      },
+      {
+        "subset": "Game Script",
+        "name": "Green Rainbow",
+        "serialRun": 99,
+        "cardPrefixes": [
+          "GS"
+        ]
+      },
+      {
+        "subset": "Game Script",
+        "name": "Gold Rainbow",
+        "serialRun": 50,
+        "cardPrefixes": [
+          "GS"
+        ]
+      },
+      {
+        "subset": "Game Script",
+        "name": "Orange Rainbow",
+        "serialRun": 25,
+        "cardPrefixes": [
+          "GS"
+        ]
+      },
+      {
+        "subset": "Game Script",
+        "name": "Black Rainbow",
+        "serialRun": 10,
+        "cardPrefixes": [
+          "GS"
+        ]
+      },
+      {
+        "subset": "Game Script",
+        "name": "Red Rainbow",
+        "serialRun": 5,
+        "cardPrefixes": [
+          "GS"
+        ]
+      },
+      {
+        "subset": "Game Script",
+        "name": "FoilFractor",
+        "serialRun": 1,
+        "cardPrefixes": [
+          "GS"
+        ]
+      },
+      {
+        "subset": "Level Up Signatures",
+        "name": "Rainbow Foilboard",
+        "serialRun": null,
+        "cardPrefixes": [
+          "LU"
+        ]
+      },
+      {
+        "subset": "Level Up Signatures",
+        "name": "Green Rainbow",
+        "serialRun": 99,
+        "cardPrefixes": [
+          "LU"
+        ]
+      },
+      {
+        "subset": "Level Up Signatures",
+        "name": "Gold Rainbow",
+        "serialRun": 50,
+        "cardPrefixes": [
+          "LU"
+        ]
+      },
+      {
+        "subset": "Level Up Signatures",
+        "name": "Orange Rainbow",
+        "serialRun": 25,
+        "cardPrefixes": [
+          "LU"
+        ]
+      },
+      {
+        "subset": "Level Up Signatures",
+        "name": "Black Rainbow",
+        "serialRun": 10,
+        "cardPrefixes": [
+          "LU"
+        ]
+      },
+      {
+        "subset": "Level Up Signatures",
+        "name": "Red Rainbow",
+        "serialRun": 5,
+        "cardPrefixes": [
+          "LU"
+        ]
+      },
+      {
+        "subset": "Level Up Signatures",
+        "name": "FoilFractor",
+        "serialRun": 1,
+        "cardPrefixes": [
+          "LU"
+        ]
+      },
+      {
+        "subset": "New Applicants Autographs",
+        "name": "Rainbow Foilboard",
+        "serialRun": null,
+        "cardPrefixes": [
+          "NAA"
+        ]
+      },
+      {
+        "subset": "New Applicants Autographs",
+        "name": "Green Rainbow",
+        "serialRun": 99,
+        "cardPrefixes": [
+          "NAA"
+        ]
+      },
+      {
+        "subset": "New Applicants Autographs",
+        "name": "Gold Rainbow",
+        "serialRun": 50,
+        "cardPrefixes": [
+          "NAA"
+        ]
+      },
+      {
+        "subset": "New Applicants Autographs",
+        "name": "Orange Rainbow",
+        "serialRun": 25,
+        "cardPrefixes": [
+          "NAA"
+        ]
+      },
+      {
+        "subset": "New Applicants Autographs",
+        "name": "Black Rainbow",
+        "serialRun": 10,
+        "cardPrefixes": [
+          "NAA"
+        ]
+      },
+      {
+        "subset": "New Applicants Autographs",
+        "name": "Red Rainbow",
+        "serialRun": 5,
+        "cardPrefixes": [
+          "NAA"
+        ]
+      },
+      {
+        "subset": "New Applicants Autographs",
+        "name": "FoilFractor",
+        "serialRun": 1,
+        "cardPrefixes": [
+          "NAA"
+        ]
+      },
+      {
+        "subset": "Rookie Pathway Signatures",
+        "name": "Gold Rainbow",
+        "serialRun": 50,
+        "cardPrefixes": [
+          "PS"
+        ]
+      },
+      {
+        "subset": "Rookie Pathway Signatures",
+        "name": "Orange Rainbow",
+        "serialRun": 25,
+        "cardPrefixes": [
+          "PS"
+        ]
+      },
+      {
+        "subset": "Rookie Pathway Signatures",
+        "name": "Black Rainbow",
+        "serialRun": 10,
+        "cardPrefixes": [
+          "PS"
+        ]
+      },
+      {
+        "subset": "Rookie Pathway Signatures",
+        "name": "Red Rainbow",
+        "serialRun": 5,
+        "cardPrefixes": [
+          "PS"
+        ]
+      },
+      {
+        "subset": "Rookie Pathway Signatures",
+        "name": "FoilFractor",
+        "serialRun": 1,
+        "cardPrefixes": [
+          "PS"
+        ]
+      },
+      {
+        "subset": "Rookie Photo Shoot Autographs",
+        "name": "Red",
+        "serialRun": 5,
+        "cardPrefixes": [
+          "RPS"
+        ]
+      },
+      {
+        "subset": "Rookie Photo Shoot Autographs",
+        "name": "Platinum",
+        "serialRun": 1,
+        "cardPrefixes": [
+          "RPS"
+        ]
+      },
+      {
+        "subset": "#Signed",
+        "name": "Rainbow Foilboard",
+        "serialRun": null,
+        "cardPrefixes": [
+          "SG"
+        ]
+      },
+      {
+        "subset": "#Signed",
+        "name": "Green Rainbow",
+        "serialRun": 99,
+        "cardPrefixes": [
+          "SG"
+        ]
+      },
+      {
+        "subset": "#Signed",
+        "name": "Gold Rainbow",
+        "serialRun": 50,
+        "cardPrefixes": [
+          "SG"
+        ]
+      },
+      {
+        "subset": "#Signed",
+        "name": "Orange Rainbow",
+        "serialRun": 25,
+        "cardPrefixes": [
+          "SG"
+        ]
+      },
+      {
+        "subset": "#Signed",
+        "name": "Black Rainbow",
+        "serialRun": 10,
+        "cardPrefixes": [
+          "SG"
+        ]
+      },
+      {
+        "subset": "#Signed",
+        "name": "Red Rainbow",
+        "serialRun": 5,
+        "cardPrefixes": [
+          "SG"
+        ]
+      },
+      {
+        "subset": "#Signed",
+        "name": "FoilFractor",
+        "serialRun": 1,
+        "cardPrefixes": [
+          "SG"
+        ]
+      },
+      {
+        "subset": "Franchise Fabrics",
+        "name": "Rainbow Foilboard",
+        "serialRun": null,
+        "cardPrefixes": [
+          "FF"
+        ]
+      },
+      {
+        "subset": "Franchise Fabrics",
+        "name": "Green Rainbow",
+        "serialRun": 99,
+        "cardPrefixes": [
+          "FF"
+        ]
+      },
+      {
+        "subset": "Franchise Fabrics",
+        "name": "Gold Rainbow",
+        "serialRun": 50,
+        "cardPrefixes": [
+          "FF"
+        ]
+      },
+      {
+        "subset": "Franchise Fabrics",
+        "name": "Orange Rainbow",
+        "serialRun": 25,
+        "cardPrefixes": [
+          "FF"
+        ]
+      },
+      {
+        "subset": "Franchise Fabrics",
+        "name": "Black Rainbow",
+        "serialRun": 10,
+        "cardPrefixes": [
+          "FF"
+        ]
+      },
+      {
+        "subset": "Franchise Fabrics",
+        "name": "Red Rainbow",
+        "serialRun": 5,
+        "cardPrefixes": [
+          "FF"
+        ]
+      },
+      {
+        "subset": "Franchise Fabrics",
+        "name": "FoilFractor",
+        "serialRun": 1,
+        "cardPrefixes": [
+          "FF"
+        ]
+      },
+      {
+        "subset": "Impact Relics",
+        "name": "Rainbow Foilboard",
+        "serialRun": null,
+        "cardPrefixes": [
+          "IR"
+        ]
+      },
+      {
+        "subset": "Impact Relics",
+        "name": "Green Rainbow",
+        "serialRun": 99,
+        "cardPrefixes": [
+          "IR"
+        ]
+      },
+      {
+        "subset": "Impact Relics",
+        "name": "Gold Rainbow",
+        "serialRun": 50,
+        "cardPrefixes": [
+          "IR"
+        ]
+      },
+      {
+        "subset": "Impact Relics",
+        "name": "Orange Rainbow",
+        "serialRun": 25,
+        "cardPrefixes": [
+          "IR"
+        ]
+      },
+      {
+        "subset": "Impact Relics",
+        "name": "Black Rainbow",
+        "serialRun": 10,
+        "cardPrefixes": [
+          "IR"
+        ]
+      },
+      {
+        "subset": "Impact Relics",
+        "name": "Red Rainbow",
+        "serialRun": 5,
+        "cardPrefixes": [
+          "IR"
+        ]
+      },
+      {
+        "subset": "Impact Relics",
+        "name": "FoilFractor",
+        "serialRun": 1,
+        "cardPrefixes": [
+          "IR"
+        ]
+      },
+      {
+        "subset": "Own the Game",
+        "name": "Rainbow Foilboard",
+        "serialRun": null,
+        "cardPrefixes": [
+          "OWN"
+        ]
+      },
+      {
+        "subset": "Own the Game",
+        "name": "Green Rainbow",
+        "serialRun": 99,
+        "cardPrefixes": [
+          "OWN"
+        ]
+      },
+      {
+        "subset": "Own the Game",
+        "name": "Gold Rainbow",
+        "serialRun": 50,
+        "cardPrefixes": [
+          "OWN"
+        ]
+      },
+      {
+        "subset": "Own the Game",
+        "name": "Orange Rainbow",
+        "serialRun": 25,
+        "cardPrefixes": [
+          "OWN"
+        ]
+      },
+      {
+        "subset": "Own the Game",
+        "name": "Black Rainbow",
+        "serialRun": 10,
+        "cardPrefixes": [
+          "OWN"
+        ]
+      },
+      {
+        "subset": "Own the Game",
+        "name": "Red Rainbow",
+        "serialRun": 5,
+        "cardPrefixes": [
+          "OWN"
+        ]
+      },
+      {
+        "subset": "Own the Game",
+        "name": "FoilFractor",
+        "serialRun": 1,
+        "cardPrefixes": [
+          "OWN"
+        ]
+      },
+      {
+        "subset": "Rise to the Occasion Relics",
+        "name": "Rainbow Foilboard",
+        "serialRun": null,
+        "cardPrefixes": [
+          "RO"
+        ]
+      },
+      {
+        "subset": "Rise to the Occasion Relics",
+        "name": "Green Rainbow",
+        "serialRun": 99,
+        "cardPrefixes": [
+          "RO"
+        ]
+      },
+      {
+        "subset": "Rise to the Occasion Relics",
+        "name": "Gold Rainbow",
+        "serialRun": 50,
+        "cardPrefixes": [
+          "RO"
+        ]
+      },
+      {
+        "subset": "Rise to the Occasion Relics",
+        "name": "Orange Rainbow",
+        "serialRun": 25,
+        "cardPrefixes": [
+          "RO"
+        ]
+      },
+      {
+        "subset": "Rise to the Occasion Relics",
+        "name": "Black Rainbow",
+        "serialRun": 10,
+        "cardPrefixes": [
+          "RO"
+        ]
+      },
+      {
+        "subset": "Rise to the Occasion Relics",
+        "name": "Red Rainbow",
+        "serialRun": 5,
+        "cardPrefixes": [
+          "RO"
+        ]
+      },
+      {
+        "subset": "Rise to the Occasion Relics",
+        "name": "FoilFractor",
+        "serialRun": 1,
+        "cardPrefixes": [
+          "RO"
+        ]
+      },
+      {
+        "subset": "Rookie Roundball Remnants",
+        "name": "Rainbow Foilboard",
+        "serialRun": null,
+        "cardPrefixes": [
+          "RRR"
+        ]
+      },
+      {
+        "subset": "Rookie Roundball Remnants",
+        "name": "Green Rainbow",
+        "serialRun": 99,
+        "cardPrefixes": [
+          "RRR"
+        ]
+      },
+      {
+        "subset": "Rookie Roundball Remnants",
+        "name": "Gold Rainbow",
+        "serialRun": 50,
+        "cardPrefixes": [
+          "RRR"
+        ]
+      },
+      {
+        "subset": "Rookie Roundball Remnants",
+        "name": "Orange Rainbow",
+        "serialRun": 25,
+        "cardPrefixes": [
+          "RRR"
+        ]
+      },
+      {
+        "subset": "Rookie Roundball Remnants",
+        "name": "Black Rainbow",
+        "serialRun": 10,
+        "cardPrefixes": [
+          "RRR"
+        ]
+      },
+      {
+        "subset": "Rookie Roundball Remnants",
+        "name": "Red Rainbow",
+        "serialRun": 5,
+        "cardPrefixes": [
+          "RRR"
+        ]
+      },
+      {
+        "subset": "Rookie Roundball Remnants",
+        "name": "FoilFractor",
+        "serialRun": 1,
+        "cardPrefixes": [
+          "RRR"
+        ]
+      },
+      {
+        "subset": "Woven Relics",
+        "name": "Rainbow Foilboard",
+        "serialRun": null,
+        "cardPrefixes": [
+          "WR"
+        ]
+      },
+      {
+        "subset": "Woven Relics",
+        "name": "Green Rainbow",
+        "serialRun": 99,
+        "cardPrefixes": [
+          "WR"
+        ]
+      },
+      {
+        "subset": "Woven Relics",
+        "name": "Gold Rainbow",
+        "serialRun": 50,
+        "cardPrefixes": [
+          "WR"
+        ]
+      },
+      {
+        "subset": "Woven Relics",
+        "name": "Orange Rainbow",
+        "serialRun": 25,
+        "cardPrefixes": [
+          "WR"
+        ]
+      },
+      {
+        "subset": "Woven Relics",
+        "name": "Black Rainbow",
+        "serialRun": 10,
+        "cardPrefixes": [
+          "WR"
+        ]
+      },
+      {
+        "subset": "Woven Relics",
+        "name": "Red Rainbow",
+        "serialRun": 5,
+        "cardPrefixes": [
+          "WR"
+        ]
+      },
+      {
+        "subset": "Woven Relics",
+        "name": "FoilFractor",
+        "serialRun": 1,
+        "cardPrefixes": [
+          "WR"
+        ]
+      },
+      {
+        "subset": "All Kings",
+        "name": "Gold",
+        "serialRun": 1,
+        "cardPrefixes": [
+          "AK"
+        ]
+      },
+      {
+        "subset": "Class of 26",
+        "name": "Red",
+        "serialRun": 5,
+        "cardPrefixes": [
+          "C"
+        ]
+      },
+      {
+        "subset": "Class of 26",
+        "name": "FoilFractor",
+        "serialRun": 1,
+        "cardPrefixes": [
+          "C"
+        ]
+      },
+      {
+        "subset": "Crafted Excellence",
+        "name": "Green",
+        "serialRun": 99,
+        "cardPrefixes": [
+          "EX"
+        ]
+      },
+      {
+        "subset": "Crafted Excellence",
+        "name": "Yellow",
+        "serialRun": 75,
+        "cardPrefixes": [
+          "EX"
+        ]
+      },
+      {
+        "subset": "Crafted Excellence",
+        "name": "Gold",
+        "serialRun": 50,
+        "cardPrefixes": [
+          "EX"
+        ]
+      },
+      {
+        "subset": "Crafted Excellence",
+        "name": "Orange",
+        "serialRun": 25,
+        "cardPrefixes": [
+          "EX"
+        ]
+      },
+      {
+        "subset": "Crafted Excellence",
+        "name": "Black",
+        "serialRun": 10,
+        "cardPrefixes": [
+          "EX"
+        ]
+      },
+      {
+        "subset": "Crafted Excellence",
+        "name": "Red",
+        "serialRun": 5,
+        "cardPrefixes": [
+          "EX"
+        ]
+      },
+      {
+        "subset": "Crafted Excellence",
+        "name": "FoilFractor",
+        "serialRun": 1,
+        "cardPrefixes": [
+          "EX"
+        ]
+      },
+      {
+        "subset": "Drivers",
+        "name": "Rainbow Foilboard",
+        "serialRun": null,
+        "cardPrefixes": [
+          "DR"
+        ]
+      },
+      {
+        "subset": "Drivers",
+        "name": "Purple Rainbow",
+        "serialRun": 250,
+        "cardPrefixes": [
+          "DR"
+        ]
+      },
+      {
+        "subset": "Drivers",
+        "name": "Blue Rainbow",
+        "serialRun": 150,
+        "cardPrefixes": [
+          "DR"
+        ]
+      },
+      {
+        "subset": "Drivers",
+        "name": "Green Rainbow",
+        "serialRun": 99,
+        "cardPrefixes": [
+          "DR"
+        ]
+      },
+      {
+        "subset": "Drivers",
+        "name": "Gold Rainbow",
+        "serialRun": 50,
+        "cardPrefixes": [
+          "DR"
+        ]
+      },
+      {
+        "subset": "Drivers",
+        "name": "Orange Rainbow",
+        "serialRun": 25,
+        "cardPrefixes": [
+          "DR"
+        ]
+      },
+      {
+        "subset": "Drivers",
+        "name": "Black Rainbow",
+        "serialRun": 10,
+        "cardPrefixes": [
+          "DR"
+        ]
+      },
+      {
+        "subset": "Drivers",
+        "name": "Red Rainbow",
+        "serialRun": 5,
+        "cardPrefixes": [
+          "DR"
+        ]
+      },
+      {
+        "subset": "Drivers",
+        "name": "FoilFractor",
+        "serialRun": 1,
+        "cardPrefixes": [
+          "DR"
+        ]
+      },
+      {
+        "subset": "From the Vault",
+        "name": "Green Rainbow",
+        "serialRun": 99,
+        "cardPrefixes": [
+          "FV"
+        ]
+      },
+      {
+        "subset": "From the Vault",
+        "name": "Gold Rainbow",
+        "serialRun": 50,
+        "cardPrefixes": [
+          "FV"
+        ]
+      },
+      {
+        "subset": "From the Vault",
+        "name": "Orange Rainbow",
+        "serialRun": 25,
+        "cardPrefixes": [
+          "FV"
+        ]
+      },
+      {
+        "subset": "From the Vault",
+        "name": "Black Rainbow",
+        "serialRun": 10,
+        "cardPrefixes": [
+          "FV"
+        ]
+      },
+      {
+        "subset": "From the Vault",
+        "name": "Red Rainbow",
+        "serialRun": 5,
+        "cardPrefixes": [
+          "FV"
+        ]
+      },
+      {
+        "subset": "From the Vault",
+        "name": "FoilFractor",
+        "serialRun": 1,
+        "cardPrefixes": [
+          "FV"
+        ]
+      },
+      {
+        "subset": "Generation Now",
+        "name": "Rainbow Foilboard",
+        "serialRun": null,
+        "cardPrefixes": [
+          "GN"
+        ]
+      },
+      {
+        "subset": "Generation Now",
+        "name": "Purple Rainbow",
+        "serialRun": 250,
+        "cardPrefixes": [
+          "GN"
+        ]
+      },
+      {
+        "subset": "Generation Now",
+        "name": "Blue Rainbow",
+        "serialRun": 150,
+        "cardPrefixes": [
+          "GN"
+        ]
+      },
+      {
+        "subset": "Generation Now",
+        "name": "Green Rainbow",
+        "serialRun": 99,
+        "cardPrefixes": [
+          "GN"
+        ]
+      },
+      {
+        "subset": "Generation Now",
+        "name": "Gold Rainbow",
+        "serialRun": 50,
+        "cardPrefixes": [
+          "GN"
+        ]
+      },
+      {
+        "subset": "Generation Now",
+        "name": "Orange Rainbow",
+        "serialRun": 25,
+        "cardPrefixes": [
+          "GN"
+        ]
+      },
+      {
+        "subset": "Generation Now",
+        "name": "Black Rainbow",
+        "serialRun": 10,
+        "cardPrefixes": [
+          "GN"
+        ]
+      },
+      {
+        "subset": "Generation Now",
+        "name": "Red Rainbow",
+        "serialRun": 5,
+        "cardPrefixes": [
+          "GN"
+        ]
+      },
+      {
+        "subset": "Generation Now",
+        "name": "FoilFractor",
+        "serialRun": 1,
+        "cardPrefixes": [
+          "GN"
+        ]
+      },
+      {
+        "subset": "Levitation",
+        "name": "Green Rainbow",
+        "serialRun": 99,
+        "cardPrefixes": [
+          "LV"
+        ]
+      },
+      {
+        "subset": "Levitation",
+        "name": "Gold Rainbow",
+        "serialRun": 50,
+        "cardPrefixes": [
+          "LV"
+        ]
+      },
+      {
+        "subset": "Levitation",
+        "name": "Orange Rainbow",
+        "serialRun": 25,
+        "cardPrefixes": [
+          "LV"
+        ]
+      },
+      {
+        "subset": "Levitation",
+        "name": "Black Rainbow",
+        "serialRun": 10,
+        "cardPrefixes": [
+          "LV"
+        ]
+      },
+      {
+        "subset": "Levitation",
+        "name": "Red Rainbow",
+        "serialRun": 5,
+        "cardPrefixes": [
+          "LV"
+        ]
+      },
+      {
+        "subset": "Levitation",
+        "name": "FoilFractor",
+        "serialRun": 1,
+        "cardPrefixes": [
+          "LV"
+        ]
+      },
+      {
+        "subset": "Limited Stock",
+        "name": "Surge",
+        "serialRun": null,
+        "cardPrefixes": [
+          "LL"
+        ]
+      },
+      {
+        "subset": "Limited Stock",
+        "name": "Flash Drop",
+        "serialRun": null,
+        "cardPrefixes": [
+          "LL"
+        ]
+      },
+      {
+        "subset": "Limited Stock",
+        "name": "Cart Load",
+        "serialRun": null,
+        "cardPrefixes": [
+          "LL"
+        ]
+      },
+      {
+        "subset": "Limited Stock",
+        "name": "Cyber Circuit",
+        "serialRun": null,
+        "cardPrefixes": [
+          "LL"
+        ]
+      },
+      {
+        "subset": "Limited Stock",
+        "name": "Doorbuster",
+        "serialRun": null,
+        "cardPrefixes": [
+          "LL"
+        ]
+      },
+      {
+        "subset": "New School",
+        "name": "Green Rainbow",
+        "serialRun": 99,
+        "cardPrefixes": [
+          "NS"
+        ]
+      },
+      {
+        "subset": "New School",
+        "name": "Gold Rainbow",
+        "serialRun": 50,
+        "cardPrefixes": [
+          "NS"
+        ]
+      },
+      {
+        "subset": "New School",
+        "name": "Orange Rainbow",
+        "serialRun": 25,
+        "cardPrefixes": [
+          "NS"
+        ]
+      },
+      {
+        "subset": "New School",
+        "name": "Black Rainbow",
+        "serialRun": 10,
+        "cardPrefixes": [
+          "NS"
+        ]
+      },
+      {
+        "subset": "New School",
+        "name": "Red Rainbow",
+        "serialRun": 5,
+        "cardPrefixes": [
+          "NS"
+        ]
+      },
+      {
+        "subset": "New School",
+        "name": "FoilFractor",
+        "serialRun": 1,
+        "cardPrefixes": [
+          "NS"
+        ]
+      },
+      {
+        "subset": "No Limit",
+        "name": "Rainbow Foilboard",
+        "serialRun": null,
+        "cardPrefixes": [
+          "NL"
+        ]
+      },
+      {
+        "subset": "No Limit",
+        "name": "Purple Rainbow",
+        "serialRun": 250,
+        "cardPrefixes": [
+          "NL"
+        ]
+      },
+      {
+        "subset": "No Limit",
+        "name": "Blue Rainbow",
+        "serialRun": 150,
+        "cardPrefixes": [
+          "NL"
+        ]
+      },
+      {
+        "subset": "No Limit",
+        "name": "Green Rainbow",
+        "serialRun": 99,
+        "cardPrefixes": [
+          "NL"
+        ]
+      },
+      {
+        "subset": "No Limit",
+        "name": "Gold Rainbow",
+        "serialRun": 50,
+        "cardPrefixes": [
+          "NL"
+        ]
+      },
+      {
+        "subset": "No Limit",
+        "name": "Orange Rainbow",
+        "serialRun": 25,
+        "cardPrefixes": [
+          "NL"
+        ]
+      },
+      {
+        "subset": "No Limit",
+        "name": "Black Rainbow",
+        "serialRun": 10,
+        "cardPrefixes": [
+          "NL"
+        ]
+      },
+      {
+        "subset": "No Limit",
+        "name": "Red Rainbow",
+        "serialRun": 5,
+        "cardPrefixes": [
+          "NL"
+        ]
+      },
+      {
+        "subset": "No Limit",
+        "name": "FoilFractor",
+        "serialRun": 1,
+        "cardPrefixes": [
+          "NL"
+        ]
+      },
+      {
+        "subset": "Oversized Topps Card",
+        "name": "Orange",
+        "serialRun": 25,
+        "cardPrefixes": [
+          "OTC"
+        ]
+      },
+      {
+        "subset": "Oversized Topps Card",
+        "name": "Black",
+        "serialRun": 10,
+        "cardPrefixes": [
+          "OTC"
+        ]
+      },
+      {
+        "subset": "Oversized Topps Card",
+        "name": "Red",
+        "serialRun": 5,
+        "cardPrefixes": [
+          "OTC"
+        ]
+      },
+      {
+        "subset": "Oversized Topps Card",
+        "name": "Platinum",
+        "serialRun": 1,
+        "cardPrefixes": [
+          "OTC"
+        ]
+      },
+      {
+        "subset": "Poster Factory",
+        "name": "Rainbow Foilboard",
+        "serialRun": null,
+        "cardPrefixes": [
+          "PF"
+        ]
+      },
+      {
+        "subset": "Poster Factory",
+        "name": "Purple Rainbow",
+        "serialRun": 250,
+        "cardPrefixes": [
+          "PF"
+        ]
+      },
+      {
+        "subset": "Poster Factory",
+        "name": "Blue Rainbow",
+        "serialRun": 150,
+        "cardPrefixes": [
+          "PF"
+        ]
+      },
+      {
+        "subset": "Poster Factory",
+        "name": "Green Rainbow",
+        "serialRun": 99,
+        "cardPrefixes": [
+          "PF"
+        ]
+      },
+      {
+        "subset": "Poster Factory",
+        "name": "Gold Rainbow",
+        "serialRun": 50,
+        "cardPrefixes": [
+          "PF"
+        ]
+      },
+      {
+        "subset": "Poster Factory",
+        "name": "Orange Rainbow",
+        "serialRun": 25,
+        "cardPrefixes": [
+          "PF"
+        ]
+      },
+      {
+        "subset": "Poster Factory",
+        "name": "Black Rainbow",
+        "serialRun": 10,
+        "cardPrefixes": [
+          "PF"
+        ]
+      },
+      {
+        "subset": "Poster Factory",
+        "name": "Red Rainbow",
+        "serialRun": 5,
+        "cardPrefixes": [
+          "PF"
+        ]
+      },
+      {
+        "subset": "Poster Factory",
+        "name": "FoilFractor",
+        "serialRun": 1,
+        "cardPrefixes": [
+          "PF"
+        ]
+      },
+      {
+        "subset": "Rookie Code",
+        "name": "Rainbow Foilboard",
+        "serialRun": null,
+        "cardPrefixes": [
+          "RC"
+        ]
+      },
+      {
+        "subset": "Rookie Code",
+        "name": "Purple Rainbow",
+        "serialRun": 250,
+        "cardPrefixes": [
+          "RC"
+        ]
+      },
+      {
+        "subset": "Rookie Code",
+        "name": "Blue Rainbow",
+        "serialRun": 150,
+        "cardPrefixes": [
+          "RC"
+        ]
+      },
+      {
+        "subset": "Rookie Code",
+        "name": "Green Rainbow",
+        "serialRun": 99,
+        "cardPrefixes": [
+          "RC"
+        ]
+      },
+      {
+        "subset": "Rookie Code",
+        "name": "Gold Rainbow",
+        "serialRun": 50,
+        "cardPrefixes": [
+          "RC"
+        ]
+      },
+      {
+        "subset": "Rookie Code",
+        "name": "Orange Rainbow",
+        "serialRun": 25,
+        "cardPrefixes": [
+          "RC"
+        ]
+      },
+      {
+        "subset": "Rookie Code",
+        "name": "Black Rainbow",
+        "serialRun": 10,
+        "cardPrefixes": [
+          "RC"
+        ]
+      },
+      {
+        "subset": "Rookie Code",
+        "name": "Red Rainbow",
+        "serialRun": 5,
+        "cardPrefixes": [
+          "RC"
+        ]
+      },
+      {
+        "subset": "Rookie Code",
+        "name": "FoilFractor",
+        "serialRun": 1,
+        "cardPrefixes": [
+          "RC"
+        ]
+      },
+      {
+        "subset": "Scan and Slam",
+        "name": "Surge",
+        "serialRun": null,
+        "cardPrefixes": [
+          "SLAM"
+        ]
+      },
+      {
+        "subset": "Scan and Slam",
+        "name": "Flash Drop",
+        "serialRun": null,
+        "cardPrefixes": [
+          "SLAM"
+        ]
+      },
+      {
+        "subset": "Scan and Slam",
+        "name": "Cart Load",
+        "serialRun": null,
+        "cardPrefixes": [
+          "SLAM"
+        ]
+      },
+      {
+        "subset": "Scan and Slam",
+        "name": "Cyber Circuit",
+        "serialRun": null,
+        "cardPrefixes": [
+          "SLAM"
+        ]
+      },
+      {
+        "subset": "Scan and Slam",
+        "name": "Doorbuster",
+        "serialRun": null,
+        "cardPrefixes": [
+          "SLAM"
+        ]
+      },
+      {
+        "subset": "Stars of Destiny",
+        "name": "Green",
+        "serialRun": 99,
+        "cardPrefixes": [
+          "ST"
+        ]
+      },
+      {
+        "subset": "Stars of Destiny",
+        "name": "Yellow",
+        "serialRun": 75,
+        "cardPrefixes": [
+          "ST"
+        ]
+      },
+      {
+        "subset": "Stars of Destiny",
+        "name": "Gold",
+        "serialRun": 50,
+        "cardPrefixes": [
+          "ST"
+        ]
+      },
+      {
+        "subset": "Stars of Destiny",
+        "name": "Orange",
+        "serialRun": 25,
+        "cardPrefixes": [
+          "ST"
+        ]
+      },
+      {
+        "subset": "Stars of Destiny",
+        "name": "Black",
+        "serialRun": 10,
+        "cardPrefixes": [
+          "ST"
+        ]
+      },
+      {
+        "subset": "Stars of Destiny",
+        "name": "Red",
+        "serialRun": 5,
+        "cardPrefixes": [
+          "ST"
+        ]
+      },
+      {
+        "subset": "Stars of Destiny",
+        "name": "FoilFractor",
+        "serialRun": 1,
+        "cardPrefixes": [
+          "ST"
+        ]
+      },
+      {
+        "subset": "Stars of NBA",
+        "name": "Rainbow Foilboard",
+        "serialRun": null,
+        "cardPrefixes": [
+          "SNBA"
+        ]
+      },
+      {
+        "subset": "Stars of NBA",
+        "name": "Purple Rainbow",
+        "serialRun": 250,
+        "cardPrefixes": [
+          "SNBA"
+        ]
+      },
+      {
+        "subset": "Stars of NBA",
+        "name": "Blue Rainbow",
+        "serialRun": 150,
+        "cardPrefixes": [
+          "SNBA"
+        ]
+      },
+      {
+        "subset": "Stars of NBA",
+        "name": "Green Rainbow",
+        "serialRun": 99,
+        "cardPrefixes": [
+          "SNBA"
+        ]
+      },
+      {
+        "subset": "Stars of NBA",
+        "name": "Gold Rainbow",
+        "serialRun": 50,
+        "cardPrefixes": [
+          "SNBA"
+        ]
+      },
+      {
+        "subset": "Stars of NBA",
+        "name": "Orange Rainbow",
+        "serialRun": 25,
+        "cardPrefixes": [
+          "SNBA"
+        ]
+      },
+      {
+        "subset": "Stars of NBA",
+        "name": "Black Rainbow",
+        "serialRun": 10,
+        "cardPrefixes": [
+          "SNBA"
+        ]
+      },
+      {
+        "subset": "Stars of NBA",
+        "name": "Red Rainbow",
+        "serialRun": 5,
+        "cardPrefixes": [
+          "SNBA"
+        ]
+      },
+      {
+        "subset": "Stars of NBA",
+        "name": "FoilFractor",
+        "serialRun": 1,
+        "cardPrefixes": [
+          "SNBA"
+        ]
+      },
+      {
+        "subset": "The Daily Dribble",
+        "name": "Green Rainbow",
+        "serialRun": 99,
+        "cardPrefixes": [
+          "DD"
+        ]
+      },
+      {
+        "subset": "The Daily Dribble",
+        "name": "Gold Rainbow",
+        "serialRun": 50,
+        "cardPrefixes": [
+          "DD"
+        ]
+      },
+      {
+        "subset": "The Daily Dribble",
+        "name": "Orange Rainbow",
+        "serialRun": 25,
+        "cardPrefixes": [
+          "DD"
+        ]
+      },
+      {
+        "subset": "The Daily Dribble",
+        "name": "Black Rainbow",
+        "serialRun": 10,
+        "cardPrefixes": [
+          "DD"
+        ]
+      },
+      {
+        "subset": "The Daily Dribble",
+        "name": "Red Rainbow",
+        "serialRun": 5,
+        "cardPrefixes": [
+          "DD"
+        ]
+      },
+      {
+        "subset": "The Daily Dribble",
+        "name": "FoilFractor",
+        "serialRun": 1,
+        "cardPrefixes": [
+          "DD"
+        ]
+      },
+      {
+        "subset": "The Journey",
+        "name": "Green",
+        "serialRun": 99,
+        "cardPrefixes": [
+          "TJ"
+        ]
+      },
+      {
+        "subset": "The Journey",
+        "name": "Yellow",
+        "serialRun": 75,
+        "cardPrefixes": [
+          "TJ"
+        ]
+      },
+      {
+        "subset": "The Journey",
+        "name": "Gold",
+        "serialRun": 50,
+        "cardPrefixes": [
+          "TJ"
+        ]
+      },
+      {
+        "subset": "The Journey",
+        "name": "Orange",
+        "serialRun": 25,
+        "cardPrefixes": [
+          "TJ"
+        ]
+      },
+      {
+        "subset": "The Journey",
+        "name": "Black",
+        "serialRun": 10,
+        "cardPrefixes": [
+          "TJ"
+        ]
+      },
+      {
+        "subset": "The Journey",
+        "name": "Red",
+        "serialRun": 5,
+        "cardPrefixes": [
+          "TJ"
+        ]
+      },
+      {
+        "subset": "The Journey",
+        "name": "FoilFractor",
+        "serialRun": 1,
+        "cardPrefixes": [
+          "TJ"
+        ]
+      }
+    ]
   }
 ]

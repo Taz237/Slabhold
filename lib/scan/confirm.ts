@@ -37,6 +37,10 @@ export const CONFIRM_COPY = {
   noMatchTitle: "We couldn't find this one yet",
   noMatchBody: "It's not in our catalog yet. We'll keep the photo.",
   offlineBody: "You're offline, so we couldn't check our catalog. We'll keep the photo.",
+  /** Every card we found disagreed with what the back printed (its maker or its card #): we don't guess. */
+  unpinnedTitle: "We couldn't pin this one down",
+  unpinnedBody: "What the card prints doesn't match a card we know, so we won't guess. Search for it instead.",
+  search: "Search for it",
   stepByStep: "Add it step by step",
   close: "Close",
 } as const;

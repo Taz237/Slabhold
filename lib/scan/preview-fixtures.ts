@@ -327,9 +327,9 @@ export async function previewSolds(_capture: unknown, matches: ScanMatch[]): Pro
 
 /** "Or one of these" with listing photos: the top match and one alternate have one, one has none. Made up. */
 export const PREVIEW_WITH_PHOTOS: ScanMatch[] = [
-  { ...PREVIEW_RAW[0], listing: { imageUrl: "/quick-comp/sample-card.svg", url: null, soldAt: "2026-11-02T18:00:00.000Z" } },
+  { ...PREVIEW_RAW[0], listing: { imageUrl: "/quick-comp/sample-card.svg", soldAt: "2026-11-02T18:00:00.000Z" } },
   ...PREVIEW_RAW.slice(1).map((match, index) =>
-    index === 0 ? { ...match, listing: { imageUrl: "/quick-comp/sample-card.svg", url: null, soldAt: "2026-10-20T18:00:00.000Z" } } : match,
+    index === 0 ? { ...match, listing: { imageUrl: "/quick-comp/sample-card.svg", soldAt: "2026-10-20T18:00:00.000Z" } } : match,
   ),
 ];
 

@@ -16,7 +16,7 @@ describe("ListingThumb", () => {
   });
 
   it("with no listing photo, or an image host that isn't eBay's, shows the empty card and no image", () => {
-    for (const match of [PREVIEW_RAW[0], { ...PREVIEW_RAW[0], listing: { imageUrl: "https://evil.example/card.jpg", url: null, soldAt: null } }]) {
+    for (const match of [PREVIEW_RAW[0], { ...PREVIEW_RAW[0], listing: { imageUrl: "https://evil.example/card.jpg", soldAt: null } }]) {
       const html = renderToStaticMarkup(createElement(ListingThumb, { match }));
       assert.match(html, /role="img" aria-label="No listing photo"/);
       assert.doesNotMatch(html, /<img|<button/);

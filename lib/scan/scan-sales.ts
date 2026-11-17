@@ -15,6 +15,7 @@ import { toMatchCard, type QuickCompIdentity } from "@/lib/quick-comp/identity";
 import { parallelLabel, type ScanMatch } from "./match";
 import { SAPPHIRE_WORD, inSapphireFamily, isSapphireSet, withoutSapphire } from "./sapphire";
 import { COLOR_NAME_PHRASES, readRawCardText } from "./raw-text";
+import { setMakerOf, type CardMaker } from "./maker";
 
 /**
  * A scanned card's sold sales from eBay results, filtered the way eBay's own
@@ -189,6 +190,13 @@ function salePrice(result: TrawlSoldResult): number {
   return result.sale_price;
 }
 
+/** The title names a set, and that set's maker isn't the card's. A title naming no set says nothing. */
+function otherMakerTitle(title: string, cardMaker: CardMaker, yearLabel: string, directory: readonly IndexedDirectoryPlayer[]): boolean {
+  const named = readRawCardText([title], directory).setNames[0] ?? "";
+  const maker = named ? setMakerOf(named, yearLabel) : null;
+  return Boolean(maker) && maker !== cardMaker;
+}
+
 export function scanSalesFor(
   match: Pick<ScanMatch, "playerName" | "cardNumber" | "serialRun" | "yearLabel"> & Pick<Partial<ScanMatch>, "runUnsure">,
   identity: Pick<QuickCompIdentity, "grade"> & Partial<QuickCompIdentity>,
@@ -210,6 +218,7 @@ export function scanSalesFor(
     parallel: identity.parallel ?? "Base",
     grade: identity.grade,
   });
+  const cardMaker = setMakerOf(setBrand, match.yearLabel);
   const raw = card.conditionType === "raw";
   const year = startYear(match.yearLabel);
   const kept: ScanSale[] = [];
@@ -239,6 +248,11 @@ export function scanSalesFor(
       continue;
     }
     if (sapphireFamily && SAPPHIRE_WORD.test(title) !== sapphireCard) {
+      dropped.set += 1;
+      continue;
+    }
+    // A title for a set by another maker (a Leaf card for a Topps card) is another card, whatever its #.
+    if (cardMaker && otherMakerTitle(title, cardMaker, match.yearLabel, directory)) {
       dropped.set += 1;
       continue;
     }
