@@ -1,4 +1,4 @@
-import { gradeLabel, maskCert } from "./confirm";
+import { gradeLabel, maskCert, setWithInsert } from "./confirm";
 import type { ScanMatch } from "./match";
 
 /**
@@ -21,7 +21,8 @@ export const REVEAL_COPY = {
   /** Above the list: what to do. */
   pickBody: "Tap your card to see its price",
   likely: "Most likely",
-  parallelOpen: "Parallel open",
+  /** A row whose version (plain, Refractor, a numbered color) is still to be picked. */
+  parallelOpen: "Version not picked",
   pickAnother: "Not this one? Pick another",
 } as const;
 
@@ -40,7 +41,8 @@ export function revealLines(match: ScanMatch): RevealLine[] {
     ? [match.parallel, match.serialRun ? (match.serialNo ? `${match.serialNo}/${match.serialRun}` : `/${match.serialRun}`) : ""].filter(Boolean).join(" ")
     : VERSION_OPEN;
   const year: RevealLine | null = match.yearLabel ? { field: "year", text: match.yearLabel } : null;
-  const set: RevealLine | null = match.setBrand ? { field: "set", text: match.setBrand } : null;
+  const setText = setWithInsert(match);
+  const set: RevealLine | null = setText ? { field: "set", text: setText } : null;
   const number: RevealLine | null = match.cardNumber ? { field: "number", text: `#${match.cardNumber}` } : null;
   const player: RevealLine | null = match.playerName ? { field: "player", text: match.playerName } : null;
   const version: RevealLine = { field: "parallel", text: parallel };

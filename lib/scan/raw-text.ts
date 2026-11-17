@@ -850,6 +850,11 @@ const LETTER_CODE = /\b(CPA|BCPA|BPA|CDA|BDA|CRA|RPA|RA|FSA)\s?[-–—‐]\s?([
 const BARE_CODE_LINE = /^(US|USC|BCP|BP|BDC|BD|HMT|T)(\d{1,4})$/;
 /** A card # printed alone on a line with no # in front, the way Topps backs print it. */
 const LONE_NUMBER_LINE = /^\d{1,4}$/;
+/**
+ * Falling binary digits behind a card's art (2026-27 Topps Rookie Code) read as "0110", "010": only
+ * 0s and 1s with a leading 0. A printed card # never starts with 0, so these are never one.
+ */
+const BINARY_ART = /^0[01]{2,}$/;
 
 /**
  * The printed card #: "#280" or "NO. 280" first, then a code like BP-27. A
@@ -919,7 +924,9 @@ function readCardNumber(
   // number there is a jersey. And never beside a position or team line, where it is a jersey or an age.
   const toppsMade = lines.some((item) => TOPPS_MADE.test(item)) && !lines.some((item) => OTHER_MAKER.test(item));
   if (!toppsMade) return "";
-  const lone = lines.map((line, index) => ({ line: line.trim(), index })).filter((item) => LONE_NUMBER_LINE.test(item.line));
+  const lone = lines
+    .map((line, index) => ({ line: line.trim(), index }))
+    .filter((item) => LONE_NUMBER_LINE.test(item.line) && !BINARY_ART.test(item.line));
   if (lone.length !== 1) return "";
   const { line, index } = lone[0];
   const edge = index <= 1 || index >= lines.length - 2;

@@ -87,6 +87,12 @@ export type ScanMatch = {
   parallelOptions: ProductParallel[];
   /** The insert or variation the back names ("Rookie Autograph Variations"). Never the parallel. */
   subset?: string;
+  /**
+   * The checklist insert this card # belongs to ("Rookie Code" for RC-3), from the insert name the
+   * front prints or the card # itself. Shown with the set and searched with the sales. Never the
+   * parallel: a plain Rookie Code is still "which version?" (plain, Rainbow Foilboard, numbered).
+   */
+  insertName?: string;
   /** A photo of this exact card from a sold listing the scan's search returned. Never stored. */
   listing?: { imageUrl: string; soldAt: string | null };
   /** The set was named by most of this card's sold titles ("Sapphire"), not by the card's print. */
@@ -218,6 +224,8 @@ type Evidence = {
   insert: string;
   /** The insert or variation a raw card's back names ("Rookie Autograph Variations"). */
   subset: string;
+  /** The checklist insert section of this card # ("Rookie Code"), once a checklist placed it there. */
+  insertSection?: string;
   /** The border color read from the photo, for ties only. */
   border: string | null;
   /** The photo's look, raw cards only. Orders "Which version?" and nothing else. */
@@ -642,8 +650,7 @@ function toppsBackReady(evidence: Evidence, years: readonly string[]): boolean {
     !evidence.setNames[0] &&
     Boolean(bestPlayerName(evidence)) &&
     TOPPS_BACK_SPORTS.has(toppsBackSport(evidence)) &&
-    years.length > 0 &&
-    (Boolean(evidence.cardNumber) || evidence.backNumbers.length > 0 || evidence.codeHints.length > 0)
+    years.length > 0
   );
 }
 
@@ -743,16 +750,103 @@ function withSetFromToppsBack(evidence: Evidence, checklists: readonly Checklist
   return { ...evidence, setNames: [pick.setBrand], cardNumber: pick.cardNumber, yearLabel: evidence.yearLabel || pick.yearLabel, sport: evidence.sport || sport };
 }
 
+/** The checklists this card can be on: its set's for its years, or every Topps product for a plain Topps back. */
+function productsForCard(evidence: Evidence, checklists: readonly ChecklistProduct[], years: readonly string[]): ChecklistProduct[] {
+  const setBrand = evidence.setNames[0] ?? "";
+  const sport = (evidence.sport || toppsBackSport(evidence)).toLowerCase();
+  return checklists.filter((product) => {
+    if (sport && product.sport.toLowerCase() !== sport) return false;
+    if (!years.some((yearLabel) => sameSeason(product.yearLabel, yearLabel))) return false;
+    if (setBrand) return productPhrase(product.product) === productPhrase(setBrand);
+    return Boolean(evidence.toppsBack) && toppsMade(product);
+  });
+}
+
+/**
+ * The front prints an insert's name in big letters ("ROOKIE CODE") and the card # didn't read (or
+ * isn't his): the one card that insert section has him on is the card #. Only the front counts (a
+ * bio's "no limit" is never the No Limit insert), only an insert of the year and set the card read,
+ * and exactly one card, or the # stays open.
+ */
+function withNumberFromInsertName(evidence: Evidence, checklists: readonly ChecklistProduct[], name: string, frontText: string): Evidence {
+  if (!name || !frontText.trim()) return evidence;
+  const years = checklistYears(evidence);
+  if (years.length === 0) return evidence;
+  const products = productsForCard(evidence, checklists, years);
+  const his = (number: string) => products.some((product) => playersAt([product], { yearLabel: product.yearLabel, setBrand: product.product, cardNumber: number }).some((hit) => namesAgree(hit.player, name)));
+  if (evidence.cardNumber && his(evidence.cardNumber)) return evidence;
+  const found = new Map<string, { product: ChecklistProduct; section: string; cardNumber: string }>();
+  for (const product of products) {
+    for (const section of product.sections) {
+      if (isBaseSection(section.name) || !insertNamedOnFront(section.name, frontText)) continue;
+      for (const [cardNumber, player] of section.cards) {
+        if (namesAgree(player, name)) found.set(`${productPhrase(product.product)}|${product.yearLabel}|${checklistNumberKey(cardNumber)}`, { product, section: section.name, cardNumber });
+      }
+    }
+  }
+  if (found.size !== 1) return evidence;
+  const [pick] = found.values();
+  // A plain Topps back takes the set the checklist names (withSetFromToppsBack does the same with a read #).
+  const setNames = evidence.setNames[0] ? evidence.setNames : /^topps\b/.test(productPhrase(pick.product.product)) ? [pick.product.product] : evidence.setNames;
+  return {
+    ...evidence,
+    setNames,
+    cardNumber: pick.cardNumber,
+    yearLabel: evidence.yearLabel || pick.product.yearLabel,
+    sport: evidence.sport || pick.product.sport,
+    insertSection: pick.section,
+  };
+}
+
+/** Section names that are a kind of card, not a printed insert name. */
+const NOT_INSERT_NAME = /\b(?:autographs?|signatures?|signed|relics?|memorabilia|patch(?:es)?|fabrics?|remnants?|redemption|swatch(?:es)?|variations?)\b/i;
+
+/**
+ * The front names this insert, whole: "ROOKIE CODE", or ROOKIE and CODE on lines of their own.
+ * Two words at least, so one common word ("Drivers", "Bounce") never names an insert on its own.
+ */
+function insertNamedOnFront(section: string, frontText: string): boolean {
+  const key = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const name = key(section);
+  if (name.split(" ").length < 2 || NOT_INSERT_NAME.test(section)) return false;
+  return ` ${key(frontText)} `.includes(` ${name} `);
+}
+
+/**
+ * The checklist insert a card # belongs to (RC-3 is in Rookie Code only): its name goes with the
+ * card, however the # was found (the back, the front's insert name, sold titles). An autograph or
+ * relic section, a number the base set shares, or a # in two sections names none.
+ */
+function insertSectionFor(
+  card: Pick<ScanMatch, "playerName" | "yearLabel" | "setBrand" | "cardNumber" | "sport">,
+  checklists: readonly ChecklistProduct[] | null | undefined,
+): string {
+  if (!checklists?.length || !card.playerName || !card.cardNumber || !card.setBrand || !card.yearLabel) return "";
+  const hits = playersAt(checklists, { yearLabel: card.yearLabel, setBrand: card.setBrand, cardNumber: card.cardNumber, sport: card.sport || undefined });
+  if (hits.length === 0 || hits.some((hit) => isBaseSection(hit.section))) return "";
+  const his = hits.filter((hit) => namesAgree(hit.player, card.playerName));
+  const sections = new Set(his.map((hit) => hit.section));
+  if (sections.size !== 1) return "";
+  const [section] = sections;
+  return NOT_INSERT_NAME.test(section) ? "" : section;
+}
+
 /**
  * No card # read, but the back has bare numbers and the card names its player: a number is the card
  * # when the checklist for the year and set the card read has this player at it. Exactly one such
  * number, or the # stays open. A jersey or an age the checklist doesn't put him at never counts.
  */
-function withChecklistNumber(evidence: Evidence, checklists: readonly ChecklistProduct[] | null | undefined): Evidence {
+function withChecklistNumber(
+  evidence: Evidence,
+  checklists: readonly ChecklistProduct[] | null | undefined,
+  /** The front's own text: where an insert prints its name in big letters ("ROOKIE CODE"). */
+  frontText = "",
+): Evidence {
   // A slab's label prints its #: its checklist only ever backs the name (withLookedUpPlayer).
   if (!checklists?.length || evidence.slab) return evidence;
   const name = bestPlayerName(evidence);
   evidence = withSetFromProspectCode(evidence, checklists, name);
+  evidence = withNumberFromInsertName(evidence, checklists, name, frontText);
   evidence = withSetFromToppsBack(evidence, checklists, name);
   const setBrand = evidence.setNames[0] ?? "";
   const years = checklistYears(evidence);
@@ -929,7 +1023,9 @@ export function liveSearchLadder(
   const number = top && top.sureness.number === "sure" ? top.cardNumber : !top ? evidence.cardNumber : "";
   const prefix = /^([A-Z]+)-/i.exec(number)?.[1]?.toUpperCase() ?? "";
   const set = known("set") ? top!.setBrand : BOWMAN_ONLY_PREFIXES.has(prefix) ? "Bowman" : "";
-  const insert = evidence.insert;
+  // The printed insert (Instinct), else the checklist insert the card # is in ("Rookie Code"):
+  // sellers name it, and it keeps the base card's sales out.
+  const insert = evidence.insert || (number && top?.insertName ? top.insertName : "");
   // A run the sold titles corrected (/298 read, /299 sold) searches as theirs.
   const run = evidence.serial ? `/${top?.runUnsure && top.serialRun ? top.serialRun : evidence.serial.run}` : "";
   const grade = evidence.grade?.company && evidence.grade.number ? `${evidence.grade.company} ${evidence.grade.number}` : "";
@@ -1823,7 +1919,11 @@ export function rankScanMatches(
     withAgreedRun(
       withBackedNearPlayer(
         withLookedUpPlayer(
-          withChecklistNumber(withSportFromParallel(evidenceFrom(read, options.directory), options.products), options.checklists),
+          withChecklistNumber(
+            withSportFromParallel(evidenceFrom(read, options.directory), options.products),
+            options.checklists,
+            read.kind === "raw" ? read.front.lines.join(" ") : "",
+          ),
           options.soldTitles ?? [],
           options.checklists,
           options.directory,
@@ -1872,6 +1972,9 @@ export function rankScanMatches(
     }
     const parallelBonus = parallel.sureness === "sure" ? 10 : parallel.sureness === "likely" ? 5 : 0;
     const rowId = parallel.parallel ? card.rowsByParallel.get(parallelMatchKey(parallel.parallel)) : undefined;
+    // The insert this card # is in: the one the front named, else the checklist's section for it.
+    const insertName =
+      evidence.insertSection && checklistNumberKey(card.cardNumber) === checklistNumberKey(evidence.cardNumber) ? evidence.insertSection : insertSectionFor(card, options.checklists);
     const match: ScanMatch = {
       catalogId: rowId ?? card.catalogId,
       playerName: card.playerName,
@@ -1894,6 +1997,7 @@ export function rankScanMatches(
       // year that set first had a Sapphire Edition.
       ...(!evidence.slab && sapphireOptionFor(card.setBrand, card.yearLabel) ? { sapphireOption: sapphireOptionFor(card.setBrand, card.yearLabel)! } : {}),
       ...(evidence.subset ? { subset: evidence.subset } : {}),
+      ...(insertName ? { insertName } : {}),
       ...(read.kind === "raw" && [read.front, read.back].some((side) => side?.firstBowman) ? { firstBowman: true } : {}),
       ...(!evidence.slab && !inDirectory && card.playerName && compactName(card.playerName) === compactName(evidence.playerText) ? { playerNew: true } : {}),
       ...(parallel.source ? { parallelSource: parallel.source } : {}),

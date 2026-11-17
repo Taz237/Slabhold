@@ -51,7 +51,7 @@ export function PickCard({ matches, onPick }: { matches: readonly ScanMatch[]; o
               <span className="min-w-0 flex-1">
                 {index === 0 ? <span className="mb-0.5 block text-xs leading-4 font-medium text-violet-700 dark:text-[#A78BFA]">{REVEAL_COPY.likely}</span> : null}
                 <span className="block truncate text-15 leading-5 font-semibold">{match.playerName || REVEAL_COPY.open}</span>
-                <span className="block truncate text-13 leading-5 text-zinc-600 dark:text-zinc-400">{matchLine(match) || REVEAL_COPY.open}</span>
+                <span className="block break-words text-13 leading-5 text-zinc-600 dark:text-zinc-400">{matchLine(match) || REVEAL_COPY.open}</span>
                 <span className="mt-0.5 flex items-center gap-1.5 text-13 leading-5">
                   {match.parallel ? (
                     <>

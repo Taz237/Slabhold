@@ -48,10 +48,25 @@ export const CONFIRM_COPY = {
 /** The parallel the collector has picked on the sheet. Null leaves it for Add card to ask. */
 export type ParallelPick = { name: string; serialRun: number | null } | null;
 
-export function matchLine(match: Pick<ScanMatch, "yearLabel" | "setBrand" | "cardNumber">): string {
-  return [match.yearLabel, match.setBrand, match.cardNumber ? `#${match.cardNumber}` : ""]
+export function matchLine(match: Pick<ScanMatch, "yearLabel" | "setBrand" | "cardNumber"> & Pick<Partial<ScanMatch>, "insertName">): string {
+  return [match.yearLabel, setWithInsert(match), match.cardNumber ? `#${match.cardNumber}` : ""]
     .filter(Boolean)
     .join(" ");
+}
+
+/** The set with the insert the card # is in: "Topps Rookie Code". The insert alone when no set was read. */
+export function setWithInsert(match: Pick<ScanMatch, "setBrand"> & Pick<Partial<ScanMatch>, "insertName">): string {
+  const insert = match.insertName?.trim() ?? "";
+  if (!insert || match.setBrand.toLowerCase().includes(insert.toLowerCase())) return match.setBrand;
+  return [match.setBrand, insert].filter(Boolean).join(" ");
+}
+
+/**
+ * A version's name as the sheet shows it. On an insert (Rookie Code), the plain version is the
+ * insert itself, so "Base" reads "Rookie Code". Display only: it's still looked up as Base.
+ */
+export function versionLabel(name: string, insertName?: string): string {
+  return insertName?.trim() && /^base$/i.test(name.trim()) ? insertName.trim() : name;
 }
 
 export function gradeLabel(grade: ScanGrade | null): string | null {

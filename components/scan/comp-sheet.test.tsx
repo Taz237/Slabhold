@@ -199,6 +199,38 @@ describe("CompSheet", () => {
     }
   });
 
+  it("an insert's card names it in the header (Topps Rookie Code #RC-3), and its version is asked, never Base", async () => {
+    const rookieCode: ScanMatch = {
+      ...fixtures.PREVIEW_RAW[0],
+      playerName: "Cameron Boozer",
+      yearLabel: "2026-27",
+      setBrand: "Topps",
+      cardNumber: "RC-3",
+      insertName: "Rookie Code",
+      parallel: "",
+      isRookie: true,
+      parallelOptions: [
+        { name: "Base", serialRun: null },
+        { name: "Rainbow Foilboard", serialRun: null },
+      ],
+    };
+    const view = await mount({ kind: "ready", matches: [rookieCode] });
+    try {
+      await waitFor(() => text().includes("Which version?"));
+      assert.ok(text().includes("2026-27 Topps Rookie Code #RC-3"), text());
+      assert.equal(view.calls.lookups.length, 0, "nothing looked up as Base");
+      assert.equal(/\$\d/.test(text()), false, "no price yet");
+      // The plain version of an insert is the insert itself: its chip says so, never "Base".
+      assert.equal(/\bBase\b/.test(text()), false, text());
+      assert.equal(button("Rookie Code").getAttribute("aria-pressed"), "false", "a choice, never preselected");
+      await click(button("Rookie Code"));
+      await waitFor(() => view.calls.lookups.length > 0);
+      assert.equal(view.calls.lookups[0]?.parallel, "Base", "looked up as the plain card");
+    } finally {
+      view.unmount();
+    }
+  });
+
   it("Add before the version is picked says so, and adds nothing", async () => {
     const view = await mount({ kind: "ready", matches: fixtures.PREVIEW_RAW });
     try {

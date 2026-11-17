@@ -18,6 +18,7 @@ const KINDS: readonly PreviewKind[] = [
   "comp-run-only",
   "comp-unnumbered",
   "comp-no-base",
+  "comp-rookie-code",
   "unclean",
   "flip",
   "comp-flip",

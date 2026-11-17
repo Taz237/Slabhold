@@ -159,6 +159,25 @@ describe("scan reveal", () => {
     }
   });
 
+  it("a long line wraps between words, never cut off mid-word (Dynamic Type, a long insert name)", async () => {
+    const long = { ...fixtures.PREVIEW_RAW[0], parallel: "", setBrand: "Topps", insertName: "Rookie Code", cardNumber: "RC-3" };
+    const view = await mount({ kind: "ready", matches: [long] });
+    try {
+      const lines = [...view.host.querySelectorAll<HTMLElement>("[data-line]")];
+      assert.equal(lines.find((node) => node.dataset.line === "set")?.textContent, "Topps Rookie Code");
+      assert.equal(lines.at(-1)?.textContent, "Version not read yet");
+      for (const node of lines) {
+        const typed = node.firstElementChild as HTMLElement;
+        // No clipping box: the text wraps at spaces, and the typing reveal ends with nothing clipped.
+        assert.doesNotMatch(typed.className, /whitespace-nowrap|overflow-hidden|truncate|text-ellipsis/, typed.className);
+        assert.match(typed.className, /break-words/);
+        assert.match(typed.className, /reveal-type_[^\]]*_backwards\]/, "the clip is let go once typed");
+      }
+    } finally {
+      view.unmount();
+    }
+  });
+
   it("spins and types only with motion allowed, with keyframes that never resize anything", () => {
     const reveal = read("components/scan/scan-reveal.tsx");
     for (const name of ["reveal-turn", "reveal-tilt", "reveal-land", "reveal-glare", "reveal-type"]) assert.match(reveal, new RegExp(`motion-safe:animate-\\[${name}`));

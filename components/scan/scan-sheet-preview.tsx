@@ -25,6 +25,8 @@ import {
   PREVIEW_UNNUMBERED,
   PREVIEW_SOLDS_BASE_OFFERS,
   PREVIEW_SOLDS_NO_BASE,
+  PREVIEW_ROOKIE_CODE,
+  PREVIEW_SOLDS_ROOKIE_CODE,
   PREVIEW_SOLDS_UNCLEAN,
   PREVIEW_SOLDS_RUN_ONLY,
   PREVIEW_SOLDS_LIMITED,
@@ -67,6 +69,7 @@ export type PreviewKind =
   | "comp-run-only"
   | "comp-unnumbered"
   | "comp-no-base"
+  | "comp-rookie-code"
   | "unclean"
   | "flip"
   | "comp-flip"
@@ -86,6 +89,7 @@ const STATES: Record<Exclude<PreviewKind, "hub" | "hub-comp" | "door">, ConfirmS
   "comp-run-only": { kind: "ready", matches: [PREVIEW_RUN_ONLY], solds: PREVIEW_SOLDS_RUN_ONLY },
   "comp-unnumbered": { kind: "ready", matches: [PREVIEW_UNNUMBERED], solds: PREVIEW_SOLDS_BASE_OFFERS },
   "comp-no-base": { kind: "ready", matches: [PREVIEW_UNNUMBERED], solds: PREVIEW_SOLDS_NO_BASE },
+  "comp-rookie-code": { kind: "ready", matches: PREVIEW_ROOKIE_CODE, solds: PREVIEW_SOLDS_ROOKIE_CODE },
   unclean: { kind: "ready", matches: [PREVIEW_UNNUMBERED], solds: PREVIEW_SOLDS_UNCLEAN },
   raw: { kind: "ready", matches: PREVIEW_RAW, solds: PREVIEW_SOLDS_NONE },
   numbered: { kind: "ready", matches: [PREVIEW_NUMBERED, ...PREVIEW_RAW.slice(1)] },
@@ -141,6 +145,7 @@ const LABELS: Record<PreviewKind, string> = {
   "comp-run-only": "Comp, numbered, no color named",
   "comp-unnumbered": "Comp, unnumbered base",
   "comp-no-base": "Comp, no Base sales",
+  "comp-rookie-code": "Comp, Rookie Code insert, version open",
   unclean: "Sales too far apart",
   flip: "Flip it over",
   "comp-flip": "Comp, flip it over",
