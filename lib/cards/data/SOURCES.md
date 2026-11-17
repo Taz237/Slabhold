@@ -73,38 +73,38 @@ added, skipped or failed.
 
 ## What is in the store today
 
-107 products, 115,310 cards. `index.json` has each one's source and the day it was read.
+426 files, 326,152 cards (every year and product in `index.json`). `index.json` has each one's source and the day it was read.
 
 | Sport | Product | Years |
 | --- | --- | --- |
 | Baseball | Bowman | 2019, 2020, 2021, 2022, 2023, 2024, 2025 |
 | Baseball | Bowman Chrome | 2019, 2020, 2021, 2022, 2024, 2025 |
 | Baseball | Bowman Chrome Sapphire | 2025 |
-| Baseball | Bowman Draft | 2019, 2020, 2021, 2022, 2023, 2025 |
-| Baseball | Topps | 2019, 2020, 2021, 2022, 2023, 2026 |
+| Baseball | Bowman Draft | 2019, 2020, 2021, 2022, 2023, 2024, 2025 |
+| Baseball | Topps | 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026 |
 | Baseball | Topps Chrome | 2019, 2020, 2021, 2022, 2023, 2024, 2025 |
 | Baseball | Topps Chrome Sapphire | 2025 |
-| Baseball | Topps Chrome Update | 2025 |
+| Baseball | Topps Chrome Update | 2024, 2025 |
 | Baseball | Topps Chrome Update Sapphire | 2020, 2021, 2025 |
 | Baseball | Topps Finest | 2019, 2021, 2022, 2023 |
-| Baseball | Topps Update | 2019, 2020, 2021, 2022, 2023 |
+| Baseball | Topps Update | 2019, 2020, 2021, 2022, 2023, 2024, 2025 |
 | Basketball | Bowman | 2025-26 |
 | Basketball | Bowman U Best | 2025-26 |
 | Basketball | Bowman U Chrome | 2023-24, 2024-25 |
-| Basketball | Donruss Optic | 2019-20, 2020-21, 2021-22, 2022-23 |
-| Basketball | Panini Donruss | 2019-20, 2020-21, 2021-22, 2022-23 |
-| Basketball | Panini Mosaic | 2019-20, 2020-21, 2021-22, 2022-23 |
+| Basketball | Donruss Optic | 2019-20, 2020-21, 2021-22, 2022-23, 2024-25 |
+| Basketball | Panini Donruss | 2019-20, 2020-21, 2021-22, 2022-23, 2024-25, 2025-26 |
+| Basketball | Panini Mosaic | 2019-20, 2020-21, 2021-22, 2022-23, 2024-25 |
 | Basketball | Panini Prizm | 2019-20, 2020-21, 2021-22, 2022-23, 2024-25, 2025-26 |
-| Basketball | Panini Select | 2019-20, 2020-21, 2021-22, 2022-23, 2025-26 |
+| Basketball | Panini Select | 2019-20, 2020-21, 2021-22, 2022-23, 2024-25, 2025-26 |
 | Basketball | Prizm Draft Picks | 2019-20, 2020-21, 2021-22, 2022-23, 2023-24 |
-| Basketball | Topps Chrome | 2025-26 |
+| Basketball | Topps Chrome | 2024-25, 2025-26 |
 | Football | Bowman U Best | 2025 |
 | Football | Bowman U Chrome | 2023, 2024, 2025 |
-| Football | Donruss Optic | 2019, 2020, 2021, 2022, 2025 |
-| Football | Panini Donruss | 2019, 2020, 2021, 2022, 2023 |
-| Football | Panini Mosaic | 2020, 2021, 2022, 2023, 2025 |
+| Football | Donruss Optic | 2019, 2020, 2021, 2022, 2024, 2025 |
+| Football | Panini Donruss | 2019, 2020, 2021, 2022, 2023, 2024, 2025 |
+| Football | Panini Mosaic | 2020, 2021, 2022, 2023, 2024, 2025 |
 | Football | Panini Prizm | 2019, 2020, 2021, 2022, 2023, 2024, 2025 |
-| Football | Panini Select | 2019, 2020, 2021, 2022, 2025 |
+| Football | Panini Select | 2019, 2020, 2021, 2022, 2024, 2025 |
 | Football | Topps Chrome | 2025 |
 | Football | Topps Resurgence | 2025 |
 | Football | Prizm Draft Picks | 2019, 2020, 2021 |
@@ -189,6 +189,24 @@ Topps printed them; both are kept.
 plus college and high school players). It was already in the store from the same page, with
 LaBaron Philon at #103; a fresh read on 2026-11-17 added no new card # and player, so it was left
 as it was. There is no Panini Resurgence page (Resurgence is a Topps product).
+
+### 2024-2025 Topps, Topps Update, Chrome Update, Bowman Draft, Donruss, Optic, Select and Mosaic (read 2026-11-17)
+
+Card checklists only, read the same way from Checklist Insider for the popular 2024-2026 sets the
+store didn't have yet: 2024 and 2025 Topps (Series 1 and 2 in one file each, like Upper Deck),
+2024 and 2025 Topps Update, 2024 Topps Chrome Update, 2024 Bowman Draft, 2024-25 Donruss, Optic,
+Select, Mosaic and Topps Chrome Basketball, 2024 Donruss, Optic, Select and Mosaic Football and
+2025 Donruss Football, and 2025-26 Donruss Basketball. Each page is in `scripts/checklist-csv/SOURCES.md`. Their parallels come
+from the lists already in `panini-parallels.json` and `topps-parallels.json` (none were read
+from these pages).
+
+Slips fixed by `PAGE_CORRECTIONS`: the 2024 Topps Series 2 Super Short Print "Jackson Holliday
+\"Fun Face\"" is Jackson Holliday, and 2025 Topps' "Kiké Hernández" is Enrique Hernández, as
+every earlier year in the store has him. Cards with two or more players, team cards and titled
+combo cards ("Bailey Bath") are left out by the importer, as before.
+
+The same day, 2025-26 Donruss Basketball was added and 2026 Topps Series 2 was added to 2026
+Topps (Series 1 was already in). 2025-26 Optic and Mosaic Basketball still have no page (404).
 
 Until a product is in the store, the scanner falls back to the sold titles for that year, set and
 card # (below).

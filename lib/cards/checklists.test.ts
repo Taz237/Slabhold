@@ -189,7 +189,7 @@ describe("the checklist store", () => {
 
   it("the 2024-and-later files: the page each came from is logged, never a file name, and the spot cards are who the page says", async () => {
     const added = CHECKLIST_INDEX.filter((entry) => entry.source.includes("checklistinsider.com"));
-    assert.equal(added.length, 31);
+    assert.equal(added.length, 48);
     for (const entry of CHECKLIST_INDEX) assert.doesNotMatch(entry.source, /\.csv\b/i, entry.file);
     // Upper Deck Series 1 and Series 2 are one product, with both pages logged.
     for (const year of ["2024-25", "2025-26"]) {
@@ -206,6 +206,12 @@ describe("the checklist store", () => {
     assert.deepEqual(await only("Baseball", "2025", "Topps Chrome", "221"), ["Max Muncy"]);
     assert.deepEqual(await only("Basketball", "2025-26", "Topps Chrome", "251"), ["Cooper Flagg"]);
     assert.deepEqual(await only("Football", "2025", "Topps Chrome", "306"), ["Jaxson Dart"]);
+    // The 2024-2026 sets added on 2026-11-17 (Topps Series 1 and 2 are one product, like Upper Deck).
+    assert.deepEqual(await only("Baseball", "2024", "Topps", "1"), ["Ronald Acuña Jr."]);
+    assert.deepEqual(await only("Baseball", "2025", "Topps", "1"), ["Shohei Ohtani"]);
+    assert.deepEqual(await only("Baseball", "2024", "Bowman Draft", "BD-1"), ["Travis Bazzana"]);
+    assert.deepEqual(await only("Basketball", "2024-25", "Topps Chrome", "1"), ["Jett Howard"]);
+    assert.ok((await only("Football", "2024", "Donruss Optic", "1")).includes("Kyler Murray"));
     // The page's slips, fixed (lib/cards/checklist-insider.ts): "Kale! Mullings", "Kurds Rourke", "Jandae Barron".
     assert.deepEqual(await only("Football", "2025", "Topps Chrome", "309"), ["Kaleb Mullings"]);
     assert.deepEqual(await only("Football", "2025", "Topps Chrome", "307"), ["Kurtis Rourke"]);

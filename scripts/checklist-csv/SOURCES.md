@@ -2,7 +2,7 @@
 
 All pages were fetched on **2026-11-13** (Fri, America/New_York) with curl, then saved as text in `raw/`. The rows were parsed only from lines on the page shaped `<card #> <player> - <team>`, and nothing was typed in by hand.
 
-The 2025 Topps Chrome Football, Select, Optic and Mosaic rows (2026-11-16) and the Chrome Update Sapphire, Resurgence and Bowman U Best rows (2026-11-17) were read with the page converter (`scripts/checklist-insider-import.ts`), which writes the CSV and `.parallels.json` straight from the page.
+The 2025 Topps Chrome Football, Select, Optic and Mosaic rows (2026-11-16) the Chrome Update Sapphire, Resurgence and Bowman U Best rows (2026-11-17), and the 2024-2025 Topps, Topps Update, Chrome Update, Bowman Draft, Donruss, Optic, Select and Mosaic rows (also 2026-11-17, parallels "0 (not read; see below)": those pages' parallel lists didn't parse, and no parallel list was loaded from them) were read with the page converter (`scripts/checklist-insider-import.ts`), which writes the CSV and `.parallels.json` straight from the page.
 
 | File | Sport | Year | Product (`--product`) | CSV rows | Base rows | Parallels | Source URL |
 |---|---|---|---|---|---|---|---|
@@ -39,6 +39,27 @@ The 2025 Topps Chrome Football, Select, Optic and Mosaic rows (2026-11-16) and t
 | 2025-football-bowman-u-best.csv | Football | 2025 | Bowman U Best | 541 | 100 (Base) | 89 | https://www.checklistinsider.com/2025-bowman-university-best-football |
 | 2025-26-basketball-bowman-u-best.csv | Basketball | 2025-26 | Bowman U Best | 617 | 100 (Base) | 89 | https://www.checklistinsider.com/2025-26-bowman-university-best-basketball |
 | 2026-baseball-topps-series-1.csv | Baseball | 2026 | Topps | 1301 | 330 (Base) | 252 | https://www.checklistinsider.com/2026-topps-series-1-baseball |
+
+| 2024-baseball-topps-series-1.csv | Baseball | 2024 | Topps | 2452 | 350 (Base) | 0 (not read; see below) | https://www.checklistinsider.com/2024-topps-series-1-baseball |
+| 2024-baseball-topps-series-2.csv | Baseball | 2024 | Topps | 2082 | 350 (Base) | 0 (not read; see below) | https://www.checklistinsider.com/2024-topps-series-2-baseball |
+| 2025-baseball-topps-series-1.csv | Baseball | 2025 | Topps | 2486 | 350 (Base) | 0 (not read; see below) | https://www.checklistinsider.com/2025-topps-series-1-baseball |
+| 2025-baseball-topps-series-2.csv | Baseball | 2025 | Topps | 2443 | 350 (Base) | 0 (not read; see below) | https://www.checklistinsider.com/2025-topps-series-2-baseball |
+| 2024-baseball-topps-update.csv | Baseball | 2024 | Topps Update | 2054 | 350 (Base) | 0 (not read; see below) | https://www.checklistinsider.com/2024-topps-update-series-baseball |
+| 2025-baseball-topps-update.csv | Baseball | 2025 | Topps Update | 2002 | 350 (Base) | 0 (not read; see below) | https://www.checklistinsider.com/2025-topps-update-series-baseball |
+| 2024-baseball-topps-chrome-update.csv | Baseball | 2024 | Topps Chrome Update | 1170 | 200 (Base) | 0 (not read; see below) | https://www.checklistinsider.com/2024-topps-chrome-update-series-baseball |
+| 2024-baseball-bowman-draft.csv | Baseball | 2024 | Bowman Draft | 757 | 200 (Base) | 0 (not read; see below) | https://www.checklistinsider.com/2024-bowman-draft-baseball |
+| 2024-25-basketball-donruss-optic.csv | Basketball | 2024-25 | Donruss Optic | 1086 | 250 (Base) | 0 (not read; see below) | https://www.checklistinsider.com/2024-25-donruss-optic-basketball |
+| 2024-25-basketball-panini-donruss.csv | Basketball | 2024-25 | Panini Donruss | 970 | 200 (Base) | 0 (not read; see below) | https://www.checklistinsider.com/2024-25-donruss-basketball |
+| 2024-25-basketball-panini-select.csv | Basketball | 2024-25 | Panini Select | 1162 | 0 (Base) | 0 (not read; see below) | https://www.checklistinsider.com/2024-25-panini-select-basketball |
+| 2024-25-basketball-panini-mosaic.csv | Basketball | 2024-25 | Panini Mosaic | 1355 | 300 (Base) | 0 (not read; see below) | https://www.checklistinsider.com/2024-25-panini-mosaic-basketball |
+| 2024-25-basketball-topps-chrome.csv | Basketball | 2024-25 | Topps Chrome | 948 | 200 (Base) | 0 (not read; see below) | https://www.checklistinsider.com/2024-25-topps-chrome-basketball |
+| 2024-football-donruss-optic.csv | Football | 2024 | Donruss Optic | 1040 | 200 (Base) | 0 (not read; see below) | https://www.checklistinsider.com/2024-donruss-optic-football |
+| 2024-football-panini-donruss.csv | Football | 2024 | Panini Donruss | 2007 | 300 (Base) | 0 (not read; see below) | https://www.checklistinsider.com/2024-donruss-football |
+| 2024-football-panini-select.csv | Football | 2024 | Panini Select | 1488 | 0 (Base) | 0 (not read; see below) | https://www.checklistinsider.com/2024-panini-select-football |
+| 2024-football-panini-mosaic.csv | Football | 2024 | Panini Mosaic | 1104 | 250 (Base) | 0 (not read; see below) | https://www.checklistinsider.com/2024-panini-mosaic-football |
+| 2025-football-panini-donruss.csv | Football | 2025 | Panini Donruss | 2088 | 300 (Base) | 0 (not read; see below) | https://www.checklistinsider.com/2025-donruss-football |
+| 2025-26-basketball-panini-donruss.csv | Basketball | 2025-26 | Panini Donruss | 1432 | 200 (Base) | 0 (not loaded) | https://www.checklistinsider.com/2025-26-donruss-basketball |
+| 2026-baseball-topps-series-2.csv | Baseball | 2026 | Topps | 3136 | 350 (Base) | 0 (not loaded) | https://www.checklistinsider.com/2026-topps-series-2-baseball |
 
 ## Cross-check
 For 2025-26 Panini Prizm Basketball, all 200 Base rows match https://www.diamondcardsonline.com/blog/2025-26-panini-prizm-basketball-cards-checklist/ (fetched 2026-11-13): 200 agree, 0 differ.
