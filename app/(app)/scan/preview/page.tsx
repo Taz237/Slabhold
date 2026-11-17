@@ -19,6 +19,8 @@ const KINDS: readonly PreviewKind[] = [
   "comp-unnumbered",
   "comp-no-base",
   "unclean",
+  "flip",
+  "comp-flip",
   "raw",
   "numbered",
   "matching",

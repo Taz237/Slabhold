@@ -12,6 +12,7 @@ import { saveScan, saveScanMatch } from "@/lib/capture";
 import { isNativeApp, loadNative } from "@/lib/ios/platform";
 import { CAMERA_DENIED, type ScanOutcome } from "@/lib/ios/scanner";
 import { PHOTO_READ_ERROR, readPhotoFile } from "@/lib/photos";
+import { needsBackStep, withBack, type ScanSource } from "@/lib/scan/back-step";
 import { compQueryString, type ScanCompResult } from "@/lib/scan/comp";
 import { newScanId, scanAddPath, scanHandoffFrom } from "@/lib/scan/handoff";
 import type { LiveSoldsResult } from "@/lib/scan/live-solds";
@@ -169,31 +170,16 @@ export function ScanHub({
   const run = useRef<AbortController | null>(null);
   // The scan on the sheet, as settled, so "Is this Sapphire?" can read it again.
   const lastCapture = useRef<ScanCapture | null>(null);
+  // "Flip it over": the front as scanned (before settling) and its read, while the sheet asks for the back.
+  const waitingBack = useRef<{ front: ScanCapture; capture: ScanCapture; result: ScanMatchResult } | null>(null);
   const opened = useRef(false);
   const cameraRef = useRef<HTMLInputElement>(null);
   const libraryRef = useRef<HTMLInputElement>(null);
 
-  const identify = useCallback(
-    async (scanned: ScanCapture) => {
-      run.current?.abort();
-      const controller = new AbortController();
-      run.current = controller;
-      setError(null);
-      setPhoto(scanned.image);
-      setSheet({ kind: "matching" });
-      // Alternates are settled once, here, so the phone and the server read the same lines.
-      const capture = await deps.settle(scanned).catch(() => scanned);
-      if (controller.signal.aborted) return;
-      lastCapture.current = { ...capture, versionLine: scanned.versionLine ?? null };
-      const result = await deps.identify(capture, controller.signal).catch(() => null);
-      if (controller.signal.aborted) return;
-      const online = deps.online();
-      const first = sheetStateFrom(result, online);
-      // The search itself failed (offline): nothing more to look up.
-      if (!result || !online) {
-        setSheet(first);
-        return;
-      }
+  /** The card is read: it shows first, then its last solds fill in. */
+  const finish = useCallback(
+    async (capture: ScanCapture, result: ScanMatchResult, controller: AbortController) => {
+      const first = sheetStateFrom(result, true);
       // The card shows first; its last solds fill in. With no match yet, the
       // sold titles may still find it (a logo-only set), so keep looking.
       if (first.kind === "ready") setSheet({ ...first, solds: { status: "looking" } });
@@ -214,6 +200,75 @@ export function ScanHub({
     },
     [deps],
   );
+
+  /**
+   * Read and match a scan. `source`: where a front came from, so a raw card whose front can't pin
+   * its year, set or card # asks for the back once ("Flip it over"). Null: never ask (a re-read,
+   * or the front and back already together).
+   */
+  const identify = useCallback(
+    async (scanned: ScanCapture, source: ScanSource | null = null) => {
+      run.current?.abort();
+      const controller = new AbortController();
+      run.current = controller;
+      waitingBack.current = null;
+      setError(null);
+      setPhoto(scanned.image);
+      setSheet({ kind: "matching" });
+      // Alternates are settled once, here, so the phone and the server read the same lines.
+      const capture = await deps.settle(scanned).catch(() => scanned);
+      if (controller.signal.aborted) return;
+      lastCapture.current = { ...capture, versionLine: scanned.versionLine ?? null };
+      const result = await deps.identify(capture, controller.signal).catch(() => null);
+      if (controller.signal.aborted) return;
+      const online = deps.online();
+      // The search itself failed (offline): nothing more to look up.
+      if (!result || !online) {
+        setSheet(sheetStateFrom(result, online));
+        return;
+      }
+      // The front alone can't pin the card: ask for the back first. No sold search runs until
+      // the collector scans it or skips.
+      if (source && needsBackStep(capture, result, source)) {
+        waitingBack.current = { front: scanned, capture, result };
+        setSheet({ kind: "back", matches: result.matches });
+        return;
+      }
+      await finish(capture, result, controller);
+    },
+    [deps, finish],
+  );
+
+  /** "Scan the back": the camera again; both sides are then read as one. A cancel keeps the step. */
+  const scanBack = useCallback(async () => {
+    const waiting = waitingBack.current;
+    if (!waiting) return;
+    let back: ScanOutcome = null;
+    try {
+      back = await deps.scan();
+    } catch {
+      setError(HUB_COPY.readFailed);
+      return;
+    }
+    if (back === CAMERA_DENIED) {
+      setCameraOff({ settings: await deps.canOpenSettings().catch(() => false) });
+      return;
+    }
+    if (!back || waitingBack.current !== waiting) return;
+    waitingBack.current = null;
+    await identify(withBack(waiting.front, back), null);
+  }, [deps, identify]);
+
+  /** "Skip": the front's read goes on as it was, with its last solds. */
+  const skipBack = useCallback(() => {
+    const waiting = waitingBack.current;
+    if (!waiting) return;
+    waitingBack.current = null;
+    run.current?.abort();
+    const controller = new AbortController();
+    run.current = controller;
+    void finish(waiting.capture, waiting.result, controller);
+  }, [finish]);
 
   /**
    * The collector says the card is the Sapphire Edition (it often prints nothing to say so): the
@@ -273,7 +328,7 @@ export function ScanHub({
       setSheet(null);
       return;
     }
-    await identify(capture);
+    await identify(capture, "camera");
   }, [deps, identify]);
 
   const pickFromLibrary = useCallback(async () => {
@@ -284,7 +339,7 @@ export function ScanHub({
       setError(HUB_COPY.readFailed);
       return;
     }
-    if (capture) await identify(capture);
+    if (capture) await identify(capture, "library");
   }, [deps, identify]);
 
   useEffect(() => {
@@ -337,6 +392,7 @@ export function ScanHub({
   const comp = purpose === "comp";
   const closeSheet = () => {
     run.current?.abort();
+    waitingBack.current = null;
     setSheet(null);
   };
 
@@ -441,6 +497,8 @@ export function ScanHub({
           onRetake={() => void startScan()}
           onSapphire={asSapphire}
           onVersion={asVersion}
+          onScanBack={() => void scanBack()}
+          onSkipBack={skipBack}
           onClose={closeSheet}
         />
       ) : null}
@@ -454,6 +512,8 @@ export function ScanHub({
           onSearch={() => router.push("/comp")}
           onSapphire={asSapphire}
           onVersion={asVersion}
+          onScanBack={() => void scanBack()}
+          onSkipBack={skipBack}
           onClose={closeSheet}
         />
       ) : null}

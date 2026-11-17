@@ -8,6 +8,7 @@ import type { ConfirmSheetState } from "@/components/scan/confirm-sheet";
 import { SalesDots } from "@/components/scan/sales-dots";
 import {
   CardPhoto,
+  FlipStep,
   MatchSummary,
   MatchingSkeleton,
   OtherMatches,
@@ -62,6 +63,10 @@ type Props = {
   onSapphire?: () => void;
   /** "Which version?": read the slab again as the version picked and look that version's sales up. */
   onVersion?: (version: string, rows: ScanMatch[]) => void;
+  /** "Scan the back" on the Flip it over step. */
+  onScanBack?: () => void;
+  /** "Skip" on the Flip it over step: go on with the front as read. */
+  onSkipBack?: () => void;
   onClose: () => void;
 };
 
@@ -71,11 +76,19 @@ type Props = {
  * sales we already have). A different parallel, grade or card is one tap, and
  * its prices load in place from the same search. No sales is said plainly.
  */
-export function CompSheet({ photo, state, lookup, onAdd, onScanAnother, onSearch, onSapphire, onVersion, onClose }: Props) {
+export function CompSheet({ photo, state, lookup, onAdd, onScanAnother, onSearch, onSapphire, onVersion, onScanBack, onSkipBack, onClose }: Props) {
   const title = state.kind === "none" ? CONFIRM_COPY.noMatchTitle : COMP_COPY.title;
   return (
     <SheetFrame title={title} busy={state.kind === "matching"} onClose={onClose}>
       {state.kind === "matching" ? <MatchingSkeleton photo={photo} label={CONFIRM_COPY.finding} /> : null}
+      {state.kind === "back" ? (
+        <div className="space-y-6">
+          <div className="flex justify-center">
+            <CardPhoto photo={photo} name="this card" />
+          </div>
+          <FlipStep match={state.matches[0]} onScanBack={onScanBack ?? onScanAnother} onSkip={onSkipBack ?? onClose} />
+        </div>
+      ) : null}
       {state.kind === "none" ? (
         <div className="space-y-6">
           <div className="grid grid-cols-[80px_1fr] items-center gap-4">

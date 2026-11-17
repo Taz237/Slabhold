@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useId, useRef, type ReactNode } from "react";
-import { ChevronRight, X } from "lucide-react";
-import { Chip, RunBadge, SectionLabel, SwatchDot, focusRing } from "@/components/add-card/flow-ui";
+import { ChevronRight, ScanLine, X } from "lucide-react";
+import { Chip, PrimaryButton, QuietButton, RunBadge, SectionLabel, SwatchDot, focusRing } from "@/components/add-card/flow-ui";
+import { BACK_COPY, missingFields } from "@/lib/scan/back-step";
 import { money } from "@/lib/format";
 import { quickCompLimitMessage } from "@/lib/quick-comp/respond";
 import { COMP_COPY, lastSale, soldCount, type SoldsState } from "@/lib/scan/comp";
@@ -693,6 +694,72 @@ export function SetNotes({ match, onSapphire, center = false }: { match: ScanMat
           {CONFIRM_COPY.sapphireAsk}
         </button>
       ) : null}
+    </div>
+  );
+}
+
+/** A card back drawn small: a few stat lines, and the card # slot the scan still needs in purple. */
+function CardBackSketch() {
+  return (
+    <div
+      aria-hidden
+      className="flex aspect-[5/7] w-14 flex-col gap-1 rounded-md border border-zinc-900/10 bg-zinc-100 p-1.5 dark:border-white/10 dark:bg-white/[0.06]"
+    >
+      <div className="flex items-center justify-between gap-1">
+        <span className="h-1 w-3 rounded-sm bg-zinc-900/20 dark:bg-white/20" />
+        <span className="h-1.5 w-4 rounded-sm bg-violet-600/80" />
+      </div>
+      <span className="h-1 w-8 rounded-sm bg-zinc-900/15 dark:bg-white/15" />
+      <span className="mt-1 h-px w-full bg-zinc-900/10 dark:bg-white/10" />
+      <span className="h-1 w-full rounded-sm bg-zinc-900/10 dark:bg-white/10" />
+      <span className="h-1 w-full rounded-sm bg-zinc-900/10 dark:bg-white/10" />
+      <span className="h-1 w-3/4 rounded-sm bg-zinc-900/10 dark:bg-white/10" />
+      <span className="mt-auto h-1 w-6 rounded-sm bg-zinc-900/15 dark:bg-white/15" />
+    </div>
+  );
+}
+
+const FIELD_LABEL = { year: BACK_COPY.year, set: BACK_COPY.set, number: BACK_COPY.number } as const;
+
+/**
+ * "Flip it over": the front alone couldn't pin the year, set or card #. One tap opens the camera
+ * for the back; Skip goes on with the front as read. What's still missing reads as quiet tags.
+ */
+export function FlipStep({ match, onScanBack, onSkip }: { match: ScanMatch | undefined; onScanBack: () => void; onSkip: () => void }) {
+  const missing = missingFields(match);
+  return (
+    <div className="space-y-6" data-step="flip">
+      <div className="text-center">
+        <h3 className="text-xl font-semibold tracking-tight">{BACK_COPY.title}</h3>
+        {match?.playerName ? <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{match.playerName}</p> : null}
+      </div>
+      <div className="grid grid-cols-[56px_1fr] items-center gap-4 rounded-2xl border border-zinc-900/10 p-4 dark:border-white/10">
+        <CardBackSketch />
+        <div className="min-w-0">
+          <p className="text-sm leading-5 text-zinc-600 dark:text-zinc-300">{BACK_COPY.body}</p>
+          {missing.length > 0 ? (
+            <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="text-xs text-zinc-500 dark:text-zinc-400">{BACK_COPY.missing}</span>
+              {missing.map((field) => (
+                <span key={field} className="rounded-md border border-zinc-900/10 px-1.5 font-mono text-xs leading-5 text-zinc-600 dark:border-white/10 dark:text-zinc-300">
+                  {FIELD_LABEL[field]}
+                </span>
+              ))}
+            </p>
+          ) : null}
+        </div>
+      </div>
+      <div className="space-y-2">
+        <PrimaryButton onClick={onScanBack} className="min-h-14 gap-2 text-15">
+          <ScanLine className="size-5" strokeWidth={1.75} aria-hidden />
+          {BACK_COPY.scan}
+        </PrimaryButton>
+        <div className="flex justify-center">
+          <QuietButton onClick={onSkip} aria-label={BACK_COPY.skipLabel}>
+            {BACK_COPY.skip}
+          </QuietButton>
+        </div>
+      </div>
     </div>
   );
 }
