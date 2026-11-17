@@ -26,7 +26,7 @@ describe("the sport from the label's parallel", () => {
     const top = await slab(["2025 PANINI PRIZM #103", "LABARON PHILON", "ORANGE PULSAR PRIZM", "GEM MT 10", "PSA", "10234571"]);
     assert.equal(top.sport, "Basketball");
     assert.equal(top.yearLabel, "2025-26");
-    // A slab never looks its player up: our list spells him "Labaron Philon Jr.", so he stays open, never someone else.
+    // Our list spells him "Labaron Philon Jr.": the checklist at #103 backs the label's name (slab-checklist-name.test.ts), never someone else.
     assert.ok(top.playerName === "" || /^Labaron Philon/.test(top.playerName), top.playerName);
     assert.equal(top.parallel, "Orange Pulsar");
     assert.equal(top.serialRun, 175);

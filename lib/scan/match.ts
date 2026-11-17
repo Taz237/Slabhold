@@ -6,7 +6,7 @@ import { parallelsIn, productPhrase, sameSeason, type ProductParallel, type Prod
 import { setMatchPhrase } from "@/lib/comps/match";
 import type { IndexedDirectoryPlayer } from "@/lib/players/types";
 import { compactNorm, normInterest } from "@/lib/social/follow-rank";
-import { AUTO_CODE_PREFIX, findPlayers, looksLikeCatalogSku, readRawCardText, type RawCardRead, type RawPlayerHit } from "./raw-text";
+import { AUTO_CODE_PREFIX, BOWMAN_U_BEST, findPlayers, looksLikeCatalogSku, readRawCardText, type RawCardRead, type RawPlayerHit } from "./raw-text";
 
 export { looksLikeCatalogSku };
 import type { SlabLabelRead } from "./slab-label";
@@ -501,6 +501,8 @@ function printedSetNames(sides: readonly RawCardRead[], cardNumber: string): str
     return ["Bowman U Chrome", ...ordered.filter((name) => name !== "Bowman U Chrome" && name !== "Bowman" && name !== "Bowman Chrome")];
   }
   // "BOWMAN UNIVERSITY BEST" and "BOWMAN U NOW" are their own products, not on our list: never Bowman's Best or Bowman.
+  // Bowman U Best printed in full is that set (it has its own checklist); Bowman U Now stays open.
+  if (lines.some((line) => BOWMAN_U_BEST.test(line))) return ["Bowman U Best", ...ordered.filter((name) => !/^bowman/i.test(name))];
   if (lines.some((line) => BOWMAN_U_OTHER.test(line))) return ordered.filter((name) => !/^bowman/i.test(name));
   // A college Bowman card with nothing saying Chrome: Bowman U has more than one product, so the set stays open.
   if (bowman && school) return ordered.filter((name) => name !== "Bowman" && name !== "Bowman Chrome");
@@ -575,6 +577,19 @@ function cardKeyOf(evidence: Evidence): ScanCardKey | null {
   return { years, yearPrinted: Boolean(evidence.yearLabel), setBrand, cardNumber: evidence.cardNumber, run: Number.isFinite(run) ? run : null, sport: evidence.sport };
 }
 
+/**
+ * A slab's year, set and card # off its label, when it printed a name our player list has only
+ * under another spelling (or not at all): the checklist can back that name (withLookedUpPlayer).
+ * Null on a raw card, and on a slab whose name the list already matched exactly.
+ */
+function slabCardKey(evidence: Evidence): ScanCardKey | null {
+  if (!evidence.slab || !evidence.yearLabel || !evidence.cardNumber) return null;
+  const setBrand = evidence.setNames[0] ?? "";
+  if (!setBrand || evidence.players.some((hit) => hit.score === 1)) return null;
+  if (!evidence.playerText && evidence.players.length === 0) return null;
+  return { years: [evidence.yearLabel], yearPrinted: true, setBrand, cardNumber: evidence.cardNumber, run: null, sport: evidence.sport };
+}
+
 /** The card a scan read (year, set, card #), so its checklist can be loaded before ranking. */
 /** Which checklist files a scan needs: its year and set. */
 export type ScanChecklistKey = { years: string[]; setBrand: string; sport: string; allYears?: boolean };
@@ -587,6 +602,8 @@ export function scanChecklistKey(read: ScanRead, directory: readonly IndexedDire
   const card = scanCardKey(read, directory);
   if (card) return card;
   const evidence = evidenceFrom(read, directory);
+  const slabCard = slabCardKey(evidence);
+  if (slabCard) return { years: slabCard.years, setBrand: slabCard.setBrand, sport: slabCard.sport };
   const setBrand = evidence.setNames[0] ?? "";
   const years = checklistYears(evidence);
   if (evidence.slab || !setBrand || !bestPlayerName(evidence)) return null;
@@ -607,7 +624,8 @@ export function scanChecklistKey(read: ScanRead, directory: readonly IndexedDire
  * number, or the # stays open. A jersey or an age the checklist doesn't put him at never counts.
  */
 function withChecklistNumber(evidence: Evidence, checklists: readonly ChecklistProduct[] | null | undefined): Evidence {
-  if (!checklists?.length) return evidence;
+  // A slab's label prints its #: its checklist only ever backs the name (withLookedUpPlayer).
+  if (!checklists?.length || evidence.slab) return evidence;
   const name = bestPlayerName(evidence);
   const setBrand = evidence.setNames[0] ?? "";
   const years = checklistYears(evidence);
@@ -680,13 +698,16 @@ function withLookedUpPlayer(
   /** Everything the card printed, both sides: an insert's name on it rules the base card out. */
   cardText = "",
 ): Evidence {
-  const card = cardKeyOf(evidence);
+  const card = cardKeyOf(evidence) ?? slabCardKey(evidence);
   if (!card || evidence.players.some((hit) => hit.score === 1)) return evidence;
+  // A slab: only C, the label's own name agreeing with the checklist's player at that #. Never a
+  // name the label didn't print, and never the market's alone.
+  const sold = evidence.slab ? [] : titles;
   const listed: ChecklistHit[] = checklists?.length
     ? card.years.flatMap((yearLabel) => playersAt(checklists, { yearLabel, setBrand: card.setBrand, cardNumber: card.cardNumber, sport: card.sport || undefined }))
     : [];
   const lookup: LookupCard = { years: card.years, setBrand: card.setBrand, cardNumber: card.cardNumber, run: card.run };
-  const market = titles.length > 0 ? marketPlayer(titles.slice(0, MAX_SOLD_TITLES), lookup, directory) : null;
+  const market = sold.length > 0 ? marketPlayer(sold.slice(0, MAX_SOLD_TITLES), lookup, directory) : null;
   if (listed.length === 0 && !market) return evidence;
 
   const named = (name: string, source: "checklist" | "sales", sport = ""): Evidence => {
@@ -702,7 +723,8 @@ function withLookedUpPlayer(
   };
 
   const printed = [evidence.playerText, ...evidence.players.filter((hit) => hit.score < 1).map((hit) => hit.line)].filter(Boolean);
-  const agrees = (text: string, name: string) => namesAgree(text, name) || surnameAgrees(text, name);
+  // A slab's label prints the whole name: no surname-only match.
+  const agrees = (text: string, name: string) => namesAgree(text, name) || (!evidence.slab && surnameAgrees(text, name));
   for (const text of printed) {
     const hit = listed.find((item) => agrees(text, item.player));
     if (hit) return named(hit.player, "checklist", hit.sport);
@@ -713,7 +735,7 @@ function withLookedUpPlayer(
     if (both) return named(both.player, "checklist", both.sport);
   }
   // A name was read and no source agrees with it: never swapped for someone else.
-  if (printed.length > 0) return evidence;
+  if (printed.length > 0 || evidence.slab) return evidence;
   const people = new Set(listed.map((item) => nameKey(item.player)));
   if (card.yearPrinted && people.size === 1) return named(listed[0].player, "checklist", listed[0].sport);
   // A number inserts share: the base card's player, when nothing says the card is anything else.

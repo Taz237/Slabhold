@@ -2,6 +2,8 @@
 
 All pages were fetched on **2026-11-13** (Fri, America/New_York) with curl, then saved as text in `raw/`. The rows were parsed only from lines on the page shaped `<card #> <player> - <team>`, and nothing was typed in by hand.
 
+The 2025 Topps Chrome Football, Select, Optic and Mosaic rows (2026-11-16) and the Chrome Update Sapphire, Resurgence and Bowman U Best rows (2026-11-17) were read with the page converter (`scripts/checklist-insider-import.ts`), which writes the CSV and `.parallels.json` straight from the page.
+
 | File | Sport | Year | Product (`--product`) | CSV rows | Base rows | Parallels | Source URL |
 |---|---|---|---|---|---|---|---|
 | 2025-26-basketball-panini-prizm.csv | Basketball | 2025-26 | Panini Prizm | 722 | 200 (Base) | 203 | https://www.checklistinsider.com/2025-26-panini-prizm-basketball |
@@ -32,6 +34,10 @@ All pages were fetched on **2026-11-13** (Fri, America/New_York) with curl, then
 | 2025-football-donruss-optic.csv | Football | 2025 | Donruss Optic | 1101 | 200 (Base) + 100 (Base Rated Rookie) | 188 | https://www.checklistinsider.com/2025-donruss-optic-football |
 | 2025-football-panini-mosaic.csv | Football | 2025 | Panini Mosaic | 1074 | 250 (Base) + 100 (Base Rookies) | 0 (page layout not read; Panini's list is used) | https://www.checklistinsider.com/2025-panini-mosaic-football |
 | 2025-26-basketball-panini-select.csv | Basketball | 2025-26 | Panini Select | 1242 | 400 (Base Concourse to Mezzanine Level) | 410 | https://www.checklistinsider.com/2025-26-panini-select-basketball |
+| 2025-baseball-topps-chrome-update-sapphire.csv | Baseball | 2025 | Topps Chrome Update Sapphire | 287 | 200 (Base Sapphire) | 20 | https://www.checklistinsider.com/2025-topps-chrome-update-sapphire-baseball |
+| 2025-football-topps-resurgence.csv | Football | 2025 | Topps Resurgence | 748 | 100 (Base) + 100 (Base Rookies) | 230 | https://www.checklistinsider.com/2025-topps-resurgence-football |
+| 2025-football-bowman-u-best.csv | Football | 2025 | Bowman U Best | 541 | 100 (Base) | 89 | https://www.checklistinsider.com/2025-bowman-university-best-football |
+| 2025-26-basketball-bowman-u-best.csv | Basketball | 2025-26 | Bowman U Best | 617 | 100 (Base) | 89 | https://www.checklistinsider.com/2025-26-bowman-university-best-basketball |
 | 2026-baseball-topps-series-1.csv | Baseball | 2026 | Topps | 1301 | 330 (Base) | 252 | https://www.checklistinsider.com/2026-topps-series-1-baseball |
 
 ## Cross-check

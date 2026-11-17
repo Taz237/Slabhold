@@ -78,6 +78,10 @@ export const PAGE_CORRECTIONS: Readonly<Record<string, PageCorrections>> = {
     // Base Rookies #313 is Pat Bryant; the etch list's "Antwane Wells Jr." at #313 is a leftover.
     drop: [{ set: "Base Rookies Chrome Etch Variations", number: "313", player: "Antwane Wells Jr." }],
   },
+  // Game Graphs spells two players the way no other section of the page does.
+  "2025-26 Bowman University Best Basketball": {
+    names: { "Tarris Reed JR.": "Tarris Reed Jr.", "Zakiyah Johnson": "ZaKiyah Johnson" },
+  },
 };
 
 /** The page's cards with its known slips fixed. Reports each correction that matched nothing. */
@@ -127,7 +131,12 @@ export function parseInsiderPage(html: string, productTitle: string): InsiderPag
     const card = CARD.exec(line);
     if (card) {
       inParallels = false;
-      const rest = card[3].replace(/\s*\(eBay\)$/i, "").trim();
+      const rest = card[3]
+        .replace(/\s*\(eBay\)$/i, "")
+        // A note after the team: "/5 (no base)" (an autograph with no base card), "RD" (rookie debut).
+        .replace(/\s*\/\s*\d+\s*\([^)]*\)$/, "")
+        .replace(/\s+RD$/, "")
+        .trim();
       const rookie = /\sRC$/.test(rest);
       cards.push({ set: section, number: card[1], player: card[2].trim(), team: rest.replace(/\s+RC$/, "").trim(), rookie });
       continue;

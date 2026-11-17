@@ -543,16 +543,20 @@ function printedMakers(lineWords: string[][]): Set<string> {
 
 /** Bowman U's other products, printed in full: never Bowman's Best, Bowman or Bowman Chrome. */
 const BOWMAN_U_OTHER = /\bbowman\s+u(?:niversity)?\s+(?:best|now)\b|\bbowman(?:'?s)?\s+(?:best|now)\s+u(?:niversity)?\b/i;
+/** Bowman U Best printed in full: "BOWMAN UNIVERSITY BEST", "BOWMAN U BEST", "BOWMAN'S BEST UNIVERSITY". */
+export const BOWMAN_U_BEST = /\bbowman\s+u(?:niversity)?\s+best\b|\bbowman(?:'?s)?\s+best\s+u(?:niversity)?\b/i;
 
 /**
  * Products our set list doesn't have, named in full on a card or in a sold title. The set stays
  * open instead of reading as the nearest set we do have:
- *   - "BOWMAN UNIVERSITY BEST" is not Bowman's Best;
+ *   - "BOWMAN U NOW" is not Bowman (Bowman U Best, printed in full, is its own set);
  *   - "TOPPS CHROME UPDATE SAPPHIRE" is not Topps Chrome Update: Sapphire right after a Topps or
  *     Bowman set whose Sapphire Edition isn't on the list is that edition, another product.
  */
 function withoutUnlistedProducts(names: string[], lines: readonly string[]): string[] {
   const text = lines.join(" \n ");
+  // Bowman U Best has its own checklist: printed in full, it is that set. Bowman U Now stays open.
+  if (BOWMAN_U_BEST.test(text)) return ["Bowman U Best", ...names.filter((name) => !/^bowman/i.test(name))];
   if (BOWMAN_U_OTHER.test(text)) return names.filter((name) => !/^bowman/i.test(name));
   const top = names[0];
   if (!top || !/^(?:topps|bowman)\b/i.test(top) || /sapphire/i.test(top)) return names;
