@@ -345,9 +345,6 @@ describe("Movers rail", () => {
     assert.match(source, /const RAIL_PAINTED_TILES = 3;/);
     // Full prefetch: the auto prefetch of an ISR route with new params only fetches the route tree.
     assert.match(source, /prefetch=\{prefetch\}/);
-    const page = read("components/catalog-page.tsx");
-    assert.doesNotMatch(page, /useWarmOnPointerDown|onPointerDown=/);
-    assert.match(page, /prefetch=\{index < PAINTED_TILES\}/);
     assert.match(source, /href=\{MOVING_TODAY_PATH\}\s+prefetch=\{false\}/);
     assert.doesNotMatch(source, /CardThumb|max-md:pr-20|w-\[38%\]/);
   });
@@ -640,9 +637,10 @@ describe("Moving today cache", () => {
     const cachedCall = load.indexOf("unstable_cache(");
     const freshenCall = load.indexOf("return freshenMovingToday");
     assert.ok(cachedCall > 0 && freshenCall > cachedCall);
-    // Home doesn't read the movers; the catalog's row, the share image and the API route do.
+    // Home and the catalog feed don't read the movers; the share image and the API route do.
     assert.doesNotMatch(home, /getMovingToday|moving-today\/load/);
-    assert.match(read("app/(app)/catalog/page.tsx"), /getMovingToday\(\)/);
+    assert.doesNotMatch(read("app/(app)/catalog/page.tsx"), /getMovingToday/);
+    assert.match(read("app/api/moving-today/route.ts"), /getMovingToday\(\)/);
     const slot = read("components/home-feed.tsx");
     assert.doesNotMatch(slot, /connection\(/);
     assert.doesNotMatch(slot, /MovingToday/);
