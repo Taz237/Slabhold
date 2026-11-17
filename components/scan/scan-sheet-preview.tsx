@@ -65,6 +65,8 @@ export type PreviewKind =
   | "comp-unnumbered"
   | "comp-no-base"
   | "unclean"
+  | "flip"
+  | "comp-flip"
   | "hub"
   | "hub-comp"
   | "door";
@@ -85,6 +87,8 @@ const STATES: Record<Exclude<PreviewKind, "hub" | "hub-comp" | "door">, ConfirmS
   raw: { kind: "ready", matches: PREVIEW_RAW, solds: PREVIEW_SOLDS_NONE },
   numbered: { kind: "ready", matches: [PREVIEW_NUMBERED, ...PREVIEW_RAW.slice(1)] },
   matching: { kind: "matching" },
+  flip: { kind: "back", matches: [{ ...PREVIEW_RAW[0], yearLabel: "", cardNumber: "", sureness: { ...PREVIEW_RAW[0].sureness, year: "unsure", number: "unsure" } }] },
+  "comp-flip": { kind: "back", matches: [{ ...PREVIEW_RAW[0], cardNumber: "", sureness: { ...PREVIEW_RAW[0].sureness, number: "unsure" } }] },
   none: { kind: "none" },
   offline: { kind: "none", offline: true },
   comp: { kind: "ready", matches: [PREVIEW_SLAB], solds: PREVIEW_SOLDS },
@@ -131,6 +135,8 @@ const LABELS: Record<PreviewKind, string> = {
   "comp-unnumbered": "Comp, unnumbered base",
   "comp-no-base": "Comp, no Base sales",
   unclean: "Sales too far apart",
+  flip: "Flip it over",
+  "comp-flip": "Comp, flip it over",
   hub: "Hub, no reader",
   "hub-comp": "Hub comp, no reader",
   door: "Add card door",

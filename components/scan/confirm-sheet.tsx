@@ -12,6 +12,7 @@ import {
   RevealName,
   RevealNameSkeleton,
   SheetFrame,
+  FlipStep,
   parallelOptionsFor,
 } from "@/components/scan/sheet-parts";
 import { COMP_COPY, type SoldsState } from "@/lib/scan/comp";
@@ -31,6 +32,8 @@ import type { ScanMatch } from "@/lib/scan/match";
 
 export type ConfirmSheetState =
   | { kind: "matching" }
+  /** "Flip it over": the front alone couldn't pin the year, set or card #. Its read waits here. */
+  | { kind: "back"; matches: ScanMatch[] }
   /** solds: the top card's last eBay solds, looked up after the card is read. */
   | { kind: "ready"; matches: ScanMatch[]; solds?: SoldsState }
   | { kind: "none"; offline?: boolean };
@@ -51,6 +54,10 @@ type Props = {
   onSapphire?: () => void;
   /** "Which version?": read the slab again as the version picked and look that version's sales up. */
   onVersion?: (version: string, rows: ScanMatch[]) => void;
+  /** "Scan the back" on the Flip it over step. */
+  onScanBack?: () => void;
+  /** "Skip" on the Flip it over step: go on with the front as read. */
+  onSkipBack?: () => void;
   onClose: () => void;
 };
 
@@ -59,13 +66,14 @@ type Props = {
  * and the card's name fills in under it step by step while the lookup runs.
  * The top match is one tap to accept; a wrong row or parallel is one tap to fix.
  */
-export function ConfirmSheet({ photo, state, onConfirm, onStepByStep, onRetake, onSapphire, onVersion, onClose }: Props) {
+export function ConfirmSheet({ photo, state, onConfirm, onStepByStep, onRetake, onSapphire, onVersion, onScanBack, onSkipBack, onClose }: Props) {
   const title = state.kind === "none" ? CONFIRM_COPY.noMatchTitle : CONFIRM_COPY.title;
   return (
     <SheetFrame title={title} busy={state.kind === "matching"} variant="scene" onClose={onClose}>
       {/* Mounted once for every state, so the card flips in once and the name lands under it. */}
       <RevealCard photo={photo} />
       {state.kind === "matching" ? <RevealNameSkeleton label={CONFIRM_COPY.finding} /> : null}
+      {state.kind === "back" ? <FlipStep match={state.matches[0]} onScanBack={onScanBack ?? onRetake} onSkip={onSkipBack ?? onClose} /> : null}
       {state.kind === "none" ? (
         <NoMatch offline={Boolean(state.offline)} onStepByStep={onStepByStep} onRetake={onRetake} />
       ) : null}

@@ -645,3 +645,132 @@ describe("ScanHub comp: a grade change after a version read", () => {
     }
   });
 });
+
+describe("ScanHub: Flip it over", () => {
+  const FRONT: ScanCapture = { lines: ["JAXSON DART", "NEW YORK GIANTS"], backLines: null, image: null, kind: "card" };
+  const BACK: ScanCapture = { lines: ["No. 306", "© 2025 THE TOPPS COMPANY"], backLines: null, image: null, kind: "card" };
+  const open = () => ({ ...fixtures.PREVIEW_RAW[0], grade: null, cardNumber: "" });
+  const pinned = () => ({ ...fixtures.PREVIEW_RAW[0], grade: null, cardNumber: "306", sureness: { ...fixtures.PREVIEW_RAW[0].sureness, year: "sure" as const, set: "likely" as const, number: "sure" as const } });
+
+  function flipDeps(seen: { identified: ScanCapture[]; sold: ScanCapture[]; scans: number }, overrides: Partial<ScanHubDeps> = {}) {
+    return nativeDeps({
+      scannerAvailable: async () => true,
+      pickAndRead: async () => FRONT,
+      scan: async () => {
+        seen.scans += 1;
+        return BACK;
+      },
+      identify: async (capture) => {
+        seen.identified.push(capture);
+        return result([capture.backLines?.length ? pinned() : open()]);
+      },
+      solds: async (capture, matches) => {
+        seen.sold.push(capture);
+        return fixtures.previewSolds(capture, matches);
+      },
+      ...overrides,
+    });
+  }
+
+  async function mountLibrary(deps: Partial<ScanHubDeps>) {
+    pushed.length = 0;
+    const { createRoot } = await import("react-dom/client");
+    const host = win.document.createElement("div");
+    win.document.body.appendChild(host);
+    const root = createRoot(host);
+    await act(async () => {
+      root.render(createElement(AppRouterContext.Provider, { value: router }, createElement(ScanHub, { purpose: "add", start: "library", deps })));
+    });
+    return { unmount: () => (act(() => root.unmount()), host.remove()) };
+  }
+
+  it("a front that can't pin the card asks for the back, with no sold search yet; one tap scans it and both sides are read together", async () => {
+    const seen = { identified: [] as ScanCapture[], sold: [] as ScanCapture[], scans: 0 };
+    const view = await mountLibrary(flipDeps(seen));
+    try {
+      await waitFor(() => text().includes("Flip it over"));
+      assert.ok(text().includes("Card #"), "says what's still missing");
+      assert.equal(seen.sold.length, 0, "no sold search before the back");
+      await act(async () => button("Scan the back").click());
+      await waitFor(() => seen.sold.length > 0);
+      assert.equal(seen.scans, 1);
+      assert.deepEqual(seen.identified[1].lines, FRONT.lines);
+      assert.deepEqual(seen.identified[1].backLines, BACK.lines);
+      assert.deepEqual(seen.sold[0].backLines, BACK.lines);
+      await waitFor(() => !text().includes("Flip it over"));
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("Skip goes on with the front as read: its sold search runs and no camera opens", async () => {
+    const seen = { identified: [] as ScanCapture[], sold: [] as ScanCapture[], scans: 0 };
+    const view = await mountLibrary(flipDeps(seen));
+    try {
+      await waitFor(() => text().includes("Flip it over"));
+      await act(async () => button("Skip the back and use the front").click());
+      await waitFor(() => seen.sold.length > 0);
+      assert.equal(seen.scans, 0);
+      assert.equal(seen.identified.length, 1);
+      assert.equal(seen.sold[0].backLines, null);
+      await waitFor(() => !text().includes("Flip it over"));
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("a cancelled back scan keeps the step, so Skip is still one tap away", async () => {
+    const seen = { identified: [] as ScanCapture[], sold: [] as ScanCapture[], scans: 0 };
+    const view = await mountLibrary(
+      flipDeps(seen, {
+        scan: async () => {
+          seen.scans += 1;
+          return null;
+        },
+      }),
+    );
+    try {
+      await waitFor(() => text().includes("Flip it over"));
+      await act(async () => button("Scan the back").click());
+      await waitFor(() => seen.scans === 1);
+      assert.ok(text().includes("Flip it over"));
+      assert.equal(seen.sold.length, 0);
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("a front that already pins the card goes straight to the card, as before", async () => {
+    const seen = { identified: [] as ScanCapture[], sold: [] as ScanCapture[], scans: 0 };
+    const view = await mountLibrary(flipDeps(seen, { identify: async (capture) => (seen.identified.push(capture), result([pinned()])) }));
+    try {
+      await waitFor(() => seen.sold.length > 0);
+      assert.ok(!text().includes("Flip it over"));
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("never asks twice: the phone's camera already asked for this front's back and it was skipped", async () => {
+    const seen = { identified: [] as ScanCapture[], sold: [] as ScanCapture[], scans: 0 };
+    let first = true;
+    const view = await mount(
+      "add",
+      flipDeps(seen, {
+        scan: async () => {
+          seen.scans += 1;
+          if (!first) return BACK;
+          first = false;
+          return FRONT;
+        },
+      }),
+    );
+    try {
+      await waitFor(() => seen.sold.length > 0);
+      assert.ok(!text().includes("Flip it over"));
+      assert.equal(seen.scans, 1);
+    } finally {
+      view.unmount();
+    }
+  });
+});
