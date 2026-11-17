@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, ViewTransition, useEffect, useState, useSyncExternalStore } from "react";
-import { Bell, Camera, Compass, Mail, Search, Tag, Trophy, WalletCards, type LucideIcon } from "lucide-react";
+import { Bell, Camera, Compass, LayoutGrid, Mail, Search, WalletCards, type LucideIcon } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { useSocial } from "@/components/social-provider";
 import { AccountDeletedToast } from "@/components/account-deleted-toast";
@@ -37,11 +37,9 @@ import type { Profile } from "@/lib/social/types";
 import {
   addCardSheetOpen,
   closeAddCardSheet,
-  openAddCardSheet,
-  opensAddSheet,
   subscribeAddCardSheet,
 } from "@/lib/cards/add-card-sheet";
-import { BOTTOM_NAV, bottomNavTabs, type BottomNavTab } from "@/lib/ui/bottom-nav";
+import { BOTTOM_NAV, SCAN_TAB_HREF, type BottomNavTab } from "@/lib/ui/bottom-nav";
 import {
   activeTabAction,
   isCurrentTabScreen,
@@ -126,23 +124,18 @@ if (sessionHinted()) {
 
 const TAB_ICONS = {
   "/": Compass,
-  "/leaderboard": Trophy,
-  "/cards/new": Camera,
+  "/catalog": LayoutGrid,
+  "/scan": Camera,
   "/collection": WalletCards,
   "/messages": Mail,
 } as Record<BottomNavTab["href"], LucideIcon>;
 
-// Quick Comp's price tag, only in a build with its flag on. The flag's
-// inlined check, not quickCompEnabled(), so an off build has no Tag at all.
-if (process.env.NEXT_PUBLIC_QUICK_COMP === "1") TAB_ICONS["/comp"] = Tag;
-
 /** Coach-mark anchors for the quick tour. Home has none. */
 const TAB_TOUR: Partial<Record<BottomNavTab["href"], TourTarget>> = {
-  "/leaderboard": "leaderboard",
-  "/cards/new": "add-card",
+  "/catalog": "catalog",
+  "/scan": "add-card",
   "/collection": "collection",
   "/messages": "messages",
-  "/comp": "quick-comp",
 };
 
 function withIcons(tabs: readonly BottomNavTab[]) {
@@ -258,10 +251,7 @@ function Shell({
   const router = useRouter();
   const { mode } = useSocial();
   const onboardingBusy = useOnboardingBusy();
-  // Quick Comp takes Leaderboard's slot. Next inlines the flag, so with it off
-  // this is a constant false and the Quick Comp branch is not in the bundle.
-  const quickComp = process.env.NEXT_PUBLIC_QUICK_COMP === "1";
-  const tabs = quickComp ? withIcons(bottomNavTabs(true)) : TABS;
+  const tabs = TABS;
   /** Collection needs a wider desktop column; feed/timeline stay max-w-lg. */
   const wideMain =
     pathname.startsWith("/collection") || pathname.startsWith("/portfolio");
@@ -380,26 +370,21 @@ function Shell({
             {tabs.map((tab) => {
               const active = isActive(pathname, tab.href, user);
               const Icon = tab.icon;
-              if (tab.href === "/cards/new") {
+              if (tab.href === SCAN_TAB_HREF) {
                 return (
                   <Link
                     key={tab.href}
                     href={tab.href}
-                    onClick={(event) => {
-                      // A plain tap opens the Add card sheet; a new-tab click still goes to /cards/new.
-                      if (!opensAddSheet(event)) return;
-                      event.preventDefault();
-                      openAddCardSheet();
-                    }}
+                    onClick={(event) => onTabClick(event, tab.href)}
                     data-tour={tab.tour}
-                    aria-label="Add card"
+                    aria-label="Scan"
                     aria-current={active ? "page" : undefined}
                     className="hit-44 tap flex min-w-0 flex-1 flex-col items-center gap-0.5 px-0.5 py-1 text-[min(0.6875rem,13px)] font-medium leading-none text-violet-700 dark:text-violet-200"
                   >
                     <span className="grid h-11 w-11 -translate-y-3 place-items-center rounded-full bg-violet-600 text-white shadow-lg ring-4 ring-[var(--background)]">
                       <Camera className="h-5 w-5" />
                     </span>
-                    Add card
+                    Scan
                   </Link>
                 );
               }
@@ -419,13 +404,7 @@ function Shell({
                   }`}
                 >
                   <span className="relative">
-                    <Icon
-                      className={`h-5 w-5 ${
-                        active && tab.href === "/leaderboard"
-                          ? "text-[#7C3AED] dark:text-[#A78BFA]"
-                          : ""
-                      }`}
-                    />
+                    <Icon className="h-5 w-5" />
                     {messageBadge > 0 ? (
                       <span className="absolute -top-1.5 -right-2.5 grid h-4 min-w-4 place-items-center rounded-full bg-[#7C3AED] px-1 text-11 font-semibold leading-none text-white ring-2 ring-[var(--background)]">
                         {messageBadge > 9 ? "9+" : messageBadge}

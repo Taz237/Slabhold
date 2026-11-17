@@ -47,6 +47,8 @@ export const COMP_COPY = {
   unavailableBody: "The lookup didn't go through. Your card is still read.",
   retry: "Try again",
   assumedBase: "Showing Base. Tap your parallel if it's different.",
+  /** The parallel was read off the photo (its border color, at the run it printed). */
+  matchedFromPhoto: "Read from your photo. Tap another if it's different.",
   grade: "Grade",
   add: "Add to collection",
   next: "Scan another",

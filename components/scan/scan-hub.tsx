@@ -2,12 +2,17 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Camera, CameraOff, ImagePlus, ScanLine } from "lucide-react";
 import { PrimaryButton, QuietButton, focusRing } from "@/components/add-card/flow-ui";
 import { PhotoFileInputs } from "@/components/photo-file-inputs";
-import { CompSheet, type CompLookup } from "@/components/scan/comp-sheet";
+import type { CompLookup } from "@/components/scan/comp-sheet";
 import { ConfirmSheet, type ConfirmSheetState } from "@/components/scan/confirm-sheet";
+import { AddedPop } from "@/components/scan/added-pop";
+import { CollectionContext } from "@/components/collection-provider";
+import { haptic } from "@/lib/ios/haptics";
+import { cardInputFromScan } from "@/lib/scan/quick-add";
+import { nextAccent } from "@/lib/storage";
 import { saveScan, saveScanMatch } from "@/lib/capture";
 import { isNativeApp, loadNative } from "@/lib/ios/platform";
 import { CAMERA_DENIED, type ScanOutcome } from "@/lib/ios/scanner";
@@ -18,9 +23,8 @@ import { newScanId, scanAddPath, scanHandoffFrom } from "@/lib/scan/handoff";
 import type { LiveSoldsResult } from "@/lib/scan/live-solds";
 import type { ScanMatch, ScanMatchResult, SoldTitle } from "@/lib/scan/match";
 import type { PhotoLook } from "@/lib/scan/photo-look";
-import type { RevealFound } from "@/lib/scan/reveal";
 import { versionRereadSheet } from "@/lib/scan/version-reread";
-import { HUB_COPY, scanReadFrom, sheetStateFrom, withVersionLine, type ScanCapture, type ScanPurpose } from "@/lib/scan/session";
+import { HUB_COPY, scanReadFrom, sheetStateFrom, withVersionLine, type ScanCapture } from "@/lib/scan/session";
 
 export type ScanHubDeps = {
   /** Async so no plugin code ships in /scan's first load. */
@@ -36,8 +40,6 @@ export type ScanHubDeps = {
   look: (image: string) => Promise<PhotoLook | null>;
   /** Fills open fields from the phone's alternate readings, before anything reads the capture. */
   settle: (capture: ScanCapture) => Promise<ScanCapture>;
-  /** What the card's own text gives before any lookup (the player, the card #), for the reveal. */
-  early?: (capture: ScanCapture) => Promise<RevealFound>;
   /** Read and match against the catalog. Null when the search failed. */
   identify: (capture: ScanCapture, signal: AbortSignal) => Promise<ScanMatchResult | null>;
   /**
@@ -56,12 +58,6 @@ async function defaultSettle(capture: ScanCapture): Promise<ScanCapture> {
   if (!capture.alternates?.length && !capture.backAlternates?.length) return capture;
   const [{ SCAN_DIRECTORY }, { withAlternates }] = await Promise.all([import("@/lib/players/scan-directory"), import("@/lib/scan/alternates")]);
   return withAlternates(capture, SCAN_DIRECTORY);
-}
-
-/** The player and card # the card's own text gives, read on the phone before any lookup. */
-async function defaultEarly(capture: ScanCapture): Promise<RevealFound> {
-  const [{ SCAN_DIRECTORY }, { earlyFound }] = await Promise.all([import("@/lib/players/scan-directory"), import("@/lib/scan/reveal")]);
-  return earlyFound(scanReadFrom(capture, SCAN_DIRECTORY), SCAN_DIRECTORY);
 }
 
 async function defaultIdentify(capture: ScanCapture, signal: AbortSignal): Promise<ScanMatchResult | null> {
@@ -157,20 +153,25 @@ const defaultDeps: ScanHubDeps = {
   nativeApp: isNativeApp,
 };
 
+/** The pop shows this long before the collection opens. */
+const ADDED_PAUSE_MS = 700;
+const ADDED_PAUSE_REDUCED_MS = 250;
+
 /**
- * /scan. With the native scanner it opens the camera straight away: snap,
- * then the sheet. Add confirms into Add card; comp shows what it sold for.
- * Without it (the web, or an older app build) it says so and falls back to a
- * photo and a search, so no button is a dead end.
+ * /scan, the one Scan flow. With the native scanner it opens the camera straight away: the front,
+ * then the back, then the reveal, then the card with what it sold for and Add to my collection. A
+ * collector who only wanted the price backs out. Without the scanner (the web, or an older app
+ * build) it says so and falls back to a photo and a search, so no button is a dead end.
  */
 export function ScanHub({
-  purpose,
   start = "camera",
+  search = null,
   deps: overrides,
 }: {
-  purpose: ScanPurpose;
   /** "library": the Add card sheet's Upload photo. Opens the photo library instead of the camera. */
   start?: "camera" | "library";
+  /** Quick Comp's search, under the Scan button: find a card's sold prices by player. */
+  search?: ReactNode;
   deps?: Partial<ScanHubDeps>;
 }) {
   const deps = useMemo(() => ({ ...defaultDeps, ...overrides }), [overrides]);
@@ -182,6 +183,10 @@ export function ScanHub({
   // The back's photo, when the camera took the back too: the reveal card turns to it.
   const [backPhoto, setBackPhoto] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // The pop after a one-tap add, while the collection opens.
+  const [added, setAdded] = useState(false);
+  // Null outside the app's collection (tests, previews): Add then goes through Add card.
+  const collection = useContext(CollectionContext);
   // Camera access is off for Slabhold. `settings`: this build can open the Settings app.
   const [cameraOff, setCameraOff] = useState<{ settings: boolean } | null>(null);
   const run = useRef<AbortController | null>(null);
@@ -236,10 +241,6 @@ export function ScanHub({
       // Alternates are settled once, here, so the phone and the server read the same lines.
       const settled = await deps.settle(scanned).catch(() => scanned);
       if (controller.signal.aborted) return;
-      // The reveal fills in what the card's own text gives right away: the player, the card #.
-      const found = await (deps.early ?? defaultEarly)(settled).catch(() => ({}));
-      if (controller.signal.aborted) return;
-      if (Object.keys(found).length > 0) setSheet({ kind: "matching", found });
       // A raw card's photo look orders "Which version?". A slab's photo is mostly its case and label.
       // Read once per photo: a front kept for "Flip it over" carries its look (or null) back in.
       const look = settled.look === undefined && settled.image && settled.kind !== "slab" ? await deps.look(settled.image).catch(() => null) : (settled.look ?? null);
@@ -394,7 +395,23 @@ export function ScanHub({
 
   useEffect(() => () => run.current?.abort(), []);
 
+  /**
+   * "Add to my collection": one tap. A card with everything read (and its version picked) is
+   * saved right here: a pop, a light haptic, then the collection. No sheet after it, no detour.
+   * Anything still missing (a year, a card #) goes to Add card, which asks for it.
+   */
   function toAddCard(match: ScanMatch, options: { save: boolean }) {
+    const input = collection && options.save ? cardInputFromScan(match, { photo, accent: nextAccent(collection.cards.length), isPublic: false }) : null;
+    if (collection && input) {
+      collection.addCard(input);
+      haptic("add");
+      run.current?.abort();
+      setSheet(null);
+      setAdded(true);
+      const reduce = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+      window.setTimeout(() => router.push("/collection"), reduce ? ADDED_PAUSE_REDUCED_MS : ADDED_PAUSE_MS);
+      return;
+    }
     const id = newScanId();
     if (photo) saveScan(photo);
     saveScanMatch(scanHandoffFrom(match, id, { autoSave: options.save }));
@@ -416,7 +433,6 @@ export function ScanHub({
     }
   }
 
-  const comp = purpose === "comp";
   const closeSheet = () => {
     run.current?.abort();
     waitingBack.current = null;
@@ -424,20 +440,14 @@ export function ScanHub({
   };
 
   return (
-    <div className="flex min-h-[70dvh] flex-col">
-      <h1 className="text-2xl font-semibold tracking-tight">{comp ? HUB_COPY.compTitle : HUB_COPY.addTitle}</h1>
-      <p className="mt-1 text-sm leading-5 text-zinc-600 dark:text-zinc-400">{comp ? HUB_COPY.compBody : HUB_COPY.addBody}</p>
+    <div className="flex flex-col">
+      <h1 className="text-2xl font-semibold tracking-tight">{HUB_COPY.title}</h1>
+      <p className="mt-1 text-sm leading-5 text-zinc-600 dark:text-zinc-400">{HUB_COPY.body}</p>
       <p className="mt-3 text-13 text-zinc-500 dark:text-zinc-400">{HUB_COPY.unlimited}</p>
 
       {available === false ? (
         <p className="mt-6 rounded-2xl border border-zinc-200 p-4 text-sm leading-5 text-zinc-600 dark:border-white/10 dark:text-zinc-400">
-          {deps.nativeApp()
-            ? comp
-              ? HUB_COPY.compScannerDown
-              : HUB_COPY.scannerDown
-            : comp
-              ? HUB_COPY.compReaderSoon
-              : HUB_COPY.readerSoon}
+          {deps.nativeApp() ? HUB_COPY.scannerDown : HUB_COPY.readerSoon}
         </p>
       ) : null}
 
@@ -466,8 +476,7 @@ export function ScanHub({
         </p>
       ) : null}
 
-      {/* The actions sit low, where a thumb reaches. */}
-      <div className="mt-auto space-y-3 pt-10 pb-2">
+      <div className="mt-6 space-y-3">
         {available === null ? (
           <div aria-hidden className="skeleton-shimmer h-14 rounded-full" />
         ) : available ? (
@@ -484,21 +493,14 @@ export function ScanHub({
               <span aria-hidden className="text-zinc-300 dark:text-white/20">
                 ·
               </span>
-              <TypeItLink comp={comp} />
+              <TypeItLink />
             </div>
           </>
-        ) : comp ? (
-          <Link
-            href="/comp"
-            className={`inline-flex min-h-14 w-full items-center justify-center rounded-full bg-violet-600 px-6 text-15 font-semibold text-white hover:bg-violet-500 ${focusRing}`}
-          >
-            {HUB_COPY.findByName}
-          </Link>
         ) : (
           <>
             <PhotoFileInputs cameraRef={cameraRef} libraryRef={libraryRef} onPick={(file) => void onWebPhoto(file)} />
             <PrimaryButton onClick={() => cameraRef.current?.click()} className="min-h-14 gap-2 text-15">
-              <Camera className="size-5" strokeWidth={1.75} aria-hidden />
+              <Camera className="size-5" aria-hidden />
               {HUB_COPY.scan}
             </PrimaryButton>
             <div className="flex items-center justify-center gap-2">
@@ -509,13 +511,24 @@ export function ScanHub({
               <span aria-hidden className="text-zinc-300 dark:text-white/20">
                 ·
               </span>
-              <TypeItLink comp={false} />
+              <TypeItLink />
             </div>
           </>
         )}
       </div>
 
-      {sheet && !comp ? (
+      {search ? (
+        <section aria-labelledby="scan-search" className="mt-8 border-t border-zinc-200 pt-6 dark:border-white/10">
+          <h2 id="scan-search" className="text-15 font-semibold">
+            {HUB_COPY.searchTitle}
+          </h2>
+          <p className="mt-1 text-sm leading-5 text-zinc-600 dark:text-zinc-400">{HUB_COPY.searchBody}</p>
+          <div className="mt-3">{search}</div>
+        </section>
+      ) : null}
+
+      {added ? <AddedPop photo={photo} /> : null}
+      {sheet ? (
         <ConfirmSheet
           photo={photo}
           backPhoto={backPhoto}
@@ -531,30 +544,14 @@ export function ScanHub({
           onClose={closeSheet}
         />
       ) : null}
-      {sheet && comp ? (
-        <CompSheet
-          photo={photo}
-          backPhoto={backPhoto}
-          state={sheet}
-          lookup={deps.compLookup}
-          onAdd={toAddCard}
-          onScanAnother={() => void startScan()}
-          onSearch={() => router.push("/comp")}
-          onSapphire={asSapphire}
-          onVersion={asVersion}
-          onScanBack={() => void scanBack()}
-          onSkipBack={skipBack}
-          onClose={closeSheet}
-        />
-      ) : null}
     </div>
   );
 }
 
-function TypeItLink({ comp }: { comp: boolean }) {
+function TypeItLink() {
   return (
     <Link
-      href={comp ? "/comp" : "/cards/new"}
+      href="/cards/new"
       className={`inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-violet-700 hover:bg-violet-500/10 dark:text-[#A78BFA] ${focusRing}`}
     >
       {HUB_COPY.typeIt}

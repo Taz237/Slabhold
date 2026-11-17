@@ -43,7 +43,7 @@ const router = {
   prefetch() {},
 };
 
-let ScanHub: ComponentType<{ purpose: ScanPurpose; start?: "camera" | "library"; deps?: Partial<ScanHubDeps> }>;
+let ScanHub: ComponentType<{ start?: "camera" | "library"; search?: ReactNode; deps?: Partial<ScanHubDeps> }>;
 let fixtures: typeof import("@/lib/scan/preview-fixtures");
 
 before(async () => {
@@ -65,7 +65,8 @@ function result(matches: ScanMatch[]): ScanMatchResult {
   return { matches, settled: true };
 }
 
-async function mount(purpose: ScanPurpose, deps: Partial<ScanHubDeps>) {
+/** `_purpose`: kept so each test still says which way in it was written for; there is one Scan flow now. */
+async function mount(_purpose: ScanPurpose, deps: Partial<ScanHubDeps>, search: ReactNode = null) {
   pushed.length = 0;
   win.sessionStorage.clear();
   const { createRoot } = await import("react-dom/client");
@@ -73,7 +74,7 @@ async function mount(purpose: ScanPurpose, deps: Partial<ScanHubDeps>) {
   win.document.body.appendChild(host);
   const root = createRoot(host);
   await act(async () => {
-    root.render(createElement(AppRouterContext.Provider, { value: router }, createElement(ScanHub, { purpose, deps })));
+    root.render(createElement(AppRouterContext.Provider, { value: router }, createElement(ScanHub, { deps, search })));
   });
   return {
     unmount() {
@@ -100,6 +101,13 @@ function button(name: string): HTMLElement {
  * first row is tapped, like a collector who sees their card at the top.
  */
 async function pickTopRow() {
+  // The reveal types in first: a tap on its label goes on.
+  const label = win.document.querySelector<HTMLElement>('[data-reveal="label"]');
+  if (label) {
+    await act(async () => {
+      label.click();
+    });
+  }
   const row = win.document.querySelector<HTMLButtonElement>('[data-pick="list"] button');
   if (!row) return;
   await act(async () => {
@@ -138,7 +146,7 @@ describe("ScanHub with the native scanner", () => {
     try {
       await waitFor(() => text().includes("Your card"));
       assert.equal(scans, 1, "no tap needed to open the camera");
-      await act(async () => button("Add to collection").click());
+      await act(async () => button("Add to my collection").click());
       assert.match(pushed[0] ?? "", /^\/cards\/new\?scan=[a-z0-9]+$/);
       const stored = JSON.parse(win.sessionStorage.getItem("cardflip.scan-match") ?? "{}");
       assert.equal(stored.autoSave, true);
@@ -353,11 +361,13 @@ describe("ScanHub without the native scanner", () => {
     }
   });
 
-  it("sends comp to the search by name", async () => {
-    const view = await mount("comp", { scannerAvailable: async () => false });
+  it("puts Quick Comp's search under the Scan button, on the same screen", async () => {
+    const view = await mount("add", { scannerAvailable: async () => false }, createElement("div", { "data-fixture-search": "" }, "search"));
     try {
-      await waitFor(() => text().includes("Find it by name"));
-      assert.equal(button("Find it by name").getAttribute("href"), "/comp");
+      await waitFor(() => text().includes("Search sold prices"));
+      const section = win.document.querySelector('section[aria-labelledby="scan-search"]');
+      assert.ok(section?.querySelector("[data-fixture-search]"), "the search sits in its own section");
+      assert.ok(text().indexOf("Scan a card") < text().indexOf("Search sold prices"), "under the Scan button");
     } finally {
       view.unmount();
     }
@@ -390,12 +400,12 @@ describe("ScanHub from the Add card sheet's Upload photo", () => {
     const deps = nativeDeps({ scan: async () => (scans++, CAPTURE), pickAndRead: async () => (reads++, CAPTURE) });
     await act(async () => {
       root.render(
-        createElement(AppRouterContext.Provider, { value: router }, createElement(ScanHub, { purpose: "add", start: "library", deps })),
+        createElement(AppRouterContext.Provider, { value: router }, createElement(ScanHub, { start: "library", deps })),
       );
     });
     try {
-      // The same reveal as the camera, then "Pick your card" (waited for without tapping a row).
-      for (let i = 0; i < 80 && !win.document.querySelector('[data-pick="list"]'); i += 1) {
+      // The same reveal as the camera (waited for without tapping through it).
+      for (let i = 0; i < 80 && !win.document.querySelector('[data-reveal="label"] [data-line]'); i += 1) {
         await act(async () => {
           await new Promise((resolve) => setTimeout(resolve, 20));
         });
@@ -403,7 +413,6 @@ describe("ScanHub from the Add card sheet's Upload photo", () => {
       assert.equal(reads, 1);
       assert.equal(scans, 0, "the camera stays closed");
       assert.ok(win.document.querySelector('[data-reveal="scan-card"]'), "the same flip-in reveal");
-      assert.ok(win.document.querySelector('[data-pick="list"]'), "then Pick your card");
     } finally {
       act(() => root.unmount());
       host.remove();
@@ -664,7 +673,7 @@ describe("ScanHub: Flip it over", () => {
     win.document.body.appendChild(host);
     const root = createRoot(host);
     await act(async () => {
-      root.render(createElement(AppRouterContext.Provider, { value: router }, createElement(ScanHub, { purpose: "add", start: "library", deps })));
+      root.render(createElement(AppRouterContext.Provider, { value: router }, createElement(ScanHub, { start: "library", deps })));
     });
     return { unmount: () => (act(() => root.unmount()), host.remove()) };
   }
@@ -870,7 +879,7 @@ describe("ScanHub: the photo's look for Which version?", () => {
       },
     });
     await act(async () => {
-      root.render(createElement(AppRouterContext.Provider, { value: router }, createElement(ScanHub, { purpose: "add", start: "library", deps })));
+      root.render(createElement(AppRouterContext.Provider, { value: router }, createElement(ScanHub, { start: "library", deps })));
     });
     try {
       await waitFor(() => text().includes("Flip it over"));
@@ -883,6 +892,64 @@ describe("ScanHub: the photo's look for Which version?", () => {
       assert.deepEqual(identified[1].backLines, BACK.lines);
       assert.equal(identified[1].image, RAW.image, "the front's photo stays the card's photo");
       assert.deepEqual(sold[0].look, { border: "green", sheen: "rainbow" });
+    } finally {
+      act(() => root.unmount());
+      host.remove();
+    }
+  });
+});
+
+describe("ScanHub: Add to my collection is one tap", () => {
+  it("saves the card right there: a pop with a light haptic, then the collection, with no Add card sheet", async () => {
+    const { CollectionContext } = await import("@/components/collection-provider");
+    const added: unknown[] = [];
+    const collection = {
+      ready: true,
+      loaded: true,
+      loadFailed: false,
+      cards: [],
+      syncError: null,
+      getCard: () => undefined,
+      addCard: (input: Record<string, unknown>) => {
+        added.push(input);
+        const card = { ...input, id: "new", createdAt: "", updatedAt: "" };
+        return { card, saved: Promise.resolve() };
+      },
+      updateCard: () => {
+        throw new Error("not here");
+      },
+      removeCard: () => {},
+      reload: async () => [],
+    };
+    pushed.length = 0;
+    win.sessionStorage.clear();
+    const { createRoot } = await import("react-dom/client");
+    const host = win.document.createElement("div");
+    win.document.body.appendChild(host);
+    const root = createRoot(host);
+    await act(async () => {
+      root.render(
+        createElement(
+          AppRouterContext.Provider,
+          { value: router },
+          createElement(CollectionContext.Provider, { value: collection as never }, createElement(ScanHub, { deps: nativeDeps() })),
+        ),
+      );
+    });
+    try {
+      await waitFor(() => text().includes("Add to my collection"));
+      await act(async () => button("Add to my collection").click());
+      assert.equal(added.length, 1, "saved once, right here");
+      const card = added[0] as { playerName: string; parallel: string; grade: string; certNumber: string };
+      assert.equal(card.playerName, fixtures.PREVIEW_SLAB.playerName);
+      assert.equal(card.parallel, "Silver");
+      assert.equal(card.grade, "PSA 10");
+      assert.equal(card.certNumber, "00000000");
+      assert.ok(win.document.querySelector("[data-added-pop]"), "the pop");
+      assert.equal(win.document.querySelector('[role="dialog"]'), null, "no sheet after it");
+      assert.equal(win.sessionStorage.getItem("cardflip.scan-match"), null, "no Add card handoff");
+      await waitFor(() => pushed.includes("/collection"));
+      assert.ok(!pushed.some((path) => /cards\/new|market|sell/.test(path)), pushed.join(", "));
     } finally {
       act(() => root.unmount());
       host.remove();

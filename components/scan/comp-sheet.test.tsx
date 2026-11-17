@@ -89,11 +89,27 @@ async function mount(state: ConfirmSheetState, lookup?: Props["lookup"]) {
 
 /** Taps a row of "Pick your card", when the list shows. */
 async function pickRow(host: HTMLElement, index: number) {
+  // The reveal types in first: a tap on its label goes on.
+  const label = host.querySelector<HTMLElement>('[data-reveal="label"]');
+  if (label) {
+    await act(async () => {
+      label.click();
+    });
+  }
   const row = host.querySelectorAll<HTMLButtonElement>('[data-pick="list"] button')[index];
   if (!row) return;
   await act(async () => {
     row.click();
   });
+}
+
+/** A Parallel chip whose label starts with this name ("Silver", "Silver · 10 sales"). */
+function chipNamed(name: string): HTMLButtonElement {
+  const found = [...win.document.querySelectorAll<HTMLButtonElement>('[role="group"][aria-label="Parallel"] button')].find((node) =>
+    (node.getAttribute("aria-label") ?? node.textContent ?? "").trim().startsWith(name),
+  );
+  assert.ok(found, `chip ${name}`);
+  return found;
 }
 
 function text(): string {
@@ -167,16 +183,31 @@ describe("CompSheet", () => {
     }
   });
 
-  it("prices Base when the parallel is open, says so, and one tap changes it", async () => {
+  it("never prices Base on its own: with the version open it asks which, and one tap prices that one", async () => {
     const view = await mount({ kind: "ready", matches: fixtures.PREVIEW_RAW });
     try {
-      await waitFor(() => text().includes("Not enough recent sales for a value yet"));
-      assert.ok(text().includes("Showing Base. Tap your parallel if it's different."));
-      assert.equal(view.calls.lookups[0]?.parallel, "Base");
-      assert.equal(button("Base").getAttribute("aria-pressed"), "true", "the chip matches the prices shown");
+      await waitFor(() => text().includes("Which version?"));
+      assert.ok(text().includes("Pick the version to see its sold prices"));
+      assert.equal(view.calls.lookups.length, 0, "nothing looked up as Base");
+      assert.equal(/\$\d/.test(text()), false, "no price yet");
+      assert.equal(button("Base").getAttribute("aria-pressed"), "false", "Base is a choice, never preselected");
       await click(button("Silver"));
       await waitFor(() => text().includes("Based on 5 sales"));
-      assert.equal(text().includes("Showing Base"), false);
+      assert.equal(view.calls.lookups[0]?.parallel, "Silver");
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("Add before the version is picked says so, and adds nothing", async () => {
+    const view = await mount({ kind: "ready", matches: fixtures.PREVIEW_RAW });
+    try {
+      await click(button("Add to my collection"));
+      assert.equal(view.calls.added.length, 0);
+      assert.ok(text().includes("Pick your version first"));
+      await click(button("Base"));
+      await click(button("Add to my collection"));
+      assert.equal(view.calls.added[0]?.parallel, "Base");
     } finally {
       view.unmount();
     }
@@ -211,7 +242,7 @@ describe("CompSheet", () => {
   it("adds the card in one tap without leaving, with the picked parallel", async () => {
     const view = await mount({ kind: "ready", matches: [fixtures.PREVIEW_SLAB] });
     try {
-      await click(button("Add to collection"));
+      await click(button("Add to my collection"));
       assert.equal(view.calls.added[0]?.parallel, "Silver");
       assert.deepEqual(view.calls.saves, [true]);
       await click(button("Scan another"));
@@ -436,7 +467,7 @@ describe("Aidan Miller after #245: a bio 'for-4' on the back, empty catalog", ()
     }
   });
 
-  it("an unnumbered base: Base priced and labelled, 'Showing Base', Silver offered to tap", async () => {
+  it("an unnumbered card with Base and Silver sales: asks which, never Base on its own; Silver is one tap", async () => {
     const match = { ...fixtures.PREVIEW_RAW[0], parallel: "", serialRun: null, serialNo: "", parallelSource: undefined };
     const base = fixtures.PREVIEW_SOLDS_PARALLEL.status === "done" ? fixtures.PREVIEW_SOLDS_PARALLEL.comp : null;
     assert.ok(base && base.status === "ok");
@@ -444,11 +475,9 @@ describe("Aidan Miller after #245: a bio 'for-4' on the back, empty catalog", ()
     const solds = { status: "done" as const, comp: { ...base, parallel: "Base", groups }, query: "q" };
     const view = await mount({ kind: "ready", matches: [match], solds });
     try {
-      await waitFor(() => text().includes("Value · Base"));
-      assert.ok(text().includes("Showing Base. Tap your parallel if it's different."));
-      assert.doesNotMatch(text(), /Matched from recent sales/);
-      assert.ok(text().includes("Other parallels in recent sales"));
-      await click(button("Show Silver sales, 10 sales"));
+      await waitFor(() => text().includes("Which version?"));
+      assert.doesNotMatch(text(), /Value · Base|Showing Base/);
+      await click(chipNamed("Silver"));
       await waitFor(() => view.calls.lookups.length > 0);
       assert.equal(view.calls.lookups.at(-1)?.parallel, "Silver");
       const pressed = [...win.document.querySelectorAll("button[aria-pressed='true']")].map((node) => node.textContent ?? "");
@@ -488,6 +517,8 @@ describe("Aidan Miller after #245: a bio 'for-4' on the back, empty catalog", ()
     }
     const few = await mount({ kind: "ready", matches: [fixtures.PREVIEW_UNNUMBERED], solds: fixtures.PREVIEW_SOLDS_UNCLEAN });
     try {
+      // Its version is open: Base, picked, shows the scan's own sales.
+      await click(button("Base"));
       await waitFor(() => text().includes("Last sales"));
       assert.equal(win.document.querySelector("[role='img'][aria-label*='sales']"), null);
     } finally {

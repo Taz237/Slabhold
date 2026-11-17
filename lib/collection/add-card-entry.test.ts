@@ -59,7 +59,7 @@ describe("Add a card on Collection", () => {
     assert.match(menu, />\s*Add card\s*</);
   });
 
-  it("is also in the create menu and the side menu, and the camera tab adds a card", () => {
+  it("is also in the create menu and the side menu; the camera tab is Scan, the one way to add or price a card", () => {
     const menu = read("components/create-menu.tsx");
     assert.match(menu, /href="\/cards\/new"/);
     assert.match(menu, />\s*Add card\s*</);
@@ -69,15 +69,10 @@ describe("Add a card on Collection", () => {
     assert.doesNotMatch(menu, /\/mail-day/);
     const more = read("lib/ui/side-menu.ts");
     assert.match(more, /href: "\/cards\/new", label: "Add card"/);
-    assert.doesNotMatch(more, /href="\/scan"/);
-    assert.doesNotMatch(more, /Scan a card/);
     const shell = read("components/app-shell.tsx");
-    assert.match(read("lib/ui/bottom-nav.ts"), /href: "\/cards\/new", label: "Add card"/);
+    assert.match(read("lib/ui/bottom-nav.ts"), /href: "\/scan", label: "Scan"/);
     assert.match(shell, /BOTTOM_NAV/);
-    assert.match(shell, /aria-label="Add card"/);
-    assert.match(shell, />\s*Add card\s*</);
-    assert.doesNotMatch(shell, /href: "\/scan"/);
-    assert.doesNotMatch(shell, /Scan a card/);
-    assert.match(read("app/(app)/scan/page.tsx"), /ScanView/);
+    assert.match(shell, /aria-label="Scan"/);
+    assert.match(shell, />\s*Scan\s*</);
   });
 });

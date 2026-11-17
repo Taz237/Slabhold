@@ -1,46 +1,61 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { SCAN_DIRECTORY } from "@/lib/players/scan-directory";
 import { PREVIEW_RAW, PREVIEW_SLAB } from "./preview-fixtures";
-import { earlyFound, REVEAL_COPY, REVEAL_FIELDS, revealFoundFrom } from "./reveal";
-import { scanReadFrom } from "./session";
+import { REVEAL_COPY } from "./reveal";
 
-describe("the scan reveal's fields", () => {
-  it("are Player, Year, Set, Number and Parallel, in that order", () => {
-    assert.deepEqual(REVEAL_FIELDS, ["player", "year", "set", "number", "parallel"]);
-    assert.deepEqual(
-      REVEAL_FIELDS.map((field) => REVEAL_COPY.labels[field]),
-      ["Player", "Year", "Set", "Number", "Parallel"],
-    );
-  });
-
-  it("the card's own read fills the player and the card # before any lookup", () => {
-    const read = scanReadFrom(
-      { lines: ["ROOKIE CODE", "CAMERON BOOZER"], backLines: ["1 RC-3 0", "CAMERON BOOZER", "MEMPHIS GRIZZLIES"], kind: "card", image: null },
-      SCAN_DIRECTORY,
-    );
-    assert.deepEqual(earlyFound(read, SCAN_DIRECTORY), { player: "Cameron Boozer", number: "#RC-3" });
-  });
-
-  it("nothing read early: nothing filled, never a guess", () => {
-    const read = scanReadFrom({ lines: ["0 1 0", "o 0"], backLines: null, kind: "card", image: null }, SCAN_DIRECTORY);
-    assert.deepEqual(earlyFound(read, SCAN_DIRECTORY), {});
-  });
-
-  it("the top match fills every field it has; an open parallel stays empty", () => {
-    const slab = revealFoundFrom(PREVIEW_SLAB);
-    assert.equal(slab.player, PREVIEW_SLAB.playerName);
-    assert.equal(slab.year, PREVIEW_SLAB.yearLabel);
-    assert.equal(slab.set, PREVIEW_SLAB.setBrand);
-    assert.equal(slab.number, `#${PREVIEW_SLAB.cardNumber}`);
-    assert.equal(slab.parallel, PREVIEW_SLAB.parallel);
-    const raw = revealFoundFrom({ ...PREVIEW_RAW[0], parallel: "" });
-    assert.equal(raw.parallel, undefined);
-    assert.deepEqual(revealFoundFrom(undefined), {});
-  });
-
-  it("the copy is plain: no 'best', 'AI', 'free' or 'number one'", () => {
+describe("the reveal's copy", () => {
+  it("is plain: no 'best', 'AI', 'free' or 'number one'", () => {
     const all = JSON.stringify(REVEAL_COPY);
     assert.doesNotMatch(all, /\bbest\b|\bAI\b|\bfree\b|number one/i);
+  });
+});
+
+describe("the reveal's typed label", () => {
+  it("a raw card types year, set, number, player, then parallel, one line at a time", async () => {
+    const { revealLines } = await import("./reveal");
+    const lines = revealLines({ ...PREVIEW_RAW[0], parallel: "Silver" });
+    assert.deepEqual(
+      lines.map((line) => line.field),
+      ["year", "set", "number", "player", "parallel"],
+    );
+    assert.deepEqual(lines.map((line) => line.text), ["2023-24", "Panini Prizm", "#136", "Victor Wembanyama", "Silver"]);
+  });
+
+  it("a slab types its cert first (last 4 only), then player, year, set, number, grade and parallel", async () => {
+    const { revealLines } = await import("./reveal");
+    const lines = revealLines(PREVIEW_SLAB);
+    assert.deepEqual(
+      lines.map((line) => line.field),
+      ["cert", "player", "year", "set", "number", "grade", "parallel"],
+    );
+    assert.equal(lines[0].text, "Cert ••••0000");
+    assert.doesNotMatch(lines.map((line) => line.text).join(" "), /00000000/, "never the full cert");
+    assert.equal(lines[5].text, "PSA 10");
+  });
+
+  it("an open parallel types as open, never as Base; a numbered one keeps its serial", async () => {
+    const { revealLines } = await import("./reveal");
+    assert.equal(revealLines({ ...PREVIEW_RAW[0], parallel: "" }).at(-1)?.text, "Version not read yet");
+    assert.equal(revealLines({ ...PREVIEW_RAW[0], parallel: "Gold", serialRun: 97, serialNo: "15" }).at(-1)?.text, "Gold 15/97");
+  });
+
+  it("each line types after the one before it, quickly", async () => {
+    const { revealLines, typingPlan } = await import("./reveal");
+    const plan = typingPlan(revealLines(PREVIEW_SLAB));
+    for (let index = 1; index < plan.lines.length; index += 1) assert.ok(plan.lines[index].delayMs >= plan.lines[index - 1].delayMs + plan.lines[index - 1].durationMs);
+    assert.ok(plan.totalMs < 4000, `${plan.totalMs}ms`);
+  });
+});
+
+describe("Pick your card only when unsure", () => {
+  it("one match, or a top match the card pinned (player, year, set and #): straight to its price", async () => {
+    const { matchIsSure } = await import("./reveal");
+    assert.equal(matchIsSure([PREVIEW_SLAB]), true);
+    assert.equal(matchIsSure([{ ...PREVIEW_RAW[0], sureness: { ...PREVIEW_RAW[0].sureness, number: "sure" } }, PREVIEW_RAW[1]]), true);
+  });
+
+  it("several matches and the top one isn't pinned: the list", async () => {
+    const { matchIsSure } = await import("./reveal");
+    assert.equal(matchIsSure(PREVIEW_RAW), false, "the card # wasn't sure");
   });
 });

@@ -125,9 +125,7 @@ describe("accessibility floor: shell, tabs and scan sheets", () => {
   it("the tab labels still fit at 390px at their new size", async () => {
     const nav = read("lib/ui/bottom-nav.ts");
     assert.match(nav, /Rough Geist 11px width/);
-    const { BOTTOM_NAV, QUICK_COMP_TAB, bottomNavLabelsFit, bottomNavTabs } = await import("@/lib/ui/bottom-nav");
+    const { BOTTOM_NAV, bottomNavLabelsFit } = await import("@/lib/ui/bottom-nav");
     assert.equal(bottomNavLabelsFit(BOTTOM_NAV.map((tab) => tab.label)), true);
-    assert.equal(bottomNavLabelsFit(bottomNavTabs(true).map((tab) => tab.label)), true);
-    assert.equal(QUICK_COMP_TAB.label.length <= 11, true);
   });
 });

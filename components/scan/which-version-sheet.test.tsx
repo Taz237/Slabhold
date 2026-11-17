@@ -37,6 +37,13 @@ const WAITING = { status: "done", comp: { status: "version" }, query: null } as 
 
 /** Taps the first row of "Pick your card", when the list shows: the price screen is one tap away. */
 async function pickFirst(host: HTMLElement) {
+  // The reveal types in first: a tap on its label goes on.
+  const label = host.querySelector<HTMLElement>('[data-reveal="label"]');
+  if (label) {
+    await act(async () => {
+      label.click();
+    });
+  }
   const row = host.querySelector<HTMLButtonElement>('[data-pick="list"] button');
   if (!row) return;
   await act(async () => {

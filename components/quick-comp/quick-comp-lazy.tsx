@@ -5,16 +5,18 @@ import { PartLoadFailed } from "@/components/part-load-failed";
 import { lazyPart } from "@/lib/ui/lazy-part";
 import { control, textMuted, textSecondary } from "./tokens";
 
-type Props = { userId: string | null };
+type Props = { userId: string | null; embedded?: boolean };
 
 /** The server's paint: the header and the search box in their final spots. */
-function QuickCompShell() {
+function QuickCompShell({ embedded = false }: Props) {
   return (
     <div data-quick-comp-shell="" className="flex flex-col gap-5 pt-1">
-      <header>
-        <h1 className="text-xl leading-7 font-semibold tracking-tight">Quick Comp</h1>
-        <p className={`mt-1 text-sm leading-5 ${textSecondary}`}>Recent sold prices, without adding it to your collection</p>
-      </header>
+      {embedded ? null : (
+        <header>
+          <h1 className="text-xl leading-7 font-semibold tracking-tight">Quick Comp</h1>
+          <p className={`mt-1 text-sm leading-5 ${textSecondary}`}>Recent sold prices, without adding it to your collection</p>
+        </header>
+      )}
       <div>
         <div className={`${control} gap-2 px-3`}>
           <Search aria-hidden="true" size={16} strokeWidth={1.5} className={`shrink-0 ${textMuted}`} />
@@ -26,7 +28,7 @@ function QuickCompShell() {
   );
 }
 
-/** Quick Comp from its own chunk. Only /comp imports this. */
+/** Quick Comp from its own chunk. The Scan screen draws it under the Scan button (embedded). */
 export const QuickCompLazy = lazyPart<Props>(
   () => import("./quick-comp-view").then((mod) => mod.QuickCompView),
   QuickCompShell,

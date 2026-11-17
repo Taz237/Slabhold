@@ -97,81 +97,81 @@ describe("scan reveal", () => {
   it("never a blank screen: the card turns between the collector's front and back photos while it is read", async () => {
     const view = await mount({ kind: "matching" }, fixtures.PREVIEW_PHOTO, fixtures.PREVIEW_PHOTO);
     try {
-      const turning = view.host.querySelector<HTMLElement>("[data-turning]");
-      assert.equal(turning?.dataset.turning, "both-sides");
-      assert.match(turning?.className ?? "", /motion-safe:animate-\[reveal-turn/);
+      const card = view.host.querySelector<HTMLElement>("[data-motion]");
+      assert.equal(card?.dataset.motion, "reading");
+      assert.match(card?.className ?? "", /motion-safe:animate-\[reveal-turn/);
       assert.equal(view.host.querySelectorAll('[data-reveal="scan-card"] img').length, 2, "front and back");
-      // Reduced motion: no turning at all (motion-safe only).
-      assert.doesNotMatch(turning?.className ?? "", /(^|\s)animate-\[/);
+      assert.doesNotMatch(card?.className ?? "", /(^|\s)animate-\[/, "nothing turns under reduced motion");
+      // A caret waits on the label while the card is read.
+      assert.match(view.host.querySelector('[data-reveal="label"]')?.textContent ?? "", /Reading your card/);
     } finally {
       view.unmount();
     }
   });
 
-  it("flips the card in once; it stops turning and rests once the card is read", async () => {
-    const view = await mount({ kind: "matching" }, fixtures.PREVIEW_PHOTO);
+  it("once read, the card spins from its back to its front with a glare sweep, flipped in only once", async () => {
+    const view = await mount({ kind: "matching" }, fixtures.PREVIEW_PHOTO, fixtures.PREVIEW_PHOTO);
     try {
       const card = view.host.querySelector('[data-reveal="scan-card"] > div');
-      assert.equal(view.host.querySelector<HTMLElement>("[data-turning]")?.dataset.turning, "tilt");
       await view.update({ kind: "ready", matches: [fixtures.PREVIEW_SLAB] });
-      assert.equal(view.host.querySelector('[data-reveal="scan-card"] > div'), card, "the same card: it never flips twice");
-      assert.equal(view.host.querySelector<HTMLElement>("[data-turning]")?.dataset.turning, "rest");
+      assert.equal(view.host.querySelector('[data-reveal="scan-card"] > div'), card, "the same card: it never flips in twice");
+      const spinning = view.host.querySelector<HTMLElement>("[data-motion]");
+      assert.equal(spinning?.dataset.motion, "landing");
+      assert.match(spinning?.className ?? "", /motion-safe:animate-\[reveal-land_/);
+      assert.match(view.host.querySelector("[data-glare]")?.className ?? "", /motion-safe:animate-\[reveal-glare/);
     } finally {
       view.unmount();
     }
   });
 
-  it("Player, Year, Set, Number and Parallel fill in as each is found, each on its own beat", async () => {
-    const view = await mount({ kind: "matching", found: { player: "Luka Doncic" } }, fixtures.PREVIEW_PHOTO);
+  it("a slab's label types its cert, then player, year, set, number, grade and parallel, line by line", async () => {
+    const view = await mount({ kind: "ready", matches: [fixtures.PREVIEW_SLAB] }, fixtures.PREVIEW_PHOTO);
     try {
-      const labels = [...view.host.querySelectorAll('[data-reveal="fields"] dt')].map((node) => node.textContent);
-      assert.deepEqual(labels, ["Player", "Year", "Set", "Number", "Parallel"]);
-      assert.equal(view.host.querySelectorAll('[data-reveal="fields"] [data-found]').length, 1);
-      await view.update({ kind: "ready", matches: [fixtures.PREVIEW_SLAB] });
-      const found = [...view.host.querySelectorAll<HTMLElement>('[data-reveal="fields"] [data-found]')];
+      const lines = [...view.host.querySelectorAll<HTMLElement>("[data-line]")];
       assert.deepEqual(
-        found.map((node) => node.textContent),
-        [fixtures.PREVIEW_SLAB.playerName, fixtures.PREVIEW_SLAB.yearLabel, fixtures.PREVIEW_SLAB.setBrand, `#${fixtures.PREVIEW_SLAB.cardNumber}`, "Silver"],
+        lines.map((node) => node.dataset.line),
+        ["cert", "player", "year", "set", "number", "grade", "parallel"],
       );
-      assert.deepEqual(
-        found.map((node) => Number.parseInt(node.style.animationDelay, 10)),
-        [0, 130, 260, 390, 520],
-      );
-      for (const node of found) {
-        assert.match(node.className, /motion-safe:animate-\[name-fill-in/);
-        assert.match(node.className, /motion-reduce:animate-\[add-fade/, "a fade under reduced motion");
+      assert.equal(lines[0].textContent, "Cert ••••0000");
+      const delays = lines.map((node) => Number.parseInt((node.firstElementChild as HTMLElement).style.getPropertyValue("--type-delay"), 10));
+      for (let index = 1; index < delays.length; index += 1) assert.ok(delays[index] > delays[index - 1], "one line after another");
+      for (const node of lines) {
+        const typed = node.firstElementChild as HTMLElement;
+        assert.match(typed.className, /motion-safe:animate-\[reveal-type/);
+        assert.match(typed.className, /motion-reduce:animate-\[add-fade/, "no typing under reduced motion");
       }
     } finally {
       view.unmount();
     }
   });
 
-  it("a field nothing found says so plainly once the read is done, never a guess", async () => {
+  it("a raw card's label types year, set, number, player, then the parallel, and an open one says so", async () => {
     const view = await mount({ kind: "ready", matches: [{ ...fixtures.PREVIEW_RAW[0], parallel: "" }] });
     try {
-      const parallel = view.host.querySelector('[data-field="parallel"] dd');
-      assert.equal(parallel?.textContent, "Not sure yet");
+      const lines = [...view.host.querySelectorAll<HTMLElement>("[data-line]")];
+      assert.deepEqual(
+        lines.map((node) => node.dataset.line),
+        ["year", "set", "number", "player", "parallel"],
+      );
+      assert.equal(lines.at(-1)?.textContent, "Version not read yet");
     } finally {
       view.unmount();
     }
   });
 
-  it("turns only with motion allowed, with transform-only keyframes", () => {
+  it("spins and types only with motion allowed, with keyframes that never resize anything", () => {
     const reveal = read("components/scan/scan-reveal.tsx");
-    assert.match(reveal, /motion-safe:animate-\[reveal-turn/);
-    assert.match(reveal, /motion-safe:animate-\[reveal-tilt/);
-    assert.match(reveal, /motion-safe:animate-\[card-flip-in[^"]*motion-reduce:animate-\[add-fade/);
+    for (const name of ["reveal-turn", "reveal-tilt", "reveal-land", "reveal-glare", "reveal-type"]) assert.match(reveal, new RegExp(`motion-safe:animate-\\[${name}`));
     const css = read("app/globals.css");
-    for (const name of ["reveal-turn", "reveal-tilt", "card-flip-in", "name-fill-in"]) assert.match(css, new RegExp(`@keyframes ${name}`));
-    const turn = css.slice(css.indexOf("@keyframes reveal-turn"), css.indexOf("@keyframes card-flip-in"));
-    assert.doesNotMatch(turn, /width|height|top:|left:|margin|blur/, "transform only");
+    for (const name of ["reveal-turn", "reveal-tilt", "reveal-land", "reveal-glare", "reveal-type", "card-flip-in", "added-pop"]) assert.match(css, new RegExp(`@keyframes ${name}`));
+    const motion = css.slice(css.indexOf("@keyframes added-pop"), css.indexOf("@keyframes card-flip-in"));
+    assert.doesNotMatch(motion, /width|height|top:|left:|margin|blur/, "transform, opacity and clip only");
   });
 
   it("the native camera draws purple corner guides, and the shutter is the only way to take a picture", () => {
     const camera = read("ios-app/ios/App/App/CardScannerViewController.swift");
     assert.match(camera, /final class CardGuideView/);
     assert.match(camera, /static let purple = UIColor\(red: 124 \/ 255, green: 58 \/ 255, blue: 237 \/ 255/);
-    // Taken only from shutterTapped (and the photo picker): never from the live frames.
     assert.equal((camera.match(/capturePhoto\(/g) ?? []).length, 1);
     assert.match(camera, /@objc private func shutterTapped\(\) \{\s*capture\(\)/);
     assert.doesNotMatch(camera, /auto-?capture/i);

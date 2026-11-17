@@ -70,7 +70,8 @@ async function mount(state: ConfirmSheetState, photo: string | null = null, pick
     );
   });
   // "Pick your card": the price screen is one tap on a row. Most tests price the first one.
-  if (pick != null) await pickRow(host, pick);
+  // "Pick your card" waits behind the reveal: past it always, then a row when asked.
+  await pickRow(host, pick ?? -1);
   return {
     calls,
     host,
@@ -83,6 +84,13 @@ async function mount(state: ConfirmSheetState, photo: string | null = null, pick
 
 /** Taps a row of "Pick your card", when the list shows. */
 async function pickRow(host: HTMLElement, index: number) {
+  // The reveal types in first: a tap on its label goes on.
+  const label = host.querySelector<HTMLElement>('[data-reveal="label"]');
+  if (label) {
+    await act(async () => {
+      label.click();
+    });
+  }
   const row = host.querySelectorAll<HTMLButtonElement>('[data-pick="list"] button')[index];
   if (!row) return;
   await act(async () => {
@@ -133,7 +141,7 @@ describe("ConfirmSheet", () => {
     }
   });
 
-  it("one tap on a row opens that card's price screen with a big Add to collection; Pick another comes back", async () => {
+  it("one tap on a row opens that card's price screen with a big Add to my collection; Pick another comes back", async () => {
     const view = await mount({ kind: "ready", matches: fixtures.PREVIEW_RAW }, null, 1);
     try {
       const title = win.document.getElementById(win.document.querySelector('[role="dialog"]')?.getAttribute("aria-labelledby") ?? "");
@@ -143,9 +151,16 @@ describe("ConfirmSheet", () => {
       await click(button("Not this one? Pick another"));
       assert.ok(view.host.querySelector('[data-pick="list"]'), "back on the list");
       await pickRow(view.host, 1);
-      await click(button("Add to collection"));
+      // The version is open: Add says so and adds nothing until one is picked. Never a silent Base.
+      await click(button("Add to my collection"));
+      assert.equal(view.calls.confirmed.length, 0);
+      assert.ok(text().includes("Pick your version first"));
+      const chip = view.host.querySelector<HTMLButtonElement>('[role="group"][aria-label="Parallel"] button');
+      assert.ok(chip);
+      await click(chip);
+      await click(button("Add to my collection"));
       assert.equal(view.calls.confirmed[0]?.setBrand, fixtures.PREVIEW_RAW[1].setBrand);
-      assert.deepEqual(view.calls.saves, [false], "the parallel is still open, so Add card asks");
+      assert.ok(view.calls.confirmed[0]?.parallel, "the version picked");
     } finally {
       view.unmount();
     }
@@ -158,7 +173,7 @@ describe("ConfirmSheet", () => {
       assert.ok(text().includes("••••0000"));
       assert.equal(text().includes("00000000"), false, "the full cert is never shown");
       assert.equal(button("Silver").getAttribute("aria-pressed"), "true");
-      await click(button("Add to collection"));
+      await click(button("Add to my collection"));
       assert.equal(view.calls.confirmed[0]?.parallel, "Silver");
       assert.equal(view.calls.confirmed[0]?.grade?.certNumber, "00000000");
       assert.deepEqual(view.calls.saves, [true]);
@@ -172,24 +187,31 @@ describe("ConfirmSheet", () => {
     try {
       await click(button("Silver"));
       assert.equal(button("Silver").getAttribute("aria-pressed"), "true");
-      await click(button("Add to collection"));
+      await click(button("Add to my collection"));
       assert.equal(view.calls.confirmed[0]?.parallel, "Silver");
     } finally {
       view.unmount();
     }
   });
 
-  it("while reading: the card turns between the front and back photos, fields fill in as found, never a spinner", async () => {
-    const view = await mount({ kind: "matching", found: { player: "Cameron Boozer", number: "#RC-3" } }, fixtures.PREVIEW_PHOTO);
+  it("while reading: the card turns, a caret waits on the label, never a spinner", async () => {
+    const view = await mount({ kind: "matching" }, fixtures.PREVIEW_PHOTO);
     try {
       assert.equal(win.document.querySelector('[role="dialog"]')?.getAttribute("aria-busy"), "true");
       assert.ok(text().includes("Reading your card"));
       assert.equal(win.document.querySelector(".animate-spin"), null);
-      const found = [...view.host.querySelectorAll('[data-reveal="fields"] [data-found]')].map((node) => node.textContent);
-      assert.deepEqual(found, ["Cameron Boozer", "#RC-3"]);
-      // Year, set and parallel wait as skeletons.
-      assert.equal(view.host.querySelectorAll('[data-reveal="fields"] .skeleton-shimmer').length, 3);
-      assert.equal(view.host.querySelector("[data-turning]")?.getAttribute("data-turning"), "tilt", "only a front: it tilts");
+      assert.equal(view.host.querySelector<HTMLElement>("[data-motion]")?.dataset.motion, "reading");
+      assert.equal(view.host.querySelectorAll("[data-line]").length, 0, "nothing typed before it's read");
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("a sure match skips the list: after the reveal, straight to its price", async () => {
+    const view = await mount({ kind: "ready", matches: [fixtures.PREVIEW_SLAB] }, null, null);
+    try {
+      assert.equal(view.host.querySelector('[data-pick="list"]'), null);
+      assert.ok(button("Add to my collection"));
     } finally {
       view.unmount();
     }

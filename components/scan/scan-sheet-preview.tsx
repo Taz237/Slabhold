@@ -90,7 +90,7 @@ const STATES: Record<Exclude<PreviewKind, "hub" | "hub-comp" | "door">, ConfirmS
   raw: { kind: "ready", matches: PREVIEW_RAW, solds: PREVIEW_SOLDS_NONE },
   numbered: { kind: "ready", matches: [PREVIEW_NUMBERED, ...PREVIEW_RAW.slice(1)] },
   matching: { kind: "matching" },
-  reading: { kind: "matching", found: { player: "Luka Doncic", number: "#280" } },
+  reading: { kind: "matching" },
   flip: { kind: "back", matches: [{ ...PREVIEW_RAW[0], yearLabel: "", cardNumber: "", sureness: { ...PREVIEW_RAW[0].sureness, year: "unsure", number: "unsure" } }] },
   "comp-flip": { kind: "back", matches: [{ ...PREVIEW_RAW[0], cardNumber: "", sureness: { ...PREVIEW_RAW[0].sureness, number: "unsure" } }] },
   none: { kind: "none" },
@@ -199,7 +199,7 @@ export function ScanSheetPreview({ kind }: { kind: PreviewKind }) {
       ) : null}
       {kind === "hub" || kind === "hub-comp" ? (
         <div className="rounded-3xl border border-zinc-200 p-4 dark:border-white/10">
-          <ScanHub key={kind} purpose={kind === "hub" ? "add" : "comp"} deps={PREVIEW_HUB_DEPS} />
+          <ScanHub key={kind} deps={PREVIEW_HUB_DEPS} />
         </div>
       ) : null}
       {kind === "door" ? (

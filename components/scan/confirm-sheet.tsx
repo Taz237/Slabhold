@@ -1,16 +1,15 @@
 "use client";
 
 import { PrimaryButton, QuietButton } from "@/components/add-card/flow-ui";
-import { ScanSteps, usePickedRow, type CompLookup } from "@/components/scan/comp-sheet";
+import { ScanSteps, useScanSteps, type CompLookup } from "@/components/scan/comp-sheet";
 import { RevealCard, SheetFrame, FlipStep } from "@/components/scan/sheet-parts";
 import type { SoldsState } from "@/lib/scan/comp";
 import { CONFIRM_COPY } from "@/lib/scan/confirm";
 import type { ScanMatch } from "@/lib/scan/match";
-import { REVEAL_COPY, type RevealFound } from "@/lib/scan/reveal";
+import { REVEAL_COPY } from "@/lib/scan/reveal";
 
 export type ConfirmSheetState =
-  /** found: what the card's own text gave so far (the player, the card #), shown as the reveal fills in. */
-  | { kind: "matching"; found?: RevealFound }
+  | { kind: "matching" }
   /** "Flip it over": the front alone couldn't pin the year, set or card #. Its read waits here. */
   | { kind: "back"; matches: ScanMatch[] }
   /** solds: the top card's last eBay solds, looked up after the card is read. */
@@ -54,24 +53,23 @@ const NO_LOOKUP: CompLookup = async () => ({ status: "unavailable" });
  * opens that card's price screen, Quick Comp style, with a big Add to collection.
  */
 export function ConfirmSheet({ photo, backPhoto = null, lookup = NO_LOOKUP, state, onConfirm, onStepByStep, onRetake, onSapphire, onVersion, onScanBack, onSkipBack, onClose }: Props) {
-  const [picked, setPicked] = usePickedRow(state);
+  const steps = useScanSteps(state);
   const title =
     state.kind === "none"
       ? state.unpinned
         ? CONFIRM_COPY.unpinnedTitle
         : CONFIRM_COPY.noMatchTitle
-      : state.kind === "ready"
-        ? picked == null
-          ? REVEAL_COPY.pickTitle
-          : REVEAL_COPY.yourCard
-        : REVEAL_COPY.reading;
+      : steps.view === "list"
+        ? REVEAL_COPY.pickTitle
+        : steps.view === "card"
+          ? REVEAL_COPY.yourCard
+          : REVEAL_COPY.reading;
   return (
     <SheetFrame title={title} busy={state.kind === "matching"} variant="scene" onClose={onClose}>
       {state.kind === "matching" || state.kind === "ready" ? (
         <ScanSteps
           state={state}
-          picked={picked}
-          onPicked={setPicked}
+          steps={steps}
           photo={photo}
           backPhoto={backPhoto}
           lookup={lookup}

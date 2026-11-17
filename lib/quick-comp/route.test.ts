@@ -156,7 +156,11 @@ describe("GET /api/quick-comp", () => {
     assert.equal(routeAccess("/comp"), "unknown");
     assert.equal(requiresAccount("/comp"), false);
     const page = readFileSync(join(process.cwd(), "app/(app)/comp/page.tsx"), "utf8");
-    // The page itself: 404 with the flag off, then log in when signed out.
-    assert.match(page, /if \(!quickCompEnabled\(\)\) notFound\(\);\s*const userId = await getAuthUserId\(\);\s*if \(!userId\) redirect\(loginPath\(QUICK_COMP_PATH\)\);/);
+    // The page itself: 404 with the flag off; with the scanner on it's the Scan screen's search;
+    // without it, log in when signed out.
+    assert.match(
+      page,
+      /if \(!quickCompEnabled\(\)\) notFound\(\);\s*if \(scannerEnabled\(\)\) redirect\("\/scan"\);\s*const userId = await getAuthUserId\(\);\s*if \(!userId\) redirect\(loginPath\(QUICK_COMP_PATH\)\);/,
+    );
   });
 });
