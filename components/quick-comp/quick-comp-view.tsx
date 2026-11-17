@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
-import { ChevronRight, Search, X } from "lucide-react";
-import { ScanEntry } from "@/components/scan/scan-entry";
+import { Search, X } from "lucide-react";
 import { HUB_COPY, quickCompScanHref, scannerEnabled } from "@/lib/scan/entry";
 import type { SalesChart as SalesChartType } from "@/components/sales-chart";
 import { preloadCompsList } from "@/components/card-page-parts";
@@ -42,7 +41,9 @@ import { GradeControl } from "./grade-control";
 import { VersionControl } from "./version-control";
 import { QuickCompResult, identityLine } from "./quick-comp-result";
 import { NoticeButton, QuickCompLoading, QuickCompNotice } from "./quick-comp-states";
-import { control, feedback, focusRing, sectionLabel, textMuted, textSecondary } from "./tokens";
+import { CompsEmpty, RecentComps, ScanHero } from "./comp-home";
+import { SlabholdRail } from "./slabhold-rail";
+import { control, feedback, focusRing, textMuted, textSecondary } from "./tokens";
 
 export const SEARCH_LABEL = "Player, year, set or number";
 export const MANUAL_LABEL = "Can't find it? Enter player and year";
@@ -240,36 +241,6 @@ function ManualForm({
         </button>
       </div>
     </form>
-  );
-}
-
-function RecentList({ items, onOpen }: { items: RecentComp[]; onOpen: (item: RecentComp) => void }) {
-  return (
-    <section data-quick-comp-state="recent" aria-labelledby="quick-comp-recent">
-      <h2 id="quick-comp-recent" className={sectionLabel}>
-        Recent on this device
-      </h2>
-      <ul className="mt-2 divide-y divide-zinc-950/5 rounded-2xl bg-white ring-1 ring-zinc-950/5 dark:divide-white/[0.06] dark:bg-zinc-900/60 dark:ring-white/[0.06]">
-        {items.map((item) => (
-          <li key={item.key}>
-            <button
-              type="button"
-              onClick={() => onOpen(item)}
-              className={`flex min-h-14 w-full items-center gap-3 px-4 py-2.5 text-left first:rounded-t-2xl last:rounded-b-2xl hover:bg-zinc-950/[0.02] dark:hover:bg-white/[0.03] ${feedback} ${focusRing}`}
-            >
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm leading-5 font-medium">{item.identity.playerName}</span>
-                <span className={`block truncate text-xs leading-4 ${textMuted}`}>{identityLine(item.identity)}</span>
-              </span>
-              <span className="shrink-0 text-sm leading-5 font-medium tabular-nums">
-                {item.payload.median != null && item.payload.comps.length > 0 ? money(item.payload.median) : <span className={textMuted}>No sales</span>}
-              </span>
-              <ChevronRight aria-hidden="true" size={16} strokeWidth={1.5} className={`shrink-0 ${textMuted}`} />
-            </button>
-          </li>
-        ))}
-      </ul>
-    </section>
   );
 }
 
@@ -527,14 +498,14 @@ export function QuickCompView({ userId }: { userId: string | null }) {
         <p className={`mt-1 text-sm leading-5 ${textSecondary}`}>Recent sold prices, without adding it to your collection</p>
       </header>
 
-      {scanHref ? <ScanEntry href={scanHref} title={HUB_COPY.compEntry} body={HUB_COPY.compEntryBody} /> : null}
+      {scanHref ? <ScanHero href={scanHref} title={HUB_COPY.compEntry} body={HUB_COPY.compEntryBody} /> : null}
 
       <div className="relative">
         <label htmlFor={`${listId}-input`} className="sr-only">
           {SEARCH_LABEL}
         </label>
-        <div className={`${control} gap-2 px-3 focus-within:ring-violet-600/60`}>
-          <Search aria-hidden="true" size={16} strokeWidth={1.5} className={`shrink-0 ${textMuted}`} />
+        <div className={`${control} min-h-12 gap-2.5 rounded-2xl px-4 shadow-[0_1px_2px_rgb(0_0_0/0.04)] focus-within:ring-2 focus-within:ring-violet-600/60 dark:shadow-none ${feedback}`}>
+          <Search aria-hidden="true" size={18} strokeWidth={1.5} className={`shrink-0 ${textMuted}`} />
           <input
             ref={inputRef}
             id={`${listId}-input`}
@@ -738,13 +709,10 @@ export function QuickCompView({ userId }: { userId: string | null }) {
           )}
         </div>
       ) : !manual ? (
-        recent.length > 0 ? (
-          <RecentList items={recent} onOpen={openRecent} />
-        ) : (
-          <p data-quick-comp-state="idle" className={`text-sm leading-5 ${textMuted}`}>
-            Search a player to see what the card sells for
-          </p>
-        )
+        <>
+          {recent.length > 0 ? <RecentComps items={recent} onOpen={openRecent} /> : <CompsEmpty />}
+          <SlabholdRail />
+        </>
       ) : null}
     </div>
   );

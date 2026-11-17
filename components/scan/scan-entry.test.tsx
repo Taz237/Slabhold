@@ -110,7 +110,7 @@ describe("Quick Comp: Scan a card", () => {
   it("links to the scanner in comp mode when the scanner is on", () => {
     const source = readFileSync(join(process.cwd(), "components/quick-comp/quick-comp-view.tsx"), "utf8");
     assert.match(source, /const scanHref = quickCompScanHref\(scannerEnabled\(\)\);/);
-    assert.match(source, /<ScanEntry href=\{scanHref\}/);
+    assert.match(source, /<ScanHero href=\{scanHref\}/);
   });
 
   it("keeps the readers out of the Add card and Quick Comp bundles", () => {

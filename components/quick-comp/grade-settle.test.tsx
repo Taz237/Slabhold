@@ -51,6 +51,8 @@ const saved: RecentComp = {
 const realFetch = globalThis.fetch;
 const calls: string[] = [];
 globalThis.fetch = (async (input: RequestInfo | URL) => {
+  // The Moving on Slabhold rail reads its own cached list. Only comp lookups count here.
+  if (String(input).includes("/api/moving-today")) return Response.json({ sales: [] });
   calls.push(String(input));
   return Response.json({ ...saved.payload, history: [], query: "q", cached: false });
 }) as typeof fetch;

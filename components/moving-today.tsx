@@ -389,7 +389,7 @@ export function MovingQuiet({ signedIn = true }: { signedIn?: boolean }) {
   );
 }
 
-function TileSkeleton({ top }: { top: boolean }) {
+export function TileSkeleton({ top }: { top: boolean }) {
   return (
     <li className={`${top ? RAIL_TOP_WIDTH : RAIL_TILE_WIDTH} shrink-0`} data-skeleton-tile="">
       <div className="p-1">
