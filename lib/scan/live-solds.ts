@@ -84,7 +84,7 @@ export type LiveSoldsDeps = {
 };
 
 export type LiveSoldsInput = {
-  capture: Pick<ScanCapture, "lines" | "backLines" | "kind" | "border">;
+  capture: Pick<ScanCapture, "lines" | "backLines" | "kind" | "border" | "look">;
   /** The rows the phone already ranked (catalog cards), so the re-rank keeps them. */
   rows: CatalogCard[];
 };

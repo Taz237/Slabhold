@@ -56,7 +56,15 @@ describe("respondLiveSolds", () => {
     );
     assert.equal(response.status, 200);
     assert.equal(response.headers.get("cache-control"), "private, no-store");
-    assert.deepEqual(seen[0].capture, { lines: ["AIDAN MILLER"], backLines: ["BP-27"], kind: "card", border: null });
+    assert.deepEqual(seen[0].capture, { lines: ["AIDAN MILLER"], backLines: ["BP-27"], kind: "card", border: null, look: null });
+  });
+
+  it("passes the photo's look as names only, and drops anything it doesn't know", async () => {
+    const { value, seen } = route();
+    await respondLiveSolds(post({ lines: ["AIDAN MILLER"], look: { border: "green", sheen: "rainbow", pixels: [1, 2, 3] } }), value);
+    await respondLiveSolds(post({ lines: ["AIDAN MILLER"], look: { border: "chartreuse", sheen: "sparkly" } }), value);
+    assert.deepEqual(seen[0].capture.look, { border: "green", sheen: "rainbow" });
+    assert.equal(seen[1].capture.look, null);
   });
 
   it("keeps at most three catalog rows, with ids", () => {

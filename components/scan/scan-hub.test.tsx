@@ -774,3 +774,133 @@ describe("ScanHub: Flip it over", () => {
     }
   });
 });
+
+describe("ScanHub: the photo's look for Which version?", () => {
+  const RAW: ScanCapture = { lines: ["JAXSON DART", "NEW YORK GIANTS"], backLines: ["No. 306", "2025 TOPPS CHROME"], image: "data:image/jpeg;base64,QUJD", kind: "card" };
+
+  it("a raw card's photo is read for its look once, and the look goes to the match and the solds, as names only", async () => {
+    const looked: string[] = [];
+    const identified: ScanCapture[] = [];
+    const sold: ScanCapture[] = [];
+    const view = await mount(
+      "add",
+      nativeDeps({
+        scan: async () => RAW,
+        look: async (image) => {
+          looked.push(image);
+          return { border: null, sheen: "rainbow" };
+        },
+        identify: async (capture) => {
+          identified.push(capture);
+          return result([fixtures.PREVIEW_SLAB]);
+        },
+        solds: async (capture, matches) => {
+          sold.push(capture);
+          return fixtures.previewSolds(capture, matches);
+        },
+      }),
+    );
+    try {
+      await waitFor(() => sold.length > 0);
+      assert.deepEqual(looked, [RAW.image]);
+      assert.deepEqual(identified[0].look, { border: null, sheen: "rainbow" });
+      assert.deepEqual(sold[0].look, { border: null, sheen: "rainbow" });
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("a slab's photo is never read for a look, and an unreadable photo changes nothing", async () => {
+    let looks = 0;
+    const identified: ScanCapture[] = [];
+    const slab = await mount(
+      "add",
+      nativeDeps({
+        scan: async () => ({ ...CAPTURE, image: "data:image/jpeg;base64,QUJD" }),
+        look: async () => {
+          looks += 1;
+          return { border: "green", sheen: "flat" };
+        },
+        identify: async (capture) => {
+          identified.push(capture);
+          return result([fixtures.PREVIEW_SLAB]);
+        },
+      }),
+    );
+    try {
+      await waitFor(() => identified.length > 0);
+      assert.equal(looks, 0);
+      assert.equal(identified[0].look, undefined);
+    } finally {
+      slab.unmount();
+    }
+    identified.length = 0;
+    const raw = await mount(
+      "add",
+      nativeDeps({
+        scan: async () => RAW,
+        look: async () => {
+          throw new Error("no canvas");
+        },
+        identify: async (capture) => {
+          identified.push(capture);
+          return result([fixtures.PREVIEW_SLAB]);
+        },
+      }),
+    );
+    try {
+      await waitFor(() => identified.length > 0);
+      assert.equal(identified[0].look, undefined);
+    } finally {
+      raw.unmount();
+    }
+  });
+
+  it("on top of Flip it over: the front's look is read once and carried into the read of both sides", async () => {
+    const FRONT_ONLY: ScanCapture = { ...RAW, backLines: null };
+    const BACK: ScanCapture = { lines: ["No. 306", "© 2025 THE TOPPS COMPANY"], backLines: null, image: "data:image/jpeg;base64,QkFDSw==", kind: "card" };
+    const open = () => ({ ...fixtures.PREVIEW_RAW[0], grade: null, cardNumber: "" });
+    const looked: string[] = [];
+    const identified: ScanCapture[] = [];
+    const sold: ScanCapture[] = [];
+    pushed.length = 0;
+    const { createRoot } = await import("react-dom/client");
+    const host = win.document.createElement("div");
+    win.document.body.appendChild(host);
+    const root = createRoot(host);
+    const deps = nativeDeps({
+      pickAndRead: async () => FRONT_ONLY,
+      scan: async () => BACK,
+      look: async (image) => {
+        looked.push(image);
+        return { border: "green", sheen: "rainbow" };
+      },
+      identify: async (capture) => {
+        identified.push(capture);
+        return result([capture.backLines?.length ? { ...open(), cardNumber: "306", sureness: { ...open().sureness, year: "sure" as const, set: "likely" as const, number: "sure" as const } } : open()]);
+      },
+      solds: async (capture, matches) => {
+        sold.push(capture);
+        return fixtures.previewSolds(capture, matches);
+      },
+    });
+    await act(async () => {
+      root.render(createElement(AppRouterContext.Provider, { value: router }, createElement(ScanHub, { purpose: "add", start: "library", deps })));
+    });
+    try {
+      await waitFor(() => text().includes("Flip it over"));
+      await act(async () => button("Scan the back").click());
+      await waitFor(() => sold.length > 0);
+      assert.deepEqual(looked, [RAW.image], "the front's photo only, once");
+      assert.equal(identified.length, 2);
+      assert.deepEqual(identified[0].look, { border: "green", sheen: "rainbow" });
+      assert.deepEqual(identified[1].look, { border: "green", sheen: "rainbow" });
+      assert.deepEqual(identified[1].backLines, BACK.lines);
+      assert.equal(identified[1].image, RAW.image, "the front's photo stays the card's photo");
+      assert.deepEqual(sold[0].look, { border: "green", sheen: "rainbow" });
+    } finally {
+      act(() => root.unmount());
+      host.remove();
+    }
+  });
+});
