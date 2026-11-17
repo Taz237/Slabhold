@@ -34,7 +34,7 @@ import {
   type ScanCompResult,
   type SoldsState,
 } from "@/lib/scan/comp";
-import { CONFIRM_COPY, confirmMatch, initialChoice, matchesKey, promoteMatch, readyToSave, type ParallelPick } from "@/lib/scan/confirm";
+import { CONFIRM_COPY, confirmMatch, initialChoice, matchesKey, promoteMatch, readyToSave, versionLabel, type ParallelPick } from "@/lib/scan/confirm";
 import type { ScanEstimate } from "@/lib/scan/estimate";
 import type { ScanMatch } from "@/lib/scan/match";
 import { isUnnamedRunLabel } from "@/lib/scan/scan-sales";
@@ -330,6 +330,7 @@ export function CardPrice({
           onRetry={retry}
           assumedBase={assumedBase}
           serialRun={serialRun}
+          insertName={top.insertName}
           onPick={(label) => {
             setPick({ name: label, serialRun: top.serialRun });
             setAddError(null);
@@ -345,6 +346,7 @@ export function CardPrice({
         options={withSoldGroups(versionChoices, solds, top.serialRun, assumedBase)}
         pick={pick}
         somethingElse={false}
+        insertName={top.insertName}
         hint={
           versionOpen
             ? CONFIRM_COPY.whichVersion
@@ -562,8 +564,11 @@ function ValuePanel({
   serialRun = null,
   onPick,
   estimate = null,
+  insertName,
 }: {
   result: ScanCompResult | undefined;
+  /** The card is this insert (Rookie Code): its plain version reads as the insert, never "Base". */
+  insertName?: string;
   /** Last year's similar cards, only under "No sales yet". */
   estimate?: ScanEstimate | null;
   /** Tap another parallel the sales name, to price the card as it. */
@@ -613,7 +618,7 @@ function ValuePanel({
   if (result.status === "split") {
     return (
       <div className={box}>
-        <SplitGroups groups={result.groups} missing={result.missing} onPick={onPick} />
+        <SplitGroups groups={result.groups} missing={result.missing} onPick={onPick} insertName={insertName} />
       </div>
     );
   }
@@ -657,7 +662,7 @@ function ValuePanel({
               // Named by the sales it's priced from, so a Fuchsia /299 is never called Base.
               <span>
                 {" · "}
-                {result.parallel}
+                {versionLabel(result.parallel, insertName)}
                 {serialRun && result.parallel !== "Base" && !isUnnamedRunLabel(result.parallel) ? (
                   <span className="font-mono tabular-nums"> /{serialRun}</span>
                 ) : null}
@@ -695,7 +700,7 @@ function ValuePanel({
         {result.parallel ? (
           <span>
             {" · "}
-            {result.parallel}
+            {versionLabel(result.parallel, insertName)}
             {serialRun && !isUnnamedRunLabel(result.parallel) ? <span className="font-mono tabular-nums"> /{serialRun}</span> : null}
           </span>
         ) : null}

@@ -261,6 +261,67 @@ export const PREVIEW_SOLDS_BASE_OFFERS: SoldsState = {
   query: "preview",
 };
 
+/**
+ * The 2026-27 Topps Rookie Code #RC-3 (TestFlight 7): the insert named from its front, its version
+ * open. "Pick your card" lists it above his Bounce insert; its sales show by version, never as Base.
+ */
+export const PREVIEW_ROOKIE_CODE: ScanMatch[] = [
+  {
+    catalogId: null,
+    playerName: "Cameron Boozer",
+    sport: "Basketball",
+    yearLabel: "2026-27",
+    setBrand: "Topps",
+    cardNumber: "RC-3",
+    insertName: "Rookie Code",
+    parallel: "",
+    serialRun: null,
+    serialNo: "",
+    isRookie: true,
+    isAuto: false,
+    grade: null,
+    score: 70,
+    sureness: { player: "sure", year: "sure", set: "likely", number: "likely", parallel: "unsure" },
+    parallelOptions: [
+      { name: "Base", serialRun: null },
+      { name: "Rainbow Foilboard", serialRun: null },
+      { name: "Purple Rainbow", serialRun: 250 },
+      { name: "Gold Rainbow", serialRun: 50 },
+    ],
+  },
+  {
+    catalogId: null,
+    playerName: "Cameron Boozer",
+    sport: "Basketball",
+    yearLabel: "2026-27",
+    setBrand: "Topps",
+    cardNumber: "TB-18",
+    insertName: "Bounce",
+    parallel: "",
+    serialRun: null,
+    serialNo: "",
+    isRookie: true,
+    isAuto: false,
+    grade: null,
+    score: 40,
+    sureness: { player: "sure", year: "sure", set: "likely", number: "unsure", parallel: "unsure" },
+    parallelOptions: [],
+  },
+];
+
+/** The Rookie Code's sales by version: the plain insert and its Refractor, never priced as Base. */
+export const PREVIEW_SOLDS_ROOKIE_CODE: SoldsState = {
+  status: "done",
+  comp: {
+    status: "split",
+    groups: [
+      { label: "Base", nSales: 3, lastPriceCents: 700, lastSoldAt: "2026-11-14T12:00:00Z" },
+      { label: "Refractor", nSales: 2, lastPriceCents: 1700, lastSoldAt: "2026-11-13T12:00:00Z" },
+    ],
+  },
+  query: "preview",
+};
+
 /** Only Silver sales came back: no Base price. */
 export const PREVIEW_SOLDS_NO_BASE: SoldsState = {
   status: "done",

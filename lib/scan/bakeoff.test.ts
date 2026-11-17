@@ -428,7 +428,7 @@ function liveBakeoff(suite: string, boardTitle: string, products: () => Promise<
             `${ICON[row.player]} ${ICON[row.set]} ${ICON[row.number]} ${ICON[row.parallel]}  ${row.name.padEnd(56)} ${row.shown.padEnd(58)} ${row.rung.padEnd(36)} ${row.solds}`,
         ),
         ...board(boardTitle, rows),
-        `player ${total("player", "right")}/${rows.length} · set ${total("set", "right")} right ${total("set", "wrong")} wrong · # ${total("number", "right")} right ${total("number", "wrong")} wrong · parallel ${total("parallel", "right")} right ${total("parallel", "wrong")} wrong · solds found ${rows.filter((row) => row.solds.includes("sold")).length}/${rows.filter((row) => cases.find((item) => item.name === row.name)?.live?.solds !== "none").length}`,
+        `player ${total("player", "right")}/${rows.length} · set ${total("set", "right")} right ${total("set", "wrong")} wrong · # ${total("number", "right")} right ${total("number", "wrong")} wrong · parallel ${total("parallel", "right")} right ${total("parallel", "wrong")} wrong · solds found ${rows.filter((row) => row.solds.includes("sold")).length}/${rows.filter((row) => !cases.find((item) => item.name === row.name)?.live?.solds).length}`,
       ].join("\n"),
     );
     for (const row of rows) {
@@ -445,6 +445,8 @@ function liveBakeoff(suite: string, boardTitle: string, products: () => Promise<
         if (scan.liveTruth.calls != null) assert.ok(row.calls <= scan.liveTruth.calls, `${row.name}: ${row.calls} searches`);
       }
       if (scan.live?.solds === "none") assert.equal(row.solds, "none (searched)", `${row.name}: searched, honestly none, never unavailable`);
+      // The version is open: the sales show by version to pick, never a Base price.
+      else if (scan.live?.solds === "split") assert.equal(row.solds, "split", `${row.name}: the version is asked, never priced as Base`);
       else assert.match(row.solds, /sold/, `${row.name}: the card sells, and we found it`);
       if (scan.truth.run) assert.equal(row.serialRun, scan.truth.run, `${row.name}: the print run`);
       if (scan.live?.pricedFrom) assert.match(row.solds, new RegExp(`sold \\(${scan.live.pricedFrom.replace("/", "\\/")}\\)$`), row.name);

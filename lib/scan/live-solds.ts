@@ -289,7 +289,12 @@ async function lookupSolds(
   // An autograph or a named variation is never Base: its parallel stays open until its sales name it.
   if (!best.parallel && best.serialRun == null && !best.isAuto && !best.subset) {
     const base = groupFor(groups, "Base");
-    if (!base) return { matches, comp: { status: "split", groups: groups.map(groupSummary), missing: "Base" }, query: usedQuery };
+    // Never a silent Base on a card that isn't pinned down: with its card # open, "Base" is every
+    // plain card of his (the device's Rookie Code RC-3 priced from 31 of them), and an insert's
+    // plain version is the insert, not the base card. Its sales show by version, to pick.
+    if (!base || !best.cardNumber || best.insertName) {
+      return { matches, comp: { status: "split", groups: groups.map(groupSummary), ...(base ? {} : { missing: "Base" }) }, query: usedQuery };
+    }
     const priced = priceScanGroup(base.sales, { asOf: fetchedAt || null, source: "live" });
     if (priced.status !== "ok") return { matches, comp: { status: "none", searched: true }, query: usedQuery };
     return {

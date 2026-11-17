@@ -7,7 +7,7 @@ import { BACK_COPY, missingFields } from "@/lib/scan/back-step";
 import { money } from "@/lib/format";
 import { quickCompLimitMessage } from "@/lib/quick-comp/respond";
 import { COMP_COPY, lastSale, soldCount, type SoldsState } from "@/lib/scan/comp";
-import { CONFIRM_COPY, gradeLabel, maskCert, matchLine, type ParallelPick } from "@/lib/scan/confirm";
+import { CONFIRM_COPY, gradeLabel, maskCert, matchLine, setWithInsert, versionLabel, type ParallelPick } from "@/lib/scan/confirm";
 import type { FieldSureness, ScanMatch } from "@/lib/scan/match";
 import type { ProductParallel } from "@/lib/cards/product-data";
 import { isUnnamedRunLabel } from "@/lib/scan/scan-sales";
@@ -146,7 +146,7 @@ export function MatchSummary({ photo, match }: { photo: string | null; match: Sc
         </p>
         <p className="mt-1 text-sm leading-5">
           <Field sureness={match.sureness.year}>{match.yearLabel}</Field>{" "}
-          <Field sureness={match.sureness.set}>{match.setBrand}</Field>{" "}
+          <Field sureness={match.sureness.set}>{setWithInsert(match)}</Field>{" "}
           {match.cardNumber ? <Field sureness={match.sureness.number}>{`#${match.cardNumber}`}</Field> : null}
         </p>
         {match.subset ? <p className="mt-1 text-sm leading-5 text-zinc-600 dark:text-zinc-400">{match.subset}</p> : null}
@@ -343,10 +343,13 @@ export function ParallelStrip({
   deferred = false,
   hint,
   somethingElse = true,
+  insertName,
   onChoose,
 }: {
   options: ProductParallel[];
   pick: ParallelPick;
+  /** The card is this insert: its plain version reads as the insert, never "Base". */
+  insertName?: string;
   /** "Something else" is selected. */
   deferred?: boolean;
   /** Shown beside the label, e.g. "Pick the parallel". */
@@ -370,11 +373,11 @@ export function ParallelStrip({
             key={option.name}
             selected={pick?.name === option.name}
             onClick={() => onChoose({ name: option.name, serialRun: option.serialRun })}
-            aria-label={option.serialRun ? `${option.name}, numbered to ${option.serialRun}` : option.name}
+            aria-label={option.serialRun ? `${versionLabel(option.name, insertName)}, numbered to ${option.serialRun}` : versionLabel(option.name, insertName)}
             className="shrink-0 snap-start pl-3"
           >
             <SwatchDot name={option.name} size="sm" />
-            {option.name}
+            {versionLabel(option.name, insertName)}
             {option.serialRun ? <RunBadge run={option.serialRun} /> : null}
           </Chip>
         ))}
@@ -448,14 +451,14 @@ function tappable(label: string): boolean {
   return !isUnnamedRunLabel(label);
 }
 
-function GroupRows({ groups, onPick }: { groups: readonly GroupRow[]; onPick?: (label: string) => void }) {
+function GroupRows({ groups, onPick, insertName }: { groups: readonly GroupRow[]; onPick?: (label: string) => void; insertName?: string }) {
   return (
     <ul className="mt-2 divide-y divide-zinc-200 dark:divide-white/10">
       {groups.map((group) => {
         const body = (
           <>
             <span>
-              {group.label}
+              {versionLabel(group.label, insertName)}
               <span className="text-zinc-500 dark:text-zinc-400">
                 {" · "}
                 <span className="font-mono tabular-nums">{group.nSales}</span> {group.nSales === 1 ? "sale" : "sales"}
@@ -475,7 +478,7 @@ function GroupRows({ groups, onPick }: { groups: readonly GroupRow[]; onPick?: (
               <button
                 type="button"
                 onClick={() => onPick(group.label)}
-                aria-label={`Show ${group.label} sales, ${group.nSales} ${group.nSales === 1 ? "sale" : "sales"}`}
+                aria-label={`Show ${versionLabel(group.label, insertName)} sales, ${group.nSales} ${group.nSales === 1 ? "sale" : "sales"}`}
                 className={`-mx-2 flex min-h-11 w-[calc(100%+1rem)] items-center justify-between gap-3 rounded-lg px-2 text-left text-sm hover:bg-zinc-900/[0.03] dark:hover:bg-white/[0.04] ${focusRing}`}
               >
                 {body}
@@ -494,12 +497,15 @@ export function SplitGroups({
   groups,
   missing,
   onPick,
+  insertName,
 }: {
   groups: { label: string; nSales: number; lastPriceCents: number | null; lastSoldAt: string | null }[];
   /** "Base": an unnumbered card had no Base sales, only other parallels. */
   missing?: "Base";
   /** Tap a group to price the card as that parallel. */
   onPick?: (label: string) => void;
+  /** The card is this insert: its plain sales read as the insert, never "Base". */
+  insertName?: string;
 }) {
   return (
     <div role="status">
@@ -507,7 +513,7 @@ export function SplitGroups({
       <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
         {missing ? COMP_COPY.noBaseBody : groups.length === 1 ? COMP_COPY.splitOneBody : COMP_COPY.splitBody}
       </p>
-      <GroupRows groups={groups} onPick={onPick} />
+      <GroupRows groups={groups} onPick={onPick} insertName={insertName} />
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import type { CatalogCard } from "@/lib/card-catalog";
+import { checklistProductFrom } from "@/lib/cards/checklist-import";
 import type { ChecklistProduct } from "@/lib/cards/checklists";
 import type { SoldTitle } from "./match";
 
@@ -51,8 +52,12 @@ export type BakeoffLive = {
   sold: { title: string; price: number; soldAt: string; graded?: { grader: string; grade: string } }[];
   /** Rungs where Trawl fails (throttled or down) instead of answering. */
   failAt?: number[];
-  /** What the sheet should say, when it isn't a price: "none" (searched, no sales) for a card that truly has none. */
-  solds?: "none";
+  /**
+   * What the sheet should say, when it isn't a price: "none" (searched, no sales) for a card that
+   * truly has none; "split" for a card whose version is open, so its sales show by version to pick
+   * and nothing is priced as Base.
+   */
+  solds?: "none" | "split";
   /** The group the price must come from, when the case checks it ("/299, parallel not named"). */
   pricedFrom?: string;
 };
@@ -121,6 +126,39 @@ const MILLER_TITLES: SoldTitle[] = [
   { title: "Aidan Miller Bowman 1st Paper Pink/Red #'d 232/299 Phillies BP-27", price: 34.99, soldAt: "2026-10-30" },
   { title: "2024 Bowman 1st Aidan Miller Pink Red /299 BP-27 Phillies Prospect", price: 38, soldAt: "2026-10-12" },
 ];
+
+/** 2026-27 Topps basketball, the rows a Cameron Boozer scan can land on (the real checklist's numbers). */
+const TOPPS_2026_27_BOOZER = checklistProductFrom(
+  { sport: "Basketball", yearLabel: "2026-27", product: "Topps", source: "bake-off fixture", read: "2026-11-17" },
+  [
+    { name: "Base", cards: [{ number: "258", player: "Cameron Boozer", team: "Memphis Grizzlies" }] },
+    { name: "Bounce", cards: [{ number: "TB-18", player: "Cameron Boozer", team: "Memphis Grizzlies" }] },
+    { name: "No Limit", cards: [{ number: "NL-3", player: "Cameron Boozer", team: "Memphis Grizzlies" }] },
+    { name: "Rookie Code", cards: [{ number: "RC-1", player: "AJ Dybantsa", team: "Utah Jazz" }, { number: "RC-3", player: "Cameron Boozer", team: "Memphis Grizzlies" }] },
+  ],
+);
+
+const BOOZER_RC3: BakeoffTruth = { player: "Cameron Boozer", year: "2026-27", set: "Topps", number: "RC-3", parallel: "", run: null, sport: "Basketball" };
+const BOOZER_LEGAL = "©, TM & © 2026 The Topps Company, Inc. All rights reserved.";
+
+/**
+ * What a search for his Rookie Code returns: the plain insert (~$7), its Refractor and Holo
+ * ($15-20, never the plain one's price), and his other 2026-27 Topps cards: base #258, Bounce TB-18.
+ */
+const BOOZER_RC3_LIVE: BakeoffLive = {
+  atRung: 0,
+  solds: "split",
+  sold: [
+    { title: "2026-27 Topps Rookie Code Cameron Boozer #RC-3 Grizzlies RC", price: 7, soldAt: "2026-11-14" },
+    { title: "Cameron Boozer 2026-27 Topps Basketball Rookie Code RC-3", price: 6.5, soldAt: "2026-11-12" },
+    { title: "2026-27 Topps Cameron Boozer Rookie Code Insert RC-3", price: 7.5, soldAt: "2026-11-10" },
+    { title: "2026-27 Topps Cameron Boozer Rookie Code Refractor RC-3", price: 17, soldAt: "2026-11-13" },
+    { title: "2026-27 Topps Rookie Code Insert Holo Cameron Boozer RC-3", price: 18, soldAt: "2026-11-11" },
+    { title: "2026-27 Topps Cameron Boozer #258 RC Grizzlies", price: 1.79, soldAt: "2026-11-14" },
+    { title: "2026-27 Topps Bounce Cameron Boozer TB-18", price: 3, soldAt: "2026-11-09" },
+    { title: "2026-27 Topps Cameron Boozer Rookie Code RC-3 PSA 10", price: 60, soldAt: "2026-11-08", graded: { grader: "PSA", grade: "10" } },
+  ],
+};
 
 export const BAKEOFF_CASES: BakeoffCase[] = [
   {
@@ -423,5 +461,32 @@ export const BAKEOFF_CASES: BakeoffCase[] = [
       { title: "J.J. McCarthy 2024 Donruss Optic Preview Pink #303 Rated Rookie", price: 19, soldAt: "2026-10-25" },
     ],
     truth: { player: "J.J. McCarthy", year: "2024", set: "Panini Donruss", number: "303", parallel: "Optic Preview Pink" },
+  },
+  {
+    // TestFlight 1.1.1 (7): the front prints ROOKIE CODE in big letters; the back's RC-3 is lost in
+    // the falling binary digits ("0110" is art, never card #110). The scan showed 2026-27 Topps with
+    // no #, "#MEM" and "#TB-18", and priced it as Base from 31 sales of his other cards.
+    name: "Boozer, Rookie Code RC-3: ROOKIE CODE on the front, RC-3 lost in the binary art",
+    front: ["01", "ROOKIE CODE", "10", "o 3", "CAMERON BOOZER"],
+    back: ["0110", "0 0", "04", "CAMERON BOOZER", "MEMPHIS", "MEM", "FORWARD", "Cameron, who scores through contact", BOOZER_LEGAL],
+    checklist: [TOPPS_2026_27_BOOZER],
+    live: BOOZER_RC3_LIVE,
+    truth: BOOZER_RC3,
+  },
+  {
+    name: "Boozer, Rookie Code RC-3: ROOKIE and CODE on lines of their own, no code on the back",
+    front: ["ROOKIE", "CODE", "CAMERON BOOZER"],
+    back: ["CAMERON BOOZER", "MEMPHIS GRIZZLIES", BOOZER_LEGAL],
+    checklist: [TOPPS_2026_27_BOOZER],
+    live: BOOZER_RC3_LIVE,
+    truth: BOOZER_RC3,
+  },
+  {
+    name: "Boozer, Rookie Code RC-3: the code read off the back amid the digits",
+    front: ["CODE", "CAMERON BOOZER"],
+    back: ["0", "1 RC-3 0", "0110", "CAMERON BOOZER", "MEMPHIS", BOOZER_LEGAL],
+    checklist: [TOPPS_2026_27_BOOZER],
+    live: BOOZER_RC3_LIVE,
+    truth: BOOZER_RC3,
   },
 ];

@@ -131,7 +131,8 @@ describe("ConfirmSheet", () => {
         const row = rows[index].textContent ?? "";
         assert.ok(row.includes(match.playerName), row);
         assert.ok(row.includes(`${match.setBrand}`) && (!match.cardNumber || row.includes(`#${match.cardNumber}`)), row);
-        assert.ok(row.includes(match.parallel || "Parallel open"), row);
+        assert.ok(row.includes(match.parallel || "Version not picked"), row);
+        assert.ok(!row.includes("Parallel open"), row);
       });
       // Nothing is added from the list: a row is one tap from its price.
       assert.equal(text().includes("Add to collection"), false);

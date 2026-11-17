@@ -76,7 +76,8 @@ export function RevealSpinCard({ photo, backPhoto = null, motion, size = "large"
  * The card's details typing in one line at a time, like a slab label being read: a raw card's
  * year, set, number, player and parallel; a slab's cert, then player, year, set, number, grade and
  * parallel. While the card is still being read, a caret waits. Reduced motion: the lines simply
- * show. Screen readers get the whole label at once.
+ * show. Screen readers get the whole label at once. A long line (a big text size, an insert's name)
+ * wraps between words, and the typing clip lets go once it's done, so no line is ever cut off.
  */
 export function RevealLabel({ match, onDone }: { match: ScanMatch | null; onDone?: () => void }) {
   const lines = useMemo(() => (match ? revealLines(match) : []), [match]);
@@ -99,7 +100,7 @@ export function RevealLabel({ match, onDone }: { match: ScanMatch | null; onDone
               return (
                 <li key={`${line.field}-${index}`} data-line={line.field} className={`flex ${line.field === "player" ? "text-15 font-semibold" : ""} ${open ? "text-zinc-400 dark:text-zinc-500" : ""}`}>
                   <span
-                    className="inline-block max-w-full overflow-hidden whitespace-nowrap motion-safe:animate-[reveal-type_var(--type-ms)_steps(var(--type-chars))_var(--type-delay)_both] motion-reduce:animate-[add-fade_200ms_ease-out_both]"
+                    className="inline-block min-w-0 max-w-full break-words motion-safe:animate-[reveal-type_var(--type-ms)_steps(var(--type-chars))_var(--type-delay)_backwards] motion-reduce:animate-[add-fade_200ms_ease-out_both]"
                     style={
                       {
                         "--type-ms": `${timing.durationMs}ms`,
