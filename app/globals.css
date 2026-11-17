@@ -418,6 +418,26 @@ html[data-photo-viewer] [data-app-chrome] {
   }
 }
 
+/* Quick Comp scan hero: one line sweeps the slab, like the viewfinder. Off for reduced motion. */
+@keyframes qc-scan-sweep {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(var(--qc-sweep, 120px));
+  }
+}
+
+.qc-scan-line {
+  animation: qc-scan-sweep 2.4s cubic-bezier(0.65, 0, 0.35, 1) infinite alternate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qc-scan-line {
+    animation: none;
+  }
+}
+
 /* Home feed: new posts fade up. Transform and opacity only, so no layout shift. */
 @keyframes feed-in {
   from {
