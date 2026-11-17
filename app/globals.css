@@ -418,6 +418,13 @@ html[data-photo-viewer] [data-app-chrome] {
   }
 }
 
+/* Quick Comp's manual "Check sold prices": the button's busy ring turns while the lookup is out. */
+@keyframes qc-busy-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* Quick Comp scan hero: one line sweeps the slab, like the viewfinder. Off for reduced motion. */
 @keyframes qc-scan-sweep {
   from {
