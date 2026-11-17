@@ -43,7 +43,7 @@ import { isTestAccount } from "@/lib/test-accounts";
 import { POST_LIMIT } from "@/lib/social/types";
 import { CharacterRing } from "@/components/character-ring";
 import { clearScanMatch, takeScan } from "@/lib/capture";
-import { scanCardStart, type ScanHandoff } from "@/lib/scan/handoff";
+import { insertNameForSave, scanCardStart, type ScanHandoff } from "@/lib/scan/handoff";
 import { catalogLabel, type CatalogCard } from "@/lib/card-catalog";
 import {
   CATALOG_MATCH_DEBOUNCE_MS,
@@ -883,6 +883,11 @@ export function CardForm({
     const parsed = check.parsedYear;
     const liveCondition = check.conditionType;
 
+    const scanInsert = insertNameForSave(
+      scanStart ? { setBrand: scanStart.form.setBrand, cardNumber: scanStart.form.cardNumber, insertName: scanStart.insertName } : null,
+      { setBrand: values.setBrand, cardNumber: noNumber ? "" : normalizeCardNumberInput(values.cardNumber) },
+    );
+    const insertNamePatch: { insertName?: string } = scanInsert ? { insertName: scanInsert } : {};
     const payload = {
       playerName: values.playerName.trim(),
       year: parsed.year,
@@ -918,6 +923,8 @@ export function CardForm({
       category,
       isPublic: share,
       ...(offersKnown ? { openToOffers: Boolean(share && openToOffers) } : {}),
+      // A scanned card keeps the insert the scan placed it in ("Rookie Code"), while its set and # are the scan's.
+      ...insertNamePatch,
     };
 
     setSaving(true);

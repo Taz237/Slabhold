@@ -24,6 +24,7 @@ import {
   readOpenToOffers,
   withOpenToOffersColumn,
 } from "@/lib/offers/open-to-offers";
+import { readInsertName, withInsertNameColumn } from "@/lib/cards/insert-name";
 import type { OwnedCard } from "./types";
 
 export type CardRow = {
@@ -64,6 +65,7 @@ export type CardRow = {
   cert_number?: string | null;
   open_to_offers?: boolean | null;
   sold_at?: string | null;
+  insert_name?: string | null;
 };
 
 function inferConditionType(
@@ -131,10 +133,17 @@ export function mapCardRow(row: CardRow): SportsCard {
         : undefined,
     isPublic: Boolean(row.is_public),
     openToOffers: readOpenToOffers(row),
+    ...insertNameField(row),
     soldAt: row.sold_at ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at ?? row.created_at,
   };
+}
+
+/** insertName only when the row has the column: a card loaded before it exists keeps none. */
+function insertNameField(row: CardRow): { insertName?: string } {
+  const insert = readInsertName(row);
+  return insert == null ? {} : { insertName: insert };
 }
 
 /** Map a public_cards (or safe) row — never expose paid/notes/cert/purchase date. */
@@ -366,11 +375,17 @@ async function writeCardRows(
   extended: Record<string, unknown>,
   base: Record<string, unknown>,
   category: string,
-  card: { isPublic?: boolean | null; openToOffers?: boolean | null },
+  card: { isPublic?: boolean | null; openToOffers?: boolean | null; insertName?: string | null },
   signal: AbortSignal,
 ) {
   const withOffer = withOpenToOffersColumn(extended, card);
-  let full = await supabase.from("cards").upsert(withOffer);
+  // The insert name rides on top: until cards.insert_name exists the card saves again without it,
+  // with every other detail, never the bare fallback below.
+  const withInsert = withInsertNameColumn(withOffer, card);
+  let full = await supabase.from("cards").upsert(withInsert);
+  if (full.error && withInsert !== withOffer && missingColumnError(full.error)) {
+    full = await supabase.from("cards").upsert(withOffer);
+  }
   if (
     full.error &&
     withOffer !== extended &&

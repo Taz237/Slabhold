@@ -59,6 +59,7 @@ import {
 import { copyCardPath, showAddedPanel } from "@/lib/cards/added-panel";
 import { todayDateInput } from "@/lib/cards/form-defaults";
 import { gradeDetailSpecs } from "@/lib/cards/grading-company";
+import { insertSpec } from "@/lib/cards/insert-name";
 import { canonicalParallelName, parallelMatchKey } from "@/lib/cards/parallels";
 import { parallelIn } from "@/lib/cards/product-data";
 import { useProductData } from "@/lib/cards/use-product-data";
@@ -950,9 +951,12 @@ function CardSpecs({
     parallel: string;
     conditionType: string;
     certNumber: string;
+    insertName?: string;
   };
 }) {
   const specs = [
+    // The insert it's in ("Rookie Code"), saved from a scan.
+    insertSpec(card),
     card.cardNumber.trim() && card.cardNumber.trim() !== "—"
       ? { label: "No.", value: `#${card.cardNumber.trim()}` }
       : null,
