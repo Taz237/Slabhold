@@ -20,6 +20,10 @@ export type ScanCapture = {
   backLines: string[] | null;
   /** The straightened crop as a data URL. */
   image: string | null;
+  /** The back's straightened crop, when the camera took the back too. Only the reveal shows it. */
+  backImage?: string | null;
+  /** The phone's camera asked for the back (front then back), and it was taken or skipped. */
+  backAsked?: boolean;
   /** The scanner's guess from the shape. Null when it couldn't tell. */
   kind: "card" | "slab" | null;
   /** The version the collector picked for a slab whose label named none, as the line it was added as. */

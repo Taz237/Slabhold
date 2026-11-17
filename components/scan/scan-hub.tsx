@@ -18,6 +18,7 @@ import { newScanId, scanAddPath, scanHandoffFrom } from "@/lib/scan/handoff";
 import type { LiveSoldsResult } from "@/lib/scan/live-solds";
 import type { ScanMatch, ScanMatchResult, SoldTitle } from "@/lib/scan/match";
 import type { PhotoLook } from "@/lib/scan/photo-look";
+import type { RevealFound } from "@/lib/scan/reveal";
 import { versionRereadSheet } from "@/lib/scan/version-reread";
 import { HUB_COPY, scanReadFrom, sheetStateFrom, withVersionLine, type ScanCapture, type ScanPurpose } from "@/lib/scan/session";
 
@@ -35,6 +36,8 @@ export type ScanHubDeps = {
   look: (image: string) => Promise<PhotoLook | null>;
   /** Fills open fields from the phone's alternate readings, before anything reads the capture. */
   settle: (capture: ScanCapture) => Promise<ScanCapture>;
+  /** What the card's own text gives before any lookup (the player, the card #), for the reveal. */
+  early?: (capture: ScanCapture) => Promise<RevealFound>;
   /** Read and match against the catalog. Null when the search failed. */
   identify: (capture: ScanCapture, signal: AbortSignal) => Promise<ScanMatchResult | null>;
   /**
@@ -53,6 +56,12 @@ async function defaultSettle(capture: ScanCapture): Promise<ScanCapture> {
   if (!capture.alternates?.length && !capture.backAlternates?.length) return capture;
   const [{ SCAN_DIRECTORY }, { withAlternates }] = await Promise.all([import("@/lib/players/scan-directory"), import("@/lib/scan/alternates")]);
   return withAlternates(capture, SCAN_DIRECTORY);
+}
+
+/** The player and card # the card's own text gives, read on the phone before any lookup. */
+async function defaultEarly(capture: ScanCapture): Promise<RevealFound> {
+  const [{ SCAN_DIRECTORY }, { earlyFound }] = await Promise.all([import("@/lib/players/scan-directory"), import("@/lib/scan/reveal")]);
+  return earlyFound(scanReadFrom(capture, SCAN_DIRECTORY), SCAN_DIRECTORY);
 }
 
 async function defaultIdentify(capture: ScanCapture, signal: AbortSignal): Promise<ScanMatchResult | null> {
@@ -170,6 +179,8 @@ export function ScanHub({
   const [available, setAvailable] = useState<boolean | null>(null);
   const [sheet, setSheet] = useState<ConfirmSheetState | null>(null);
   const [photo, setPhoto] = useState<string | null>(null);
+  // The back's photo, when the camera took the back too: the reveal card turns to it.
+  const [backPhoto, setBackPhoto] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Camera access is off for Slabhold. `settings`: this build can open the Settings app.
   const [cameraOff, setCameraOff] = useState<{ settings: boolean } | null>(null);
@@ -220,10 +231,15 @@ export function ScanHub({
       waitingBack.current = null;
       setError(null);
       setPhoto(scanned.image);
+      setBackPhoto(scanned.backImage ?? null);
       setSheet({ kind: "matching" });
       // Alternates are settled once, here, so the phone and the server read the same lines.
       const settled = await deps.settle(scanned).catch(() => scanned);
       if (controller.signal.aborted) return;
+      // The reveal fills in what the card's own text gives right away: the player, the card #.
+      const found = await (deps.early ?? defaultEarly)(settled).catch(() => ({}));
+      if (controller.signal.aborted) return;
+      if (Object.keys(found).length > 0) setSheet({ kind: "matching", found });
       // A raw card's photo look orders "Which version?". A slab's photo is mostly its case and label.
       // Read once per photo: a front kept for "Flip it over" carries its look (or null) back in.
       const look = settled.look === undefined && settled.image && settled.kind !== "slab" ? await deps.look(settled.image).catch(() => null) : (settled.look ?? null);
@@ -502,6 +518,8 @@ export function ScanHub({
       {sheet && !comp ? (
         <ConfirmSheet
           photo={photo}
+          backPhoto={backPhoto}
+          lookup={deps.compLookup}
           state={sheet}
           onConfirm={toAddCard}
           onStepByStep={stepByStep}
@@ -516,6 +534,7 @@ export function ScanHub({
       {sheet && comp ? (
         <CompSheet
           photo={photo}
+          backPhoto={backPhoto}
           state={sheet}
           lookup={deps.compLookup}
           onAdd={toAddCard}

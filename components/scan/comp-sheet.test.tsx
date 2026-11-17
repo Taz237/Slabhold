@@ -76,6 +76,8 @@ async function mount(state: ConfirmSheetState, lookup?: Props["lookup"]) {
       }),
     );
   });
+  // "Pick your card": the price screen is one tap on a row. These tests price the first one.
+  await pickRow(host, 0);
   return {
     calls,
     unmount() {
@@ -83,6 +85,15 @@ async function mount(state: ConfirmSheetState, lookup?: Props["lookup"]) {
       host.remove();
     },
   };
+}
+
+/** Taps a row of "Pick your card", when the list shows. */
+async function pickRow(host: HTMLElement, index: number) {
+  const row = host.querySelectorAll<HTMLButtonElement>('[data-pick="list"] button')[index];
+  if (!row) return;
+  await act(async () => {
+    row.click();
+  });
 }
 
 function text(): string {

@@ -12,6 +12,7 @@ import { newScanId, scanAddPath, scanHandoffFrom } from "@/lib/scan/handoff";
 import type { ScanMatch } from "@/lib/scan/match";
 import {
   PREVIEW_NUMBERED,
+  PREVIEW_BACK_PHOTO,
   PREVIEW_PHOTO,
   PREVIEW_RAW,
   PREVIEW_SLAB,
@@ -43,6 +44,7 @@ export type PreviewKind =
   | "raw"
   | "numbered"
   | "matching"
+  | "reading"
   | "none"
   | "unpinned"
   | "offline"
@@ -88,6 +90,7 @@ const STATES: Record<Exclude<PreviewKind, "hub" | "hub-comp" | "door">, ConfirmS
   raw: { kind: "ready", matches: PREVIEW_RAW, solds: PREVIEW_SOLDS_NONE },
   numbered: { kind: "ready", matches: [PREVIEW_NUMBERED, ...PREVIEW_RAW.slice(1)] },
   matching: { kind: "matching" },
+  reading: { kind: "matching", found: { player: "Luka Doncic", number: "#280" } },
   flip: { kind: "back", matches: [{ ...PREVIEW_RAW[0], yearLabel: "", cardNumber: "", sureness: { ...PREVIEW_RAW[0].sureness, year: "unsure", number: "unsure" } }] },
   "comp-flip": { kind: "back", matches: [{ ...PREVIEW_RAW[0], cardNumber: "", sureness: { ...PREVIEW_RAW[0].sureness, number: "unsure" } }] },
   none: { kind: "none" },
@@ -115,6 +118,7 @@ const LABELS: Record<PreviewKind, string> = {
   raw: "Raw, parallel open",
   numbered: "Numbered",
   matching: "Matching",
+  reading: "Reading, front and back",
   none: "No match",
   unpinned: "Conflicts with the back",
   offline: "Offline",
@@ -231,6 +235,8 @@ export function ScanSheetPreview({ kind }: { kind: PreviewKind }) {
         <ConfirmSheet
           key={`${kind}-${sapphire}`}
           photo={PREVIEW_PHOTO}
+          backPhoto={kind === "reading" ? PREVIEW_BACK_PHOTO : null}
+          lookup={previewCompLookup}
           state={sapphire ? STATES.sapphire : STATES[kind as keyof typeof STATES]}
           onSapphire={() => setSapphire(true)}
           onConfirm={confirm}

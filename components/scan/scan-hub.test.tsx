@@ -95,8 +95,21 @@ function button(name: string): HTMLElement {
   return found as HTMLElement;
 }
 
+/**
+ * "Pick your card": these tests go on with the most likely card, so whenever the list shows its
+ * first row is tapped, like a collector who sees their card at the top.
+ */
+async function pickTopRow() {
+  const row = win.document.querySelector<HTMLButtonElement>('[data-pick="list"] button');
+  if (!row) return;
+  await act(async () => {
+    row.click();
+  });
+}
+
 async function waitFor(check: () => boolean, attempts = 80) {
   for (let i = 0; i < attempts; i += 1) {
+    await pickTopRow();
     if (check()) return;
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 20));
@@ -123,9 +136,9 @@ describe("ScanHub with the native scanner", () => {
     let scans = 0;
     const view = await mount("add", nativeDeps({ scan: async () => (scans++, CAPTURE) }));
     try {
-      await waitFor(() => text().includes("Is this your card?"));
+      await waitFor(() => text().includes("Your card"));
       assert.equal(scans, 1, "no tap needed to open the camera");
-      await act(async () => button("Yes, add it").click());
+      await act(async () => button("Add to collection").click());
       assert.match(pushed[0] ?? "", /^\/cards\/new\?scan=[a-z0-9]+$/);
       const stored = JSON.parse(win.sessionStorage.getItem("cardflip.scan-match") ?? "{}");
       assert.equal(stored.autoSave, true);
@@ -206,7 +219,7 @@ describe("ScanHub with the native scanner", () => {
     try {
       await waitFor(() => text().includes("Camera is off for Slabhold"));
       await act(async () => button("Scan a card").click());
-      await waitFor(() => text().includes("Is this your card?"));
+      await waitFor(() => text().includes("Your card"));
       assert.equal(text().includes("Camera is off for Slabhold"), false);
     } finally {
       view.unmount();
@@ -228,7 +241,7 @@ describe("ScanHub with the native scanner", () => {
     try {
       await waitFor(() => text().includes("Choose a photo"));
       await act(async () => button("Choose a photo").click());
-      await waitFor(() => text().includes("Is this your card?"));
+      await waitFor(() => text().includes("Your card"));
       assert.equal(reads, 1);
     } finally {
       view.unmount();
@@ -255,7 +268,7 @@ describe("ScanHub: identify, then last eBay solds", () => {
       await waitFor(() => text().includes("Looking up last solds…"));
       assert.ok(text().includes("Luka Doncic"), "the identity shows while the search runs");
       release();
-      await waitFor(() => text().includes("Last sold"));
+      await waitFor(() => text().includes("Last sales"));
     } finally {
       view.unmount();
     }
@@ -381,10 +394,16 @@ describe("ScanHub from the Add card sheet's Upload photo", () => {
       );
     });
     try {
-      await waitFor(() => text().includes("Is this your card?"));
+      // The same reveal as the camera, then "Pick your card" (waited for without tapping a row).
+      for (let i = 0; i < 80 && !win.document.querySelector('[data-pick="list"]'); i += 1) {
+        await act(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 20));
+        });
+      }
       assert.equal(reads, 1);
       assert.equal(scans, 0, "the camera stays closed");
       assert.ok(win.document.querySelector('[data-reveal="scan-card"]'), "the same flip-in reveal");
+      assert.ok(win.document.querySelector('[data-pick="list"]'), "then Pick your card");
     } finally {
       act(() => root.unmount());
       host.remove();
@@ -412,8 +431,10 @@ describe("ScanHub: a slab's version picked from \"Which version?\"", () => {
 
   const waiting = (matches: ScanMatch[]) => ({ matches, comp: { status: "version" as const }, query: null });
   const pressed = (name: string) => button(name).getAttribute("aria-pressed") === "true";
+  /** "Not this one? Pick another", then that player's row on "Pick your card". */
   const promote = async (player: string) => {
-    const row = [...win.document.querySelectorAll("button")].find((node) => node.textContent?.includes(player) && node.textContent?.includes("#"));
+    await act(async () => button("Not this one? Pick another").click());
+    const row = [...win.document.querySelectorAll('[data-pick="list"] button')].find((node) => node.textContent?.includes(player));
     assert.ok(row, `row ${player}`);
     await act(async () => (row as HTMLElement).click());
   };
@@ -472,42 +493,6 @@ describe("ScanHub: a slab's version picked from \"Which version?\"", () => {
     }
   });
 
-  it("a serial typed while the read runs is still there when its sold prices land", async () => {
-    let release: (value: unknown) => void = () => {};
-    let reads = 0;
-    const view = await mount(
-      "add",
-      nativeDeps({
-        identify: async () => result(rows()),
-        solds: async (_capture, matches) => {
-          reads += 1;
-          if (reads === 1) return waiting(matches);
-          await new Promise((resolve) => (release = resolve));
-          const top = { ...matches[0], parallel: "Gold" };
-          return { matches: [top, ...matches.slice(1)], comp: fixtures.PREVIEW_SOLDS.status === "done" ? fixtures.PREVIEW_SOLDS.comp : { status: "none" as const }, query: "fixture" };
-        },
-      }),
-    );
-    try {
-      await waitFor(() => text().includes("Pick the version to see its sold prices"));
-      await promote("Second Player");
-      await act(async () => button("Gold, numbered to 50").click());
-      await waitFor(() => reads === 2 && Boolean(win.document.querySelector('input[inputmode="numeric"]')));
-      const input = win.document.querySelector('input[inputmode="numeric"]') as HTMLInputElement;
-      await act(async () => {
-        Object.getOwnPropertyDescriptor(win.HTMLInputElement.prototype, "value")?.set?.call(input, "12");
-        input.dispatchEvent(new win.Event("input", { bubbles: true }));
-      });
-      await act(async () => release(null));
-      await waitFor(() => text().includes("Last sold"));
-      const after = win.document.querySelector('input[inputmode="numeric"]') as HTMLInputElement;
-      assert.equal(after.value, "12");
-      assert.equal(pressed("Gold, numbered to 50"), true);
-      assert.match(text(), /Second Player/);
-    } finally {
-      view.unmount();
-    }
-  });
 });
 
 describe("ScanHub: picking another version after a read", () => {

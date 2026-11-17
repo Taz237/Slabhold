@@ -1606,6 +1606,32 @@ html[data-nav="none"]::view-transition-new(.page-in) {
 }
 
 /* Scan reveal: the photo flips in from its back, once. Skipped for reduced motion. */
+/* The scan reveal's card while it is read (components/scan/scan-reveal.tsx): it shows its front,
+   turns to the back, holds, and turns home. Transform only. Never runs under reduced motion. */
+@keyframes reveal-turn {
+  0%,
+  30% {
+    transform: rotateY(-10deg) rotateX(4deg);
+  }
+  50%,
+  80% {
+    transform: rotateY(170deg) rotateX(4deg);
+  }
+  100% {
+    transform: rotateY(350deg) rotateX(4deg);
+  }
+}
+
+/* Only a front: a slow tilt side to side, so the screen is never still while it reads. */
+@keyframes reveal-tilt {
+  from {
+    transform: rotateY(-12deg) rotateX(5deg);
+  }
+  to {
+    transform: rotateY(12deg) rotateX(-3deg);
+  }
+}
+
 @keyframes card-flip-in {
   0% {
     opacity: 0;

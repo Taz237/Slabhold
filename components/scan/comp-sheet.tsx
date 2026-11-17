@@ -10,7 +10,6 @@ import {
   CardPhoto,
   FlipStep,
   MatchSummary,
-  MatchingSkeleton,
   OtherMatches,
   SetNotes,
   withSoldGroups,
@@ -39,6 +38,9 @@ import { CONFIRM_COPY, confirmMatch, initialChoice, matchesKey, promoteMatch, re
 import type { ScanEstimate } from "@/lib/scan/estimate";
 import type { ScanMatch } from "@/lib/scan/match";
 import { isUnnamedRunLabel } from "@/lib/scan/scan-sales";
+import { REVEAL_COPY, revealFoundFrom } from "@/lib/scan/reveal";
+import { PickCard } from "@/components/scan/pick-card";
+import { RevealFields, RevealSpinCard } from "@/components/scan/scan-reveal";
 
 /**
  * Sold prices for another parallel or grade on this sheet. GET /api/scan/comp
@@ -52,6 +54,8 @@ export type CompLookup = (
 
 type Props = {
   photo: string | null;
+  /** The back's photo, when the camera took the back too: the reveal card turns to it. */
+  backPhoto?: string | null;
   state: ConfirmSheetState;
   lookup: CompLookup;
   /** Add to collection: the match with the picked parallel. save when nothing is left to ask. */
@@ -76,11 +80,12 @@ type Props = {
  * sales we already have). A different parallel, grade or card is one tap, and
  * its prices load in place from the same search. No sales is said plainly.
  */
-export function CompSheet({ photo, state, lookup, onAdd, onScanAnother, onSearch, onSapphire, onVersion, onScanBack, onSkipBack, onClose }: Props) {
-  const title = state.kind === "none" ? CONFIRM_COPY.noMatchTitle : COMP_COPY.title;
+export function CompSheet({ photo, backPhoto = null, state, lookup, onAdd, onScanAnother, onSearch, onSapphire, onVersion, onScanBack, onSkipBack, onClose }: Props) {
+  const [picked, setPicked] = usePickedRow(state);
+  const title =
+    state.kind === "none" ? CONFIRM_COPY.noMatchTitle : state.kind === "ready" ? (picked == null ? REVEAL_COPY.pickTitle : COMP_COPY.title) : COMP_COPY.title;
   return (
     <SheetFrame title={title} busy={state.kind === "matching"} onClose={onClose}>
-      {state.kind === "matching" ? <MatchingSkeleton photo={photo} label={CONFIRM_COPY.finding} /> : null}
       {state.kind === "back" ? (
         <div className="space-y-6">
           <div className="flex justify-center">
@@ -103,12 +108,13 @@ export function CompSheet({ photo, state, lookup, onAdd, onScanAnother, onSearch
           </div>
         </div>
       ) : null}
-      {state.kind === "ready" ? (
-        <Ready
-          key={matchesKey(state.matches)}
+      {state.kind === "matching" || state.kind === "ready" ? (
+        <ScanSteps
+          state={state}
+          picked={picked}
+          onPicked={setPicked}
           photo={photo}
-          matches={state.matches}
-          solds={state.solds}
+          backPhoto={backPhoto}
           lookup={lookup}
           onAdd={onAdd}
           onScanAnother={onScanAnother}
@@ -166,9 +172,16 @@ function gradeChoices(scanned: string): string[] {
   return presets.includes(scanned) ? presets : [scanned, ...presets];
 }
 
-function Ready({
+/**
+ * The price screen for one card, Quick Comp style: its value from recent sold prices, its parallel
+ * and grade one tap each, and a big Add to collection. `scanMatch` is the card the scan's own live
+ * search priced (the top match as it arrived): its sales only ever show for that card.
+ * With `onBack` (the card was picked from "Pick your card"), the way out is back to the list.
+ */
+export function CardPrice({
   photo,
   matches,
+  scanMatch = matches[0],
   solds,
   lookup,
   onAdd,
@@ -176,9 +189,11 @@ function Ready({
   onSearch,
   onSapphire,
   onVersion,
+  onBack,
 }: {
   photo: string | null;
   matches: ScanMatch[];
+  scanMatch?: ScanMatch;
   solds?: SoldsState;
   lookup: CompLookup;
   onAdd: Props["onAdd"];
@@ -186,6 +201,7 @@ function Ready({
   onSearch: () => void;
   onSapphire?: () => void;
   onVersion?: (version: string, rows: ScanMatch[]) => void;
+  onBack?: () => void;
 }) {
   const [rows, setRows] = useState(matches);
   const top = rows[0];
@@ -206,8 +222,8 @@ function Ready({
   const key = target ? compQueryString(target.identity, serialRun) : "";
   // The card the live search priced: the top match as it arrived, with its own parallel and grade.
   const [scanKey] = useState(() => {
-    const first = top ? compIdentityFromMatch({ ...top, parallel: initialChoice(top)?.name ?? "" }, scanCompGrade(top)) : null;
-    return first ? compQueryString(first.identity, top?.serialRun ?? null) : "";
+    const first = scanMatch ? compIdentityFromMatch({ ...scanMatch, parallel: initialChoice(scanMatch)?.name ?? "" }, scanCompGrade(scanMatch)) : null;
+    return first ? compQueryString(first.identity, scanMatch?.serialRun ?? null) : "";
   });
   const query = solds?.status === "done" ? solds.query : null;
   const looking = solds?.status === "looking" && key === scanKey;
@@ -280,7 +296,7 @@ function Ready({
   return (
     <div className="space-y-6">
       <MatchSummary photo={photo} match={top} />
-      <SetNotes match={top} onSapphire={top === matches[0] ? onSapphire : undefined} />
+      <SetNotes match={top} onSapphire={matchesKey([top]) === matchesKey([scanMatch]) ? onSapphire : undefined} />
 
       {target ? (
         <ValuePanel
@@ -349,11 +365,108 @@ function Ready({
         </div>
       </div>
 
-      <OtherMatches rows={rows} onPromote={promote} photo={photo} />
+      {onBack ? (
+        <div className="flex justify-center">
+          <QuietButton onClick={onBack}>{REVEAL_COPY.pickAnother}</QuietButton>
+        </div>
+      ) : (
+        <>
+          <OtherMatches rows={rows} onPromote={promote} photo={photo} />
+          <div className="flex justify-center">
+            <QuietButton onClick={onSearch}>{CONFIRM_COPY.noneOfThese}</QuietButton>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
-      <div className="flex justify-center">
-        <QuietButton onClick={onSearch}>{CONFIRM_COPY.noneOfThese}</QuietButton>
-      </div>
+/**
+ * Reading, then "Pick your card", then its price. One reveal card stays mounted from the read to
+ * the list, so it flips in once: it turns between the collector's front and back photos while the
+ * card is read, its fields filling in as each is found, then rests above the list of matches.
+ * A tap on a row opens that card's price screen; "Pick another" comes back to the list.
+ */
+/**
+ * The row picked on "Pick your card". The sheet holds it so its title can follow (the list, then
+ * the card).
+ */
+export function usePickedRow(state: ConfirmSheetState): [number | null, (index: number | null) => void] {
+  const matches = state.kind === "ready" ? state.matches : null;
+  // The card picked, by who it is (not its parallel): a re-read for a version, or sales that name
+  // its parallel, keep the price screen on the same card. A different set of cards brings the list back.
+  const [picked, setPicked] = useState<string | null>(null);
+  const at = picked && matches ? matches.findIndex((match) => cardIdentity(match) === picked) : -1;
+  return [at >= 0 ? at : null, (next) => setPicked(next == null || !matches?.[next] ? null : cardIdentity(matches[next]))];
+}
+
+/** Who a card is, apart from its parallel: the player, year, set and card #. */
+function cardIdentity(match: ScanMatch): string {
+  return [match.playerName, match.yearLabel, match.setBrand, match.cardNumber].join("~");
+}
+
+export function ScanSteps({
+  state,
+  picked: index,
+  onPicked,
+  photo,
+  backPhoto = null,
+  lookup,
+  onAdd,
+  onScanAnother,
+  onSearch,
+  onSapphire,
+  onVersion,
+}: {
+  state: Extract<ConfirmSheetState, { kind: "matching" | "ready" }>;
+  /** The row picked on the list (usePickedRow), or null while the list shows. */
+  picked: number | null;
+  onPicked: (index: number | null) => void;
+  photo: string | null;
+  backPhoto?: string | null;
+  lookup: CompLookup;
+  onAdd: Props["onAdd"];
+  onScanAnother: () => void;
+  onSearch: () => void;
+  onSapphire?: () => void;
+  onVersion?: (version: string, rows: ScanMatch[]) => void;
+}) {
+  const ready = state.kind === "ready" ? state : null;
+  const key = ready ? matchesKey(ready.matches) : "";
+
+  if (ready && index != null && ready.matches[index]) {
+    return (
+      <CardPrice
+        key={`${key}#${index}`}
+        photo={photo}
+        matches={promoteMatch(ready.matches, index)}
+        scanMatch={ready.matches[0]}
+        solds={ready.solds}
+        lookup={lookup}
+        onAdd={onAdd}
+        onScanAnother={onScanAnother}
+        onSearch={onSearch}
+        onSapphire={index === 0 ? onSapphire : undefined}
+        onVersion={onVersion}
+        onBack={() => onPicked(null)}
+      />
+    );
+  }
+  return (
+    <div className="space-y-6">
+      {ready ? null : (
+        <p className="sr-only" role="status">
+          {REVEAL_COPY.reading}
+        </p>
+      )}
+      <RevealSpinCard photo={photo} backPhoto={backPhoto} turning={!ready} size={ready ? "small" : "large"} />
+      <RevealFields found={ready ? revealFoundFrom(ready.matches[0]) : state.kind === "matching" ? (state.found ?? {}) : {}} done={Boolean(ready)} />
+      {ready ? <PickCard matches={ready.matches} onPick={onPicked} /> : null}
+      {ready ? (
+        <div className="flex justify-center">
+          <QuietButton onClick={onSearch}>{CONFIRM_COPY.noneOfThese}</QuietButton>
+        </div>
+      ) : null}
     </div>
   );
 }

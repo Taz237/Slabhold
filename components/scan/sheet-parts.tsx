@@ -428,31 +428,6 @@ export function OtherMatches({
 
 const skeletonBar = "skeleton-shimmer rounded-md";
 
-/** Skeletons while the scan is matched. Never a spinner. */
-export function MatchingSkeleton({ photo, label }: { photo: string | null; label: string }) {
-  return (
-    <div className="space-y-6">
-      <p className="sr-only" role="status">
-        {label}
-      </p>
-      <div className="grid grid-cols-[80px_1fr] items-start gap-4">
-        {photo ? <CardPhoto photo={photo} name="this card" /> : <div className={`aspect-[5/7] w-20 ${skeletonBar}`} />}
-        <div className="space-y-2 pt-2">
-          <div className={`h-5 w-40 ${skeletonBar}`} />
-          <div className={`h-4 w-48 ${skeletonBar}`} />
-          <div className={`h-4 w-20 ${skeletonBar}`} />
-        </div>
-      </div>
-      <div className="flex gap-2">
-        <div className={`h-11 w-24 rounded-full ${skeletonBar}`} />
-        <div className={`h-11 w-24 rounded-full ${skeletonBar}`} />
-        <div className={`h-11 w-24 rounded-full ${skeletonBar}`} />
-      </div>
-      <div className={`h-12 rounded-full ${skeletonBar}`} />
-    </div>
-  );
-}
-
 export { skeletonBar };
 
 function saleDay(iso: string | null): string {

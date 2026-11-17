@@ -41,6 +41,15 @@ before(async () => {
 
 after(() => win.close());
 
+/** Taps the first row of "Pick your card", when the list shows: the price screen is one tap away. */
+async function pickFirst(host: HTMLElement) {
+  const row = host.querySelector<HTMLButtonElement>('[data-pick="list"] button');
+  if (!row) return;
+  await act(async () => {
+    row.click();
+  });
+}
+
 async function mount(state: ConfirmSheetState, onSapphire?: () => void) {
   const confirmed: ScanMatch[] = [];
   const { createRoot } = await import("react-dom/client");
@@ -60,6 +69,7 @@ async function mount(state: ConfirmSheetState, onSapphire?: () => void) {
       }),
     );
   });
+  await pickFirst(host);
   return {
     host,
     confirmed,
@@ -93,22 +103,19 @@ describe("a parallel the sales box names is also a chip", () => {
       await click(black);
       const picked = [...view.host.querySelectorAll<HTMLButtonElement>('[role="group"][aria-label="Parallel"] button')].find((button) => button.getAttribute("aria-label")?.startsWith("Black"));
       assert.equal(picked?.getAttribute("aria-pressed") ?? picked?.getAttribute("aria-checked"), "true");
-      // Its value shows: the last sold for Black.
-      const value = view.host.querySelector('[data-slot="last-sold-picked"]');
-      assert.match(value?.textContent ?? "", /Last sold · Black/);
-      assert.match(value?.textContent ?? "", /\$40\.00/);
+      // Its price then loads through the price screen's lookup (none in this test).
     } finally {
       view.unmount();
     }
   });
 
-  it("tapping the sales row selects the same chip and shows its value", async () => {
+  it("tapping the sales row selects the same chip", async () => {
     const view = await mount({ kind: "ready", matches: [fixtures.PREVIEW_SAPPHIRE_ASK], solds: fixtures.PREVIEW_SOLDS_NAMES_BLACK });
     try {
+      assert.match(view.host.textContent ?? "", /Black · 1 sale\s*\$40\.00/, "the sales row names it, with its price");
       await click(buttons(view.host).find((button) => button.getAttribute("aria-label") === "Show Black sales, 1 sale"));
       const picked = chip(view.host.querySelector('[role="group"][aria-label="Parallel"]') as HTMLElement, "Black");
       assert.equal(picked?.getAttribute("aria-pressed") ?? picked?.getAttribute("aria-checked"), "true");
-      assert.match(view.host.querySelector('[data-slot="last-sold-picked"]')?.textContent ?? "", /\$40\.00/);
     } finally {
       view.unmount();
     }
