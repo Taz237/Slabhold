@@ -50,7 +50,6 @@ function card(n: number, partial: Partial<FeedCard> = {}): FeedCard {
     owner: { id: id(900 + n), username: `owner${n}`, displayName: `Owner ${n}`, avatarUrl: null },
     likeCount: 0,
     commentCount: 0,
-    postId: null,
     source: "fresh",
     ...partial,
   };
@@ -80,7 +79,7 @@ describe("feed card from a public row", () => {
         price_cents: 99999,
       },
       owner,
-      { likeCount: 12, commentCount: 3, postId: id(50), source: "popular" },
+      { likeCount: 12, commentCount: 3, source: "popular" },
     );
     assert.ok(made);
     assert.equal(made.href, `/u/ada/cards/${id(1)}`);
@@ -89,7 +88,7 @@ describe("feed card from a public row", () => {
     assert.equal(made.sport, "basketball");
     assert.equal(made.priceLabel, "$420.00");
     assert.equal(made.likeCount, 12);
-    assert.equal(made.postId, id(50));
+    assert.equal(made.commentCount, 3);
     assert.equal(feedSetLine(made), "2023-24 Prizm #136");
     assert.deepEqual(
       feedPills(made).map((pill) => pill.label),

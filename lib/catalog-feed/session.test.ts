@@ -2,11 +2,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   addTaste,
-  loadDeviceHearts,
   loadSeen,
   loadSpot,
   loadTaste,
-  saveDeviceHeart,
   saveSeen,
   saveSpot,
   SPOT_MAX_AGE_MS,
@@ -65,21 +63,16 @@ describe("feed spot", () => {
     saveSpot(broken, forYou, { cards: cards(2), nextOffset: null, index: 0 });
     assert.equal(loadSpot(broken, forYou), null);
     assert.equal(loadSeen(broken).size, 0);
-    assert.deepEqual([...saveDeviceHeart(broken, "x", true)], ["x"], "the heart still shows this visit");
     assert.deepEqual(addTaste(broken, { sport: "football", player: "A" }), [{ sport: "football", player: "A" }]);
   });
 });
 
-describe("seen, taste and device hearts", () => {
-  it("remember what was shown, hearted players and hearts on never-posted cards", () => {
+describe("seen and taste", () => {
+  it("remember what was shown and hearted players", () => {
     const store = memory();
     saveSeen(store, new Set(["a", "b"]));
     assert.deepEqual([...loadSeen(store)], ["a", "b"]);
     addTaste(store, { sport: "baseball", player: "Shohei Ohtani" });
     assert.deepEqual(loadTaste(store), [{ sport: "baseball", player: "Shohei Ohtani" }]);
-    saveDeviceHeart(store, "c1", true);
-    saveDeviceHeart(store, "c2", true);
-    saveDeviceHeart(store, "c1", false);
-    assert.deepEqual([...loadDeviceHearts(store)], ["c2"]);
   });
 });

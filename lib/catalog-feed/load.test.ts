@@ -44,13 +44,15 @@ function tables(): Record<string, Row[]> {
       { id: uuid(902), username: "qa_tester", display_name: "QA", is_test: true },
     ],
     follows: [{ follower_id: uuid(1), following_id: uuid(901), created_at: "2026-11-01" }],
-    posts: [
-      { id: "p1", like_count: 9, created_at: "2026-11-01", "card->>id": uuid(3), card_id: uuid(3), hidden_at: null },
-      { id: "p2", like_count: 4, created_at: "2026-11-05", "card->>id": null, card_id: null, hidden_at: null },
-      { id: "p3", like_count: 50, created_at: "2026-11-06", "card->>id": uuid(4), card_id: uuid(4), hidden_at: "2026-11-07" },
+    card_likes: [
+      { card_id: uuid(3), user_id: uuid(1) },
+      { card_id: uuid(3), user_id: uuid(2) },
+      { card_id: uuid(4), user_id: uuid(1) },
     ],
-    post_cards: [{ post_id: "p2", card_id: uuid(3) }],
-    comments: [{ post_id: "p2" }, { post_id: "p2" }, { post_id: "p1" }],
+    card_comments: [
+      { id: "c1", card_id: uuid(3) },
+      { id: "c2", card_id: uuid(5) },
+    ],
   };
 }
 
@@ -63,8 +65,11 @@ function fakeAdmin(data: Record<string, Row[]>) {
     calls.push(call);
     let window: [number, number] | null = null;
     let limit = Infinity;
+    let head = false;
     const builder = {
-      select: (columns: string) => ((call.select = columns), builder),
+      select: (columns: string, opts?: { count?: string; head?: boolean }) => (
+        (call.select = columns), (head = Boolean(opts?.head)), builder
+      ),
       in: (col: string, values: unknown[]) => (
         call.ops.push(["in", [col, values]]), (rows = rows.filter((r) => values.includes(r[col]))), builder
       ),
@@ -83,9 +88,9 @@ function fakeAdmin(data: Record<string, Row[]>) {
       },
       range: (start: number, end: number) => (call.ops.push(["range", [start, end]]), (window = [start, end]), builder),
       limit: (n: number) => (call.ops.push(["limit", [n]]), (limit = n), builder),
-      then<T>(resolve: (value: { data: Row[]; error: null }) => T) {
+      then<T>(resolve: (value: { data: Row[] | null; count: number; error: null }) => T) {
         const out = window ? rows.slice(window[0], window[1] + 1) : rows.slice(0, limit);
-        return Promise.resolve({ data: out, error: null }).then(resolve);
+        return Promise.resolve({ data: head ? null : out, count: rows.length, error: null }).then(resolve);
       },
     };
     return builder;
@@ -136,12 +141,22 @@ describe("readFeedPage", () => {
 });
 
 describe("readCardEngagement", () => {
-  it("adds likes across a card's visible posts and uses its newest post for comments", async () => {
+  it("counts hearts and comments per card from card_likes and card_comments, never from posts", async () => {
+    const { admin, calls } = fakeAdmin(tables());
+    const map = await readCardEngagement(admin, [uuid(3), uuid(4), uuid(5), uuid(6)]);
+    assert.deepEqual(map.get(uuid(3)), { likeCount: 2, commentCount: 1 });
+    assert.deepEqual(map.get(uuid(4)), { likeCount: 1, commentCount: 0 });
+    assert.deepEqual(map.get(uuid(5)), { likeCount: 0, commentCount: 1 });
+    assert.deepEqual(map.get(uuid(6)), { likeCount: 0, commentCount: 0 });
+    const tablesRead = new Set(calls.map((call) => call.table));
+    assert.deepEqual([...tablesRead].sort(), ["card_comments", "card_likes"]);
+  });
+
+  it("feed cards carry those counts", async () => {
     const { admin } = fakeAdmin(tables());
-    const map = await readCardEngagement(admin, [uuid(3), uuid(4), uuid(5)]);
-    assert.deepEqual(map.get(uuid(3)), { likeCount: 13, commentCount: 2, postId: "p2" });
-    // A hidden post never counts.
-    assert.equal(map.has(uuid(4)), false);
-    assert.equal(map.has(uuid(5)), false);
+    const page = await readFeedPage(forYou, 0, null, admin, [[uuid(3), 9]]);
+    const three = page.cards.find((c) => c.id === uuid(3));
+    assert.equal(three?.likeCount, 2);
+    assert.equal(three?.commentCount, 1);
   });
 });
