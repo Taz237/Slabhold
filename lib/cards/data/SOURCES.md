@@ -85,9 +85,11 @@ added, skipped or failed.
 | Baseball | Topps Chrome | 2019, 2020, 2021, 2022, 2023, 2024, 2025 |
 | Baseball | Topps Chrome Sapphire | 2025 |
 | Baseball | Topps Chrome Update | 2025 |
+| Baseball | Topps Chrome Update Sapphire | 2020, 2021, 2025 |
 | Baseball | Topps Finest | 2019, 2021, 2022, 2023 |
 | Baseball | Topps Update | 2019, 2020, 2021, 2022, 2023 |
 | Basketball | Bowman | 2025-26 |
+| Basketball | Bowman U Best | 2025-26 |
 | Basketball | Bowman U Chrome | 2023-24, 2024-25 |
 | Basketball | Donruss Optic | 2019-20, 2020-21, 2021-22, 2022-23 |
 | Basketball | Panini Donruss | 2019-20, 2020-21, 2021-22, 2022-23 |
@@ -96,6 +98,7 @@ added, skipped or failed.
 | Basketball | Panini Select | 2019-20, 2020-21, 2021-22, 2022-23, 2025-26 |
 | Basketball | Prizm Draft Picks | 2019-20, 2020-21, 2021-22, 2022-23, 2023-24 |
 | Basketball | Topps Chrome | 2025-26 |
+| Football | Bowman U Best | 2025 |
 | Football | Bowman U Chrome | 2023, 2024, 2025 |
 | Football | Donruss Optic | 2019, 2020, 2021, 2022, 2025 |
 | Football | Panini Donruss | 2019, 2020, 2021, 2022, 2023 |
@@ -103,6 +106,7 @@ added, skipped or failed.
 | Football | Panini Prizm | 2019, 2020, 2021, 2022, 2023, 2024, 2025 |
 | Football | Panini Select | 2019, 2020, 2021, 2022, 2025 |
 | Football | Topps Chrome | 2025 |
+| Football | Topps Resurgence | 2025 |
 | Football | Prizm Draft Picks | 2019, 2020, 2021 |
 | Hockey | Upper Deck | 2024-25, 2025-26 |
 
@@ -164,6 +168,27 @@ https://www.checklistinsider.com/2025-panini-mosaic-football and
 https://www.checklistinsider.com/2025-26-panini-select-basketball. Their parallels come from Panini's
 own lists already in `panini-parallels.json`; the page's lists are kept beside the CSVs and not
 loaded. 2025-26 Optic and Mosaic Basketball have no page yet (404 on 2026-11-16).
+
+### 2025 Topps Chrome Update Sapphire, 2025 Topps Resurgence, Bowman U Best (read 2026-11-17)
+
+Read the same way from Checklist Insider:
+https://www.checklistinsider.com/2025-topps-chrome-update-sapphire-baseball,
+https://www.checklistinsider.com/2025-topps-resurgence-football,
+https://www.checklistinsider.com/2025-bowman-university-best-football and
+https://www.checklistinsider.com/2025-26-bowman-university-best-basketball. No Topps odds sheet with
+their parallels was found, so their parallel lists are the pages' own, added to
+`topps-parallels.json` by `scripts/merge-print-runs.ts` and marked not official. The page converter
+drops the notes the pages put after a team ("RD" for a rookie debut, "/5 (no base)").
+
+The 2025-26 Bowman U Best Basketball page's slips are fixed by `PAGE_CORRECTIONS`: Game Graphs spells
+"Tarris Reed JR." (Tarris Reed Jr.) and "Zakiyah Johnson" (ZaKiyah Johnson, as every other section
+has her). The Chrome Update Sapphire page lists two #USC45 cards (Tommy Pham and Cal Raleigh), as
+Topps printed them; both are kept.
+
+2025-26 Panini Prizm Basketball is the Prizm NIL product (unlicensed: NBA players with no logos,
+plus college and high school players). It was already in the store from the same page, with
+LaBaron Philon at #103; a fresh read on 2026-11-17 added no new card # and player, so it was left
+as it was. There is no Panini Resurgence page (Resurgence is a Topps product).
 
 Until a product is in the store, the scanner falls back to the sold titles for that year, set and
 card # (below).

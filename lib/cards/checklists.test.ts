@@ -189,7 +189,7 @@ describe("the checklist store", () => {
 
   it("the 2024-and-later files: the page each came from is logged, never a file name, and the spot cards are who the page says", async () => {
     const added = CHECKLIST_INDEX.filter((entry) => entry.source.includes("checklistinsider.com"));
-    assert.equal(added.length, 27);
+    assert.equal(added.length, 31);
     for (const entry of CHECKLIST_INDEX) assert.doesNotMatch(entry.source, /\.csv\b/i, entry.file);
     // Upper Deck Series 1 and Series 2 are one product, with both pages logged.
     for (const year of ["2024-25", "2025-26"]) {
@@ -221,6 +221,17 @@ describe("the checklist store", () => {
     assert.deepEqual(await only("Football", "2025", "Donruss Optic", "273"), ["Jaxson Dart"]);
     assert.ok((await only("Football", "2025", "Panini Select", "93")).includes("Jaxson Dart"));
     assert.ok((await only("Basketball", "2025-26", "Panini Select", "1")).includes("Giannis Antetokounmpo"));
+    assert.deepEqual(await only("Baseball", "2025", "Topps Chrome Update Sapphire", "USC150"), ["Jacob Wilson"]);
+    // The page lists two #USC45 cards, as Topps printed them.
+    assert.deepEqual(await only("Baseball", "2025", "Topps Chrome Update Sapphire", "USC45"), ["Tommy Pham", "Cal Raleigh"]);
+    assert.deepEqual(await only("Football", "2025", "Topps Resurgence", "11"), ["James Cook"]);
+    assert.deepEqual(await only("Basketball", "2025-26", "Bowman U Best", "69"), ["Cameron Boozer"]);
+    assert.deepEqual(await only("Basketball", "2025-26", "Bowman U Best", "97"), ["Cayden Boozer"]);
+    assert.deepEqual(await only("Basketball", "2025-26", "Bowman U Best", "9"), ["AJ Dybantsa"]);
+    assert.deepEqual(await only("Football", "2025", "Bowman U Best", "1"), ["Avery Johnson"]);
+    // The page's slips, fixed: "Tarris Reed JR." and "Zakiyah Johnson" in Game Graphs.
+    assert.deepEqual(await only("Basketball", "2025-26", "Bowman U Best", "GG-TR"), ["Tarris Reed Jr."]);
+    assert.deepEqual(await only("Basketball", "2025-26", "Bowman U Best", "GG-ZJ"), ["ZaKiyah Johnson"]);
 
     // 2025-26 Prizm #24: thirteen cards share the number, one is in Base.
     const shared = await at("Basketball", "2025-26", "Panini Prizm", "24");

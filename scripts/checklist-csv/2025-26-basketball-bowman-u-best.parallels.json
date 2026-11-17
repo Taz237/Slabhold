@@ -1,0 +1,455 @@
+{
+ "sport": "Basketball",
+ "yearLabel": "2025-26",
+ "product": "Bowman U Best",
+ "manufacturer": "Topps",
+ "source": "https://www.checklistinsider.com/2025-26-bowman-university-best-basketball",
+ "official": false,
+ "parallels": [
+  {
+   "subset": "Base",
+   "name": "Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Shimmer Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Purple Refractor",
+   "serialRun": 250
+  },
+  {
+   "subset": "Base",
+   "name": "Aqua Lava Refractor",
+   "serialRun": 199
+  },
+  {
+   "subset": "Base",
+   "name": "Blue Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Base",
+   "name": "Green Mini-Diamond Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base",
+   "name": "Yellow Lazer Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Base",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base",
+   "name": "Pearl Refractor",
+   "serialRun": 35
+  },
+  {
+   "subset": "Base",
+   "name": "Orange Mini-Diamond Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base",
+   "name": "Teal Refractor",
+   "serialRun": 15
+  },
+  {
+   "subset": "Base",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "The Best of 2025 Autographs",
+   "name": "Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "The Best of 2025 Autographs",
+   "name": "Green Mini-Diamond Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "The Best of 2025 Autographs",
+   "name": "Yellow Lazer Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "The Best of 2025 Autographs",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "The Best of 2025 Autographs",
+   "name": "Orange Mini-Diamond Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "The Best of 2025 Autographs",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "The Best of 2025 Autographs",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "The Best of 2025 Autographs",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Game Graphs",
+   "name": "Yellow Lazer Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Game Graphs",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Game Graphs",
+   "name": "Orange Mini-Diamond Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Game Graphs",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Game Graphs",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Game Graphs",
+   "name": "Brand Logo",
+   "serialRun": 2
+  },
+  {
+   "subset": "Game Graphs",
+   "name": "Brand Logo Tag",
+   "serialRun": 2
+  },
+  {
+   "subset": "Game Graphs",
+   "name": "Conference Patch",
+   "serialRun": 2
+  },
+  {
+   "subset": "Game Graphs",
+   "name": "Special Patch",
+   "serialRun": 2
+  },
+  {
+   "subset": "Game Graphs",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Let It Rain Relic Autographs",
+   "name": "Yellow Lazer Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Let It Rain Relic Autographs",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Let It Rain Relic Autographs",
+   "name": "Orange Mini-Diamond Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Let It Rain Relic Autographs",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Let It Rain Relic Autographs",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Let It Rain Relic Autographs",
+   "name": "Brand Logo",
+   "serialRun": 2
+  },
+  {
+   "subset": "Let It Rain Relic Autographs",
+   "name": "Brand Logo Tag",
+   "serialRun": 2
+  },
+  {
+   "subset": "Let It Rain Relic Autographs",
+   "name": "Special Patch",
+   "serialRun": 2
+  },
+  {
+   "subset": "Let It Rain Relic Autographs",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Prospect Dual Relic Autographs",
+   "name": "Yellow Lazer Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Prospect Dual Relic Autographs",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Prospect Dual Relic Autographs",
+   "name": "Orange Mini-Diamond Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Prospect Dual Relic Autographs",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Prospect Dual Relic Autographs",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Prospect Dual Relic Autographs",
+   "name": "Brand Logo",
+   "serialRun": 2
+  },
+  {
+   "subset": "Prospect Dual Relic Autographs",
+   "name": "Brand Logo Tag",
+   "serialRun": 2
+  },
+  {
+   "subset": "Prospect Dual Relic Autographs",
+   "name": "Special Patch",
+   "serialRun": 2
+  },
+  {
+   "subset": "Prospect Dual Relic Autographs",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Prospect Jumbo Relic Autographs",
+   "name": "Yellow Lazer Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Prospect Jumbo Relic Autographs",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Prospect Jumbo Relic Autographs",
+   "name": "Orange Mini-Diamond Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Prospect Jumbo Relic Autographs",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Prospect Jumbo Relic Autographs",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Prospect Jumbo Relic Autographs",
+   "name": "Brand Logo",
+   "serialRun": 2
+  },
+  {
+   "subset": "Prospect Jumbo Relic Autographs",
+   "name": "Brand Logo Tag",
+   "serialRun": 2
+  },
+  {
+   "subset": "Prospect Jumbo Relic Autographs",
+   "name": "Special Patch",
+   "serialRun": 2
+  },
+  {
+   "subset": "Prospect Jumbo Relic Autographs",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Big Energy",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Bowman Masterpieces",
+   "name": "Shimmer Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Bowman Masterpieces",
+   "name": "Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Bowman Masterpieces",
+   "name": "Green Mini-Diamond Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Bowman Masterpieces",
+   "name": "Yellow Lazer Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Bowman Masterpieces",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Bowman Masterpieces",
+   "name": "Orange Mini-Diamond Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Bowman Masterpieces",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Bowman Masterpieces",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Bowman Masterpieces",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Breaking Barriers",
+   "name": "Shimmer Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Breaking Barriers",
+   "name": "Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Breaking Barriers",
+   "name": "Green Mini-Diamond Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Breaking Barriers",
+   "name": "Yellow Lazer Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Breaking Barriers",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Breaking Barriers",
+   "name": "Orange Mini-Diamond Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Breaking Barriers",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Breaking Barriers",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Breaking Barriers",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Let's Go",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Tone Setters",
+   "name": "Shimmer Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Tone Setters",
+   "name": "Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Tone Setters",
+   "name": "Green Mini-Diamond Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Tone Setters",
+   "name": "Yellow Lazer Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Tone Setters",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Tone Setters",
+   "name": "Orange Mini-Diamond Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Tone Setters",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Tone Setters",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Tone Setters",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Top Billing",
+   "name": "SuperFractor",
+   "serialRun": 1
+  }
+ ]
+}

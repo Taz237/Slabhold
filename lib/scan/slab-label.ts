@@ -319,6 +319,11 @@ function certFromLine(line: string): string {
 
 type SetMatch = { setName: string; setText: string; rest: string };
 
+/** Other ways a label prints a set's name. The longest match still wins. */
+const LABEL_SPELLINGS: Readonly<Record<string, readonly string[]>> = {
+  "Bowman U Best": ["BOWMAN UNIVERSITY BEST", "BOWMAN'S BEST UNIVERSITY", "BOWMANS BEST UNIVERSITY", "BOWMAN BEST UNIVERSITY", "BOWMAN'S BEST U", "BOWMANS BEST U", "BOWMAN BEST U"],
+};
+
 /** Longest SETS name at the start of `text`, counting a leading "Panini" it skipped. */
 function matchSet(text: string): SetMatch {
   const words = text.split(" ").filter(Boolean);
@@ -326,7 +331,7 @@ function matchSet(text: string): SetMatch {
   let best: { name: string; used: number } | null = null;
   for (const name of SETS) {
     const nameWords = name.toUpperCase().split(" ");
-    const variants = [nameWords];
+    const variants = [nameWords, ...(LABEL_SPELLINGS[name] ?? []).map((spelling) => spelling.split(" "))];
     if (nameWords[0] === "PANINI" && nameWords.length > 1) variants.push(nameWords.slice(1));
     for (const variant of variants) {
       for (const skip of upper[0] === "PANINI" && variant[0] !== "PANINI" ? [0, 1] : [0]) {

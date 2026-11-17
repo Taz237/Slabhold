@@ -5052,5 +5052,390 @@
         "serialRun": 150
       }
     ]
+  },
+  {
+    "sport": "Basketball",
+    "yearLabel": "2025-26",
+    "product": "Bowman U Best",
+    "manufacturer": "Topps",
+    "source": "https://www.checklistinsider.com/2025-26-bowman-university-best-basketball",
+    "official": false,
+    "parallels": [
+      {
+        "subset": "Base",
+        "name": "Base",
+        "serialRun": null
+      },
+      {
+        "subset": "Base",
+        "name": "Refractor",
+        "serialRun": null
+      },
+      {
+        "subset": "Base",
+        "name": "Shimmer Refractor",
+        "serialRun": null
+      },
+      {
+        "subset": "Base",
+        "name": "Purple Refractor",
+        "serialRun": 250
+      },
+      {
+        "subset": "Base",
+        "name": "Aqua Lava Refractor",
+        "serialRun": 199
+      },
+      {
+        "subset": "Base",
+        "name": "Blue Refractor",
+        "serialRun": 150
+      },
+      {
+        "subset": "Base",
+        "name": "Green Mini-Diamond Refractor",
+        "serialRun": 99
+      },
+      {
+        "subset": "Base",
+        "name": "Yellow Lazer Refractor",
+        "serialRun": 75
+      },
+      {
+        "subset": "Base",
+        "name": "Gold Refractor",
+        "serialRun": 50
+      },
+      {
+        "subset": "Base",
+        "name": "Pearl Refractor",
+        "serialRun": 35
+      },
+      {
+        "subset": "Base",
+        "name": "Orange Mini-Diamond Refractor",
+        "serialRun": 25
+      },
+      {
+        "subset": "Base",
+        "name": "Teal Refractor",
+        "serialRun": 15
+      },
+      {
+        "subset": "Base",
+        "name": "Black Refractor",
+        "serialRun": 10
+      },
+      {
+        "subset": "Base",
+        "name": "Red Refractor",
+        "serialRun": 5
+      },
+      {
+        "subset": "Base",
+        "name": "SuperFractor",
+        "serialRun": 1
+      }
+    ]
+  },
+  {
+    "sport": "Baseball",
+    "yearLabel": "2025",
+    "product": "Topps Chrome Update Sapphire",
+    "manufacturer": "Topps",
+    "source": "https://www.checklistinsider.com/2025-topps-chrome-update-sapphire-baseball",
+    "official": false,
+    "parallels": [
+      {
+        "subset": "Base",
+        "name": "Base",
+        "serialRun": null
+      },
+      {
+        "subset": "Base Sapphire",
+        "name": "Green Sapphire",
+        "serialRun": 99
+      },
+      {
+        "subset": "Base Sapphire",
+        "name": "Gold Sapphire",
+        "serialRun": 50
+      },
+      {
+        "subset": "Base Sapphire",
+        "name": "Orange Sapphire",
+        "serialRun": 25
+      },
+      {
+        "subset": "Base Sapphire",
+        "name": "Black Sapphire",
+        "serialRun": 10
+      },
+      {
+        "subset": "Base Sapphire",
+        "name": "Red Sapphire",
+        "serialRun": 5
+      },
+      {
+        "subset": "Base Sapphire",
+        "name": "Padparadscha Sapphire",
+        "serialRun": 1
+      }
+    ]
+  },
+  {
+    "sport": "Football",
+    "yearLabel": "2025",
+    "product": "Bowman U Best",
+    "manufacturer": "Topps",
+    "source": "https://www.checklistinsider.com/2025-bowman-university-best-football",
+    "official": false,
+    "parallels": [
+      {
+        "subset": "Base",
+        "name": "Base",
+        "serialRun": null
+      },
+      {
+        "subset": "Base",
+        "name": "Refractor",
+        "serialRun": null
+      },
+      {
+        "subset": "Base",
+        "name": "Shimmer Refractor",
+        "serialRun": null
+      },
+      {
+        "subset": "Base",
+        "name": "Yellow Lazer Refractor",
+        "serialRun": 250
+      },
+      {
+        "subset": "Base",
+        "name": "Aqua Lava Refractor",
+        "serialRun": 199
+      },
+      {
+        "subset": "Base",
+        "name": "Pink Lava Refractor",
+        "serialRun": 175
+      },
+      {
+        "subset": "Base",
+        "name": "Blue Refractor",
+        "serialRun": 150
+      },
+      {
+        "subset": "Base",
+        "name": "Green Mini-Diamond Refractor",
+        "serialRun": 99
+      },
+      {
+        "subset": "Base",
+        "name": "Purple Lava Refractor",
+        "serialRun": 75
+      },
+      {
+        "subset": "Base",
+        "name": "Gold Refractor",
+        "serialRun": 50
+      },
+      {
+        "subset": "Base",
+        "name": "Orange Mini-Diamond Refractor",
+        "serialRun": 25
+      },
+      {
+        "subset": "Base",
+        "name": "Teal Refractor",
+        "serialRun": 15
+      },
+      {
+        "subset": "Base",
+        "name": "Black Refractor",
+        "serialRun": 10
+      },
+      {
+        "subset": "Base",
+        "name": "Red Refractor",
+        "serialRun": 5
+      },
+      {
+        "subset": "Base",
+        "name": "SuperFractor",
+        "serialRun": 1
+      }
+    ]
+  },
+  {
+    "sport": "Football",
+    "yearLabel": "2025",
+    "product": "Topps Resurgence",
+    "manufacturer": "Topps",
+    "source": "https://www.checklistinsider.com/2025-topps-resurgence-football",
+    "official": false,
+    "parallels": [
+      {
+        "subset": "Base",
+        "name": "Base",
+        "serialRun": null
+      },
+      {
+        "subset": "Base",
+        "name": "Refractor",
+        "serialRun": null
+      },
+      {
+        "subset": "Base",
+        "name": "Blue & Orange Spark",
+        "serialRun": null
+      },
+      {
+        "subset": "Base",
+        "name": "Sky Blue & Pink Shock",
+        "serialRun": null
+      },
+      {
+        "subset": "Base",
+        "name": "Prism",
+        "serialRun": null
+      },
+      {
+        "subset": "Base",
+        "name": "High Voltage",
+        "serialRun": null
+      },
+      {
+        "subset": "Base",
+        "name": "Surge",
+        "serialRun": 425
+      },
+      {
+        "subset": "Base",
+        "name": "Black & White Surge",
+        "serialRun": 399
+      },
+      {
+        "subset": "Base",
+        "name": "Bronze Surge",
+        "serialRun": 375
+      },
+      {
+        "subset": "Base",
+        "name": "Magenta Surge",
+        "serialRun": 299
+      },
+      {
+        "subset": "Base",
+        "name": "Navy Surge",
+        "serialRun": 275
+      },
+      {
+        "subset": "Base",
+        "name": "Aqua Surge",
+        "serialRun": 250
+      },
+      {
+        "subset": "Base",
+        "name": "Yellow Surge",
+        "serialRun": 225
+      },
+      {
+        "subset": "Base",
+        "name": "Crimson Surge",
+        "serialRun": 199
+      },
+      {
+        "subset": "Base",
+        "name": "Green Surge",
+        "serialRun": 175
+      },
+      {
+        "subset": "Base",
+        "name": "Teal Surge",
+        "serialRun": 149
+      },
+      {
+        "subset": "Base",
+        "name": "White Surge",
+        "serialRun": 125
+      },
+      {
+        "subset": "Base",
+        "name": "Digital Surge",
+        "serialRun": 100
+      },
+      {
+        "subset": "Base",
+        "name": "Blue Surge",
+        "serialRun": 99
+      },
+      {
+        "subset": "Base",
+        "name": "Purple Surge",
+        "serialRun": 75
+      },
+      {
+        "subset": "Base",
+        "name": "Gold Power Surge",
+        "serialRun": 50
+      },
+      {
+        "subset": "Base",
+        "name": "Orange Power Surge",
+        "serialRun": 25
+      },
+      {
+        "subset": "Base",
+        "name": "Lime Green Power Surge",
+        "serialRun": 15
+      },
+      {
+        "subset": "Base",
+        "name": "Pink Power Surge",
+        "serialRun": 10
+      },
+      {
+        "subset": "Base",
+        "name": "Red Power Surge",
+        "serialRun": 5
+      },
+      {
+        "subset": "Base",
+        "name": "SuperFractor",
+        "serialRun": 1
+      },
+      {
+        "subset": "Base",
+        "name": "Silver Static",
+        "serialRun": null
+      },
+      {
+        "subset": "Base",
+        "name": "Orange Static",
+        "serialRun": 25
+      },
+      {
+        "subset": "Base",
+        "name": "Lime Green Static",
+        "serialRun": 15
+      },
+      {
+        "subset": "Base",
+        "name": "Pink Static",
+        "serialRun": 10
+      },
+      {
+        "subset": "Base",
+        "name": "Red Static",
+        "serialRun": 5
+      },
+      {
+        "subset": "Base",
+        "name": "Black Static",
+        "serialRun": 2
+      }
+    ]
   }
 ]

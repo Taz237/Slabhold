@@ -14,6 +14,8 @@ const PAGE = `
 <p>306 Rookie Fixture - New York Giants RC (eBay)</p>
 <h3>Rookies Autographs Checklist</h3><p>Parallels:</p><ul><li>Refractor /499 (odds)</li></ul>
 <p>RA-RF Rookie Fixture - New York Giants</p>
+<h3>Base Prizms Autographs Checklist</h3>
+<p>26 Note Fixture - UCLA Bruins /5 (no base)<br>27 Debut Fixture - Chicago Cubs RD<br>28 Both Fixture - Chicago Cubs RC RD</p>
 <h2>2025 Fixture Chrome Football Team Set Checklist</h2>
 <p>101 Not A Card - Should Not Read</p>
 `;
@@ -28,6 +30,10 @@ describe("a Checklist Insider page", () => {
         ["Base", "2", "Second Fixture", "Buffalo Bills", false],
         ["Base Rookies", "306", "Rookie Fixture", "New York Giants", true],
         ["Rookies Autographs", "RA-RF", "Rookie Fixture", "New York Giants", false],
+        // The page's notes after a team (a print run with "no base", RD for a rookie debut) aren't the team.
+        ["Base Prizms Autographs", "26", "Note Fixture", "UCLA Bruins", false],
+        ["Base Prizms Autographs", "27", "Debut Fixture", "Chicago Cubs", false],
+        ["Base Prizms Autographs", "28", "Both Fixture", "Chicago Cubs", true],
       ],
     );
     assert.deepEqual(
@@ -77,6 +83,15 @@ describe("a page's known slips", () => {
     );
     // The fixture didn't carry every slip: those are reported, so a re-read that no longer has them shows.
     assert.ok(unused.some((line) => line.includes("Kurds Rourke")));
+  });
+
+  it("fixes the slips on the 2025-26 Bowman U Best Basketball page", () => {
+    const { cards, unused } = applyCorrections(
+      [card("Game Graphs", "GG-TR", "Tarris Reed JR."), card("Game Graphs", "GG-ZJ", "Zakiyah Johnson")],
+      PAGE_CORRECTIONS["2025-26 Bowman University Best Basketball"],
+    );
+    assert.deepEqual(cards.map((row) => row.player), ["Tarris Reed Jr.", "ZaKiyah Johnson"]);
+    assert.deepEqual(unused, []);
   });
 
   it("a page with no corrections is unchanged", () => {
