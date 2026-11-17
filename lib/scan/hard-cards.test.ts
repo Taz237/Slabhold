@@ -113,7 +113,15 @@ describe("the hard-cards set", () => {
       assert.ok(card.parallel === null || card.parallel.trim(), card.id);
       assert.ok(card.print_run === null || Number.isInteger(card.print_run), card.id);
       assert.ok(Array.isArray(card.listing_title_examples), card.id);
+      assert.ok(!card.back_modeled || card.typical_ocr_back?.length, `${card.id}: back_modeled with no back`);
     }
+  });
+
+  it("the plain Topps back and Hoops back cards each carry a back, marked modeled", () => {
+    const backs = CARDS.filter((card) => card.category === "plain_topps_back" || card.category === "hoops_back");
+    assert.ok(backs.filter((card) => card.category === "plain_topps_back").length >= 4);
+    assert.ok(backs.filter((card) => card.category === "hoops_back").length >= 2);
+    for (const card of backs) assert.ok(card.back_modeled && card.typical_ocr_back?.length, card.id);
   });
 
   it("the scan alone: no field is wrong on any card", async () => {

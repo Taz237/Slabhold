@@ -464,10 +464,14 @@ export function findPlayers(lines: string[], directory: readonly IndexedDirector
 /** First word of every SETS name, so "2017 TOPPS" is a card year and "2019 NYY" is not. */
 const BRAND_WORDS = new Set(SETS.map((name) => normInterest(name).split(" ")[0]));
 
+/** Words a product line prints between the year and the brand: "2024-25 NBA HOOPS". */
+const BEFORE_BRAND = new Set(["nba"]);
+
 function readYear(lines: string[]): string {
   for (const line of lines) {
     for (const match of line.matchAll(YEAR_TOKEN)) {
-      const next = normInterest(match[2]).split(" ")[0] ?? "";
+      const after = normInterest(line.slice((match.index ?? 0) + match[1].length)).split(" ").filter(Boolean);
+      const next = (BEFORE_BRAND.has(after[0] ?? "") ? after[1] : after[0]) ?? "";
       if (!BRAND_WORDS.has(next)) continue;
       const parsed = parseYearLabel(match[1].replace(/\s+/g, ""));
       if (parsed) return parsed.yearLabel;
