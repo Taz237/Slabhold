@@ -68,6 +68,12 @@ export type RawCardRead = {
    * its last letters are the player's initials: the matcher checks, since the name may be on the other side.
    */
   letterCodes: string[];
+  /**
+   * Checklist codes read in a shape too loose to trust alone: "RC 3" or "RC3" (OCR lost the hyphen),
+   * "RC" and "3" on lines of their own, or a code inside a bio or legal line. Each as "RC-3". Only a
+   * checklist that has this player at the code makes one the card # (the matcher checks).
+   */
+  codeHints: string[];
   /** The card says it is signed: "CERTIFIED AUTOGRAPH ISSUE", "AUTOGRAPH", or an autograph checklist code. */
   isAuto: boolean;
   /** The insert or variation the back names ("Rookie Autograph Variations"). "" when none. */
@@ -163,9 +169,10 @@ const CARD_NUMBER = /(?:#|\bNO\.)\s*([A-Z0-9]+(?:-[A-Z0-9]+)*)/gi;
 /**
  * A card # printed as a code with no # in front: BP-27 (Bowman prospects),
  * INS-13, BCP-50, TC-7. Letters, a hyphen, then digits. Heights (6-7) and
- * seasons (2024-25) have no letters in front, so they never match.
+ * seasons (2024-25) have no letters in front, so they never match. OCR can glue the code to the
+ * next word ("RC-3CAMERON"): the digits before a run of capitals are the code's.
  */
-const CODE_NUMBER = /\b([A-Z]{1,5}\d?)\s?[-–—‐]\s?(\d{1,4}[A-Z]?)\b/g;
+const CODE_NUMBER = /\b([A-Z]{1,5}\d?)\s?[-–—‐]\s?(\d{1,4}(?=[A-Z]{3,})|\d{1,4}[A-Z]?\b)/g;
 /**
  * Letters that look like a code prefix but are words from a bio or a stat
  * line: "average for-4 power", "a .414", "born June-4", "round-1". Never a
@@ -246,6 +253,7 @@ function emptyRead(): RawCardRead {
     baseballSign: false,
     sportHint: "",
     letterCodes: [],
+    codeHints: [],
     isAuto: false,
     subset: "",
     firstBowman: false,
@@ -804,7 +812,14 @@ function wordCode(number: string): boolean {
 }
 
 /** "#1 OVERALL PICK", "NO. 1 PROSPECT", "#3 SEED": a rank, never the card #. */
-const RANK_AFTER = /^\s*(?:overall|pick|draft|prospect|seed|ranked|rank|in\b|on\b|among|all[\s-]time)/i;
+const RANK_AFTER =
+  /^\s*(?:overall|pick|draft|prospect|seed|ranked|rank|recruit|player|scorer|choice|selection|seller|team|in\b|on\b|among|all[\s-]time)/i;
+/**
+ * "the No. 1 recruit", "wore #12 at Duke", "his No. 3 jersey": a # inside a bio sentence. On a scanned
+ * card, a word like these just before it, or a lowercase word right after it, makes it bio text.
+ */
+const SENTENCE_BEFORE = /\b(?:the|a|an|his|her|their|its|was|is|as|at|of|and|wore|wears|wearing|became|named|ranked|finished|no)\s*$/i;
+const SENTENCE_AFTER = /^\s+[a-z]{2,}/;
 
 /** "#17 | QB", "QB #17", "#23 G-F": a jersey number beside a position, never the card #. */
 function jerseyLine(line: string, matched: string): boolean {
@@ -840,7 +855,10 @@ function readCardNumber(
       const number = match[1].toUpperCase();
       if (looksLikeCatalogSku(number) || wordCode(number)) continue;
       // A rank ("#1 OVERALL PICK") is not the card #, on a card or in a sold title.
-      if (RANK_AFTER.test(line.slice((match.index ?? 0) + match[0].length))) continue;
+      const after = line.slice((match.index ?? 0) + match[0].length);
+      if (RANK_AFTER.test(after)) continue;
+      // On a scanned card, a # inside a sentence is the bio's ("the No. 1 recruit"), never the card #.
+      if (scanned && (SENTENCE_BEFORE.test(line.slice(0, match.index ?? 0)) || SENTENCE_AFTER.test(after))) continue;
       // On a scanned card, neither is a jersey number beside a position ("#17 | QB").
       if (scanned && jerseyLine(line, match[0])) continue;
       return number;
@@ -852,6 +870,17 @@ function readCardNumber(
     // OCR often reads the hyphen as an en or em dash, or puts a space beside it: BP–27, BP - 27.
     for (const match of line.toUpperCase().matchAll(CODE_NUMBER)) {
       const number = `${match[1]}-${match[2]}`;
+      if (!looksLikeCatalogSku(number) && !wordCode(number)) codes.push(number);
+    }
+  }
+  // OCR can run the code into the bio's first line or the legal line: "RC-3 Cameron Boozer came…",
+  // "RC-3 © 2026 THE TOPPS COMPANY". Only at the edge of such a line, and printed in capitals.
+  if (codes.length === 0 && scanned) {
+    for (const line of lines) {
+      if (!MAKER_LINE.test(line) && usable(line)) continue;
+      const edge = EDGE_CODE_START.exec(line.trim()) ?? (MAKER_LINE.test(line) ? EDGE_CODE_END.exec(line.trim()) : null);
+      if (!edge) continue;
+      const number = `${edge[1]}-${edge[2]}`;
       if (!looksLikeCatalogSku(number) && !wordCode(number)) codes.push(number);
     }
   }
@@ -881,6 +910,43 @@ function readCardNumber(
   const beside = [lines[index - 1], lines[index + 1]].filter((item): item is string => Boolean(item));
   if (beside.some((item) => positionLine(item) || teamLine(item))) return "";
   return edge && !year && Number(line) > 0 ? String(Number(line)) : "";
+}
+
+/** A capitals code at the start of a line ("RC-3 Cameron…"), or at its end ("… TOPPS COMPANY RC-3"). */
+const EDGE_CODE_START = /^([A-Z]{1,5}\d?)\s?[-–—‐]\s?(\d{1,4})(?![\dA-Za-z])/;
+const EDGE_CODE_END = /(?<![A-Za-z])([A-Z]{1,5}\d?)\s?[-–—‐]\s?(\d{1,4})\s*$/;
+
+/** "RC 3", "RC3", "HS 22": letters and a number, the hyphen lost. The whole line, printed in capitals. */
+const LOOSE_CODE_LINE = /^([A-Z]{2,4})\s?(\d{1,3})$/;
+const LETTERS_LINE = /^[A-Z]{2,4}$/;
+
+/**
+ * Codes too loosely read to be the card # on their own (see RawCardRead.codeHints): the hyphen lost,
+ * the letters and the number on lines of their own, or any hyphen code anywhere on the side.
+ * Never a word, a position or a league mark.
+ */
+function readCodeHints(lines: readonly string[]): string[] {
+  const hints: string[] = [];
+  const add = (letters: string, digits: string) => {
+    const code = `${letters}-${Number(digits)}`;
+    if (NOT_CODE_PREFIX.has(letters) || JERSEY_POSITIONS.has(letters) || /^(?:NBA|NFL|MLB|NHL|USA|INC|LLC|LTD)$/.test(letters)) return;
+    if (looksLikeCatalogSku(code) || wordCode(code) || Number(digits) === 0) return;
+    if (!hints.includes(code)) hints.push(code);
+  };
+  const trimmed = lines.map((line) => line.trim());
+  trimmed.forEach((line, index) => {
+    const loose = LOOSE_CODE_LINE.exec(line);
+    if (loose) add(loose[1], loose[2]);
+    if (LETTERS_LINE.test(line)) {
+      for (const beside of [trimmed[index + 1], trimmed[index - 1]]) {
+        if (beside && /^\d{1,3}$/.test(beside)) add(line, beside);
+      }
+    }
+    for (const match of line.matchAll(CODE_NUMBER)) {
+      if (match[1] === match[1].toUpperCase()) add(match[1], /^\d+/.exec(match[2])?.[0] ?? "");
+    }
+  });
+  return hints;
 }
 
 const TOPPS_MADE = /\b(?:topps|bowman)\b/i;
@@ -1095,6 +1161,7 @@ export function readRawCardText(
   read.sportHint = readSportHint(clean, directory, Boolean(options.side));
   read.baseballSign = readBaseballSign(clean, read, directory);
   read.letterCodes = readLetterCodes(clean, Boolean(options.side), directory);
+  read.codeHints = options.side ? readCodeHints(clean).filter((code) => code !== read.cardNumber) : [];
   read.isAuto =
     clean.some(saysAuto) ||
     [read.cardNumber, ...read.letterCodes].some((code) => AUTO_CODE_PREFIX.test(/^([A-Z]+)-/.exec(code)?.[1] ?? ""));

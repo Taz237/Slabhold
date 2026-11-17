@@ -62,7 +62,7 @@ export function scanReadFrom(capture: ScanCapture, directory: readonly IndexedDi
 /** Null result: the search itself failed. Offline says so on the sheet. */
 export function sheetStateFrom(result: ScanMatchResult | null, online: boolean): ConfirmSheetState {
   if (!result) return { kind: "none", offline: !online };
-  if (result.matches.length === 0) return { kind: "none", offline: false };
+  if (result.matches.length === 0) return { kind: "none", offline: false, ...(result.unpinned ? { unpinned: true } : {}) };
   return { kind: "ready", matches: result.matches };
 }
 

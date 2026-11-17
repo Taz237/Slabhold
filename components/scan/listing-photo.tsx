@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useState } from "react";
-import { ExternalLink, X } from "lucide-react";
+import { X } from "lucide-react";
 import { focusRing } from "@/components/add-card/flow-ui";
 import { safeListingPhoto } from "@/lib/scan/listing-photo";
 import type { ScanMatch } from "@/lib/scan/match";
@@ -12,7 +12,6 @@ export const LISTING_COPY = {
   title: "Compare with a sold listing",
   listing: "Sold listing",
   scan: "Your scan",
-  view: "View the listing",
   close: "Close",
   none: "No listing photo",
   /** Under the main match: the one-line way in. */
@@ -72,7 +71,7 @@ export function ListingThumb({ match, scan = null, label = false }: { match: Sca
         </span>
         {label ? <span className="text-sm font-medium text-violet-700 dark:text-[#A78BFA]">{LISTING_COPY.compare}</span> : null}
       </button>
-      {open ? <ListingCompare match={match} imageUrl={listing.imageUrl} url={listing.url} scan={scan} onClose={() => setOpen(false)} /> : null}
+      {open ? <ListingCompare match={match} imageUrl={listing.imageUrl} scan={scan} onClose={() => setOpen(false)} /> : null}
     </>
   );
 }
@@ -81,13 +80,11 @@ export function ListingThumb({ match, scan = null, label = false }: { match: Sca
 function ListingCompare({
   match,
   imageUrl,
-  url,
   scan,
   onClose,
 }: {
   match: ScanMatch;
   imageUrl: string;
-  url: string | null;
   scan: string | null;
   onClose: () => void;
 }) {
@@ -147,17 +144,6 @@ function ListingCompare({
             </figure>
           ) : null}
         </div>
-        {url ? (
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`mt-3 inline-flex min-h-11 items-center gap-1.5 rounded-full text-sm font-semibold text-violet-700 dark:text-[#A78BFA] ${focusRing}`}
-          >
-            {LISTING_COPY.view}
-            <ExternalLink className="size-4" aria-hidden />
-          </a>
-        ) : null}
       </div>
     </div>
   );

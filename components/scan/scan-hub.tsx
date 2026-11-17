@@ -193,7 +193,7 @@ export function ScanHub({
       if (controller.signal.aborted) return;
       const matches = solds && solds.matches.length > 0 ? solds.matches : result.matches;
       if (matches.length === 0) {
-        setSheet({ kind: "none", offline: false });
+        setSheet({ kind: "none", offline: false, ...(result.unpinned ? { unpinned: true } : {}) });
         return;
       }
       setSheet({

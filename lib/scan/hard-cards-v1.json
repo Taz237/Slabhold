@@ -12,7 +12,8 @@
   "\"kind\": \"slab\" scans the card as a graded slab: the front is the label as read, the back is the slab's back (hc-075).",
   "hc-076 is the Nov 16 device miss (Jaxson Dart X-Fractor slab shown as Base). Here the label's variety line reads; the same slab with that line missed is the open case tracked in docs/scanner-audit.md (fix B). Its Quick Comp side is tested in lib/quick-comp/versions.test.ts.",
   "hc-087 to hc-090 are one-word names (Ludacris, Ichiro, MIYAVI) the checklist import used to drop; hc-091 to hc-100 come from the 2023-2026 checklists added on 2026-11-17. Their fronts and titles are modeled (\"listing_titles_modeled\"); player and card # are checked against the checklist page each names.",
-  "hc-101 to hc-107 test plain Topps backs (no product printed: the set comes from the Topps checklists, or stays open) and Hoops backs (the year from the © or the \"2025-26 NBA HOOPS\" line, never a stat row). No real back photos of these cards yet: fronts, backs and titles are modeled (\"back_modeled\", \"listing_titles_modeled\"); player and card # are checked against each checklist page."
+  "hc-101 to hc-107 test plain Topps backs (no product printed: the set comes from the Topps checklists, or stays open) and Hoops backs (the year from the © or the \"2025-26 NBA HOOPS\" line, never a stat row). No real back photos of these cards yet: fronts, backs and titles are modeled (\"back_modeled\", \"listing_titles_modeled\"); player and card # are checked against each checklist page.",
+  "hc-108 to hc-111 are the Cameron Boozer 2026-27 Topps Rookie Code RC-3 a collector scanned front and back (the scan showed 2026-27 O-Pee-Chee #1): the bio's \"No. 1\", a split \"RC\" / \"3\", a lost hyphen and a code run into the bio. Modeled until the real photos are in."
  ],
  "cards": [
   {
@@ -3247,6 +3248,152 @@
    ],
    "listing_titles_modeled": true,
    "confidence": "player, card # checked against the 2024-25 NBA Hoops checklist (Base #1); front, back and titles modeled"
+  },
+  {
+   "id": "hc-108",
+   "category": "letter_code",
+   "year": "2026-27",
+   "manufacturer": "Topps",
+   "product": "Topps Basketball",
+   "card_number": "RC-3",
+   "player": "Cameron Boozer",
+   "team": "Memphis Grizzlies",
+   "parallel": null,
+   "print_run": null,
+   "sport": "basketball",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "ROOKIE CODE",
+    "CAMERON BOOZER",
+    "RC"
+   ],
+   "typical_ocr_back": [
+    "RC-3",
+    "CAMERON BOOZER",
+    "FORWARD",
+    "Boozer came into the league as",
+    "the No. 1 recruit in",
+    "his high school class.",
+    "TOPPS",
+    "© 2026 THE TOPPS COMPANY, INC."
+   ],
+   "back_modeled": true,
+   "why_hard": "Real miss from a phone scan (front and back): a 'No. 1' in the bio beat the printed RC-3, so the scan showed 2026-27 O-Pee-Chee #1 priced from other cards' sales. The back signs only Topps.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2026-27-topps-flagship-basketball"
+   ],
+   "listing_title_examples": [
+    "2026-27 Topps Rookie Code Cameron Boozer #RC-3 Grizzlies RC",
+    "Cameron Boozer 2026-27 Topps Basketball Rookie Code RC-3"
+   ],
+   "listing_titles_modeled": true,
+   "confidence": "player and card # checked against the 2026-27 Topps checklist (Rookie Code RC-3); front, back and titles modeled until the real photos are in"
+  },
+  {
+   "id": "hc-109",
+   "category": "letter_code",
+   "year": "2026-27",
+   "manufacturer": "Topps",
+   "product": "Topps Basketball",
+   "card_number": "RC-3",
+   "player": "Cameron Boozer",
+   "team": "Memphis Grizzlies",
+   "parallel": null,
+   "print_run": null,
+   "sport": "basketball",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "ROOKIE CODE",
+    "CAMERON BOOZER"
+   ],
+   "typical_ocr_back": [
+    "RC",
+    "3",
+    "CAMERON BOOZER",
+    "TOPPS",
+    "© 2026 THE TOPPS COMPANY, INC."
+   ],
+   "back_modeled": true,
+   "why_hard": "OCR splits the code: 'RC' and '3' on lines of their own. A lone 3 is base #3 (someone else); only the checklist can say it is RC-3.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2026-27-topps-flagship-basketball"
+   ],
+   "listing_title_examples": [
+    "2026-27 Topps Rookie Code Cameron Boozer #RC-3 Grizzlies RC",
+    "Cameron Boozer 2026-27 Topps Basketball Rookie Code RC-3"
+   ],
+   "listing_titles_modeled": true,
+   "confidence": "player and card # checked against the 2026-27 Topps checklist (Rookie Code RC-3); front, back and titles modeled until the real photos are in"
+  },
+  {
+   "id": "hc-110",
+   "category": "letter_code",
+   "year": "2026-27",
+   "manufacturer": "Topps",
+   "product": "Topps Basketball",
+   "card_number": "RC-3",
+   "player": "Cameron Boozer",
+   "team": "Memphis Grizzlies",
+   "parallel": null,
+   "print_run": null,
+   "sport": "basketball",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "CAMERON BOOZER",
+    "RC"
+   ],
+   "typical_ocr_back": [
+    "RC 3",
+    "CAMERON BOOZER",
+    "TOPPS",
+    "© 2026 THE TOPPS COMPANY, INC."
+   ],
+   "back_modeled": true,
+   "why_hard": "OCR drops the hyphen: 'RC 3'. Read as a hint and confirmed by the 2026-27 Topps checklist.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2026-27-topps-flagship-basketball"
+   ],
+   "listing_title_examples": [
+    "2026-27 Topps Rookie Code Cameron Boozer #RC-3 Grizzlies RC",
+    "Cameron Boozer 2026-27 Topps Basketball Rookie Code RC-3"
+   ],
+   "listing_titles_modeled": true,
+   "confidence": "player and card # checked against the 2026-27 Topps checklist (Rookie Code RC-3); front, back and titles modeled until the real photos are in"
+  },
+  {
+   "id": "hc-111",
+   "category": "letter_code",
+   "year": "2026-27",
+   "manufacturer": "Topps",
+   "product": "Topps Basketball",
+   "card_number": "RC-3",
+   "player": "Cameron Boozer",
+   "team": "Memphis Grizzlies",
+   "parallel": null,
+   "print_run": null,
+   "sport": "basketball",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "ROOKIE CODE",
+    "CAMERON BOOZER"
+   ],
+   "typical_ocr_back": [
+    "RC-3 Cameron Boozer came into the league as",
+    "CAMERON BOOZER",
+    "TOPPS",
+    "© 2026 THE TOPPS COMPANY, INC."
+   ],
+   "back_modeled": true,
+   "why_hard": "OCR runs the card # into the bio's first line, a sentence the card # is never read from.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2026-27-topps-flagship-basketball"
+   ],
+   "listing_title_examples": [
+    "2026-27 Topps Rookie Code Cameron Boozer #RC-3 Grizzlies RC",
+    "Cameron Boozer 2026-27 Topps Basketball Rookie Code RC-3"
+   ],
+   "listing_titles_modeled": true,
+   "confidence": "player and card # checked against the 2026-27 Topps checklist (Rookie Code RC-3); front, back and titles modeled until the real photos are in"
   }
  ]
 }

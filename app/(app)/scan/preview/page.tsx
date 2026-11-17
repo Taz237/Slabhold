@@ -25,6 +25,7 @@ const KINDS: readonly PreviewKind[] = [
   "numbered",
   "matching",
   "none",
+  "unpinned",
   "offline",
   "comp",
   "comp-raw",

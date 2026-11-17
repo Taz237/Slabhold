@@ -3,35 +3,21 @@ import type { IndexedDirectoryPlayer } from "@/lib/players/types";
 import { safePhotoUrl } from "@/lib/quick-comp/photo";
 import { scanCompGrade } from "./comp";
 import type { ScanMatch } from "./match";
+import { readRawCardText } from "./raw-text";
 import { scanSalesFor } from "./scan-sales";
+import { setMatchPhrase } from "@/lib/comps/match";
 
 /**
  * A small photo of this exact card, from a sold listing the scan's own search already returned.
- * Never a new lookup, never stored: the URL points at the listing's image on eBay's image host,
- * and the link at the listing. No listing of this exact card means no photo, never another card's.
+ * Never a new lookup, never stored: the URL points at the listing's image on eBay's image host.
+ * No listing of this exact card (same set, same card #) means no photo, never another card's.
+ * No link to the listing either: a sold listing is often taken down, and we can't confirm it is
+ * still up, so we never send anyone to a dead page.
  */
 export type ListingPhoto = {
   imageUrl: string;
-  /** The listing, or null when the result carried no usable link. */
-  url: string | null;
   soldAt: string | null;
 };
-
-const MAX_URL_LENGTH = 2048;
-
-/** A link to an eBay listing: https on ebay.com or one of its subdomains. Anything else is null. */
-export function safeListingUrl(url: unknown): string | null {
-  if (typeof url !== "string" || !url || url.length > MAX_URL_LENGTH) return null;
-  let parsed: URL;
-  try {
-    parsed = new URL(url);
-  } catch {
-    return null;
-  }
-  if (parsed.protocol !== "https:" || parsed.username || parsed.password) return null;
-  if (parsed.hostname !== "ebay.com" && !parsed.hostname.endsWith(".ebay.com")) return null;
-  return parsed.href;
-}
 
 /** A photo from the wire, checked again before it reaches an <img>. */
 export function safeListingPhoto(value: unknown): ListingPhoto | null {
@@ -39,7 +25,7 @@ export function safeListingPhoto(value: unknown): ListingPhoto | null {
   const row = value as Record<string, unknown>;
   const imageUrl = safePhotoUrl(row.imageUrl);
   if (!imageUrl) return null;
-  return { imageUrl, url: safeListingUrl(row.url), soldAt: typeof row.soldAt === "string" ? row.soldAt : null };
+  return { imageUrl, soldAt: typeof row.soldAt === "string" ? row.soldAt : null };
 }
 
 function imageOf(result: TrawlSoldResult): string | null {
@@ -47,19 +33,28 @@ function imageOf(result: TrawlSoldResult): string | null {
   return safePhotoUrl(first) ?? safePhotoUrl(result.image_url);
 }
 
+/** The title names this set ("2026-27 Topps … RC-3" for Topps). A title naming no set, or another one, is not confirmed. */
+function titleNamesSet(title: string, setBrand: string, directory: readonly IndexedDirectoryPlayer[]): boolean {
+  const named = readRawCardText([title], directory).setNames[0] ?? "";
+  const phrase = setMatchPhrase(setBrand);
+  return Boolean(named && phrase) && setMatchPhrase(named) === phrase;
+}
+
 const sameParallel = (left: string, right: string) => left.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim() === right.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
 /**
  * The newest sold listing that is this exact card and has a photo: the same player, card #, print
- * run and grade (the scan's own sales filter), and the same parallel. A card with its parallel open
- * only takes a Base listing, and only when it isn't numbered: any other photo could be another parallel.
+ * run and grade (the scan's own sales filter), a title that names the same set, and the same
+ * parallel. A card with its set or card # open gets none: we can't tell a listing is this card. A
+ * card with its parallel open only takes a Base listing, and only when it isn't numbered: any other
+ * photo could be another parallel.
  */
 export function listingPhotoFor(
   match: ScanMatch,
   results: readonly TrawlSoldResult[],
   directory: readonly IndexedDirectoryPlayer[],
 ): ListingPhoto | null {
-  if (results.length === 0 || !match.playerName) return null;
+  if (results.length === 0 || !match.playerName || !match.setBrand.trim() || !match.cardNumber.trim()) return null;
   const { kept } = scanSalesFor(match, { grade: scanCompGrade(match), setBrand: match.setBrand, parallel: match.parallel }, results, directory);
   const wanted = match.parallel || (match.serialRun == null && !match.isAuto && !match.subset ? "Base" : "");
   if (!wanted) return null;
@@ -68,8 +63,8 @@ export function listingPhotoFor(
   for (const sale of newestFirst) {
     const result = byId.get(sale.itemId);
     const imageUrl = result ? imageOf(result) : null;
-    if (!result || !imageUrl) continue;
-    return { imageUrl, url: safeListingUrl(result.item_link) ?? safeListingUrl(result.details?.item_link), soldAt: sale.soldAt };
+    if (!result || !imageUrl || !titleNamesSet(result.title, match.setBrand, directory)) continue;
+    return { imageUrl, soldAt: sale.soldAt };
   }
   return null;
 }

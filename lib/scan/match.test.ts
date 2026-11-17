@@ -92,7 +92,9 @@ describe("rankScanMatches: slabs", () => {
     const ids = result.matches.map((match) => `${match.playerName} ${match.setBrand} ${match.cardNumber}`);
     assert.equal(new Set(ids).size, ids.length);
     assert.ok(result.matches.length <= 3);
-    assert.equal(result.matches[1]?.catalogId, "luka-optic");
+    // The label prints #280: the Optic #177 is another card, never shown, not even as an alternative.
+    assert.ok(!result.matches.some((match) => match.catalogId === "luka-optic"));
+    assert.ok(result.matches.every((match) => match.cardNumber === "280"));
   });
 
   it("keeps a slab the catalog does not have, read from the label", () => {
@@ -239,7 +241,8 @@ describe("matchScan", () => {
     });
     assert.ok(queries.length <= 2);
     assert.equal(result?.matches[0]?.catalogId, "luka-prizm-silver");
-    assert.equal(result?.matches.length, 2);
+    // The second search's Optic #177 isn't the #280 the label prints: never shown.
+    assert.equal(result?.matches.length, 1);
   });
 
   it("still matches from the label when search and checklists fail", async () => {

@@ -36,7 +36,8 @@ export type ConfirmSheetState =
   | { kind: "back"; matches: ScanMatch[] }
   /** solds: the top card's last eBay solds, looked up after the card is read. */
   | { kind: "ready"; matches: ScanMatch[]; solds?: SoldsState }
-  | { kind: "none"; offline?: boolean };
+  /** unpinned: what we found conflicts with the card's back, so nothing is shown ("We couldn't pin this one down"). */
+  | { kind: "none"; offline?: boolean; unpinned?: boolean };
 
 type Props = {
   /** The cropped scan. Null shows a designed placeholder. */
@@ -67,7 +68,7 @@ type Props = {
  * The top match is one tap to accept; a wrong row or parallel is one tap to fix.
  */
 export function ConfirmSheet({ photo, state, onConfirm, onStepByStep, onRetake, onSapphire, onVersion, onScanBack, onSkipBack, onClose }: Props) {
-  const title = state.kind === "none" ? CONFIRM_COPY.noMatchTitle : CONFIRM_COPY.title;
+  const title = state.kind === "none" ? (state.unpinned ? CONFIRM_COPY.unpinnedTitle : CONFIRM_COPY.noMatchTitle) : CONFIRM_COPY.title;
   return (
     <SheetFrame title={title} busy={state.kind === "matching"} variant="scene" onClose={onClose}>
       {/* Mounted once for every state, so the card flips in once and the name lands under it. */}
@@ -75,7 +76,7 @@ export function ConfirmSheet({ photo, state, onConfirm, onStepByStep, onRetake, 
       {state.kind === "matching" ? <RevealNameSkeleton label={CONFIRM_COPY.finding} /> : null}
       {state.kind === "back" ? <FlipStep match={state.matches[0]} onScanBack={onScanBack ?? onRetake} onSkip={onSkipBack ?? onClose} /> : null}
       {state.kind === "none" ? (
-        <NoMatch offline={Boolean(state.offline)} onStepByStep={onStepByStep} onRetake={onRetake} />
+        <NoMatch offline={Boolean(state.offline)} unpinned={Boolean(state.unpinned)} onStepByStep={onStepByStep} onRetake={onRetake} />
       ) : null}
       {state.kind === "ready" ? (
         <Ready
@@ -256,19 +257,21 @@ function Ready({
 
 function NoMatch({
   offline,
+  unpinned,
   onStepByStep,
   onRetake,
 }: {
   offline: boolean;
+  unpinned: boolean;
   onStepByStep: () => void;
   onRetake: () => void;
 }) {
   return (
     <div className="space-y-6">
       <p className="text-center text-sm leading-5 text-zinc-600 dark:text-zinc-400">
-        {offline ? CONFIRM_COPY.offlineBody : CONFIRM_COPY.noMatchBody}
+        {offline ? CONFIRM_COPY.offlineBody : unpinned ? CONFIRM_COPY.unpinnedBody : CONFIRM_COPY.noMatchBody}
       </p>
-      <PrimaryButton onClick={onStepByStep}>{CONFIRM_COPY.stepByStep}</PrimaryButton>
+      <PrimaryButton onClick={onStepByStep}>{unpinned ? CONFIRM_COPY.search : CONFIRM_COPY.stepByStep}</PrimaryButton>
       <div className="flex justify-center">
         <QuietButton onClick={onRetake}>{CONFIRM_COPY.retake}</QuietButton>
       </div>

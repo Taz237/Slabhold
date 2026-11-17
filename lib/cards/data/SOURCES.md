@@ -8,6 +8,7 @@ Each product row in `panini-parallels.json` and `topps-parallels.json` names its
 | Product | Source | Read |
 | --- | --- | --- |
 | 2024 Bowman Baseball (base, Paper Prospects BP-, Chrome Prospects BCP-) | Cardboard Connection: https://www.cardboardconnection.com/2024-bowman-baseball-cards | 2026-11-13 |
+| 2026-27 Topps Basketball (base, and each insert with its own code: Rookie Code RC-, Hardwood Stars HS-, …) | Checklist Insider: https://www.checklistinsider.com/2026-27-topps-flagship-basketball (saved as `scripts/checklist-csv/2026-27-basketball-topps.parallels.json`) | 2026-11-17 |
 
 Notes on 2024 Bowman:
 
@@ -18,6 +19,15 @@ Notes on 2024 Bowman:
   row, so the scanner leaves their parallel open.
 - Paper rows are for plain numbers and BP- numbers. Chrome rows are for BCP- numbers. A print run
   two rows share (paper /150, chrome /199) stays open with both as choices.
+
+Notes on 2026-27 Topps Basketball:
+
+- Base rows are for plain numbers. Each insert's rows are for its own code only (RC- for Rookie
+  Code), so an insert is never offered the base set's parallels, and the base set never the insert's.
+- Sections with no code of their own are left out (The Flagship Collection prints plain numbers
+  like the base set; the 1981-82 Topps cards start with digits), and so are the base variations,
+  autographs and relics that reuse base numbers. Their parallel stays open.
+- The page's slips "Orange 25" and "FoilFractor 1/" are read as Orange /25 and FoilFractor /1.
 
 ## Print runs filled from the hobby lists
 
