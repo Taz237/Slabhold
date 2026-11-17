@@ -73,41 +73,56 @@ added, skipped or failed.
 
 ## What is in the store today
 
-426 files, 326,152 cards (every year and product in `index.json`). `index.json` has each one's source and the day it was read.
+493 files, 386,685 cards (every year and product in `index.json`). `index.json` has each one's source and the day it was read.
 
 | Sport | Product | Years |
 | --- | --- | --- |
-| Baseball | Bowman | 2019, 2020, 2021, 2022, 2023, 2024, 2025 |
-| Baseball | Bowman Chrome | 2019, 2020, 2021, 2022, 2024, 2025 |
-| Baseball | Bowman Chrome Sapphire | 2025 |
+| Baseball | Bowman | 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026 |
+| Baseball | Bowman Chrome | 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026 |
+| Baseball | Bowman Chrome Sapphire | 2024, 2025, 2026 |
 | Baseball | Bowman Draft | 2019, 2020, 2021, 2022, 2023, 2024, 2025 |
+| Baseball | Bowman's Best | 2023, 2024, 2025 |
+| Baseball | Panini Donruss | 2024, 2025, 2026 |
+| Baseball | Panini Prizm | 2024, 2025, 2026 |
+| Baseball | Panini Select | 2024, 2025 |
 | Baseball | Topps | 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026 |
-| Baseball | Topps Chrome | 2019, 2020, 2021, 2022, 2023, 2024, 2025 |
-| Baseball | Topps Chrome Sapphire | 2025 |
-| Baseball | Topps Chrome Update | 2024, 2025 |
-| Baseball | Topps Chrome Update Sapphire | 2020, 2021, 2025 |
-| Baseball | Topps Finest | 2019, 2021, 2022, 2023 |
-| Baseball | Topps Update | 2019, 2020, 2021, 2022, 2023, 2024, 2025 |
+| Baseball | Topps Chrome | 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026 |
+| Baseball | Topps Chrome Sapphire | 2024, 2025, 2026 |
+| Baseball | Topps Chrome Update | 2023, 2024, 2025, 2026 |
+| Baseball | Topps Chrome Update Sapphire | 2020, 2021, 2024, 2025 |
+| Baseball | Topps Finest | 2019, 2021, 2022, 2023, 2024, 2025, 2026 |
+| Baseball | Topps Heritage | 2023, 2024, 2025, 2026 |
+| Baseball | Topps Update | 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026 |
 | Basketball | Bowman | 2025-26 |
-| Basketball | Bowman U Best | 2025-26 |
+| Basketball | Bowman U Best | 2023-24, 2024-25, 2025-26 |
 | Basketball | Bowman U Chrome | 2023-24, 2024-25 |
-| Basketball | Donruss Optic | 2019-20, 2020-21, 2021-22, 2022-23, 2024-25 |
+| Basketball | Donruss Optic | 2019-20, 2020-21, 2021-22, 2022-23, 2023-24, 2024-25 |
+| Basketball | Hoops | 2023-24, 2024-25, 2025-26, 2026-27 |
 | Basketball | Panini Donruss | 2019-20, 2020-21, 2021-22, 2022-23, 2024-25, 2025-26 |
-| Basketball | Panini Mosaic | 2019-20, 2020-21, 2021-22, 2022-23, 2024-25 |
-| Basketball | Panini Prizm | 2019-20, 2020-21, 2021-22, 2022-23, 2024-25, 2025-26 |
-| Basketball | Panini Select | 2019-20, 2020-21, 2021-22, 2022-23, 2024-25, 2025-26 |
-| Basketball | Prizm Draft Picks | 2019-20, 2020-21, 2021-22, 2022-23, 2023-24 |
-| Basketball | Topps Chrome | 2024-25, 2025-26 |
-| Football | Bowman U Best | 2025 |
+| Basketball | Panini Mosaic | 2019-20, 2020-21, 2021-22, 2022-23, 2023-24, 2024-25 |
+| Basketball | Panini Prizm | 2019-20, 2020-21, 2021-22, 2022-23, 2023-24, 2024-25, 2025-26 |
+| Basketball | Panini Select | 2019-20, 2020-21, 2021-22, 2022-23, 2023-24, 2024-25, 2025-26 |
+| Basketball | Prizm Draft Picks | 2019-20, 2020-21, 2021-22, 2022-23, 2023-24, 2024-25 |
+| Basketball | Topps | 2025-26, 2026-27 |
+| Basketball | Topps Chrome | 2023-24, 2024-25, 2025-26 |
+| Basketball | Topps Chrome Update | 2025-26 |
+| Basketball | Topps Finest | 2023-24, 2024-25, 2025-26 |
+| Football | Bowman | 2026 |
+| Football | Bowman U Best | 2024, 2025, 2026 |
 | Football | Bowman U Chrome | 2023, 2024, 2025 |
-| Football | Donruss Optic | 2019, 2020, 2021, 2022, 2024, 2025 |
-| Football | Panini Donruss | 2019, 2020, 2021, 2022, 2023, 2024, 2025 |
+| Football | Donruss Optic | 2019, 2020, 2021, 2022, 2023, 2024, 2025 |
+| Football | Panini Contenders | 2023, 2024 |
+| Football | Panini Donruss | 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026 |
 | Football | Panini Mosaic | 2020, 2021, 2022, 2023, 2024, 2025 |
 | Football | Panini Prizm | 2019, 2020, 2021, 2022, 2023, 2024, 2025 |
-| Football | Panini Select | 2019, 2020, 2021, 2022, 2024, 2025 |
-| Football | Topps Chrome | 2025 |
-| Football | Topps Resurgence | 2025 |
-| Football | Prizm Draft Picks | 2019, 2020, 2021 |
+| Football | Panini Select | 2019, 2020, 2021, 2022, 2023, 2024, 2025 |
+| Football | Prizm Draft Picks | 2019, 2020, 2021, 2023, 2024, 2025 |
+| Football | Score | 2024, 2025 |
+| Football | Topps | 2026 |
+| Football | Topps Chrome | 2024, 2025, 2026 |
+| Football | Topps Finest | 2024, 2025 |
+| Football | Topps Heritage | 2026 |
+| Football | Topps Resurgence | 2024, 2025 |
 | Hockey | Upper Deck | 2024-25, 2025-26 |
 
 Products through 2023 were read from Cardboard Connection's product pages (2026-11-14), the same
@@ -226,9 +241,18 @@ Ichiro, MIYAVI, Neymar and the like were missing. A one-word name now loads only
   leaves out "D'Angelo" (2023-24 Topps Chrome Finesse) and, to be safe, "Ichiro" in 2025 Bowman,
   where a prospect is named Ichiro Cano Hernandez.
 
+- it isn't a short all-caps tag ("TBA", "ACE");
+- it isn't on a variation of another player's base card (Screech on 2022 Topps Update #150 Base
+  Variations is a photo variation, a mascot).
+
+Plain-text checklist pages (Cardboard Connection) are noisier: "Thrills", "Wins", moons,
+landmarks and mascots all read as one word and a team. There a one-word name loads only for the
+athletes known by one: Ichiro, Nenê and Pelé.
+
 The Checklist Insider files were imported again from their saved CSVs (same pages, same read
-days): 73 one-word cards were added and none removed. The Cardboard Connection files were read
-again from their pages and only the new one-word rows were added; every other row is as it was.
+days): 72 one-word cards were added and none removed. The Cardboard Connection files were read
+again from their pages on 2026-11-17 and only the new one-word rows were added to each file (294
+Ichiro and Nenê cards, where the team is one the file already has); every other row is as it was.
 Upper Deck's 2025-26 Young Guns #498 is Tusky, the Utah Mammoth's mascot, printed as a base card:
 it loads, since that is the card.
 

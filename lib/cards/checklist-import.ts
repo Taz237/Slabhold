@@ -1,4 +1,4 @@
-import type { ChecklistProduct, ChecklistRow, ChecklistSection } from "./checklists";
+import { isBaseSection, type ChecklistProduct, type ChecklistRow, type ChecklistSection } from "./checklists";
 
 /**
  * Turns a checklist source into the store's shape. Pure text in, rows out: the script
@@ -79,10 +79,25 @@ const CHARACTER_SECTION = /\bmascots?\b|\bmickey\b|\bdisney\b|\blooney\b|\bmuppe
 
 function isOneWordPerson(player: string, team: string, section: string): boolean {
   if (!team || !ONE_WORD_NAME.test(player) || NOT_A_ONE_WORD_NAME.has(player.toLowerCase())) return false;
+  // "TBA", "ACE": a short all-caps word is a placeholder or a mascot's tag, not a name ("MIYAVI" is).
+  if (player.length <= 4 && player === player.toUpperCase()) return false;
   if (CHARACTER_SECTION.test(section)) return false;
   // "Angels - Los Angeles Angels" is the team by its nickname, and "Tiger - Detroit Tigers" too.
   const word = player.toLowerCase();
   return !team.toLowerCase().split(/\s+/).some((teamWord) => teamWord === word || teamWord === `${word}s` || teamWord === `${word}es`);
+}
+
+/**
+ * A plain-text checklist page is noisy: "Thrills", "Wins", moons, landmarks and mascots all read as
+ * one word and a team. There a one-word name loads only for these athletes, who are known by one.
+ * The maker's and Checklist Insider's CSVs are tidy rows, so the rules above are enough there.
+ */
+const ONE_WORD_ATHLETES = new Set(["ichiro", "nene", "pele"]);
+const plainName = (name: string) => name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+/** A card off a plain-text page: one-word names only for the known one-word athletes. */
+function pageCard(card: { number: string; player: string; team: string } | null) {
+  return card && (card.player.includes(" ") || ONE_WORD_ATHLETES.has(plainName(card.player))) ? card : null;
 }
 
 /** "339 C.J. Stroud - Houston Texans" → the card. Null when the line isn't one card with one player. */
@@ -134,7 +149,7 @@ export function sectionsFromChecklistPage(html: string, knownPerson?: (name: str
     const blocks = part.slice(end).matchAll(/<div[^>]*class="[^"]*tablechecklist[^"]*"[^>]*>([\s\S]*?)<\/div>/gi);
     for (const block of blocks) {
       for (const line of block[1].split(/<br\s*\/?>|\n/i)) {
-        const card = parseChecklistLine(line, knownPerson, name);
+        const card = pageCard(parseChecklistLine(line, knownPerson, name));
         if (card) cards.push(card);
       }
     }
@@ -164,7 +179,7 @@ function sectionsWithoutHotTitles(html: string, knownPerson?: (name: string) => 
     const headed = sectionName(heading);
     for (const block of piece.matchAll(/<div[^>]*class="[^"]*tablechecklist[^"]*"[^>]*>([\s\S]*?)<\/div>/gi)) {
       for (const line of block[1].split(/<br\s*\/?>|\n/i)) {
-        const card = parseChecklistLine(line, knownPerson, sections.length === 0 ? "Base" : headed);
+        const card = pageCard(parseChecklistLine(line, knownPerson, sections.length === 0 ? "Base" : headed));
         if (card) cards.push(card);
       }
     }
@@ -237,6 +252,26 @@ export function sectionsFromMakerCsv(csv: string, knownPerson?: (name: string) =
   return sections;
 }
 
+/** The base sections' players at each card number (lower case). */
+export function basePlayersByNumber(sections: readonly ImportedSection[]): Map<string, Set<string>> {
+  const at = new Map<string, Set<string>>();
+  for (const section of sections) {
+    if (!isBaseSection(section.name)) continue;
+    for (const card of section.cards) at.set(card.number.toLowerCase(), (at.get(card.number.toLowerCase()) ?? new Set()).add(card.player.toLowerCase()));
+  }
+  return at;
+}
+
+/**
+ * A one-word name on a variation of someone else's base card ("Screech" on 2022 Topps Update #150,
+ * Josiah Gray's number) is a photo variation, a mascot most often: no player of its own.
+ */
+export function isPhotoVariation(section: string, card: { number: string; player: string }, basePlayers: Map<string, Set<string>>): boolean {
+  if (!/\bvariations?\b/i.test(section)) return false;
+  const base = basePlayers.get(card.number.toLowerCase());
+  return Boolean(base && !base.has(card.player.toLowerCase()));
+}
+
 /** The store's file for one product: teams listed once, each card a small row. */
 export function checklistProductFrom(
   meta: { sport: string; yearLabel: string; product: string; source: string; read: string },
@@ -256,11 +291,14 @@ export function checklistProductFrom(
   const nameEnds = new Set(
     imported.flatMap((section) => section.cards.map((card) => card.player.toLowerCase().split(" "))).flatMap((words) => (words.length > 1 ? [words[0], words[words.length - 1]] : [])),
   );
-  const keep = (card: ImportedSection["cards"][number]) => !teamNames.has(card.player.toLowerCase()) && !(!card.player.includes(" ") && nameEnds.has(card.player.toLowerCase()));
+  const basePlayers = basePlayersByNumber(imported);
+  const keep = (section: string, card: ImportedSection["cards"][number]) =>
+    !teamNames.has(card.player.toLowerCase()) &&
+    !(!card.player.includes(" ") && (nameEnds.has(card.player.toLowerCase()) || isPhotoVariation(section, card, basePlayers)));
   const sections: ChecklistSection[] = imported
     .map((section) => ({
       name: section.name,
-      cards: section.cards.filter(keep).map((card): ChecklistRow => [card.number, card.player, teamIndex(card.team)]),
+      cards: section.cards.filter((card) => keep(section.name, card)).map((card): ChecklistRow => [card.number, card.player, teamIndex(card.team)]),
     }))
     .filter((section) => section.cards.length > 0);
   return { ...meta, teams, sections };

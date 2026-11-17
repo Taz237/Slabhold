@@ -98,6 +98,28 @@ describe("the checklist import", () => {
     assert.deepEqual(product.sections.map((section) => section.cards.map((card) => card[1])), [["Kawhi Leonard", "Ichiro"]]);
   });
 
+  it("a one-word name on a variation of someone else's base card is a photo variation (a mascot): left out", () => {
+    const product = checklistProductFrom({ sport: "Baseball", yearLabel: "2022", product: "Topps Update", source: "test", read: "2026-11-17" }, [
+      { name: "Base", cards: [{ number: "150", player: "Josiah Gray", team: "Washington Nationals" }, { number: "121", player: "Ichiro", team: "Seattle Mariners" }] },
+      { name: "Base Variations", cards: [{ number: "150", player: "Screech", team: "Washington Nationals" }, { number: "121", player: "Ichiro", team: "Seattle Mariners" }] },
+    ]);
+    assert.deepEqual(product.sections.map((section) => section.cards.map((card) => card[1])), [["Josiah Gray", "Ichiro"], ["Ichiro"]]);
+  });
+
+  it("on a plain-text checklist page a one-word name loads only for a known one-word athlete: the pages are noisy", () => {
+    const page = [
+      '<h3 class="hot-title">Base Set Checklist</h3><div class="tablechecklist">1 Ichiro - Seattle Mariners<br />2 Nene - Denver Nuggets<br />3 Mike Trout - Los Angeles Angels</div>',
+      '<h3 class="hot-title">Baseball Thrills Checklist</h3><div class="tablechecklist">461 Thrills - Babe Ruth Hits 60th Homer<br />462 Ganymede - Jupiter<br />463 Screech - Washington Nationals</div>',
+    ].join("\n");
+    assert.deepEqual(sectionsFromChecklistPage(page).map((section) => [section.name, section.cards.map((card) => card.player)]), [["Base", ["Ichiro", "Nene", "Mike Trout"]]]);
+  });
+
+  it("a short all-caps word is a placeholder, not a name: TBA, TBD, ACE", () => {
+    assert.equal(parseChecklistLine("ASST-OTO TBA - Los Angeles Angels"), null);
+    assert.equal(parseChecklistLine("M-28 ACE - Toronto Blue Jays"), null);
+    assert.equal(parseChecklistLine("FPA-MIY MIYAVI - Los Angeles Dodgers")?.player, "MIYAVI");
+  });
+
   it("a one-word mascot or cartoon card is no player: its section is left out", () => {
     const csv = [
       "CARD SET,CARD NUMBER,ATHLETE,TEAM",
