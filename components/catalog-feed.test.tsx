@@ -1,6 +1,6 @@
 import "@/lib/test/server-only-stub";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { act, createElement, type ReactNode } from "react";
 import type { Root } from "react-dom/client";
@@ -311,6 +311,23 @@ describe("Catalog feed rules", () => {
     assert.match(route, /CATALOG_CACHE_CONTROL/);
     assert.match(route, /private, no-store/);
     assert.match(read("lib/catalog-feed/load.ts"), /from\("public_cards"\)/);
+  });
+
+  it("keeps the card_likes / card_comments proposal out of the migrations folder, and the feed never needs those tables", () => {
+    const migrations = readdirSync(join(process.cwd(), "supabase/migrations"));
+    for (const file of migrations) {
+      assert.doesNotMatch(read(`supabase/migrations/${file}`), /card_likes|card_comments/, file);
+    }
+    assert.match(read("docs/catalog-feed-1/proposed-card-likes-comments.sql"), /PROPOSAL ONLY\. UNAPPLIED/);
+    for (const file of [
+      "components/catalog-feed.tsx",
+      "components/catalog-feed-comments.tsx",
+      "lib/catalog-feed/feed.ts",
+      "lib/catalog-feed/load.ts",
+      "app/api/catalog/feed/route.ts",
+    ]) {
+      assert.doesNotMatch(read(file), /card_likes|card_comments/, file);
+    }
   });
 
   it("replaces Moving today: /moving-today sends readers to the feed", () => {

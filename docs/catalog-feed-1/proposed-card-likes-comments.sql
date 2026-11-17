@@ -1,4 +1,6 @@
--- UNAPPLIED. Needs review before running.
+-- PROPOSAL ONLY. UNAPPLIED. Needs review before running.
+-- Not a migration: it lives in docs on purpose. It moves to supabase/migrations/
+-- only after QA Guard OKs it and Donnie says to apply it.
 -- Do not `supabase db push` this, and do not apply it with the Supabase CLI.
 -- The undo is docs/catalog-feed-1/undo-card-likes-comments.sql.
 --
