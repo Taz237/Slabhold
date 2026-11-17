@@ -4,8 +4,7 @@ import { feedKey } from "./feed";
 /**
  * What the feed remembers. The spot (cards, where you were, the next read)
  * lives for the tab session, so Back from a card page lands on the same
- * card. Hearts on never-posted cards and what you hearted (for For You) stay
- * on the device. Every read and write survives blocked storage.
+ * card. What you hearted (for For You) stays on the device. Every read and write survives blocked storage.
  */
 
 type Store = Pick<Storage, "getItem" | "setItem" | "removeItem">;
@@ -13,12 +12,10 @@ type Store = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 const SPOT_PREFIX = "slabhold:catalog-feed:v1:";
 const SEEN_KEY = "slabhold:catalog-feed:seen:v1";
 const TASTE_KEY = "slabhold:catalog-feed:taste:v1";
-const HEARTS_KEY = "slabhold:catalog-feed:hearts:v1";
 /** A saved spot older than this starts fresh. */
 export const SPOT_MAX_AGE_MS = 30 * 60 * 1000;
 const SEEN_MAX = 2000;
 const TASTE_MAX = 100;
-const HEARTS_MAX = 500;
 /** A saved spot keeps at most this many cards. */
 const SPOT_MAX_CARDS = 120;
 
@@ -105,18 +102,4 @@ export function addTaste(store: Store | null, card: Pick<FeedCard, "sport" | "pl
   const next = [...loadTaste(store), { sport: card.sport, player: card.player }].slice(-TASTE_MAX);
   write(store, TASTE_KEY, next);
   return next;
-}
-
-/** Hearts on cards that have no post yet. They stay on this device. */
-export function loadDeviceHearts(store: Store | null): Set<string> {
-  const ids = read<string[]>(store, HEARTS_KEY);
-  return new Set(Array.isArray(ids) ? ids.filter((id) => typeof id === "string") : []);
-}
-
-export function saveDeviceHeart(store: Store | null, cardId: string, liked: boolean): Set<string> {
-  const hearts = loadDeviceHearts(store);
-  if (liked) hearts.add(cardId);
-  else hearts.delete(cardId);
-  write(store, HEARTS_KEY, [...hearts].slice(-HEARTS_MAX));
-  return hearts;
 }

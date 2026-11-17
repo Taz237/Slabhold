@@ -62,15 +62,10 @@ export type FeedCard = {
     displayName: string;
     avatarUrl: string | null;
   };
-  /** Likes on the posts that show this card. */
+  /** Hearts on this card (card_likes). */
   likeCount: number;
-  /** Comments on `postId`. */
+  /** Comments on this card (card_comments). */
   commentCount: number;
-  /**
-   * The newest visible post that shows this card. The heart and comments
-   * use it. Null when the card was never posted.
-   */
-  postId: string | null;
   /** Why it is in the mix. Never shown, it only spreads the order. */
   source: "fresh" | "popular" | "following";
 };
@@ -134,7 +129,7 @@ export function serialRunOf(value: unknown): number | null {
 export function feedCardFromRow(
   row: Row,
   owner: FeedCard["owner"] | null | undefined,
-  extra: { likeCount?: number; commentCount?: number; postId?: string | null; source?: FeedCard["source"] } = {},
+  extra: { likeCount?: number; commentCount?: number; source?: FeedCard["source"] } = {},
 ): FeedCard | null {
   if (!owner?.username || !owner.id) return null;
   const tile = catalogTileFromRow(row, owner.username);
@@ -164,7 +159,6 @@ export function feedCardFromRow(
     owner,
     likeCount: count(extra.likeCount),
     commentCount: count(extra.commentCount),
-    postId: extra.postId ?? null,
     source: extra.source ?? "fresh",
   };
 }

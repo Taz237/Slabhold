@@ -15,8 +15,6 @@ export const FEED_COLUMNS =
 export const FEED_POPULAR_PER_PAGE = 4;
 /** Following reads the newest this many follows. */
 export const FEED_FOLLOW_LIMIT = 200;
-/** Comments counted per page. A page has at most 12 posts. */
-const COMMENT_COUNT_LIMIT = 2000;
 const IN_CHUNK = 80;
 
 type Row = Record<string, unknown>;
@@ -81,69 +79,30 @@ async function readOwners(admin: Admin, ids: string[]): Promise<Map<string, Feed
   return owners;
 }
 
-export type CardEngagement = { likeCount: number; commentCount: number; postId: string | null };
+export type CardEngagement = { likeCount: number; commentCount: number };
 
-/**
- * Likes and comments for cards, from the posts that show them. A card's
- * likes add up across its posts; its comments and heart use its newest post.
- */
-export async function readCardEngagement(admin: Admin, cardIds: string[]): Promise<Map<string, CardEngagement>> {
-  const out = new Map<string, CardEngagement>();
-  if (cardIds.length === 0) return out;
-  const visible = (query: Query) => query.is("hidden_at", null);
-  const [direct, links] = await Promise.all([
-    readIn(admin, "posts", "id, like_count, created_at, card_id:card->>id", "card->>id", cardIds, visible),
-    readIn(admin, "post_cards", "post_id, card_id", "card_id", cardIds),
-  ]);
-  const posts = new Map<string, { likes: number; createdAt: string }>();
-  const postsByCard = new Map<string, Set<string>>();
-  const link = (cardId: string, postId: string) => {
-    const set = postsByCard.get(cardId) ?? new Set<string>();
-    set.add(postId);
-    postsByCard.set(cardId, set);
-  };
-  const remember = (row: Row) => {
-    const id = text(row.id);
-    if (!id) return;
-    const likes = Number(row.like_count);
-    posts.set(id, { likes: Number.isFinite(likes) && likes > 0 ? likes : 0, createdAt: text(row.created_at) });
-  };
-  for (const row of direct) {
-    remember(row);
-    if (text(row.card_id)) link(text(row.card_id), text(row.id));
-  }
-  const linkedIds = links.map((row) => text(row.post_id)).filter((postId) => postId && !posts.has(postId));
-  for (const row of await readIn(admin, "posts", "id, like_count, created_at", "id", linkedIds, visible)) remember(row);
-  for (const row of links) {
-    if (posts.has(text(row.post_id))) link(text(row.card_id), text(row.post_id));
-  }
-
-  const primary = new Map<string, string>();
-  for (const [cardId, ids] of postsByCard) {
-    const known = [...ids].filter((postId) => posts.has(postId));
-    if (known.length === 0) continue;
-    known.sort((a, b) => posts.get(b)!.createdAt.localeCompare(posts.get(a)!.createdAt) || b.localeCompare(a));
-    primary.set(cardId, known[0]);
-    out.set(cardId, {
-      likeCount: known.reduce((sum, postId) => sum + posts.get(postId)!.likes, 0),
-      commentCount: 0,
-      postId: known[0],
-    });
-  }
-  const commentRows = await readIn(
-    admin,
-    "comments",
-    "post_id",
-    "post_id",
-    [...new Set(primary.values())],
-    (query) => query.limit(COMMENT_COUNT_LIMIT),
+/** Exact head counts per card, run together. Small pages (12 cards), so 2 counts each. */
+async function countBy(admin: Admin, table: "card_likes" | "card_comments", cardIds: string[]): Promise<Map<string, number>> {
+  const counts = await Promise.all(
+    cardIds.map(async (cardId) => {
+      const { count, error } = (await admin
+        .from(table)
+        .select("card_id", { count: "exact", head: true })
+        .eq("card_id", cardId)) as { count: number | null; error: { message: string } | null };
+      // A failed count reads as zero; the card still shows.
+      return [cardId, error || count == null ? 0 : count] as const;
+    }),
   );
-  const comments = new Map<string, number>();
-  for (const row of commentRows) comments.set(text(row.post_id), (comments.get(text(row.post_id)) ?? 0) + 1);
-  for (const [cardId, postId] of primary) {
-    const entry = out.get(cardId);
-    if (entry) entry.commentCount = comments.get(postId) ?? 0;
-  }
+  return new Map(counts);
+}
+
+/** Hearts and comments on cards, from card_likes and card_comments. */
+export async function readCardEngagement(admin: Admin, cardIds: string[]): Promise<Map<string, CardEngagement>> {
+  const ids = [...new Set(cardIds)];
+  const out = new Map<string, CardEngagement>();
+  if (ids.length === 0) return out;
+  const [likes, comments] = await Promise.all([countBy(admin, "card_likes", ids), countBy(admin, "card_comments", ids)]);
+  for (const id of ids) out.set(id, { likeCount: likes.get(id) ?? 0, commentCount: comments.get(id) ?? 0 });
   return out;
 }
 

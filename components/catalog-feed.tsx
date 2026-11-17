@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { SignInReason } from "@/components/catalog-feed-comments";
 import { ArrowLeft, Bookmark, Heart, MessageCircle, Plus, Send } from "lucide-react";
 import { backLinkClick } from "@/components/nav-motion";
 import { useCollection } from "@/components/collection-provider";
@@ -19,6 +20,7 @@ import { signupPath } from "@/lib/auth/safe-next";
 import { cardIdentityKey } from "@/lib/social/card-identity";
 import { userHref } from "@/lib/social/user-href";
 import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
+import { cardSocialClient } from "@/lib/catalog-feed/card-client";
 import { wantLabel } from "@/lib/wants/label";
 import { CATALOG_PATH, CATALOG_SPORTS } from "@/lib/public-catalog/query";
 import {
@@ -51,17 +53,18 @@ import {
 import {
   addTaste,
   deviceStore,
-  loadDeviceHearts,
   loadSeen,
   loadSpot,
   loadTaste,
-  saveDeviceHeart,
   saveSeen,
   saveSpot,
   sessionStore,
 } from "@/lib/catalog-feed/session";
 
 const CommentsSheet = dynamic(() => import("@/components/catalog-feed-comments").then((mod) => mod.CommentsSheet), {
+  ssr: false,
+});
+const SignInPrompt = dynamic(() => import("@/components/catalog-feed-comments").then((mod) => mod.SignInPrompt), {
   ssr: false,
 });
 
@@ -79,11 +82,8 @@ const FOCUS = "outline-none focus-visible:ring-2 focus-visible:ring-violet-500";
 type Heart = { liked: boolean; count: number };
 type Burst = { key: number; x: number; y: number };
 
-function cardHeart(card: FeedCard, hearts: Record<string, Heart>, device: ReadonlySet<string>): Heart {
-  const known = hearts[card.id];
-  if (known) return known;
-  if (!card.postId && device.has(card.id)) return { liked: true, count: card.likeCount + 1 };
-  return { liked: false, count: card.likeCount };
+function cardHeart(card: FeedCard, hearts: Record<string, Heart>): Heart {
+  return hearts[card.id] ?? { liked: false, count: card.likeCount };
 }
 
 /** The URL keeps the tab and sport, so a share or a reload opens the same feed. */
@@ -139,8 +139,9 @@ export function CatalogFeed({
   const loadingMore = useRef(false);
   const restored = useRef(false);
   const tasteList = useRef(loadTaste(null));
-  // Hearts on never-posted cards, kept on this device.
-  const [deviceHearts, setDeviceHearts] = useState<ReadonlySet<string>>(() => new Set());
+  const [signIn, setSignIn] = useState<SignInReason | null>(null);
+  /** The newest heart tap per card. An older reply never undoes a newer tap. */
+  const likeTaps = useRef<Map<string, number>>(new Map());
 
   // Following, for the mix: the people the viewer follows right now.
   const followingIds = useMemo(
@@ -181,12 +182,10 @@ export function CatalogFeed({
     const store = sessionStore();
     seen.current = loadSeen(store);
     tasteList.current = loadTaste(deviceStore());
-    const hearted = loadDeviceHearts(deviceStore());
     tasteRef.current = tasteFrom({ owned: ownedTaste, liked: tasteList.current, following: followingIds, viewerId });
     const spot = loadSpot(store, initialFilters);
     // Applied on the next frame: the server's first card paints, then the saved spot takes over.
     requestAnimationFrame(() => {
-      if (hearted.size) setDeviceHearts(hearted);
       if (spot) {
         setCards(spot.cards);
         setNextOffset(spot.nextOffset);
@@ -239,20 +238,17 @@ export function CatalogFeed({
     void loadSupabaseBrowser()
       .then(async (supabase) => {
         if (!supabase || cancelled) return;
-        const postIds = fresh.map((card) => card.postId).filter((id): id is string => Boolean(id));
         const keys = new Map(fresh.map((card) => [cardIdentityKey(feedIdentity(card)), card.id]));
-        const [likes, wants] = await Promise.all([
-          postIds.length
-            ? supabase.from("likes").select("post_id").eq("user_id", viewerId).in("post_id", postIds)
-            : Promise.resolve({ data: [] as { post_id: string }[] }),
+        const [likedCards, wants] = await Promise.all([
+          cardSocialClient.likedCards(viewerId, fresh.map((card) => card.id)).catch(() => new Set<string>()),
           supabase.from("want_list").select("card_key").eq("user_id", viewerId).in("card_key", [...keys.keys()]),
         ]);
         if (cancelled) return;
-        const likedPosts = new Set(((likes.data ?? []) as { post_id: string }[]).map((row) => row.post_id));
         setHearts((state) => {
           const next = { ...state };
           for (const card of fresh) {
-            if (card.postId && likedPosts.has(card.postId) && !next[card.id]) {
+            // A tap that already happened wins over this read.
+            if (likedCards.has(card.id) && !next[card.id]) {
               next[card.id] = { liked: true, count: Math.max(1, card.likeCount) };
             }
           }
@@ -378,12 +374,13 @@ export function CatalogFeed({
   const like = useCallback(
     (card: FeedCard, mode: "tap" | "double") => {
       if (!viewerId) {
-        router.push(signupPath(CATALOG_PATH));
-        return;
+        setSignIn("like");
+        return false;
       }
-      const before = cardHeart(card, hearts, deviceHearts);
+      const before = cardHeart(card, hearts);
       const after = mode === "double" ? doubleTapHeart(before) : heartTap(before);
-      if (after === before) return;
+      // A double tap on a card already hearted shows the burst and changes nothing.
+      if (after === before) return true;
       setHearts((state) => ({ ...state, [card.id]: after }));
       if (after.liked) {
         haptic("like");
@@ -395,33 +392,38 @@ export function CatalogFeed({
         tasteList.current = addTaste(deviceStore(), card);
         tasteRef.current = tasteFrom({ owned: ownedTaste, liked: tasteList.current, following: followingIds, viewerId });
       }
-      if (!card.postId) {
-        // Never posted: the heart stays on this device until cards take likes.
-        // The tap's own state above is what shows; the device keeps it for next time.
-        saveDeviceHeart(deviceStore(), card.id, after.liked);
-        return;
-      }
-      const postId = card.postId;
-      void import("@/lib/social/like-action")
-        .then(({ syncPostLike }) => syncPostLike({ postId, liked: after.liked }))
+      const tap = (likeTaps.current.get(card.id) ?? 0) + 1;
+      likeTaps.current.set(card.id, tap);
+      const latestTap = () => likeTaps.current.get(card.id) === tap;
+      void cardSocialClient
+        .like({ cardId: card.id, liked: after.liked })
         .then((result) => {
+          if (!latestTap()) return;
           if (!result.ok) {
             setHearts((state) => ({ ...state, [card.id]: before }));
             showToast(result.error);
+            return;
+          }
+          // The saved count, which includes hearts from everyone since this page loaded.
+          if (result.likeCount != null) {
+            const count = result.likeCount;
+            setHearts((state) => ({ ...state, [card.id]: { liked: result.liked, count } }));
           }
         })
         .catch(() => {
+          if (!latestTap()) return;
           setHearts((state) => ({ ...state, [card.id]: before }));
           showToast("Couldn't save that like. Try again.");
         });
+      return true;
     },
-    [deviceHearts, followingIds, hearts, ownedTaste, router, showToast, viewerId],
+    [followingIds, hearts, ownedTaste, showToast, viewerId],
   );
 
   const save = useCallback(
     async (card: FeedCard) => {
       if (!viewerId) {
-        router.push(signupPath(CATALOG_PATH));
+        setSignIn("save");
         return;
       }
       const was = Boolean(saved[card.id]);
@@ -451,13 +453,13 @@ export function CatalogFeed({
         showToast("Couldn't save that. Try again.");
       }
     },
-    [router, saved, showToast, viewerId],
+    [saved, showToast, viewerId],
   );
 
   const follow = useCallback(
     async (card: FeedCard) => {
       if (!viewerId) {
-        router.push(signupPath(CATALOG_PATH));
+        setSignIn("follow");
         return;
       }
       setFollowed((state) => ({ ...state, [card.owner.id]: true }));
@@ -468,7 +470,7 @@ export function CatalogFeed({
         showToast(result.error);
       }
     },
-    [router, showToast, toggleFollow, viewerId],
+    [showToast, toggleFollow, viewerId],
   );
 
   const share = useCallback(
@@ -492,9 +494,16 @@ export function CatalogFeed({
   );
 
   // Slides get stable handlers, so a heart on one card never redraws the others.
-  const latest = useRef({ like, save, follow, share, open });
+  const comment = useCallback(
+    (card: FeedCard) => {
+      if (!viewerId) setSignIn("comment");
+      else setCommentsFor(card);
+    },
+    [viewerId],
+  );
+  const latest = useRef({ like, save, follow, share, open, comment });
   useEffect(() => {
-    latest.current = { like, save, follow, share, open };
+    latest.current = { like, save, follow, share, open, comment };
   });
   const handlers = useMemo(
     () => ({
@@ -503,6 +512,7 @@ export function CatalogFeed({
       follow: (card: FeedCard) => void latest.current.follow(card),
       share: (card: FeedCard) => void latest.current.share(card),
       open: (card: FeedCard) => latest.current.open(card),
+      comment: (card: FeedCard) => latest.current.comment(card),
     }),
     [],
   );
@@ -547,7 +557,7 @@ export function CatalogFeed({
                   near={near}
                   active={at === index}
                   priority={at === 0}
-                  heart={cardHeart(card, hearts, deviceHearts)}
+                  heart={cardHeart(card, hearts)}
                   saved={Boolean(saved[card.id])}
                   canFollow={!ownCard && !followed[card.owner.id] && !isFollowing(card.owner.id)}
                   reducedMotion={reducedMotion}
@@ -556,7 +566,7 @@ export function CatalogFeed({
                   onFollow={handlers.follow}
                   onShare={handlers.share}
                   onOpen={handlers.open}
-                  onComments={setCommentsFor}
+                  onComments={handlers.comment}
                 />
               );
             })
@@ -568,13 +578,16 @@ export function CatalogFeed({
         <CommentsSheet
           card={commentsFor}
           onClose={() => setCommentsFor(null)}
-          onPosted={(cardId) =>
+          onCountChange={(cardId, delta) =>
             setCards((list) =>
-              list.map((card) => (card.id === cardId ? { ...card, commentCount: card.commentCount + 1 } : card)),
+              list.map((card) =>
+                card.id === cardId ? { ...card, commentCount: Math.max(0, card.commentCount + delta) } : card,
+              ),
             )
           }
         />
       ) : null}
+      {signIn ? <SignInPrompt reason={signIn} onClose={() => setSignIn(null)} /> : null}
       {toast ? (
         <p
           role="status"
@@ -681,7 +694,8 @@ const FeedSlide = memo(function FeedSlide({
   saved: boolean;
   canFollow: boolean;
   reducedMotion: boolean;
-  onLike: (card: FeedCard, mode: "tap" | "double") => void;
+  /** False when nothing happened (signed out): no burst then. */
+  onLike: (card: FeedCard, mode: "tap" | "double") => boolean;
   onSave: (card: FeedCard) => void;
   onFollow: (card: FeedCard) => void;
   onShare: (card: FeedCard) => void;
@@ -701,7 +715,7 @@ const FeedSlide = memo(function FeedSlide({
     if (now - lastTap.current < DOUBLE_TAP_MS) {
       window.clearTimeout(tapTimer.current);
       lastTap.current = 0;
-      onLike(card, "double");
+      if (!onLike(card, "double")) return;
       const box = event.currentTarget.getBoundingClientRect();
       const x = event.clientX ? event.clientX - box.left : box.width / 2;
       const y = event.clientY ? event.clientY - box.top : box.height / 2;

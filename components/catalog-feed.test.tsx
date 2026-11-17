@@ -9,6 +9,8 @@ import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared
 import { PathnameContext } from "next/dist/shared/lib/hooks-client-context.shared-runtime";
 import { installDom } from "@/lib/test/dom";
 import type { FeedCard, FeedPage } from "@/lib/catalog-feed/feed";
+import type { ListedCardComment } from "@/lib/catalog-feed/card-client";
+import type { CardCommentResult, CardLikeResult } from "@/lib/catalog-feed/card-social";
 import type { SocialContextValue } from "@/components/social-provider";
 
 const { win } = installDom();
@@ -21,12 +23,14 @@ let CatalogFeed: typeof import("@/components/catalog-feed").CatalogFeed;
 let CardOwnerRow: typeof import("@/components/public-card-view").CardOwnerRow;
 let SocialContext: typeof import("@/components/social-provider").SocialContext;
 let CollectionContext: typeof import("@/components/collection-provider").CollectionContext;
+let client: typeof import("@/lib/catalog-feed/card-client").cardSocialClient;
 before(async () => {
   ({ createRoot } = await import("react-dom/client"));
   ({ CatalogFeed } = await import("@/components/catalog-feed"));
   ({ CardOwnerRow } = await import("@/components/public-card-view"));
   ({ SocialContext } = await import("@/components/social-provider"));
   ({ CollectionContext } = await import("@/components/collection-provider"));
+  ({ cardSocialClient: client } = await import("@/lib/catalog-feed/card-client"));
 });
 
 const pushed: string[] = [];
@@ -68,7 +72,6 @@ function card(n: number, partial: Partial<FeedCard> = {}): FeedCard {
     owner: { id: id(900 + n), username: `owner${n}`, displayName: `Owner ${n}`, avatarUrl: null },
     likeCount: 0,
     commentCount: 0,
-    postId: null,
     source: "fresh",
     ...partial,
   };
@@ -78,7 +81,17 @@ function feedPage(from: number, count: number, nextOffset: number | null): FeedP
   return { cards: Array.from({ length: count }, (_, i) => card(from + i)), nextOffset };
 }
 
-let viewer: { id: string; username: string } | null = null;
+let viewer: { id: string; username: string; displayName?: string; avatarDataUrl?: string | null } | null = null;
+let likeCalls: { cardId: string; liked: boolean }[] = [];
+let likeReply: (input: { cardId: string; liked: boolean }) => Promise<CardLikeResult> = async (input) => ({
+  ok: true,
+  liked: input.liked,
+  likeCount: null,
+});
+let listed: ListedCardComment[] = [];
+let posted: { cardId: string; body: string }[] = [];
+let postReply: (input: { cardId: string; body: string }) => Promise<CardCommentResult> = async () => ({ ok: false, error: "unset" });
+let removed: string[] = [];
 let followCalls: string[] = [];
 
 function social(): SocialContextValue {
@@ -130,6 +143,29 @@ beforeEach(() => {
   followCalls = [];
   viewer = null;
   respond = () => feedPage(0, 0, null);
+  likeCalls = [];
+  likeReply = async (input) => ({ ok: true, liked: input.liked, likeCount: null });
+  listed = [];
+  posted = [];
+  removed = [];
+  postReply = async (input) => ({
+    ok: true,
+    comment: { id: id(777), cardId: input.cardId, userId: viewer!.id, body: input.body, createdAt: new Date().toISOString() },
+  });
+  client.like = (input) => {
+    likeCalls.push(input);
+    return likeReply(input);
+  };
+  client.likedCards = async () => new Set();
+  client.list = async () => listed;
+  client.post = (input) => {
+    posted.push(input);
+    return postReply(input);
+  };
+  client.remove = async ({ commentId }) => {
+    removed.push(commentId);
+    return { ok: true };
+  };
   globalThis.fetch = (async (input: RequestInfo | URL) => {
     const url = String(input);
     fetched.push(url);
@@ -200,25 +236,65 @@ describe("Catalog feed", () => {
     assert.ok(slide.querySelector("button[aria-label='Share']"));
   });
 
-  it("sends a signed-out heart to sign up, and keeps a signed-in heart on a never-posted card", async () => {
-    mount(createElement(CatalogFeed, { initial: { cards: [card(1, { likeCount: 2 })], nextOffset: null }, initialFilters: forYou }));
+  it("shows counts signed out, and a tap on heart, comments, save or follow asks to sign in", async () => {
+    mount(createElement(CatalogFeed, { initial: { cards: [card(1, { likeCount: 2, commentCount: 4 })], nextOffset: null }, initialFilters: forYou }));
     await flush();
-    act(() => host.querySelector<HTMLButtonElement>("button[aria-label^='Like']")!.click());
-    assert.deepEqual(pushed, ["/signup?next=%2Fcatalog"]);
-
-    act(() => root!.unmount());
-    root = createRoot(host);
-    viewer = { id: id(1), username: "me" };
-    mount(createElement(CatalogFeed, { initial: { cards: [card(1, { likeCount: 2 })], nextOffset: null }, initialFilters: forYou }));
-    await flush();
-    act(() => host.querySelector<HTMLButtonElement>("button[aria-label^='Like']")!.click());
-    const heart = host.querySelector("button[aria-pressed='true'][aria-label^='Unlike']");
-    assert.ok(heart);
-    assert.equal(heart.getAttribute("aria-label"), "Unlike, 3 likes");
-    assert.match(window.localStorage.getItem("slabhold:catalog-feed:hearts:v1") ?? "", new RegExp(id(1)));
+    assert.ok(host.querySelector("button[aria-label='Like, 2 likes']"));
+    assert.ok(host.querySelector("button[aria-label='Comments, 4']"));
+    for (const [label, title] of [
+      ["Like, 2 likes", "Log in to like cards"],
+      ["Comments, 4", "Log in to comment"],
+      ["Save to your wants", "Log in to save cards"],
+      ["Follow @owner1", "Log in to follow collectors"],
+    ]) {
+      act(() => host.querySelector<HTMLButtonElement>(`button[aria-label='${label}']`)!.click());
+      await flush(5);
+      const prompt = document.querySelector("[data-sign-in-prompt]");
+      assert.ok(prompt, label);
+      assert.match(prompt.textContent ?? "", new RegExp(title));
+      assert.ok(prompt.querySelector("a[href='/signup?next=%2Fcatalog']"));
+      assert.ok(prompt.querySelector("a[href^='/login']"));
+      act(() => prompt.querySelector<HTMLButtonElement>("button[aria-label='Close']")!.click());
+      await flush();
+    }
+    assert.deepEqual(likeCalls, [], "nothing is written signed out");
+    assert.deepEqual(pushed, [], "the feed stays put");
   });
 
-  it("double tap likes with a heart burst; one tap opens the card page", async () => {
+  it("hearts at once, saves through the server action, and takes the saved count", async () => {
+    viewer = { id: id(1), username: "me" };
+    let release: (value: CardLikeResult) => void = () => {};
+    likeReply = () => new Promise((resolve) => (release = resolve));
+    mount(createElement(CatalogFeed, { initial: { cards: [card(1, { likeCount: 2 })], nextOffset: null }, initialFilters: forYou }));
+    await flush();
+    act(() => host.querySelector<HTMLButtonElement>("button[aria-label='Like, 2 likes']")!.click());
+    assert.ok(host.querySelector("button[aria-pressed='true'][aria-label='Unlike, 3 likes']"), "optimistic");
+    await flush();
+    assert.deepEqual(likeCalls, [{ cardId: id(1), liked: true }]);
+    release({ ok: true, liked: true, likeCount: 7 });
+    await flush();
+    assert.ok(host.querySelector("button[aria-label='Unlike, 7 likes']"), "the saved count");
+
+    act(() => host.querySelector<HTMLButtonElement>("button[aria-label='Unlike, 7 likes']")!.click());
+    await flush();
+    assert.deepEqual(likeCalls.at(-1), { cardId: id(1), liked: false });
+    release({ ok: true, liked: false, likeCount: 6 });
+    await flush();
+    assert.ok(host.querySelector("button[aria-pressed='false'][aria-label='Like, 6 likes']"));
+  });
+
+  it("puts the heart back and says why when the save fails", async () => {
+    viewer = { id: id(1), username: "me" };
+    likeReply = async () => ({ ok: false, error: "Your account can't do that right now." });
+    mount(createElement(CatalogFeed, { initial: { cards: [card(1, { likeCount: 2 })], nextOffset: null }, initialFilters: forYou }));
+    await flush();
+    act(() => host.querySelector<HTMLButtonElement>("button[aria-label='Like, 2 likes']")!.click());
+    await flush();
+    assert.ok(host.querySelector("button[aria-pressed='false'][aria-label='Like, 2 likes']"));
+    assert.match(host.querySelector("[role='status']")?.textContent ?? "", /can't do that right now/);
+  });
+
+  it("double tap likes with a heart burst and never unlikes; one tap opens the card page", async () => {
     viewer = { id: id(1), username: "me" };
     mount(createElement(CatalogFeed, { initial: { cards: [card(1)], nextOffset: null }, initialFilters: forYou }));
     await flush();
@@ -231,6 +307,17 @@ describe("Catalog feed", () => {
     assert.ok(host.querySelector("button[aria-pressed='true'][aria-label^='Unlike']"));
     await flush(320);
     assert.deepEqual(pushed, [], "a double tap never opens the card");
+    assert.deepEqual(likeCalls, [{ cardId: id(1), liked: true }]);
+
+    // A second double tap shows the burst again but never unlikes.
+    await flush(320);
+    act(() => {
+      hero.dispatchEvent(new win.MouseEvent("click", { bubbles: true, cancelable: true, button: 0, clientX: 50, clientY: 50 }));
+      hero.dispatchEvent(new win.MouseEvent("click", { bubbles: true, cancelable: true, button: 0, clientX: 50, clientY: 50 }));
+    });
+    assert.ok(host.querySelector("button[aria-pressed='true'][aria-label^='Unlike']"));
+    assert.equal(likeCalls.length, 1, "no unlike was sent");
+    await flush(320);
 
     act(() => {
       hero.dispatchEvent(new win.MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }));
@@ -295,9 +382,100 @@ describe("Catalog feed", () => {
   });
 });
 
+describe("Card comments sheet", () => {
+  const comment = (n: number, userId: string, body: string): ListedCardComment => ({
+    id: id(600 + n),
+    userId,
+    body,
+    createdAt: new Date(Date.now() - n * 60000).toISOString(),
+    author: { username: `writer${n}`, displayName: `Writer ${n}`, avatarUrl: null },
+  });
+
+  async function openSheet(feedCard: FeedCard) {
+    mount(createElement(CatalogFeed, { initial: { cards: [feedCard], nextOffset: null }, initialFilters: forYou }));
+    await flush();
+    act(() => host.querySelector<HTMLButtonElement>("button[aria-label^='Comments']")!.click());
+    for (let i = 0; i < 20 && !document.querySelector("[role='dialog'] h2"); i++) await flush(5);
+    await flush(5);
+    return document.querySelector<HTMLElement>("[role='dialog']")!;
+  }
+
+  it("lists comments newest first, as read", async () => {
+    viewer = { id: id(1), username: "me", displayName: "Me", avatarDataUrl: null };
+    listed = [comment(1, id(50), "Newest one"), comment(2, id(51), "Older one")];
+    const sheet = await openSheet(card(1, { commentCount: 2 }));
+    const bodies = [...sheet.querySelectorAll("[data-comments] li")].map((li) => li.textContent ?? "");
+    assert.match(bodies[0], /Newest one/);
+    assert.match(bodies[1], /Older one/);
+    assert.match(sheet.querySelector("h2")?.textContent ?? "", /2 comments/);
+  });
+
+  it("posts 1 to 280 characters, adds it on top and bumps the count", async () => {
+    viewer = { id: id(1), username: "me", displayName: "Me", avatarDataUrl: null };
+    listed = [comment(1, id(50), "First")];
+    const sheet = await openSheet(card(1, { commentCount: 1 }));
+    const field = sheet.querySelector<HTMLTextAreaElement>("textarea")!;
+    const type = (value: string) =>
+      act(() => {
+        const setter = Object.getOwnPropertyDescriptor(win.HTMLTextAreaElement.prototype, "value")!.set!;
+        setter.call(field, value);
+        field.dispatchEvent(new win.Event("input", { bubbles: true }));
+      });
+    const submit = () => sheet.querySelector<HTMLButtonElement>("button[type='submit']")!;
+    type("x".repeat(281));
+    assert.equal(submit().disabled, true, "over 280 can't be sent");
+    type("  Clean corners  ");
+    assert.equal(submit().disabled, false);
+    act(() => submit().click());
+    await flush(10);
+    assert.deepEqual(posted, [{ cardId: id(1), body: "Clean corners" }]);
+    const first = sheet.querySelector("[data-comments] li")?.textContent ?? "";
+    assert.match(first, /Clean corners/);
+    assert.ok(host.querySelector("button[aria-label='Comments, 2']"), "the rail count moved");
+  });
+
+  it("shows the friendly words for a rejected comment and a restricted account", async () => {
+    viewer = { id: id(1), username: "me", displayName: "Me", avatarDataUrl: null };
+    const sheet = await openSheet(card(1));
+    assert.ok(sheet.querySelector("[data-comments-empty]"));
+    const field = sheet.querySelector<HTMLTextAreaElement>("textarea")!;
+    const setter = Object.getOwnPropertyDescriptor(win.HTMLTextAreaElement.prototype, "value")!.set!;
+    for (const message of ["That comment can't be posted.", "Your account can't do that right now."]) {
+      postReply = async () => ({ ok: false, error: message });
+      act(() => {
+        setter.call(field, "Nice pickup");
+        field.dispatchEvent(new win.Event("input", { bubbles: true }));
+      });
+      act(() => sheet.querySelector<HTMLButtonElement>("button[type='submit']")!.click());
+      await flush(10);
+      assert.equal(sheet.querySelector("[role='alert']")?.textContent, message);
+    }
+  });
+
+  it("lets you delete your own comment, and the card owner delete any on their card", async () => {
+    viewer = { id: id(1), username: "me", displayName: "Me", avatarDataUrl: null };
+    listed = [comment(1, id(1), "Mine"), comment(2, id(52), "Someone else's")];
+    let sheet = await openSheet(card(1));
+    const deletes = () => [...sheet.querySelectorAll("button")].filter((b) => b.textContent === "Delete");
+    assert.equal(deletes().length, 1, "only my own on someone else's card");
+    act(() => deletes()[0].click());
+    await flush(10);
+    assert.deepEqual(removed, [id(601)]);
+    assert.doesNotMatch(sheet.textContent ?? "", /Mine/);
+
+    act(() => root!.unmount());
+    root = createRoot(host);
+    document.body.querySelectorAll("[role='dialog']").forEach((node) => node.remove());
+    listed = [comment(1, id(1), "Mine"), comment(2, id(52), "Someone else's")];
+    // Viewer owns this card.
+    sheet = await openSheet(card(1, { owner: { id: id(1), username: "me", displayName: "Me", avatarUrl: null } }));
+    assert.equal(deletes().length, 2, "the owner can delete any comment on their card");
+  });
+});
+
 describe("Catalog feed rules", () => {
   it("uses brand purple, never teal, and none of the banned words in what readers see", () => {
-    for (const file of ["components/catalog-feed.tsx", "components/catalog-feed-comments.tsx", "lib/catalog-feed/feed.ts"]) {
+    for (const file of ["components/catalog-feed.tsx", "components/catalog-feed-comments.tsx", "lib/catalog-feed/feed.ts", "lib/catalog-feed/card-social.ts"]) {
       const source = read(file);
       assert.doesNotMatch(source, /teal|cyan|#14b8a6|#0d9488/i, file);
       // Copy only: strings in quotes and JSX text.
@@ -313,20 +491,19 @@ describe("Catalog feed rules", () => {
     assert.match(read("lib/catalog-feed/load.ts"), /from\("public_cards"\)/);
   });
 
-  it("keeps the card_likes / card_comments proposal out of the migrations folder, and the feed never needs those tables", () => {
-    const migrations = readdirSync(join(process.cwd(), "supabase/migrations"));
-    for (const file of migrations) {
+  it("uses card_likes and card_comments for the heart and comments, and adds no SQL", () => {
+    for (const file of readdirSync(join(process.cwd(), "supabase/migrations"))) {
       assert.doesNotMatch(read(`supabase/migrations/${file}`), /card_likes|card_comments/, file);
     }
-    assert.match(read("docs/catalog-feed-1/proposed-card-likes-comments.sql"), /PROPOSAL ONLY\. UNAPPLIED/);
-    for (const file of [
-      "components/catalog-feed.tsx",
-      "components/catalog-feed-comments.tsx",
-      "lib/catalog-feed/feed.ts",
-      "lib/catalog-feed/load.ts",
-      "app/api/catalog/feed/route.ts",
-    ]) {
-      assert.doesNotMatch(read(file), /card_likes|card_comments/, file);
+    const client = read("lib/catalog-feed/card-client.ts");
+    assert.match(client, /from\("card_likes"\)/);
+    assert.match(client, /from\("card_comments"\)[\s\S]*order\("created_at", \{ ascending: false \}\)/);
+    const load = read("lib/catalog-feed/load.ts");
+    assert.match(load, /"card_likes"/);
+    assert.match(load, /"card_comments"/);
+    // Post likes and replies no longer drive the card's heart or comments.
+    for (const file of ["components/catalog-feed.tsx", "components/catalog-feed-comments.tsx"]) {
+      assert.doesNotMatch(read(file), /syncPostLike|addComment|from\("likes"\)|from\("comments"\)|postId/, file);
     }
   });
 
