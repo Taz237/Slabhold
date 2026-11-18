@@ -6,7 +6,7 @@ import { LANDSCAPE, shareNode, type Canvas } from "@/components/og-share";
 import { siteUrlFrom } from "@/lib/site-url";
 import { cleanImageUrl, type LinkPreview } from "@/lib/social/link-preview";
 import { leaderboardCacheControl } from "@/lib/leaderboard/cache";
-import type { LeaderboardShareModel } from "@/lib/leaderboard/share";
+import type { LeaderboardShareModel, RankShareModel } from "@/lib/leaderboard/share";
 import { stripUnsupportedOgText } from "@/lib/og/safe-text";
 import { movingTodayCacheControl } from "@/lib/moving-today/cache";
 import type { MovingTodayShareModel } from "@/lib/moving-today/share";
@@ -681,6 +681,108 @@ export async function renderLeaderboardOg(model: LeaderboardShareModel) {
       ),
     );
   }
+}
+
+const RANK_METAL: Record<NonNullable<RankShareModel["metal"]>, { fill: string; edge: string; ink: string }> = {
+  gold: { fill: "linear-gradient(160deg, #FFF1A8 0%, #F7C948 26%, #E0A106 52%, #F9D65C 74%, #B67C00 100%)", edge: "#FFF6C7", ink: "#3B2A00" },
+  silver: { fill: "linear-gradient(160deg, #FFFFFF 0%, #D5DBE3 26%, #A4AEBB 52%, #E8ECF1 74%, #7E8896 100%)", edge: "#FFFFFF", ink: "#1F2937" },
+  bronze: { fill: "linear-gradient(160deg, #FFD3A8 0%, #E39A5C 26%, #B8632A 52%, #EDB083 74%, #7F3F12 100%)", edge: "#FFE2C6", ink: "#3A1A05" },
+};
+
+/**
+ * "My rank": 1080×1350, the purple board, a metal block for places 1 to 3,
+ * the big rank, the collector's name, the board, the week and the score.
+ * Text and the Slabhold mark only. Signed-in owner only, so never cached.
+ */
+export function renderLeaderboardRankOg(model: RankShareModel, cacheControl = PRIVATE_OG_CACHE_CONTROL) {
+  const metal = model.metal ? RANK_METAL[model.metal] : null;
+  const rank = `#${model.rank}`;
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+          padding: "72px 64px 64px",
+          color: "#fafafa",
+          fontFamily: "Geist",
+          backgroundColor: "#0D0720",
+          backgroundImage:
+            "radial-gradient(ellipse 90% 55% at 50% 38%, rgba(124,58,237,0.62), rgba(13,7,32,0) 70%), linear-gradient(180deg, #24104F 0%, #150A30 46%, #0D0720 100%)",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <Brand />
+          <div style={{ display: "flex", fontFamily: "Geist Mono", fontSize: 26, letterSpacing: 2, color: "#c4b5fd" }}>
+            {stripUnsupportedOgText(model.weekTag).toUpperCase()}
+          </div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 560,
+              height: 400,
+              borderRadius: 56,
+              fontFamily: "Geist Mono",
+              fontSize: model.rank > 99 ? 190 : 250,
+              letterSpacing: -8,
+              color: metal ? metal.ink : "#fafafa",
+              backgroundColor: "rgba(255,255,255,0.06)",
+              backgroundImage: metal ? metal.fill : "linear-gradient(160deg, rgba(167,139,250,0.34), rgba(124,58,237,0.10))",
+              border: `4px solid ${metal ? metal.edge : "rgba(196,181,253,0.45)"}`,
+              boxShadow: "0 40px 90px rgba(0,0,0,0.5)",
+            }}
+          >
+            {rank}
+          </div>
+          <div style={{ display: "flex", marginTop: 56, fontSize: 68, fontWeight: 700, letterSpacing: -2, lineClamp: 1 }}>
+            {stripUnsupportedOgText(model.name) || "Collector"}
+          </div>
+          {model.handle ? (
+            <div style={{ display: "flex", marginTop: 10, fontSize: 34, color: "#a1a1aa" }}>
+              {stripUnsupportedOgText(model.handle)}
+            </div>
+          ) : null}
+        </div>
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              <div style={{ display: "flex", fontSize: 44, fontWeight: 700, letterSpacing: -1 }}>
+                {stripUnsupportedOgText(model.board)}
+              </div>
+              <div style={{ display: "flex", marginTop: 8, fontSize: 30, color: "#a1a1aa" }}>
+                {stripUnsupportedOgText(model.weekLabel)}
+              </div>
+            </div>
+            <div style={{ display: "flex", fontFamily: "Geist Mono", fontSize: 44, color: "#ddd6fe" }}>
+              {stripUnsupportedOgText(model.score)}
+            </div>
+          </div>
+          <div
+            style={{
+              display: "flex",
+              marginTop: 36,
+              paddingTop: 28,
+              borderTop: "2px solid rgba(255,255,255,0.12)",
+              fontFamily: "Geist Mono",
+              fontSize: 28,
+              letterSpacing: 2,
+              color: "#a1a1aa",
+            }}
+          >
+            SLABHOLD.APP/LEADERBOARD
+          </div>
+        </div>
+      </div>
+    ),
+    { width: 1080, height: 1350, fonts: ogFonts, headers: { "Cache-Control": cacheControl } },
+  );
 }
 
 /**

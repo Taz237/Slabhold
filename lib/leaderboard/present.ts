@@ -4,8 +4,6 @@ import {
   BOARD_ERROR_DETAIL,
   BOARD_ERROR_TITLE,
   CLOSED_NOTE,
-  ON_BOARD_THIN_DETAIL,
-  ON_BOARD_THIN_TITLE,
   OPEN_SPOT_CLOSED_LABEL,
   OPEN_SPOT_LABEL,
   openSpotsLabel,
@@ -21,7 +19,6 @@ import {
   THIS_WEEK_LABEL,
   YOU_LABEL,
   boardCallToAction,
-  boardLead,
   leaderboardHref,
   leaderboardPageTabs,
   scoreUnit,
@@ -53,6 +50,8 @@ export type RankedEntry = {
 /** The entry one place ahead, or the runner-up when the viewer is #1. */
 export type YouRival = {
   name: string;
+  /** The rival's @handle, or their name when the row has no handle. */
+  handle: string;
   /** Points behind the rival, or the lead when the viewer is #1. 0 when tied. */
   need: number;
   tied: boolean;
@@ -113,18 +112,23 @@ export type OpenSpotsRow = {
   ctaHref: string;
 };
 
+/** Places gained or lost against last week's top 10. */
+export type RankMove = { direction: "up" | "down" | "same"; places: number };
+
 export type BoardRow = RankedEntry & {
   /** This row belongs to the signed-in viewer. Matched by user id. */
   mine: boolean;
+  /**
+   * This week only, on the boards that rank people: the move from the user's
+   * place in last week's top 10. Null when they had no place there. Never guessed.
+   */
+  move: RankMove | null;
 };
 
 export type LeaderboardBoard = {
   id: string;
   label: string;
   scoreLabel: string;
-  /** Bold lead-in before `lead`. Only "You're on the board", and only this week. */
-  leadTitle: string | null;
-  lead: string;
   /** Fewer than LEADERBOARD_MIN_ENTRIES ranked rows. */
   thin: boolean;
   focused: boolean;
@@ -160,12 +164,15 @@ export type LeaderboardPageModel = {
   standing: typeof PROVISIONAL_LABEL | typeof FINAL_LABEL;
   resetsAt: string;
   countdownLabel: string;
+  /** The same countdown as parts, for the reset clock's first paint. */
+  countdown: { days: number; hours: number; minutes: number; seconds: number };
   showCountdown: boolean;
   weekLinks: { id: "current" | "previous"; label: string; href: string; active: boolean }[];
   status: "ready" | "error";
   errorTitle: string;
   errorDetail: string;
   standingNote: string | null;
+  /** Who counts and when the week resets. Shown in the rules sheet. */
   rulesLine: string;
   /** Each board's how-to lines from rules.ts, behind the info control. */
   rules: { id: string; label: string; lines: readonly string[] }[];
@@ -199,7 +206,7 @@ function rivalFor(best: RankedEntry, ranked: readonly RankedEntry[], boardId: st
   const other = best.rank === 1 ? ranked[1] : ranked[best.rank - 2];
   if (!other) return null;
   const need = Math.max(0, best.rank === 1 ? best.score - other.score : other.score - best.score);
-  return { name: rivalName(other, boardId), need, tied: need === 0 };
+  return { name: rivalName(other, boardId), handle: rivalHandle(other), need, tied: need === 0 };
 }
 
 function gapLine(need: number, scoreLabel: string, handle: string, reachTopTen: boolean): string {
@@ -336,6 +343,24 @@ function bestForViewer(ranked: readonly RankedEntry[], viewerId: string | null):
   return best;
 }
 
+/**
+ * A row's move against last week's top 10. Post rows are new every week, so
+ * Top card post has none. Null without a real place last week.
+ */
+export function rankMove(
+  boardId: string,
+  rank: number,
+  userId: string,
+  previousTop: readonly RankedEntry[],
+): RankMove | null {
+  if (boardId === "top-card-post") return null;
+  const before = previousTop.find((entry) => entry.userId === userId);
+  if (!before) return null;
+  const places = before.rank - rank;
+  if (places === 0) return { direction: "same", places: 0 };
+  return { direction: places > 0 ? "up" : "down", places: Math.abs(places) };
+}
+
 /** Rows shown in the last-week preview. */
 const LAST_WEEK_PREVIEW_LIMIT = 3;
 const CLEAN_HANDLE = /^[A-Za-z0-9_][A-Za-z0-9_.-]*$/;
@@ -421,31 +446,28 @@ export function presentLeaderboard(input: {
         ? (input.snapshot.previous.boards[tab.id]?.rows ?? []).map((row) => row.userId)
         : [],
     );
+    // Last week's top 10 as this viewer sees it. Empty on the Last week view.
+    const previousTop =
+      input.week === "current"
+        ? rankBoard(input.snapshot.previous.boards[tab.id]?.rows ?? [], input.viewer.hiddenIds, viewerId, tab.scoreLabel, {
+            boardId: tab.id,
+            week: "previous",
+          }).entries
+        : [];
     const entries = ranked.entries.map((entry) => ({
       ...entry,
       isNew: input.week === "current" && !priorUsers.has(entry.userId),
       mine: viewerId != null && entry.userId === viewerId,
+      move: rankMove(tab.id, entry.rank, entry.userId, previousTop),
     }));
     const onBoard = entries.some((entry) => entry.mine);
     const you = viewerHasSpot ? ranked.you : null;
-    const onThinBoard = input.week === "current" && ranked.thin && onBoard;
-    const lastWeekTop =
-      input.week === "current" && ranked.thin
-        ? lastWeekRows(
-            rankBoard(input.snapshot.previous.boards[tab.id]?.rows ?? [], input.viewer.hiddenIds, viewerId, tab.scoreLabel, {
-              boardId: tab.id,
-              week: "previous",
-            }).entries,
-            tab.id,
-          )
-        : [];
+    const lastWeekTop = ranked.thin ? lastWeekRows(previousTop, tab.id) : [];
     const ghosts = openSpots(entries.length, tab.id, input.week);
     return {
       id: tab.id,
       label: tab.label,
       scoreLabel: tab.scoreLabel,
-      leadTitle: onThinBoard ? ON_BOARD_THIN_TITLE : null,
-      lead: onThinBoard ? ON_BOARD_THIN_DETAIL : boardLead(tab.id, input.week),
       thin: ranked.thin,
       focused: tab.id === input.focusBoardId,
       entries,
@@ -468,6 +490,12 @@ export function presentLeaderboard(input: {
     standing,
     resetsAt: input.snapshot.current.end,
     countdownLabel: countdown.label,
+    countdown: {
+      days: countdown.days,
+      hours: countdown.hours,
+      minutes: countdown.minutes,
+      seconds: countdown.seconds,
+    },
     showCountdown: input.week === "current",
     weekLinks: [
       {

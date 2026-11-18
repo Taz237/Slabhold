@@ -45,11 +45,6 @@ export function scoreUnit(label: string, score: number): string {
 
 export const THIN_BOARD_TITLE = "Board fills up as collectors post and follow";
 
-/** Thin board this week when the signed-in viewer already has points. Never on Last week. */
-export const ON_BOARD_THIN_TITLE = "You're on the board";
-
-export const ON_BOARD_THIN_DETAIL = "Hold your spot. Open spots fill as collectors join in.";
-
 /** Ghost row for an empty podium place this week. */
 export const OPEN_SPOT_LABEL = "Open spot";
 
@@ -72,7 +67,7 @@ export function openSpotsLabel(count: number, boardId: string): string {
 /** Ghost row for an empty podium place on a past week. No call to action. */
 export const OPEN_SPOT_CLOSED_LABEL = "No one took this spot";
 
-/** The one rules line under the header. The full rules sit behind the info control. */
+/** Who counts and when the week resets. Lives in the rules sheet, behind the info control. */
 export const RULES_LINE = "Real collectors only · Resets Monday 12 AM ET";
 
 export const RULES_SHEET_LABEL = "How the boards work";
@@ -125,8 +120,6 @@ export type LeaderboardTab = {
 };
 
 export const TOP_CARD_LEAD = "Post a card. Replies from real collectors count.";
-
-export const TOP_CARD_LEAD_LAST_WEEK = "Last week's card posts, by replies from real collectors.";
 
 export const RISING_LEAD = "Get follows from real collectors this week.";
 
@@ -199,13 +192,6 @@ export function boardCallToAction(
     href: "/compose",
     step: TOP_CARD_LEAD,
   };
-}
-
-/** One-line lead under a board's title. */
-export function boardLead(boardId: string, week: "current" | "previous"): string {
-  if (boardId === "most-cards-added") return week === "previous" ? MOST_CARDS_LEAD_LAST_WEEK : MOST_CARDS_LEAD;
-  if (boardId === "rising-collectors") return week === "previous" ? RISING_LEAD_LAST_WEEK : RISING_LEAD;
-  return week === "previous" ? TOP_CARD_LEAD_LAST_WEEK : TOP_CARD_LEAD;
 }
 
 const SHARED_ACTOR_RULES = [realCollectorRule(), testAccountRule()] as const;
