@@ -250,8 +250,16 @@ describe("Collection shows every card the count includes", () => {
     return el;
   }
 
+  /** Filters live in the Sort and filter sheet, behind the tools bar's one icon. Opens it when it is shut. */
   function filterChip(label: string): HTMLButtonElement {
-    const el = [...host.querySelectorAll<HTMLButtonElement>("button[aria-pressed]")].find((node) => node.textContent === label);
+    if (!document.querySelector("[data-collection-sheet]")) {
+      const open = host.querySelector<HTMLButtonElement>('button[aria-label^="Sort and filter"]');
+      assert.ok(open, "Sort and filter");
+      act(() => open.click());
+    }
+    const el = [...document.querySelectorAll<HTMLButtonElement>("[data-collection-sheet] button[aria-pressed]")].find(
+      (node) => node.textContent === label,
+    );
     assert.ok(el, label);
     return el;
   }
@@ -276,7 +284,8 @@ describe("Collection shows every card the count includes", () => {
   it("a filter that hides cards says so with the shown count, on every tab, and All clears it", async () => {
     const cards = fourteen();
     act(() => root!.render(screen(createElement(Dashboard), cards)));
-    act(() => filterChip("Held").click());
+    const chipHeld = filterChip("Held");
+    act(() => chipHeld.click());
     assert.equal(tileIds().length, 12);
     assert.match(countLine() ?? "", /Showing 12 of 14 cards · Held/);
     // The filter stays on across lanes, so the line goes with it.
@@ -296,7 +305,8 @@ describe("Collection shows every card the count includes", () => {
   it("Show all clears the filter", async () => {
     const cards = fourteen();
     act(() => root!.render(screen(createElement(Dashboard), cards)));
-    act(() => filterChip("Sold").click());
+    const chipSold = filterChip("Sold");
+    act(() => chipSold.click());
     assert.equal(tileIds().length, 2);
     const showAll = [...host.querySelectorAll("button")].find((node) => node.textContent === "Show all");
     assert.ok(showAll);
@@ -319,8 +329,19 @@ describe("Collection shows every card the count includes", () => {
     assert.match(bar.className, /top-\[var\(--app-header-h\)\]/);
     assert.match(bar.className, /bg-\[var\(--background\)\]/);
     assert.match(bar.className, /\bborder-b\b/);
-    const scroller = bar.firstElementChild as HTMLElement;
-    assert.match(scroller.className, /overflow-x-auto/);
-    assert.match((scroller.lastElementChild as HTMLElement).className, /shrink-0/, "a spacer after the last chip");
+    // One row: the lanes scroll sideways, search and sort stay put as icons beside them.
+    const row = bar.firstElementChild as HTMLElement;
+    assert.doesNotMatch(row.className, /overflow-x-auto/);
+    const lanes = row.querySelector<HTMLElement>('[role="tablist"]');
+    assert.ok(lanes);
+    assert.match(lanes.className, /overflow-x-auto/);
+    assert.match((lanes.lastElementChild as HTMLElement).className, /shrink-0/, "a spacer after the last lane");
+    const icons = [...row.querySelectorAll<HTMLElement>(":scope > button")];
+    assert.deepEqual(
+      icons.map((node) => (node.getAttribute("aria-label") ?? "").replace(/\..*$/, "")),
+      ["Search your cards", "Sort and filter"],
+    );
+    for (const icon of icons) assert.equal(icon.textContent, "", "an icon, no label");
+    assert.equal(row.querySelectorAll("button[aria-pressed]").length, 0, "no filter chips in the bar");
   });
 });

@@ -178,26 +178,30 @@ export function LeaderboardOptInSwitch({
   );
 }
 
-export function LeaderboardPrompt({
-  valuedCards,
-  value,
-  publicCollection,
-  ready,
-  minimums = leaderboardMinimums(),
-  accountCreatedAt,
-}: {
+type LeaderboardNudgeInput = {
   valuedCards: number;
   value: number;
   publicCollection: boolean;
   ready: boolean;
   minimums?: LeaderboardMinimums;
   accountCreatedAt?: string | null;
-}) {
+};
+
+/**
+ * True when the collector's public cards clear the board's minimums, the
+ * switch is still off, and they have not waved it away. `dismiss` remembers
+ * that on this device.
+ */
+export function useLeaderboardNudge({
+  valuedCards,
+  value,
+  publicCollection,
+  ready,
+  minimums = leaderboardMinimums(),
+  accountCreatedAt,
+}: LeaderboardNudgeInput): { visible: boolean; dismiss: () => void } {
   const { user } = useSocial();
   const [visible, setVisible] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const busyRef = useRef(false);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const id = user?.id;
@@ -250,17 +254,31 @@ export function LeaderboardPrompt({
     };
   }, [accountCreatedAt, minimums, publicCollection, ready, user, valuedCards, value]);
 
-  if (!visible || !user) return null;
-  const account = user;
-
   function dismiss() {
-    try {
-      window.localStorage.setItem(leaderboardPromptDismissKey(account.id), "1");
-    } catch {
-      // The prompt is optional when storage is blocked.
+    const id = user?.id;
+    if (id) {
+      try {
+        window.localStorage.setItem(leaderboardPromptDismissKey(id), "1");
+      } catch {
+        // The prompt is optional when storage is blocked.
+      }
     }
     setVisible(false);
   }
+
+  return { visible: visible && Boolean(user), dismiss };
+}
+
+export function LeaderboardPrompt(props: LeaderboardNudgeInput) {
+  const { minimums = leaderboardMinimums() } = props;
+  const { user } = useSocial();
+  const { visible, dismiss } = useLeaderboardNudge(props);
+  const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (!visible || !user) return null;
+  const account = user;
 
   async function optIn() {
     if (busyRef.current) return;

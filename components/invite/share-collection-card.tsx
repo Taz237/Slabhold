@@ -29,7 +29,7 @@ const action =
   "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full text-14 font-semibold whitespace-nowrap transition-transform duration-150 active:scale-[0.97] motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:outline-none";
 
 /** The preview a link to your collection unfurls into. A designed block until it loads, never a broken image. */
-function PreviewThumb({ src }: { src: string }) {
+export function PreviewThumb({ src }: { src: string }) {
   const [state, setState] = useState<"loading" | "loaded" | "failed">("loading");
   return (
     <div className="relative aspect-[1200/630] w-full overflow-hidden rounded-2xl border border-zinc-200 bg-[#09090B] dark:border-white/10">
@@ -54,11 +54,8 @@ function PreviewThumb({ src }: { src: string }) {
   );
 }
 
-/**
- * "Share my collection", on your own profile and at the top of /collection:
- * the link preview, then Share, Post on X and Save for Stories (1080×1920).
- */
-export function ShareCollectionCard() {
+/** Share, Post on X and Save for Stories (1080×1920): the three ways to share your collection. */
+export function ShareCollectionActions() {
   const { user } = useSocial();
   const { cards } = useCollection();
   const [saving, setSaving] = useState(false);
@@ -99,21 +96,8 @@ export function ShareCollectionCard() {
   const xHref = typeof window === "undefined" ? "#" : xIntentUrl({ text, url: withShareRef(absoluteUrl(path)) });
 
   return (
-    <section
-      data-share-collection=""
-      aria-labelledby="share-collection-title"
-      className="overflow-hidden rounded-3xl border border-violet-500/20 bg-white p-3 shadow-[0_1px_2px_rgba(0,0,0,0.05),0_8px_24px_rgba(0,0,0,0.06)] dark:border-violet-400/15 dark:bg-white/[0.03] dark:shadow-none"
-    >
-      <div className="flex items-baseline justify-between gap-3 px-1 pt-0.5 pb-2.5 big:flex-wrap">
-        <h2 id="share-collection-title" className="text-16 font-semibold tracking-tight">
-          Share my collection
-        </h2>
-        <span className="text-13 font-medium text-zinc-500">
-          {publicCount} public {publicCount === 1 ? "card" : "cards"}
-        </span>
-      </div>
-      <PreviewThumb src={`${path}/opengraph-image`} />
-      <div className="mt-3 flex gap-2 big:flex-wrap">
+    <>
+      <div className="flex gap-2 big:flex-wrap">
         <button type="button" onClick={() => void share()} className={`${action} bg-violet-600 px-5 text-white`}>
           <Share aria-hidden className="h-4 w-4" />
           Share
@@ -143,6 +127,41 @@ export function ShareCollectionCard() {
         <p className="mt-2.5 px-1 text-13 text-zinc-500">Make a card public and it shows up on your shared collection.</p>
       ) : null}
       {sheet}
+    </>
+  );
+}
+
+/**
+ * "Share my collection", on your own profile: the link preview, then Share,
+ * Post on X and Save for Stories. The Collection tab opens the same actions
+ * from its hero (components/collection-actions.tsx).
+ */
+export function ShareCollectionCard() {
+  const { user } = useSocial();
+  const { cards } = useCollection();
+  const publicCount = cards.filter((card) => card.isPublic).length;
+  const path = collectionSharePath(user?.username ?? "");
+
+  if (!user) return null;
+
+  return (
+    <section
+      data-share-collection=""
+      aria-labelledby="share-collection-title"
+      className="overflow-hidden rounded-3xl border border-violet-500/20 bg-white p-3 shadow-[0_1px_2px_rgba(0,0,0,0.05),0_8px_24px_rgba(0,0,0,0.06)] dark:border-violet-400/15 dark:bg-white/[0.03] dark:shadow-none"
+    >
+      <div className="flex items-baseline justify-between gap-3 px-1 pt-0.5 pb-2.5 big:flex-wrap">
+        <h2 id="share-collection-title" className="text-16 font-semibold tracking-tight">
+          Share my collection
+        </h2>
+        <span className="text-13 font-medium text-zinc-500">
+          {publicCount} public {publicCount === 1 ? "card" : "cards"}
+        </span>
+      </div>
+      <PreviewThumb src={`${path}/opengraph-image`} />
+      <div className="mt-3">
+        <ShareCollectionActions />
+      </div>
     </section>
   );
 }

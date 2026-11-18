@@ -299,7 +299,12 @@ describe("invite a collector", () => {
     assert.match(own, /<InviteButton username=\{profile\.username\}/);
     assert.equal(profile.match(/<InviteButton/g)?.length, 1);
     assert.match(profile, /\{isOwn \? \(\s*<div className="mt-3">\s*<ShareCollectionCard \/>/);
-    assert.match(readFileSync(join(process.cwd(), "components/dashboard.tsx"), "utf8"), /<ShareCollectionCard \/>/);
+    // Collection has no share card in its scroll: one share control in the hero opens the same actions.
+    const dash = readFileSync(join(process.cwd(), "components/dashboard.tsx"), "utf8");
+    assert.doesNotMatch(dash, /ShareCollectionCard/);
+    assert.match(dash, /<CollectionShareButton chart=\{chart\} \/>/);
+    const actions = readFileSync(join(process.cwd(), "components/collection-actions.tsx"), "utf8");
+    assert.match(actions, /<ShareCollectionActions \/>/);
   });
 });
 

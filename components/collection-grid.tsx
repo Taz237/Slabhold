@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { openSheetFromLink } from "@/components/add-card-link";
-import { type CSSProperties } from "react";
-import { Plus } from "lucide-react";
+import { useEffect, useRef, type CSSProperties } from "react";
+import { Ellipsis, Plus } from "lucide-react";
 import { CardTile, tileFocusRing } from "@/components/card-tile";
 import type { VisibilitySave } from "@/components/card-visibility";
 import {
@@ -17,10 +17,16 @@ import { needsDetails, needsDetailsLabel, type SportsCard } from "@/lib/types";
 import { ebaySoldSearchUrlForCard } from "@/lib/value/ebay-sold";
 import { resolvePriceRead, tilePriceText } from "@/lib/value/price-fallback";
 import type { CardValueResult } from "@/lib/value/types";
+import { pressTick } from "@/lib/ui/press-tick";
 
 /** Stagger stops after a couple of rows so long grids don't wait. */
 const STAGGER_MS = 35;
 const STAGGER_CAP = 12;
+
+/** How long a finger rests on a tile before its quick actions open. */
+export const LONG_PRESS_MS = 450;
+/** A finger that moves this far is scrolling, not pressing. */
+const LONG_PRESS_SLOP = 10;
 
 export function CollectionGrid({
   cards,
@@ -28,6 +34,7 @@ export function CollectionGrid({
   valuesLoading,
   valuesFailed,
   onVisibility,
+  onActions,
 }: {
   cards: SportsCard[];
   values: Map<string, CardValueResult>;
@@ -35,9 +42,78 @@ export function CollectionGrid({
   valuesFailed: boolean;
   /** Saves a card's public/private switch. Leave out to hide the lock. */
   onVisibility?: (card: SportsCard, isPublic: boolean) => VisibilitySave | void;
+  /**
+   * Opens a card's quick actions: a long press on its tile, a right click,
+   * or its "More actions" button (shown on keyboard focus). Leave out for none.
+   */
+  onActions?: (card: SportsCard) => void;
 }) {
+  const press = useRef<{ timer: number; x: number; y: number } | null>(null);
+  /** Set when a long press opened the actions, so the tap that ends it does not also open the card. */
+  const swallowClick = useRef(false);
+
+  function cancel() {
+    if (press.current) window.clearTimeout(press.current.timer);
+    press.current = null;
+  }
+  useEffect(() => cancel, []);
+
+  function cardAt(target: EventTarget | null): SportsCard | null {
+    if (!(target instanceof Element)) return null;
+    // The lock, Add photo and More actions keep their own taps.
+    if (target.closest("button, [data-tile-own-tap]")) return null;
+    const id = target.closest("[data-tile]")?.getAttribute("data-tile");
+    return cards.find((card) => card.id === id) ?? null;
+  }
+
   return (
-    <ul className={GRID_CLASS} aria-label="Your cards">
+    <ul
+      className={`${GRID_CLASS} collection-grid`}
+      aria-label="Your cards"
+      onPointerDown={
+        onActions
+          ? (event) => {
+              cancel();
+              swallowClick.current = false;
+              if (event.pointerType === "mouse") return;
+              const card = cardAt(event.target);
+              if (!card) return;
+              const timer = window.setTimeout(() => {
+                press.current = null;
+                swallowClick.current = true;
+                pressTick(10);
+                onActions(card);
+              }, LONG_PRESS_MS);
+              press.current = { timer, x: event.clientX, y: event.clientY };
+            }
+          : undefined
+      }
+      onPointerMove={(event) => {
+        const state = press.current;
+        if (state && Math.hypot(event.clientX - state.x, event.clientY - state.y) > LONG_PRESS_SLOP) cancel();
+      }}
+      onPointerUp={cancel}
+      onPointerCancel={cancel}
+      onContextMenu={
+        onActions
+          ? (event) => {
+              const card = cardAt(event.target);
+              if (!card) return;
+              event.preventDefault();
+              // A long press that already opened the actions fires this too on Android.
+              if (swallowClick.current) return;
+              cancel();
+              onActions(card);
+            }
+          : undefined
+      }
+      onClickCapture={(event) => {
+        if (!swallowClick.current) return;
+        swallowClick.current = false;
+        event.preventDefault();
+        event.stopPropagation();
+      }}
+    >
       {cards.map((card, index) => (
         <CollectionTile
           key={card.id}
@@ -47,6 +123,7 @@ export function CollectionGrid({
           valuesLoading={valuesLoading}
           valuesFailed={valuesFailed}
           onVisibility={onVisibility}
+          onActions={onActions}
         />
       ))}
       {showGhostTile(cards.length) ? <GhostTile index={cards.length} /> : null}
@@ -101,6 +178,7 @@ export function CollectionTile({
   valuesLoading,
   valuesFailed,
   onVisibility,
+  onActions,
 }: {
   card: SportsCard;
   index: number;
@@ -108,6 +186,7 @@ export function CollectionTile({
   valuesLoading: boolean;
   valuesFailed: boolean;
   onVisibility?: (card: SportsCard, isPublic: boolean) => VisibilitySave | void;
+  onActions?: (card: SportsCard) => void;
 }) {
   const { sold, valuePending, label, gain } = tileValue(
     card,
@@ -135,7 +214,20 @@ export function CollectionTile({
       }
       className="motion-safe:animate-[tile-in_420ms_cubic-bezier(0.2,0.7,0.2,1)_both]"
       style={staggerStyle(index)}
-    />
+    >
+      {onActions ? (
+        // Off screen until it takes keyboard focus: the same actions a long press opens.
+        <button
+          type="button"
+          aria-label={`More actions for ${card.playerName}`}
+          aria-haspopup="dialog"
+          onClick={() => onActions(card)}
+          className="sr-only place-items-center rounded-full bg-zinc-950/80 text-white outline-none focus:not-sr-only focus:absolute! focus:top-2 focus:left-2 focus:grid focus:h-11! focus:w-11! focus:ring-2 focus:ring-violet-400"
+        >
+          <Ellipsis className="h-5 w-5" aria-hidden />
+        </button>
+      ) : null}
+    </CardTile>
   );
 }
 

@@ -1085,8 +1085,11 @@ describe("leaderboard wiring", () => {
     assert.match(tabs, /href: "\/messages"/);
     assert.doesNotMatch(read("components/feed-view.tsx"), /\/leaderboard\/value/);
     assert.match(read("components/privacy-lists.tsx"), /LeaderboardOptInSwitch/);
-    assert.match(read("components/dashboard.tsx"), /LeaderboardOptInSwitch/);
-    assert.match(read("components/dashboard.tsx"), /LeaderboardPrompt/);
+    // On Collection the switch sits in a sheet behind the header's trophy, with the nudge as a dot on it.
+    assert.match(read("components/dashboard.tsx"), /<LeaderboardSettingsButton/);
+    assert.doesNotMatch(read("components/dashboard.tsx"), /LeaderboardOptInSwitch|LeaderboardPrompt/);
+    assert.match(read("components/collection-actions.tsx"), /<LeaderboardOptInSwitch minimums=\{minimums\} \/>/);
+    assert.match(read("components/collection-actions.tsx"), /useLeaderboardNudge\(/);
     const load = read("lib/leaderboard/value-load.ts");
     assert.match(load, /revalidate: LEADERBOARD_CACHE_SECONDS/);
     assert.match(load, /LEADERBOARD_CACHE_SECONDS = 15 \* 60/);
