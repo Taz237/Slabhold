@@ -18,7 +18,7 @@ import { isNativeApp, loadNative } from "@/lib/ios/platform";
 import { CAMERA_DENIED, type ScanOutcome } from "@/lib/ios/scanner";
 import { PHOTO_READ_ERROR, readPhotoFile } from "@/lib/photos";
 import { needsBackStep, withBack, type ScanSource } from "@/lib/scan/back-step";
-import { closestCards, closestMatch, readKeyOf, withPickedCard, type ClosestCard } from "@/lib/scan/closest";
+import { closestCards, closestMatch, onlyPlayerRead, readKeyOf, withPickedCard, type ClosestCard } from "@/lib/scan/closest";
 import { compQueryString, type ScanCompResult } from "@/lib/scan/comp";
 import { newScanId, scanAddPath, scanHandoffFrom } from "@/lib/scan/handoff";
 import type { LiveSoldsResult } from "@/lib/scan/live-solds";
@@ -274,7 +274,8 @@ export function ScanHub({
       const first = sheetStateFrom(result, true);
       // The card shows first; its last solds fill in. With no match yet, the
       // sold titles may still find it (a logo-only set), so keep looking.
-      if (first.kind === "ready") setSheet({ ...first, solds: { status: "looking" } });
+      // Only the player read is not a card yet: nothing shows until its sold titles or the pick list name one.
+      if (first.kind === "ready" && !onlyPlayerRead(first.matches)) setSheet({ ...first, solds: { status: "looking" } });
       const solds = await deps.solds(capture, result.matches, controller.signal).catch(() => null);
       if (controller.signal.aborted) return;
       // Later steps only add to a pinned card (an insert and its #), never replace or drop it. An
@@ -282,7 +283,8 @@ export function ScanHub({
       const pin = pinOf(result.matches[0]);
       const dropped = Boolean(solds && solds.matches.length > 0 && downgradesPin(pin, solds.matches));
       const matches = solds && solds.matches.length > 0 ? keepPinned(pin, solds.matches, result.matches[0] ?? null) : result.matches;
-      if (matches.length === 0) {
+      // No card, or only the player read (no year, set or card #): never a dead end, never a bare name.
+      if (matches.length === 0 || onlyPlayerRead(matches)) {
         shown.current = null;
         if (result.unpinned) {
           deps.logMiss({ capture, result, closest: 0 });
@@ -293,7 +295,7 @@ export function ScanHub({
         const found = await deps.closest(capture, controller.signal).catch(() => null);
         if (controller.signal.aborted) return;
         closest.current = found;
-        deps.logMiss({ capture, result, closest: found?.cards.length ?? 0 });
+        deps.logMiss({ capture, result: { ...result, matches: [] }, closest: found?.cards.length ?? 0 });
         setSheet({
           kind: "none",
           offline: false,

@@ -101,6 +101,13 @@ export type BakeoffCase = {
   truth: BakeoffTruth;
 };
 
+const PETERSON: BakeoffTruth = { player: "Darryn Peterson", year: "2026-27", set: "Topps", number: "257", parallel: "", run: null, sport: "Basketball", rookie: true };
+const PETERSON_FRONT_GLUED = ["DARRYN PETERSON UTA", "RC"];
+const PETERSON_FRONT_LINES = ["UTA", "DARRYN PETERSON", "UTAH JAZZ", "RC"];
+const PETERSON_LEGAL = "©, TM & © 2026 The Topps Company, Inc. All rights reserved.";
+const PETERSON_BACK = ["257", "DARRYN PETERSON", "UTAH JAZZ", "GUARD", "DRAFTED: JAZZ #1, 2026", "KANSAS", PETERSON_LEGAL];
+const PETERSON_BACK_SIDEWAYS = ["257", PETERSON_LEGAL];
+
 const MILLER: BakeoffTruth = { player: "Aidan Miller", year: "2024", set: "Bowman", number: "BP-27", parallel: "Pink/Red", parallelAlso: ["Fuchsia Border"], run: 299 };
 const MILLER_FRONT = ["3B", "1ST BOWMAN", "PHILADELPHIA PHILLIES", "137/299", "AIDAN MILLER"];
 /** The stylized 1ST BOWMAN logo often doesn't read. */
@@ -489,4 +496,13 @@ export const BAKEOFF_CASES: BakeoffCase[] = [
     live: BOOZER_RC3_LIVE,
     truth: BOOZER_RC3,
   },
+  // The Nov 18 device miss: 2026-27 Topps #257 Darryn Peterson RC (docs: the PR for this fix). The
+  // front prints the team code beside the nameplate, so Vision gives one line, "DARRYN PETERSON
+  // UTA", and the back's draft line prints "#1". Lines modeled on the collector's photos.
+  { name: "Peterson, 2026-27 Topps #257: UTA glued to the nameplate, the whole back", front: PETERSON_FRONT_GLUED, back: PETERSON_BACK, truth: PETERSON },
+  { name: "Peterson, 2026-27 Topps #257: UTA glued to the nameplate, a sideways back (only the # and the ©)", front: PETERSON_FRONT_GLUED, back: PETERSON_BACK_SIDEWAYS, truth: PETERSON },
+  { name: "Peterson, 2026-27 Topps #257: UTA glued to the nameplate, front only", front: PETERSON_FRONT_GLUED, back: null, truth: PETERSON },
+  { name: "Peterson, 2026-27 Topps #257: UTA on a line of its own, the whole back", front: PETERSON_FRONT_LINES, back: PETERSON_BACK, truth: PETERSON },
+  { name: "Peterson, 2026-27 Topps #257: UTA on a line of its own, a sideways back (only the # and the ©)", front: PETERSON_FRONT_LINES, back: PETERSON_BACK_SIDEWAYS, truth: PETERSON },
+  { name: "Peterson, 2026-27 Topps #257: UTA on a line of its own, front only", front: PETERSON_FRONT_LINES, back: null, truth: PETERSON },
 ];

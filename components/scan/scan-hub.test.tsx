@@ -1107,4 +1107,18 @@ describe("never a dead end: only the player was read", () => {
       view.unmount();
     }
   });
+
+  it("only the player read (a match with a name and no year, set or card #) is shown the same way: his cards to pick from, never a bare name", async () => {
+    const seen = { identified: [] as ScanCapture[], misses: [] as { closest: number; matches: number }[], confirmed: [] as string[] };
+    const nameOnly: ScanMatch = { ...picked, yearLabel: "", setBrand: "", cardNumber: "", parallel: "", parallelOptions: [], sureness: { player: "sure", year: "unsure", set: "unsure", number: "unsure", parallel: "unsure" } };
+    const view = await mount("add", { ...closestDeps(seen), identify: async (capture) => result(capture.pickedLines?.length ? [picked] : [nameOnly]) });
+    try {
+      await until(() => text().includes("Is it one of these?"));
+      assert.ok(!text().includes("Add to my collection"), "a name alone is not a card to add");
+      assert.equal(win.document.querySelectorAll('[data-pick="list"] li').length, 2);
+      assert.deepEqual(seen.misses, [{ closest: 2, matches: 0 }]);
+    } finally {
+      view.unmount();
+    }
+  });
 });
