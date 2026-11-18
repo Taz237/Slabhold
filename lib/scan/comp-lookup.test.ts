@@ -191,7 +191,7 @@ describe("lookupScanComp: the scan's own live search, again", () => {
   });
 
   it("the route passes q through and keeps it out of the card fields", async () => {
-    let seen: { serialRun: number | null; query: string | null } | null = null;
+    let seen: { serialRun: number | null; query: string | null; queries?: readonly string[] } | null = null;
     const response = await respondScanComp(
       new Request("https://slabhold.test/api/scan/comp?player=Jaxson+Dart&year=2025&set=Panini+Mosaic&number=362&parallel=Blue&grade=Raw&run=99&q=Jaxson+Dart+%2F199"),
       {
@@ -205,7 +205,7 @@ describe("lookupScanComp: the scan's own live search, again", () => {
       },
     );
     assert.equal(response.status, 200);
-    assert.deepEqual(seen, { serialRun: 99, query: "Jaxson Dart /199" });
+    assert.deepEqual(seen, { serialRun: 99, query: "Jaxson Dart /199", queries: ["Jaxson Dart /199"] });
   });
 });
 

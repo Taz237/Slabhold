@@ -50,7 +50,7 @@ import { RevealLabel, RevealSpinCard } from "@/components/scan/scan-reveal";
  */
 export type CompLookup = (
   identity: QuickCompIdentity,
-  options?: { serialRun?: number | null; query?: string | null },
+  options?: { serialRun?: number | null; query?: string | readonly string[] | null },
 ) => Promise<ScanCompResult>;
 
 type Props = {
@@ -229,7 +229,8 @@ export function CardPrice({
     const first = scanMatch ? compIdentityFromMatch({ ...scanMatch, parallel: initialChoice(scanMatch)?.name ?? "" }, scanCompGrade(scanMatch)) : null;
     return first ? compQueryString(first.identity, scanMatch?.serialRun ?? null) : "";
   });
-  const query = solds?.status === "done" ? solds.query : null;
+  // Every search the scan ran, so another parallel or grade is filtered from the same sales the scan counted.
+  const query = solds?.status === "done" ? (solds.queries?.length ? solds.queries : solds.query) : null;
   const looking = solds?.status === "looking" && key === scanKey;
   // Try again on the scan's own card looks it up again instead of reusing the scan's answer.
   const [retriedScan, setRetriedScan] = useState(false);

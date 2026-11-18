@@ -78,6 +78,6 @@ export function versionRereadSheet(
   return {
     kind: "ready",
     matches: rows,
-    solds: { status: "done", comp: solds.comp, query: solds.query, version, ...(solds.similar ? { similar: solds.similar } : {}) },
+    solds: { status: "done", comp: solds.comp, query: solds.query, ...(solds.queries?.length ? { queries: solds.queries } : {}), version, ...(solds.similar ? { similar: solds.similar } : {}) },
   };
 }

@@ -1,3 +1,4 @@
+import { listedParallelNames } from "@/lib/comps/known-run";
 import type { CatalogCard } from "@/lib/card-catalog";
 import type { ChecklistProduct } from "@/lib/cards/checklists";
 import type { ProductRecord } from "@/lib/cards/product-data";
@@ -103,6 +104,11 @@ export type LiveSoldsResult = {
   /** The live search that ran, so another parallel or grade on the sheet can reuse it. */
   query: string | null;
   /**
+   * Every search that answered on this lookup, in order. The sales shown (and the split by parallel)
+   * are counted from all of them together, so a re-filter for another parallel reads them all.
+   */
+  queries?: string[];
+  /**
    * Only with "No sales yet" (the search worked and found none): an estimate from last year's
    * similar cards, and last year's parallels at this print run. Never this card's price, never saved.
    */
@@ -130,22 +136,29 @@ function identityOf(match: ScanMatch): QuickCompIdentity | null {
   return compIdentityFromMatch(match, scanCompGrade(match))?.identity ?? null;
 }
 
+/** The parallels on this card's own product list, so a sale that names one is filed under it and never under Base. */
+function listedFor(products: readonly ProductRecord[] | null, match: Pick<ScanMatch, "yearLabel" | "setBrand" | "cardNumber" | "sport">): string[] {
+  return listedParallelNames(products, { yearLabel: match.yearLabel, year: 0, setBrand: match.setBrand, cardNumber: match.cardNumber, sport: match.sport });
+}
+
 async function cachedComp(
   top: ScanMatch,
   identity: QuickCompIdentity,
   titles: readonly SoldTitle[],
   deps: LiveSoldsDeps,
+  products: readonly ProductRecord[] | null = null,
 ): Promise<ScanCompResult | null> {
+  const listed = listedFor(products, top);
   // An insert with its version open (plain, Refractor, Holo) is never priced as Base: its cached
   // sales show by version, to pick, like the live search's.
   // A patch card with its run unread is the same: which version it is isn't known yet.
   const versionOpen = !top.parallel && top.serialRun == null && (Boolean(top.insertName) || Boolean(top.isRelic));
   const answer = (results: readonly TrawlSoldResult[], asOf: string | null, source: "quick-comp" | "sold-cache"): ScanCompResult | null => {
     if (versionOpen) {
-      const groups = cleanGroups(identity, results, deps.directory, top.serialRun, Boolean(top.isRelic));
+      const groups = cleanGroups(identity, results, deps.directory, top.serialRun, Boolean(top.isRelic), listed);
       return groups.length > 0 ? { status: "split", groups: groups.map(groupSummary) } : null;
     }
-    const result = cleanCompFor(identity, results, deps.directory, { serialRun: top.serialRun, asOf, source, runPicked: top.parallelSource === "run" });
+    const result = cleanCompFor(identity, results, deps.directory, { serialRun: top.serialRun, asOf, source, runPicked: top.parallelSource === "run", listedParallels: listed });
     return result.status === "ok" ? result : null;
   };
   // Every cached sale goes through the same filter as a live one: titles only, junk and grades out.
@@ -260,7 +273,7 @@ async function lookupSolds(
   if (confident(top)) {
     const identity = identityOf(top);
     if (identity) {
-      const cached = await cachedComp(top, identity, saved, deps);
+      const cached = await cachedComp(top, identity, saved, deps, products);
       if (cached) return { matches: first, comp: cached, query: null };
     }
   }
@@ -274,6 +287,8 @@ async function lookupSolds(
   const budget = newLookupBudget();
   let fetchedAt = "";
   let usedQuery: string | null = null;
+  // Every rung that answered: their results are grouped together, so a later re-filter needs them all.
+  const answered: string[] = [];
   let matches = first;
   let found: ScanSalesResult = { kept: [], dropped: emptyDropped() };
   const tried = new Set<string>();
@@ -288,21 +303,27 @@ async function lookupSolds(
       deps.log?.({ rung: index, query, ok: false, reason: live.reason });
       // A cap: say so, never "no sales".
       if (live.reason === "daily" || live.reason === "hourly" || live.reason === "safety") {
-        return { matches, comp: { status: "limited", reason: live.reason, resetAt: live.resetAt }, query: usedQuery };
+        return { matches, comp: { status: "limited", reason: live.reason, resetAt: live.resetAt }, query: usedQuery, queries: answered };
       }
       // Out of credits: no more Trawl calls this lookup, and nothing to show but that.
-      if (budget.outOfCredits) return { matches, comp: { status: "unavailable" }, query: usedQuery };
+      if (budget.outOfCredits) return { matches, comp: { status: "unavailable" }, query: usedQuery, queries: answered };
       // One failed search never wipes out the others: try the next rung. "Unavailable" only when none answered.
       continue;
     }
     usedQuery = query;
+    answered.push(query);
     fetchedAt = live.fetchedAt;
     results.push(...live.results);
     // 3. The sold titles help finish the identity (set, #, parallel).
     matches = rank([...saved, ...liveTitles(results)]);
     const best = matches[0];
     found = best?.playerName
-      ? scanSalesFor({ ...best, neverPlain: Boolean(best.isRelic) }, { grade: scanCompGrade(best), setBrand: best.setBrand, parallel: best.parallel, insertName: best.insertName }, results, deps.directory)
+      ? scanSalesFor(
+          { ...best, neverPlain: Boolean(best.isRelic) },
+          { grade: scanCompGrade(best), setBrand: best.setBrand, parallel: best.parallel, insertName: best.insertName, listedParallels: listedFor(products, best) },
+          results,
+          deps.directory,
+        )
       : found;
     deps.log?.({ rung: index, query, ok: true, results: live.results.length, kept: found.kept.length, dropped: found.dropped });
     if (found.kept.length > 0) break;
@@ -315,13 +336,13 @@ async function lookupSolds(
 
   if (!usedQuery) return { matches, comp: { status: "unavailable" }, query: null };
   const best = matches[0];
-  if (!best) return { matches: first, comp: { status: "none", searched: true }, query: usedQuery };
+  if (!best) return { matches: first, comp: { status: "none", searched: true }, query: usedQuery, queries: answered };
   // The player is still open (an unverified name no title carried): nothing is priced for nobody.
-  if (!best.playerName) return { matches, comp: { status: "none", searched: true }, query: usedQuery };
+  if (!best.playerName) return { matches, comp: { status: "none", searched: true }, query: usedQuery, queries: answered };
   if (found.kept.length === 0) {
     // "No sales yet": the search worked and found none. Only then, last year's similar cards.
     const similar = await similarCards(best, userId, budget, deps);
-    return { matches, comp: { status: "none", searched: true }, query: usedQuery, ...(similar ? { similar } : {}) };
+    return { matches, comp: { status: "none", searched: true }, query: usedQuery, queries: answered, ...(similar ? { similar } : {}) };
   }
 
   // 4. Sales by parallel: the picked parallel's group, labelled. With the parallel open, only a group
@@ -337,23 +358,24 @@ async function lookupSolds(
     // plain card of his (the device's Rookie Code RC-3 priced from 31 of them), and an insert's
     // plain version is the insert, not the base card. Its sales show by version, to pick.
     if (!base || !best.cardNumber || best.insertName) {
-      return { matches, comp: { status: "split", groups: groups.map(groupSummary), ...(base ? {} : { missing: "Base" }) }, query: usedQuery };
+      return { matches, comp: { status: "split", groups: groups.map(groupSummary), ...(base ? {} : { missing: "Base" }) }, query: usedQuery, queries: answered };
     }
     const priced = priceScanGroup(base.sales, { asOf: fetchedAt || null, source: "live" });
-    if (priced.status !== "ok") return { matches, comp: { status: "none", searched: true }, query: usedQuery };
+    if (priced.status !== "ok") return { matches, comp: { status: "none", searched: true }, query: usedQuery, queries: answered };
     return {
       matches,
       comp: { ...priced, parallel: base.label, groups: groups.map((item) => ({ label: item.label, nSales: item.sales.length })) },
       query: usedQuery,
+      queries: answered,
     };
   }
   // A patch card whose serial wasn't read (foil, glare, printed sideways): nothing says which version
   // it is, so no group is its price. The sales show by version and run, to pick. Never a guess.
   if (!best.parallel && best.serialRun == null && best.isRelic) {
-    return { matches, comp: { status: "split", groups: groups.map(groupSummary) }, query: usedQuery };
+    return { matches, comp: { status: "split", groups: groups.map(groupSummary) }, query: usedQuery, queries: answered };
   }
   if (!best.parallel && !isMajority(leader, found.kept.length)) {
-    return { matches, comp: { status: "split", groups: groups.map(groupSummary) }, query: usedQuery };
+    return { matches, comp: { status: "split", groups: groups.map(groupSummary) }, query: usedQuery, queries: answered };
   }
   // A colored group takes the card's parallel chip. A Base majority, or a numbered card's sales that
   // name no color ("/299, parallel not named"), leave it open.
@@ -361,9 +383,9 @@ async function lookupSolds(
   // A parallel the print run alone picked off the checklist prices from the run's clear majority,
   // whatever those titles call it: "Pink/Red" sales are the Fuchsia Border /299.
   const group = best.parallel ? groupForPick(groups, best.parallel, best.parallelSource === "run" && best.serialRun != null) : leader;
-  if (!group) return { matches, comp: { status: "split", groups: groups.map(groupSummary) }, query: usedQuery };
+  if (!group) return { matches, comp: { status: "split", groups: groups.map(groupSummary) }, query: usedQuery, queries: answered };
   const comp = priceScanGroup(group.sales, { asOf: fetchedAt || null, source: "live" });
-  if (comp.status !== "ok") return { matches, comp: { status: "none", searched: true }, query: usedQuery };
+  if (comp.status !== "ok") return { matches, comp: { status: "none", searched: true }, query: usedQuery, queries: answered };
 
   // Stored for the next scan or Quick Comp only when the parallel was known: an open one would file under Base.
   const identity = identityOf(best);
@@ -378,6 +400,7 @@ async function lookupSolds(
     matches,
     comp: { ...comp, parallel: group.label, groups: groups.map((item) => ({ label: item.label, nSales: item.sales.length })) },
     query: usedQuery,
+      queries: answered,
   };
 }
 

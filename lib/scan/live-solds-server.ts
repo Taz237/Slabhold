@@ -1,21 +1,21 @@
 import "server-only";
 
-import { unstable_cache } from "next/cache";
 import { loadChecklistsFor } from "@/lib/cards/checklist-load";
 import { loadProductData } from "@/lib/cards/product-data";
 import { getCompsSource, payloadFromSales } from "@/lib/comps";
 import { fetchTrawlSold, getTrawlApiKey } from "@/lib/comps/trawl";
 import { SCAN_DIRECTORY } from "@/lib/players/scan-directory";
-import { loadSharedQuickComp, type CacheFn } from "@/lib/quick-comp/cache";
+import { loadSharedQuickComp } from "@/lib/quick-comp/cache";
 import type { QuickCompPayload } from "@/lib/quick-comp/lookup";
 import { serverQuickCompLimits } from "@/lib/quick-comp/limits-server";
 import { pickQuickCompPhoto } from "@/lib/quick-comp/photo";
 import { serverScanCompDeps } from "./comp-lookup-server";
 import { makeLiveCacheRead, makeLiveSearch } from "./live-search";
 import type { LiveSoldsDeps } from "./live-solds";
+import { keyedCache } from "@/lib/quick-comp/keyed-cache";
 import { searchCachedSoldTitles } from "./sold-titles-server";
 
-const cache = unstable_cache as CacheFn;
+const cache = keyedCache;
 
 /** Reads the shared cache for a search the sheet already ran. Never Trawl. */
 export const readLiveCache = makeLiveCacheRead(cache);

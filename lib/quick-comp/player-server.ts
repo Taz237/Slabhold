@@ -6,7 +6,6 @@ import { getCompsSource } from "@/lib/comps";
 import { fetchTrawlSold, getTrawlApiKey } from "@/lib/comps/trawl";
 import { makeLiveSearch } from "@/lib/scan/live-search";
 import { readLiveCache } from "@/lib/scan/live-solds-server";
-import type { CacheFn } from "./cache";
 import { serverPlayerSearchLimits } from "./limits-server";
 import { searchCachedSoldTitles } from "@/lib/scan/sold-titles-server";
 import { getAuthUserId } from "@/lib/supabase/server";
@@ -16,6 +15,7 @@ import { nameKey, type PlayerNameRow } from "./player-names";
 import type { PlayerFeedDeps, PlayerSuggestDeps } from "./player-respond";
 import { playerSearchQuery } from "./player-respond";
 import { playerSalesFrom } from "./player-sales";
+import { keyedCache } from "@/lib/quick-comp/keyed-cache";
 import { indexNames, suggestPlayerNames, titlePhrases, type NameIndex } from "./player-suggest";
 
 let index: NameIndex | null = null;
@@ -48,7 +48,7 @@ const playerLiveSearch = makeLiveSearch({
   hasTrawlKey: () => Boolean(getTrawlApiKey()),
   fetchSold: fetchTrawlSold,
   limits: serverPlayerSearchLimits,
-  cache: unstable_cache as CacheFn,
+  cache: keyedCache,
   now: Date.now,
   warn: (event) => console.warn("[player-search] search failed", JSON.stringify(event)),
 });

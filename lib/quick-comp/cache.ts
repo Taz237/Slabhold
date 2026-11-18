@@ -6,9 +6,13 @@ export const QUICK_COMP_CACHE_TAG = "quick-comp";
 /** Six hours, the same freshness as the card page's sold comps. */
 export const QUICK_COMP_REVALIDATE_SECONDS = CACHE_TTL_MS / 1000;
 
-/** Shared across users: the key has no user id, so a hit is free for everyone. v2: sales are matched by version. */
+/**
+ * Shared across users: the key has no user id, so a hit is free for everyone. v2: sales are matched
+ * by version. v3: every reader and writer shares one entry (makeKeyedCache), so entries stored
+ * under the old per-caller keys are left behind.
+ */
 export function quickCompCacheKey(identity: QuickCompIdentity): string {
-  return `quick-comp-v2|${quickCompIdentityKey(identity)}`;
+  return `quick-comp-v3|${quickCompIdentityKey(identity)}`;
 }
 
 /** Thrown from inside the loader so the cache never stores it. */
@@ -44,4 +48,31 @@ export function loadSharedQuickComp<T>(
     tags: [QUICK_COMP_CACHE_TAG],
     revalidate: QUICK_COMP_REVALIDATE_SECONDS,
   })();
+}
+
+/** next/cache `unstable_cache` as we call it: the callback, the key parts, the options; the returned function takes the callback's arguments. */
+export type UnstableCache = <T, A extends unknown[]>(
+  cb: (...args: A) => Promise<T>,
+  keyParts: string[],
+  options: { tags: string[]; revalidate: number },
+) => (...args: A) => Promise<T>;
+
+/**
+ * The one callback every shared entry is stored and read with. Next keys an `unstable_cache` entry
+ * by the callback's own source text as well as the key parts, so a writer and a reader that pass
+ * different callbacks never meet: the reader misses every time. This callback is the same text for
+ * everyone and names nothing outside itself (so a build can't shorten it two ways). The loader is
+ * handed in as its argument; a function isn't part of the key (it serializes to nothing).
+ */
+const runLoader = <T>(load: () => Promise<T>): Promise<T> => load();
+
+/**
+ * A CacheFn whose entries depend on the key parts alone: whoever stores an entry, anyone asking
+ * with the same key parts reads it. A loader that throws is still never stored.
+ */
+export function makeKeyedCache(unstable: UnstableCache): CacheFn {
+  return <T>(load: () => Promise<T>, keyParts: string[], options: { tags: string[]; revalidate: number }) => {
+    const cached = unstable(runLoader<T>, keyParts, options);
+    return () => cached(load);
+  };
 }

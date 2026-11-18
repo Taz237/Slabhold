@@ -255,6 +255,11 @@ type Evidence = {
    * prints the same way), only a tie-break between real cards the sold titles name.
    */
   backNumbers: string[];
+  /**
+   * Every bare number on the back with the stat cells dropped, however many (checklistNumbers). For
+   * checklist checks only: one is the card # only when the checklist has this player at exactly one.
+   */
+  checklistNumbers?: string[];
   /** Codes read too loosely to trust alone ("RC 3", "RC" over "3"): a checklist must back one (RawCardRead.codeHints). */
   codeHints: string[];
   /** The one maker the back names (Topps, Panini, Leaf, Upper Deck). A card by another maker is never shown. */
@@ -278,6 +283,32 @@ const MAX_LONE_NUMBERS = 2;
 function loneNumbers(back: RawCardRead | null | undefined): string[] {
   const numbers = [...new Set((back?.lines ?? []).map((line) => line.trim()).filter((line) => /^\d{1,4}$/.test(line)).map(cardNumberKey))];
   return numbers.length > MAX_LONE_NUMBERS ? [] : numbers;
+}
+
+/** A stat table's column header, as Vision reads it beside its cell: FG%, 3P%, REB/G, AST/G, Career, YEAR, Totals. */
+const STAT_HEADER = /%\s*$|\/\s*G\s*$|^(?:career|year|totals?|pts|reb|ast|stl|blk|gp|gs|min|avg)$/i;
+
+/**
+ * Every bare number on the back that could be the card #, however many there are, for a checklist
+ * to check: never trusted on its own. A back read cell by cell (a sideways back's stat table) gives
+ * many, so the obvious stat cells are dropped first: a number that reads twice, one whose decimal
+ * twin also reads (".438" beside "438"), a four-digit year, a number beside a stat header, and a
+ * number that starts with 0. What is left is only ever the card # when the checklist puts this
+ * card's player at exactly one of them.
+ */
+export function checklistNumbers(back: RawCardRead | null | undefined): string[] {
+  const lines = (back?.lines ?? []).map((line) => line.trim());
+  const count = (text: string) => lines.filter((line) => line === text).length;
+  const out: string[] = [];
+  lines.forEach((line, index) => {
+    if (!/^[1-9]\d{0,3}$/.test(line) || /^(?:19|20)\d{2}$/.test(line)) return;
+    if (count(line) > 1) return;
+    if (lines.some((other) => other === `.${line}` || other === `0.${line}`)) return;
+    if ([lines[index - 1], lines[index + 1]].some((beside) => Boolean(beside) && STAT_HEADER.test(beside!))) return;
+    const key = cardNumberKey(line);
+    if (!out.includes(key)) out.push(key);
+  });
+  return out;
 }
 
 function words(text: string): string[] {
@@ -471,6 +502,7 @@ function evidenceFrom(read: ScanRead, directory: readonly IndexedDirectoryPlayer
     setText: setNames.length === 0 ? (sides.map((side) => side.productText ?? "").find(Boolean) ?? "") : "",
     cardNumber,
     backNumbers: loneNumbers(read.back),
+    checklistNumbers: checklistNumbers(read.back),
     codeHints: [...(read.back?.codeHints ?? []), ...read.front.codeHints].filter((code, index, all) => all.indexOf(code) === index),
     backMaker: read.back ? backMakerOf(read.back.lines) : null,
     serial: sides.map((side) => side.serial).find(Boolean) ?? null,
@@ -753,7 +785,7 @@ function withSetFromToppsBack(evidence: Evidence, checklists: readonly Checklist
   const years = checklistYears(evidence);
   if (!toppsBackReady(evidence, years)) return evidence;
   // The read # first, then the loose codes: "RC" over "3" is RC-3 when only that is his.
-  const numbers = [...(evidence.cardNumber ? [evidence.cardNumber] : evidence.backNumbers), ...evidence.codeHints];
+  const numbers = [...(evidence.cardNumber ? [evidence.cardNumber] : numbersToCheck(evidence)), ...evidence.codeHints];
   const sport = toppsBackSport(evidence);
   const found = new Map<string, { setBrand: string; yearLabel: string; cardNumber: string }>();
   for (const product of checklists) {
@@ -767,11 +799,17 @@ function withSetFromToppsBack(evidence: Evidence, checklists: readonly Checklist
       }
     }
   }
+  // Two of his rows among the back's bare numbers (92 and 257) can't say which is the card: open.
   if (found.size !== 1) return evidence;
   const [pick] = found.values();
   // Bowman and Hoops backs print their own names: a plain back that only one of them fits stays open.
   if (!/^topps\b/.test(productPhrase(pick.setBrand))) return evidence;
   return { ...evidence, setNames: [pick.setBrand], cardNumber: pick.cardNumber, yearLabel: evidence.yearLabel || pick.yearLabel, sport: evidence.sport || sport };
+}
+
+/** The back's bare numbers a checklist may check: the one or two a clean back prints, and the rest with the stat cells dropped. */
+function numbersToCheck(evidence: Evidence): string[] {
+  return [...new Set([...evidence.backNumbers, ...(evidence.checklistNumbers ?? [])])];
 }
 
 /** A plain Topps back, a card # (or one bare number), a year, a printed name our list doesn't have, and no sport read. */
@@ -995,8 +1033,8 @@ function withChecklistNumber(
   const his = (number: string) =>
     years.some((yearLabel) => playersAt(checklists, { yearLabel, setBrand, cardNumber: number, sport: evidence.sport || undefined }).some((hit) => namesAgree(hit.player, name)));
   let next = evidence;
-  if (!next.cardNumber && next.backNumbers.length > 0) {
-    const numbers = next.backNumbers.filter(his);
+  if (!next.cardNumber && numbersToCheck(next).length > 0) {
+    const numbers = numbersToCheck(next).filter(his);
     if (numbers.length === 1) next = { ...next, cardNumber: numbers[0] };
   }
   // The # read isn't his on this checklist (a lone "3" whose "RC" read on its own line, a bio's #),
@@ -1838,7 +1876,8 @@ function titleCandidates(
   // No title names a set ("Aidan Miller Pink/Red /299 BP-27"): they still count toward the parallel of
   // the card the scan built, for its # and run.
   if (groups.size === 0) return [];
-  return [...groups.values()].map((group) => {
+  const grouped = [...groups.values()];
+  const candidates: Candidate[] = grouped.map((group) => {
     // The year most titles give; titles that skip it still count toward everything else.
     const year = [...group.years.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? (evidence.yearLabel || (evidence.yearOpen ? "" : evidence.copyrightYear));
     const number = cardNumberKey(group.number);
@@ -1865,6 +1904,40 @@ function titleCandidates(
       ...(group.openSplit ? { openSplit: true } : {}),
     };
   });
+  // A card a title names must exist: the loaded checklist has to put this player at that card #.
+  return candidates.map((card, index) => onChecklist(card, checklists, grouped[index].titles)).filter((card): card is Candidate => card !== null);
+}
+
+/**
+ * A card named by sold titles, checked against the checklist for its year and set, when that list
+ * is loaded and knows the player. Sellers drop an insert's prefix ("Hardwood Stars #17" is HS-17),
+ * so a # the list doesn't put him at is not a card of his:
+ *   - the list has him at that #: the card, as it is;
+ *   - the digits are exactly one of his code rows there (17 and HS-17): that code, its insert named
+ *     by the checklist as for any card # in an insert. Several of his codes end in those digits
+ *     (AK-17, TB-17, HS-17): the one whose insert every one of these titles names ("Hardwood Stars");
+ *   - anything else: no such card, so it is never shown.
+ * No list loaded for that year and set, or one that doesn't have the player at all (a list that is
+ * not complete): nothing is checked and the card stays.
+ */
+function onChecklist(card: Candidate, checklists: readonly ChecklistProduct[] | null | undefined, titles: readonly string[] = []): Candidate | null {
+  if (!checklists?.length || !card.cardNumber || !card.yearLabel || !card.setBrand) return card;
+  const phrase = productPhrase(card.setBrand);
+  const products = checklists.filter(
+    (product) => sameSeason(product.yearLabel, card.yearLabel) && productPhrase(product.product) === phrase && (!card.sport || product.sport.toLowerCase() === card.sport.toLowerCase()),
+  );
+  const rows = products.flatMap((product) =>
+    product.sections.flatMap((section) => section.cards.filter(([, player]) => namesAgree(player, card.playerName)).map(([number]) => ({ number, section: section.name }))),
+  );
+  if (rows.length === 0) return card;
+  const key = checklistNumberKey(card.cardNumber);
+  if (rows.some((row) => checklistNumberKey(row.number) === key)) return card;
+  if (!/^\d+$/.test(key)) return null;
+  const coded = rows.filter((row) => /^[a-z]+\d*-?\d+$/i.test(row.number.trim()) && checklistNumberKey(row.number).replace(/^[a-z]+/, "") === key);
+  const plain = (text: string) => ` ${text.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()} `;
+  const named = coded.length > 1 && titles.length > 0 ? coded.filter((row) => titles.every((title) => plain(title).includes(plain(row.section)))) : coded;
+  const codes = [...new Set(named.map((row) => row.number))];
+  return codes.length === 1 ? { ...card, cardNumber: codes[0] } : null;
 }
 
 /** Sold titles for one set and card # (# "" when they give none). */

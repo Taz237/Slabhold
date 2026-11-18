@@ -430,7 +430,8 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
       {showAddedPanel({ added, owned: Boolean(card), dismissed: addedDismissed }) ? (
         <LazyCardAddedPanel
           cardId={card.id}
-          value={cardValue}
+          // The page's own figure (the sales on screen), never another one: card_values can lag or count differently.
+          value={shownValue}
           loading={valueLoading || checklist.loading}
           sales={sold.status === "ready" ? onScreenComps : null}
           salesLoading={compsLoading}

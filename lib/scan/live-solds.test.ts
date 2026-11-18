@@ -432,7 +432,7 @@ describe("the live search itself", () => {
     const read = makeLiveCacheRead(cache);
     assert.equal((await read("Jaxson Dart /199"))?.length, 1);
     assert.equal(await read("Someone Else"), null);
-    assert.equal(liveSearchKey(" Jaxson  DART /199 "), "scan-live-v1|jaxson dart /199");
+    assert.equal(liveSearchKey(" Jaxson  DART /199 "), "scan-live-v2|jaxson dart /199");
   });
 });
 

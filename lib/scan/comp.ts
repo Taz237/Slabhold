@@ -123,6 +123,8 @@ export type SoldsState =
       status: "done";
       comp: ScanCompResult;
       query: string | null;
+      /** Every search that answered for this scan (LiveSoldsResult.queries). Missing: only `query`. */
+      queries?: string[];
       similar?: ScanEstimateResult;
       /** A slab read again as the version the collector picked: the version these sales are for. */
       version?: string;
@@ -174,8 +176,11 @@ export function compIdentityFromMatch(
   };
 }
 
+/** The most searches one scan runs (the ladder's rungs), so the most a lookup is ever asked to read back. */
+export const MAX_SCAN_QUERIES = 4;
+
 /** Same field names as /api/quick-comp, plus the print run the card shows (run) for the sold-listing cache. */
-export function compQueryString(identity: QuickCompIdentity, serialRun?: number | null, query?: string | null): string {
+export function compQueryString(identity: QuickCompIdentity, serialRun?: number | null, query?: string | readonly string[] | null): string {
   const params = new URLSearchParams();
   params.set("player", identity.playerName);
   params.set("year", identity.yearLabel);
@@ -184,7 +189,8 @@ export function compQueryString(identity: QuickCompIdentity, serialRun?: number 
   params.set("parallel", identity.parallel || "Base");
   params.set("grade", identity.grade);
   if (serialRun != null && Number.isInteger(serialRun) && serialRun > 0) params.set("run", String(serialRun));
-  if (query) params.set("q", query);
+  // One q per search the scan ran: the lookup reads them all, so it sees every sale the scan counted.
+  for (const item of (typeof query === "string" ? [query] : (query ?? [])).filter(Boolean).slice(0, MAX_SCAN_QUERIES)) params.append("q", item);
   if (identity.insertName?.trim()) params.set("insert", identity.insertName.trim());
   return params.toString();
 }

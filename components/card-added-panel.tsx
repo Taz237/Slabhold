@@ -14,6 +14,7 @@ import { Logo } from "@/components/logo";
 import {
   addAnotherPath,
   addedBigPrice,
+  hiddenSalesNote,
   addedValueLine,
   milestoneFor,
   recentSoldPrices,
@@ -305,6 +306,9 @@ export function CardAddedPanel({
                         </li>
                       ))}
                     </ul>
+                    {hiddenSalesNote(price ? value?.nSales : null, recent.length) ? (
+                      <p className="mt-1.5 text-center text-11 text-zinc-500">{hiddenSalesNote(value?.nSales, recent.length)}</p>
+                    ) : null}
                     <p className="mt-1.5 text-center text-11 text-zinc-500">{ADDED_COPY.credit}</p>
                   </>
                 )}
