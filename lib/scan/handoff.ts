@@ -236,18 +236,20 @@ export function scanCardStart(handoff: ScanHandoff): ScanCardStart {
 }
 
 /**
- * The scan's insert name for the card being saved: only while its set and card # are still the
- * scan's. A collector who changed either is saving another card, which isn't in that insert.
+ * The insert name to save, from where it came (the scan, or the saved card being edited): kept
+ * while the set and card # are still that card's. A collector who changed either is saving another
+ * card, which isn't in that insert: "" clears it (the save sends insert_name: null). Undefined when
+ * there was none to begin with: the save leaves the column alone.
  */
 export function insertNameForSave(
-  start: { setBrand: string; cardNumber: string; insertName: string } | null | undefined,
+  start: { setBrand: string; cardNumber: string; insertName?: string | null } | null | undefined,
   values: { setBrand: string; cardNumber: string },
 ): string | undefined {
   const insert = start ? insertNameOf(start) : "";
   if (!start || !insert) return undefined;
   const sameSet = start.setBrand.trim().toLowerCase() === values.setBrand.trim().toLowerCase();
   const sameNumber = checklistNumberKey(start.cardNumber) === checklistNumberKey(values.cardNumber);
-  return sameSet && sameNumber ? insert : undefined;
+  return sameSet && sameNumber ? insert : "";
 }
 
 const SURENESS_STEPS: Record<(typeof SURENESS_KEYS)[number], AddFlowStep> = {

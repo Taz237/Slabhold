@@ -92,12 +92,26 @@ describe("the insert name is saved with the card", () => {
     assert.equal(upserts[0].year_label, "2026-27");
   });
 
-  it("a card with no insert sends no insert_name, so nothing changes for it", async () => {
+  it("a card whose insert isn't known sends no insert_name, so nothing changes for it", async () => {
     const { supabase, upserts } = client(NO_INSERT_COLUMN);
     await saveUserCard(supabase, "user-1", card({ insertName: undefined }), 5_000);
+    assert.equal(upserts.length, 1);
+    assert.equal("insert_name" in upserts[0], false);
+  });
+
+  it("a cleared insert sends insert_name: null, so a saved one can be removed (upserts never drop a column)", async () => {
+    const { supabase, upserts } = client();
+    await saveUserCard(supabase, "user-1", card({ insertName: "" }), 5_000);
+    assert.equal(upserts.length, 1);
+    assert.equal(upserts[0].insert_name, null);
+  });
+
+  it("clearing before the column is added: saved again without it, every other detail kept", async () => {
+    const { supabase, upserts } = client(NO_INSERT_COLUMN);
     await saveUserCard(supabase, "user-1", card({ insertName: "" }), 5_000);
     assert.equal(upserts.length, 2);
-    for (const row of upserts) assert.equal("insert_name" in row, false);
+    assert.equal("insert_name" in upserts[1], false);
+    assert.equal(upserts[1].year_label, "2026-27");
   });
 
   it("before the column is added: saved again without it, every other detail kept", async () => {
@@ -150,14 +164,23 @@ describe("from the scan to the collection", () => {
     assert.equal(parseScanHandoff(JSON.stringify({ ...handoff, insertName: 42 })), null);
   });
 
-  it("kept only while the set and card # are the scan's: a changed card is another card", () => {
+  it("kept only while the set and card # are the scan's, and cleared (\"\") once they're not", () => {
     const start = { setBrand: "Topps", cardNumber: "RC-3", insertName: "Rookie Code" };
     assert.equal(insertNameForSave(start, { setBrand: "Topps", cardNumber: "RC-3" }), "Rookie Code");
     assert.equal(insertNameForSave(start, { setBrand: " topps ", cardNumber: "rc3" }), "Rookie Code");
-    assert.equal(insertNameForSave(start, { setBrand: "Topps", cardNumber: "258" }), undefined);
-    assert.equal(insertNameForSave(start, { setBrand: "Topps Chrome", cardNumber: "RC-3" }), undefined);
+    // Another card: cleared, so the save sends insert_name: null.
+    assert.equal(insertNameForSave(start, { setBrand: "Topps", cardNumber: "258" }), "");
+    assert.equal(insertNameForSave(start, { setBrand: "Topps Chrome", cardNumber: "RC-3" }), "");
+    // Nothing known: left alone.
     assert.equal(insertNameForSave(null, { setBrand: "Topps", cardNumber: "RC-3" }), undefined);
     assert.equal(insertNameForSave({ ...start, insertName: "" }, { setBrand: "Topps", cardNumber: "RC-3" }), undefined);
+  });
+
+  it("editing a saved Rookie Code card: kept while the set and # stay, cleared when either changes", () => {
+    const saved = card({ insertName: "Rookie Code" });
+    assert.equal(insertNameForSave(saved, { setBrand: "Topps", cardNumber: "RC-3" }), "Rookie Code");
+    assert.equal(insertNameForSave(saved, { setBrand: "Topps", cardNumber: "RC-4" }), "");
+    assert.equal(insertNameForSave(card({ insertName: undefined }), { setBrand: "Topps", cardNumber: "258" }), undefined);
   });
 });
 

@@ -883,11 +883,13 @@ export function CardForm({
     const parsed = check.parsedYear;
     const liveCondition = check.conditionType;
 
-    const scanInsert = insertNameForSave(
-      scanStart ? { setBrand: scanStart.form.setBrand, cardNumber: scanStart.form.cardNumber, insertName: scanStart.insertName } : null,
+    // The insert name from the saved card being edited, or the scan: kept while the set and # are
+    // still that card's, cleared ("" → insert_name: null) once either changes.
+    const insertName = insertNameForSave(
+      existing ?? (scanStart ? { setBrand: scanStart.form.setBrand, cardNumber: scanStart.form.cardNumber, insertName: scanStart.insertName } : null),
       { setBrand: values.setBrand, cardNumber: noNumber ? "" : normalizeCardNumberInput(values.cardNumber) },
     );
-    const insertNamePatch: { insertName?: string } = scanInsert ? { insertName: scanInsert } : {};
+    const insertNamePatch: { insertName?: string } = insertName === undefined ? {} : { insertName };
     const payload = {
       playerName: values.playerName.trim(),
       year: parsed.year,

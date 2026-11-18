@@ -33,8 +33,13 @@ export function readInsertName(row: object): string | null {
   return typeof value === "string" ? insertNameOf({ insertName: value }) : "";
 }
 
-/** The row with insert_name, only for a card in an insert: other cards' saves don't change at all. */
-export function withInsertNameColumn<T extends Record<string, unknown>>(row: T, card: { insertName?: string | null }): T & { insert_name?: string } {
+/**
+ * The row with insert_name. A card whose insert isn't known (undefined) leaves the column alone, so
+ * its save is unchanged. A cleared one ("": its set or card # no longer the insert's) sends null:
+ * saves are upserts, and a column left out keeps its old value.
+ */
+export function withInsertNameColumn<T extends Record<string, unknown>>(row: T, card: { insertName?: string | null }): T & { insert_name?: string | null } {
+  if (card.insertName === undefined) return row;
   const insert = insertNameOf(card);
-  return insert ? { ...row, insert_name: insert } : row;
+  return { ...row, insert_name: insert || null };
 }
