@@ -21,6 +21,7 @@ import { lazyPart } from "@/lib/ui/lazy-part";
 import {
   isAuthPage,
   isChromelessPath,
+  isFullScreenPath,
   isInvitePage,
   isJoinBarPage,
   loadingShellFor,
@@ -256,6 +257,8 @@ function Shell({
   const wideMain =
     pathname.startsWith("/collection") || pathname.startsWith("/portfolio");
   const mainMax = wideMain ? "max-w-5xl" : "max-w-lg";
+  /** The Catalog feed fills the screen: nothing of the app's own sits over it. */
+  const fullScreen = isFullScreenPath(pathname);
   const mainPad = chromeless
     ? ""
     : showNav
@@ -361,7 +364,7 @@ function Shell({
       </PageFrame>
       <NavMotion ownUsername={user?.username ?? null} />
       <NavPendingSkeleton />
-      {showNav && !chromeless ? (
+      {showNav && !chromeless && !fullScreen ? (
         <nav
           style={{ viewTransitionName: "app-nav" }}
           data-app-chrome=""
@@ -418,8 +421,8 @@ function Shell({
           </div>
         </nav>
       ) : null}
-      {showJoin && !chromeless ? <JoinBar /> : null}
-      {showNav && !chromeless ? <CreateMenu key={pathname} /> : null}
+      {showJoin && !chromeless && !fullScreen ? <JoinBar /> : null}
+      {showNav && !chromeless && !fullScreen ? <CreateMenu key={pathname} /> : null}
       <AddCardSheetSlot />
       {user ? <FirstRunSetup /> : null}
       {user ? <YoureIn userId={user.id} username={user.username} /> : null}

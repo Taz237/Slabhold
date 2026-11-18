@@ -12,6 +12,15 @@ export const CARD_COMMENTS_BUCKET = "card-comments";
 export const CARD_COMMENTS_LIMIT = 20;
 export const CARD_COMMENTS_WINDOW_MS = 10 * 60 * 1000;
 
+/**
+ * Card hearts per signed-in user per hour. Their own bucket: a busy night of
+ * hearting cards never uses up the timeline's post likes, or the other way.
+ */
+export const CARD_LIKES_BUCKET = "card-likes";
+export const CARD_LIKES_LIMIT = 300;
+export const CARD_LIKES_WINDOW_MS = 60 * 60 * 1000;
+export const CARD_LIKE_LIMIT_MESSAGE = "You're liking cards too quickly. Please wait a bit and try again.";
+
 export const SIGNED_OUT_LIKE = "Log in to like cards.";
 export const SIGNED_OUT_COMMENT = "Log in to comment.";
 export const COMMENT_REJECTED = "That comment can't be posted.";

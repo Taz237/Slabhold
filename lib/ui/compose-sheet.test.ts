@@ -32,9 +32,9 @@ describe("chrome-less composer route", () => {
     const shell = read("components/app-shell.tsx");
     assert.match(shell, /isChromelessPath\(pathname\)/);
     assert.match(shell, /!chromeless \? \(\s*<header/);
-    assert.match(shell, /showNav && !chromeless \? \(\s*<nav/);
-    assert.match(shell, /showNav && !chromeless \? <CreateMenu/);
-    assert.match(shell, /showJoin && !chromeless \? <JoinBar/);
+    assert.match(shell, /showNav && !chromeless(?: && !fullScreen)? \? \(\s*<nav/);
+    assert.match(shell, /showNav && !chromeless(?: && !fullScreen)? \? <CreateMenu/);
+    assert.match(shell, /showJoin && !chromeless(?: && !fullScreen)? \? <JoinBar/);
     assert.match(shell, /const mainPad = chromeless\s*\? ""/);
   });
 });

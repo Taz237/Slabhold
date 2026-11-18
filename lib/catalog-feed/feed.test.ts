@@ -163,6 +163,29 @@ describe("For You mix", () => {
   });
 });
 
+describe("no same player twice in a row", () => {
+  it("For You moves a card down when the same player had the screen before it", () => {
+    const mixed = mixFeed(
+      [card(1, { player: "Shohei Ohtani" }), card(2, { player: "Shohei  ohtani" }), card(3, { player: "Aaron Judge" })],
+      EMPTY_TASTE,
+      new Set(),
+    );
+    assert.deepEqual(mixed.map((c) => c.player), ["Shohei Ohtani", "Aaron Judge", "Shohei  ohtani"]);
+  });
+
+  it("the next page never starts with the player already on the last screen", () => {
+    const current = [card(1, { player: "Aaron Judge" }), card(2, { player: "Shohei Ohtani" })];
+    const next = [card(3, { player: "Shohei Ohtani" }), card(4, { player: "Juan Soto" })];
+    const out = appendFeed(current, next);
+    assert.deepEqual(out.map((c) => c.player), ["Aaron Judge", "Shohei Ohtani", "Juan Soto", "Shohei Ohtani"]);
+  });
+
+  it("keeps the order when nothing else can go between", () => {
+    const out = appendFeed([card(1, { player: "A" })], [card(2, { player: "A" })]);
+    assert.deepEqual(out.map((c) => c.id), [id(1), id(2)]);
+  });
+});
+
 describe("heart", () => {
   it("a tap toggles it; a double tap only likes", () => {
     assert.deepEqual(heartTap({ liked: false, count: 4 }), { liked: true, count: 5 });
@@ -181,10 +204,12 @@ describe("heart", () => {
 });
 
 describe("swipe speed", () => {
-  it("warms the next 3 photos and draws only the slides around the one on screen", () => {
-    const cards = [card(1), card(2, { imageUrl: null }), card(3), card(4), card(5)];
-    assert.deepEqual(prefetchUrls(cards, 0), ["https://img.test/3.jpg", "https://img.test/4.jpg"]);
-    assert.deepEqual(feedWindow(0, 10), { start: 0, end: 3 });
+  it("warms the next 2 photos and mounts only the slides within 2 of the one on screen", () => {
+    const cards = [card(1), card(2), card(3), card(4), card(5)];
+    assert.deepEqual(prefetchUrls(cards, 0), ["https://img.test/2.jpg", "https://img.test/3.jpg"]);
+    assert.deepEqual(prefetchUrls([card(1), card(2, { imageUrl: null }), card(3), card(4)], 0), ["https://img.test/3.jpg"]);
+    assert.deepEqual(feedWindow(0, 10), { start: 0, end: 2 });
+    assert.deepEqual(feedWindow(5, 20), { start: 3, end: 7 });
     assert.deepEqual(feedWindow(6, 8), { start: 4, end: 7 });
   });
 

@@ -17,11 +17,11 @@ export const FEED_API = "/api/catalog/feed";
 export const FEED_PAGE_SIZE = 12;
 /** Start the next read when this many cards are left. */
 export const FEED_LOAD_AHEAD = 4;
-/** Photos warmed ahead of the card on screen. */
-export const FEED_PREFETCH = 3;
-/** Slides that draw their photo around the one on screen; the rest hold their height. */
+/** Photos fully loaded and decoded ahead of the card on screen. */
+export const FEED_PREFETCH = 2;
+/** Slides mounted around the one on screen; the rest are empty boxes that hold their place. */
 export const FEED_RENDER_BEHIND = 2;
-export const FEED_RENDER_AHEAD = 3;
+export const FEED_RENDER_AHEAD = 2;
 /** Two taps this close are a double tap (heart). One tap waits this long before opening. */
 export const DOUBLE_TAP_MS = 280;
 
@@ -308,7 +308,35 @@ export function mixFeed(cards: readonly FeedCard[], taste: FeedTaste, seen: Read
     }
   }
   for (const card of pool) if (!placed.has(card.id)) ordered.push(card);
-  return spreadOwners(ordered);
+  return spreadRepeats(spreadOwners(ordered), samePlayer);
+}
+
+/** Two cards of the same player (case and accents ignored). */
+export function samePlayer(a: FeedCard, b: FeedCard): boolean {
+  const key = playerKey(a.player);
+  return key !== "" && key === playerKey(b.player);
+}
+
+/**
+ * Moves a card down when it clashes with the screen before it (same player),
+ * if something else can go between. `before` is the card already on the
+ * screen ahead of this list, so a new page never starts with a repeat.
+ */
+export function spreadRepeats(
+  cards: readonly FeedCard[],
+  clash: (a: FeedCard, b: FeedCard) => boolean,
+  before?: FeedCard,
+): FeedCard[] {
+  const out = [...cards];
+  for (let index = 0; index < out.length; index += 1) {
+    const prev = index === 0 ? before : out[index - 1];
+    if (!prev || !clash(out[index], prev)) continue;
+    const swap = out.findIndex((card, at) => at > index && !clash(card, prev));
+    if (swap < 0) continue;
+    const [moved] = out.splice(swap, 1);
+    out.splice(index, 0, moved);
+  }
+  return out;
 }
 
 /** Moves a card down one when its owner also has the screen before it, if something else can go between. */
@@ -324,16 +352,16 @@ export function spreadOwners(cards: readonly FeedCard[]): FeedCard[] {
   return out;
 }
 
-/** Adds cards to the feed, skipping any already in it or seen this session. */
+/** Adds cards to the feed, skipping any already in it or seen this session, never the same player twice in a row. */
 export function appendFeed(current: readonly FeedCard[], next: readonly FeedCard[], seen: ReadonlySet<string> = new Set()): FeedCard[] {
   const have = new Set(current.map((card) => card.id));
-  const out = [...current];
+  const fresh: FeedCard[] = [];
   for (const card of next) {
     if (have.has(card.id) || seen.has(card.id)) continue;
     have.add(card.id);
-    out.push(card);
+    fresh.push(card);
   }
-  return out;
+  return [...current, ...spreadRepeats(fresh, samePlayer, current.at(-1))];
 }
 
 /** The heart: a tap toggles it, and the count moves by one, never below zero. */

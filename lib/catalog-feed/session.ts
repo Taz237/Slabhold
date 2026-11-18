@@ -2,14 +2,18 @@ import type { FeedCard, FeedFilters } from "./feed";
 import { feedKey } from "./feed";
 
 /**
- * What the feed remembers. The spot (cards, where you were, the next read)
- * lives for the tab session, so Back from a card page lands on the same
- * card. What you hearted (for For You) stays on the device. Every read and write survives blocked storage.
+ * What the feed remembers. The spot (which cards, where you were, the next
+ * read) lives for the tab session, so Back from a card page lands on the
+ * same card. The spot holds card ids only, so saving it as you swipe is a
+ * tiny write; the cards themselves are saved once, when they load. What you
+ * hearted (for For You) stays on the device. Every read and write survives
+ * blocked storage.
  */
 
 type Store = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
-const SPOT_PREFIX = "slabhold:catalog-feed:v1:";
+const SPOT_PREFIX = "slabhold:catalog-feed:v2:";
+const CARDS_KEY = "slabhold:catalog-feed:cards:v1";
 const SEEN_KEY = "slabhold:catalog-feed:seen:v1";
 const TASTE_KEY = "slabhold:catalog-feed:taste:v1";
 /** A saved spot older than this starts fresh. */
@@ -18,6 +22,8 @@ const SEEN_MAX = 2000;
 const TASTE_MAX = 100;
 /** A saved spot keeps at most this many cards. */
 const SPOT_MAX_CARDS = 120;
+/** Cards kept for every tab and sport together, newest last. */
+const CARDS_MAX = 400;
 
 export type FeedSpot = {
   cards: FeedCard[];
@@ -25,6 +31,8 @@ export type FeedSpot = {
   index: number;
   savedAt: number;
 };
+
+type SavedSpot = { ids: string[]; nextOffset: number | null; index: number; savedAt: number };
 
 function read<T>(store: Store | null, key: string): T | null {
   if (!store) return null;
@@ -61,24 +69,60 @@ export function deviceStore(): Store | null {
   }
 }
 
-/** Saves where the reader is. Keeps a window of cards around the one on screen. */
-export function saveSpot(store: Store | null, filters: FeedFilters, spot: Omit<FeedSpot, "savedAt">, now = Date.now()): void {
-  let { cards, index } = spot;
-  if (cards.length > SPOT_MAX_CARDS) {
-    const start = Math.max(0, Math.min(index - 20, cards.length - SPOT_MAX_CARDS));
-    cards = cards.slice(start, start + SPOT_MAX_CARDS);
-    index -= start;
-  }
-  write(store, SPOT_PREFIX + feedKey(filters), { cards, nextOffset: spot.nextOffset, index, savedAt: now });
+function readCards(store: Store | null): Record<string, FeedCard> {
+  const saved = read<Record<string, FeedCard>>(store, CARDS_KEY);
+  return saved && typeof saved === "object" && !Array.isArray(saved) ? saved : {};
 }
 
-/** The saved spot for this tab and sport, or null when there is none or it went stale. */
+/** Saves cards once, by id, for every tab's spot. Call it when cards load, not on every swipe. */
+export function saveCards(store: Store | null, cards: readonly FeedCard[]): void {
+  if (!store || cards.length === 0) return;
+  const pool = readCards(store);
+  for (const card of cards) {
+    delete pool[card.id];
+    pool[card.id] = card;
+  }
+  const ids = Object.keys(pool);
+  const keep = ids.length > CARDS_MAX ? Object.fromEntries(ids.slice(-CARDS_MAX).map((id) => [id, pool[id]])) : pool;
+  write(store, CARDS_KEY, keep);
+}
+
+/** Saves where the reader is: card ids only. Keeps a window of ids around the one on screen. */
+export function saveSpot(
+  store: Store | null,
+  filters: FeedFilters,
+  spot: { ids: readonly string[]; nextOffset: number | null; index: number },
+  now = Date.now(),
+): void {
+  let ids = [...spot.ids];
+  let index = spot.index;
+  if (ids.length > SPOT_MAX_CARDS) {
+    const start = Math.max(0, Math.min(index - 20, ids.length - SPOT_MAX_CARDS));
+    ids = ids.slice(start, start + SPOT_MAX_CARDS);
+    index -= start;
+  }
+  const saved: SavedSpot = { ids, nextOffset: spot.nextOffset, index, savedAt: now };
+  write(store, SPOT_PREFIX + feedKey(filters), saved);
+}
+
+/** The saved spot for this tab and sport, or null when there is none, it went stale or its cards are gone. */
 export function loadSpot(store: Store | null, filters: FeedFilters, now = Date.now()): FeedSpot | null {
-  const spot = read<FeedSpot>(store, SPOT_PREFIX + feedKey(filters));
-  if (!spot || !Array.isArray(spot.cards) || spot.cards.length === 0) return null;
+  const spot = read<SavedSpot>(store, SPOT_PREFIX + feedKey(filters));
+  if (!spot || !Array.isArray(spot.ids) || spot.ids.length === 0) return null;
   if (!(now - spot.savedAt < SPOT_MAX_AGE_MS)) return null;
-  const index = Math.min(Math.max(0, Math.floor(Number(spot.index) || 0)), spot.cards.length - 1);
-  return { ...spot, index };
+  const pool = readCards(store);
+  const at = Math.min(Math.max(0, Math.floor(Number(spot.index) || 0)), spot.ids.length - 1);
+  const cards: FeedCard[] = [];
+  let index = 0;
+  spot.ids.forEach((id, position) => {
+    const card = pool[id];
+    if (!card) return;
+    // The card that was on screen, or the nearest kept one before it.
+    if (position <= at) index = cards.length;
+    cards.push(card);
+  });
+  if (cards.length === 0) return null;
+  return { cards, nextOffset: spot.nextOffset ?? null, index, savedAt: spot.savedAt };
 }
 
 export function loadSeen(store: Store | null): Set<string> {

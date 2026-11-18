@@ -43,6 +43,8 @@ import {
   heartTap,
   mixFeed,
   prefetchUrls,
+  samePlayer,
+  spreadRepeats,
   tasteFrom,
   type FeedCard,
   type FeedFilters,
@@ -56,6 +58,7 @@ import {
   loadSeen,
   loadSpot,
   loadTaste,
+  saveCards,
   saveSeen,
   saveSpot,
   sessionStore,
@@ -68,9 +71,22 @@ const SignInPrompt = dynamic(() => import("@/components/catalog-feed-comments").
   ssr: false,
 });
 
-/** Room for the overlay at the top (tabs and sport chips) and the tab bar at the bottom. */
+/**
+ * Room for the overlay at the top (tabs and sport chips) and the home
+ * indicator at the bottom. The feed is full screen: the app's tab bar hides here.
+ */
 const TOP_ROOM = "pt-[calc(env(safe-area-inset-top)+6.75rem)]";
-const BOTTOM_ROOM = "pb-[calc(env(safe-area-inset-bottom)+5rem)]";
+const BOTTOM_ROOM = "pb-[calc(env(safe-area-inset-bottom)+1rem)]";
+/**
+ * One slide is exactly the scroller's height (not 100dvh: in the iOS app the
+ * two differ, and snap then springs back to the same card). No snap-always,
+ * which made iOS fight a full swipe.
+ */
+const SLIDE = "relative h-full shrink-0 snap-start overflow-hidden";
+/** Save the spot this long after the last swipe settles. */
+const SPOT_SAVE_MS = 600;
+/** No scrollend event (older Safari): the swipe has settled after this long without a scroll. */
+const SCROLL_IDLE_MS = 120;
 /** The rail's column on a phone. The photo centers in what is left. */
 const RAIL_ROOM = "pr-[4.5rem]";
 
@@ -85,6 +101,8 @@ type Burst = { key: number; x: number; y: number };
 function cardHeart(card: FeedCard, hearts: Record<string, Heart>): Heart {
   return hearts[card.id] ?? { liked: false, count: card.likeCount };
 }
+
+const idsOf = (list: readonly FeedCard[]) => list.map((card) => card.id);
 
 /** The URL keeps the tab and sport, so a share or a reload opens the same feed. */
 function writeUrl(filters: FeedFilters) {
@@ -195,7 +213,7 @@ export function CatalogFeed({
       }
       if (initialFilters.tab === "for-you" && initial.cards.length > 2) {
         const [head, ...rest] = initial.cards;
-        setCards([head, ...mixFeed(rest, tasteRef.current, new Set())]);
+        setCards([head, ...spreadRepeats(mixFeed(rest, tasteRef.current, new Set()), samePlayer, head)]);
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -212,20 +230,52 @@ export function CatalogFeed({
     router.prefetch(current.href);
   }, [current, router]);
 
-  // Warm the next three photos so a swipe never lands on a blank.
+  // Fully load and decode the next two photos so a swipe never lands on a blank.
+  const warmed = useRef<Set<string>>(new Set());
   useEffect(() => {
     for (const url of prefetchUrls(cards, index)) {
+      if (warmed.current.has(url)) continue;
+      warmed.current.add(url);
       const image = new Image();
       image.decoding = "async";
       image.src = url;
+      void image.decode?.().catch(() => {
+        // A broken photo shows its placeholder when it reaches the screen.
+      });
     }
   }, [cards, index]);
 
-  // Save the spot whenever it moves, so Back and a tab switch return to it.
+  // Cards are saved once, when they load. The spot (ids and where you are)
+  // is saved a moment after a swipe settles, so Back and a tab switch return to it.
+  const savedCards = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!restored.current) return;
+    const fresh = cards.filter((card) => !savedCards.current.has(card.id));
+    if (fresh.length === 0) return;
+    for (const card of fresh) savedCards.current.add(card.id);
+    saveCards(sessionStore(), fresh);
+  }, [cards]);
+  const spotRef = useRef({ filters, ids: [] as string[], nextOffset, index });
+  useEffect(() => {
+    spotRef.current = { filters, ids: idsOf(cards), nextOffset, index };
+  });
+  const saveSpotNow = useCallback(() => {
+    const spot = spotRef.current;
+    if (!restored.current || spot.ids.length === 0) return;
+    saveSpot(sessionStore(), spot.filters, spot);
+  }, []);
   useEffect(() => {
     if (!restored.current || cards.length === 0) return;
-    saveSpot(sessionStore(), filters, { cards, nextOffset, index });
-  }, [cards, nextOffset, index, filters]);
+    const timer = window.setTimeout(saveSpotNow, SPOT_SAVE_MS);
+    return () => window.clearTimeout(timer);
+  }, [cards.length, nextOffset, index, filters, saveSpotNow]);
+  useEffect(() => {
+    window.addEventListener("pagehide", saveSpotNow);
+    return () => {
+      window.removeEventListener("pagehide", saveSpotNow);
+      saveSpotNow();
+    };
+  }, [saveSpotNow]);
 
   // Hearts and saves the viewer already has on these cards.
   const known = useRef<Set<string>>(new Set());
@@ -286,18 +336,29 @@ export function CatalogFeed({
     if (cards.length - index <= FEED_LOAD_AHEAD) void loadMore();
   }, [cards.length, index, loadMore]);
 
-  // The slide on screen, from the scroll position. One read per frame.
-  const frame = useRef(0);
-  const onScroll = useCallback(() => {
-    if (frame.current) return;
-    frame.current = requestAnimationFrame(() => {
-      frame.current = 0;
-      const node = scroller.current;
-      if (!node || node.clientHeight === 0) return;
-      setIndex(Math.max(0, Math.round(node.scrollTop / node.clientHeight)));
-    });
+  // The slide on screen, read once a swipe settles (scrollend, or a short
+  // pause where there is no scrollend). Nothing re-renders mid-swipe, so the
+  // snap never gets pulled back to the card you left.
+  const settle = useCallback(() => {
+    const node = scroller.current;
+    if (!node || node.clientHeight === 0) return;
+    setIndex(Math.max(0, Math.round(node.scrollTop / node.clientHeight)));
   }, []);
-  useEffect(() => () => cancelAnimationFrame(frame.current), []);
+  const idle = useRef(0);
+  const hasScrollEnd = useRef(false);
+  const onScroll = useCallback(() => {
+    if (hasScrollEnd.current) return;
+    window.clearTimeout(idle.current);
+    idle.current = window.setTimeout(settle, SCROLL_IDLE_MS);
+  }, [settle]);
+  useEffect(() => {
+    const node = scroller.current;
+    hasScrollEnd.current = typeof window !== "undefined" && "onscrollend" in window;
+    if (!node || !hasScrollEnd.current) return;
+    node.addEventListener("scrollend", settle);
+    return () => node.removeEventListener("scrollend", settle);
+  }, [settle]);
+  useEffect(() => () => window.clearTimeout(idle.current), []);
 
   // Arrow keys and J / K page on a keyboard.
   useEffect(() => {
@@ -325,7 +386,7 @@ export function CatalogFeed({
         scroller.current?.scrollTo?.({ top: 0, behavior: reducedMotion ? "auto" : "smooth" });
         return;
       }
-      saveSpot(sessionStore(), filters, { cards, nextOffset, index });
+      saveSpot(sessionStore(), filters, { ids: idsOf(cards), nextOffset, index });
       setFilters(next);
       writeUrl(next);
       const spot = loadSpot(sessionStore(), next);
@@ -487,7 +548,7 @@ export function CatalogFeed({
 
   const open = useCallback(
     (card: FeedCard) => {
-      saveSpot(sessionStore(), filters, { cards, nextOffset, index });
+      saveSpot(sessionStore(), filters, { ids: idsOf(cards), nextOffset, index });
       router.push(card.href);
     },
     [cards, filters, index, nextOffset, router],
@@ -517,6 +578,14 @@ export function CatalogFeed({
     [],
   );
 
+  const closeComments = useCallback(() => setCommentsFor(null), []);
+  const closeSignIn = useCallback(() => setSignIn(null), []);
+  const countChange = useCallback((cardId: string, delta: number) => {
+    setCards((list) =>
+      list.map((card) => (card.id === cardId ? { ...card, commentCount: Math.max(0, card.commentCount + delta) } : card)),
+    );
+  }, []);
+
   const window_ = feedWindow(index, cards.length);
   const emptyText = feedEmptyText(filters, Boolean(viewerId));
   const ended = nextOffset == null && status === "idle" && cards.length > 0;
@@ -533,7 +602,7 @@ export function CatalogFeed({
         data-feed-scroller=""
         data-no-pull=""
         aria-label="Public cards"
-        className="h-full snap-y snap-mandatory overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex h-full snap-y snap-mandatory flex-col overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {status === "loading" ? <SkeletonSlide /> : null}
         {status === "error" ? <ErrorSlide onRetry={retry} /> : null}
@@ -548,13 +617,15 @@ export function CatalogFeed({
         ) : null}
         {status === "idle"
           ? cards.map((card, at) => {
-              const near = at >= window_.start && at <= window_.end;
+              // Only cards within two of the screen are mounted. The rest are empty boxes that keep their place.
+              if (at < window_.start || at > window_.end) {
+                return <div key={card.id} aria-hidden data-feed-hold="" data-card-id={card.id} className={SLIDE} />;
+              }
               const ownCard = viewerId === card.owner.id;
               return (
                 <FeedSlide
                   key={card.id}
                   card={card}
-                  near={near}
                   active={at === index}
                   priority={at === 0}
                   heart={cardHeart(card, hearts)}
@@ -575,23 +646,13 @@ export function CatalogFeed({
         {status === "idle" && nextOffset != null && cards.length > 0 ? <SkeletonSlide /> : null}
       </div>
       {commentsFor ? (
-        <CommentsSheet
-          card={commentsFor}
-          onClose={() => setCommentsFor(null)}
-          onCountChange={(cardId, delta) =>
-            setCards((list) =>
-              list.map((card) =>
-                card.id === cardId ? { ...card, commentCount: Math.max(0, card.commentCount + delta) } : card,
-              ),
-            )
-          }
-        />
+        <CommentsSheet card={commentsFor} onClose={closeComments} onCountChange={countChange} />
       ) : null}
-      {signIn ? <SignInPrompt reason={signIn} onClose={() => setSignIn(null)} /> : null}
+      {signIn ? <SignInPrompt key={signIn} reason={signIn} onClose={closeSignIn} /> : null}
       {toast ? (
         <p
           role="status"
-          className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] left-1/2 z-50 -translate-x-1/2 rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white shadow-lg dark:bg-zinc-100 dark:text-zinc-950"
+          className="fixed bottom-[calc(7.5rem+env(safe-area-inset-bottom))] left-1/2 z-50 -translate-x-1/2 rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white shadow-lg dark:bg-zinc-100 dark:text-zinc-950"
         >
           {toast}
         </p>
@@ -672,7 +733,6 @@ function FeedTop({ filters, onSwitch }: { filters: FeedFilters; onSwitch: (next:
 
 const FeedSlide = memo(function FeedSlide({
   card,
-  near,
   active,
   priority,
   heart,
@@ -687,7 +747,6 @@ const FeedSlide = memo(function FeedSlide({
   onComments,
 }: {
   card: FeedCard;
-  near: boolean;
   active: boolean;
   priority: boolean;
   heart: Heart;
@@ -737,7 +796,8 @@ const FeedSlide = memo(function FeedSlide({
       aria-label={feedCardLabel(card)}
       data-feed-slide=""
       data-active={active ? "" : undefined}
-      className="relative h-[100dvh] snap-start snap-always overflow-hidden"
+      data-card-id={card.id}
+      className={SLIDE}
     >
       {/* The card's own color behind it, pulled toward brand purple. */}
       <div
@@ -756,7 +816,7 @@ const FeedSlide = memo(function FeedSlide({
             aria-label={`Open ${card.player}. Double tap to like.`}
             className={`group relative grid h-full w-full place-items-center rounded-2xl [container-type:size] ${FOCUS}`}
           >
-            {near ? <Hero card={card} priority={priority} /> : <HeroHold />}
+            <Hero card={card} priority={priority || active} />
             {bursts.map((burst) => (
               <HeartBurst
                 key={burst.key}
@@ -858,7 +918,7 @@ function Hero({ card, priority }: { card: FeedCard; priority: boolean }) {
         alt=""
         draggable={false}
         decoding="async"
-        loading={priority ? "eager" : "lazy"}
+        loading="eager"
         fetchPriority={priority ? "high" : "auto"}
         ref={(img) => {
           if (img?.complete && img.naturalWidth > 0) setLoaded(src);
@@ -873,11 +933,6 @@ function Hero({ card, priority }: { card: FeedCard; priority: boolean }) {
       />
     </>
   );
-}
-
-/** A far slide keeps its place without drawing a photo. */
-function HeroHold() {
-  return <div aria-hidden className={`rounded-xl bg-zinc-900/[0.04] dark:bg-white/[0.04] ${CARD_BOX}`} />;
 }
 
 function HeartBurst({ burst, reducedMotion, onDone }: { burst: Burst; reducedMotion: boolean; onDone: () => void }) {
@@ -929,7 +984,7 @@ function Rail({
 }) {
   const [pop, setPop] = useState(0);
   return (
-    <div className="absolute right-2 bottom-[calc(env(safe-area-inset-bottom)+5.25rem)] flex w-14 flex-col items-center gap-2.5 md:right-4">
+    <div className="absolute right-2 bottom-[calc(env(safe-area-inset-bottom)+1.25rem)] flex w-14 flex-col items-center gap-2.5 md:right-4">
       <div className="relative mb-2">
         <Link
           href={userHref(card.owner.username)}
@@ -1018,7 +1073,7 @@ function OwnerFace({ owner, accent }: { owner: FeedCard["owner"]; accent: string
 
 function SlideFrame({ children, label }: { children: React.ReactNode; label: string }) {
   return (
-    <section aria-label={label} className="relative h-[100dvh] snap-start snap-always overflow-hidden">
+    <section aria-label={label} className={SLIDE}>
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 opacity-70"
