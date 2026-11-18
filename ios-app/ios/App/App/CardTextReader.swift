@@ -15,7 +15,8 @@ struct TextLine {
     /// In the straightened crop, 0...1, origin bottom left (Vision's own).
     var box: CGRect
     /// "card" (the whole crop), "label" (the slab label strip, read again larger),
-    /// "serial" (a serial's box, read again larger) or "vote" (three frames agreed).
+    /// "serial" (a serial's box, read again larger), "vote" (three frames agreed) or
+    /// "edge" (a serial printed sideways along the card's left or right edge).
     var source: String
 }
 
@@ -100,7 +101,8 @@ enum CardTextReader {
 
     /// Reads a photo: the library pick, or the frame the live camera captured. `frames` are
     /// the sharpest recent camera frames (none for a library pick); their text votes line by line.
-    static func read(image: UIImage, frames: [CGImage] = []) -> CardRead {
+    /// `edges` is false for a card's back, which skips the sideways serial pass.
+    static func read(image: UIImage, frames: [CGImage] = [], edges: Bool = true) -> CardRead {
         guard let upright = normalized(image), let cgImage = upright.cgImage else {
             return CardRead(lines: [], backLines: nil, image: nil, kind: nil)
         }
@@ -129,6 +131,10 @@ enum CardTextReader {
             details = merged(details, with: labelLines(in: cropped))
         }
         details = withSerialRereads(details, in: cropped, started: started)
+        // A raw card's front with no serial read: it may be printed sideways along an edge.
+        if edges, kind == "card", !label {
+            details = withEdgeSerial(details, in: cropped, started: started)
+        }
         // The barcode is read only on a slab, and only for its cert number.
         let cert = label ? certBarcode(in: cropped) : nil
         details = Array(ordered(details).prefix(maxLines))
@@ -310,6 +316,125 @@ enum CardTextReader {
             }
         }
         return out
+    }
+
+    // MARK: A serial printed sideways along an edge
+
+    /// The left and right share of the crop that is read again, turned both ways. Wide enough
+    /// to reach the card's edge when the crop is its toploader.
+    static let edgeStrip: CGFloat = 0.18
+    /// A strip is resized so its short side is about this many pixels: small foil print gets
+    /// larger on a small photo, and a large photo costs less time.
+    static let edgeStripSide: CGFloat = 320
+    /// All four edge reads together get this long. Past it, nothing is added.
+    static let edgeWaitSeconds: TimeInterval = 0.15
+    /// A serial ("23/99") anywhere in a line.
+    static let serialPattern = #"\d{1,4}\s*/\s*\d{1,4}"#
+    /// A whole line that is only a serial, with the letters Vision mixes up with digits.
+    static let edgeSerialPattern = #"^[0-9OolIS]{1,4}\s*/\s*[0-9OolIS]{1,4}$"#
+
+    static func hasSerial(_ lines: [TextLine]) -> Bool {
+        lines.contains { $0.text.range(of: serialPattern, options: .regularExpression) != nil }
+    }
+
+    /// The digit Vision most likely saw, for the few letters it mixes up with one.
+    static func edgeDigit(_ character: Character) -> Character {
+        switch character {
+        case "O", "o": return "0"
+        case "l", "I": return "1"
+        case "S": return "5"
+        default: return character
+        }
+    }
+
+    /// The serial an edge strip's line prints ("03/10"), or nil. The whole line must be a
+    /// serial: up to four digits, a slash, up to four digits, the run larger than the number.
+    /// A letter counts as its digit only when its side of the slash has a real digit too, so
+    /// border lines and words never make one. Nothing is guessed: no serial shape, no serial.
+    static func edgeSerial(from text: String) -> String? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.range(of: edgeSerialPattern, options: .regularExpression) != nil else { return nil }
+        let parts = trimmed.split(separator: "/").map { $0.trimmingCharacters(in: .whitespaces) }
+        guard parts.count == 2, parts.allSatisfy({ part in part.contains(where: { $0.isASCII && $0.isNumber }) }) else { return nil }
+        let sides = parts.map { String($0.map(edgeDigit)) }
+        guard let number = Int(sides[0]), let run = Int(sides[1]), number >= 1, run >= 2, run > number else { return nil }
+        return sides[0] + "/" + sides[1]
+    }
+
+    /// A box read in a strip turned a quarter turn, back in the strip as it sat (both 0...1,
+    /// origin bottom left).
+    static func unturned(_ box: CGRect, clockwise: Bool) -> CGRect {
+        clockwise
+            ? CGRect(x: 1 - box.maxY, y: box.minX, width: box.height, height: box.width)
+            : CGRect(x: box.minY, y: 1 - box.maxX, width: box.height, height: box.width)
+    }
+
+    /// The image resized, then turned a quarter turn, so text running along an edge reads level.
+    static func turned(_ image: CGImage, clockwise: Bool, scale: CGFloat) -> CGImage? {
+        var input = CIImage(cgImage: image)
+        if abs(scale - 1) > 0.05, let filter = CIFilter(name: "CILanczosScaleTransform") {
+            filter.setValue(input, forKey: kCIInputImageKey)
+            filter.setValue(scale, forKey: kCIInputScaleKey)
+            filter.setValue(1.0, forKey: kCIInputAspectRatioKey)
+            if let scaled = filter.outputImage { input = scaled }
+        }
+        // Core Image's y runs up, like Vision's, so these are exact quarter turns.
+        let turn = clockwise ? CGAffineTransform(a: 0, b: -1, c: 1, d: 0, tx: 0, ty: 0) : CGAffineTransform(a: 0, b: 1, c: -1, d: 0, tx: 0, ty: 0)
+        let output = input.transformed(by: turn)
+        return context.createCGImage(output, from: output.extent)
+    }
+
+    /// No serial was read: the crop's left and right edge strips are read again, turned both
+    /// ways, all at once. Only a serial is kept from them, and only when every read that found
+    /// one found the same one. Skipped when the scan is already past its time budget, and
+    /// nothing is added when the reads take longer than edgeWaitSeconds.
+    static func withEdgeSerial(_ lines: [TextLine], in image: CGImage, started: CFAbsoluteTime) -> [TextLine] {
+        guard !hasSerial(lines), CFAbsoluteTimeGetCurrent() - started < rereadBudgetSeconds else { return lines }
+        let width = CGFloat(image.width), height = CGFloat(image.height)
+        let side = (width * edgeStrip).rounded()
+        guard side >= 8, height >= 8 else { return lines }
+        #if DEBUG
+        let began = CFAbsoluteTimeGetCurrent()
+        defer { print("Edge serial pass: \(Int((CFAbsoluteTimeGetCurrent() - began) * 1000)) ms") }
+        #endif
+        let scale = min(edgeStripSide / side, 4096 / height)
+        let strips = [CGRect(x: width - side, y: 0, width: side, height: height), CGRect(x: 0, y: 0, width: side, height: height)]
+        let reads = FrameReads()
+        let group = DispatchGroup()
+        for rect in strips {
+            guard let strip = image.cropping(to: rect) else { continue }
+            for clockwise in [true, false] {
+                group.enter()
+                DispatchQueue.global(qos: .userInitiated).async {
+                    if let level = CardTextReader.turned(strip, clockwise: clockwise, scale: scale) {
+                        let found = CardTextReader.recognizeText(in: level).compactMap { line in
+                            CardTextReader.edgeLine(line, clockwise: clockwise, from: rect, in: image)
+                        }
+                        reads.add(found)
+                    }
+                    group.leave()
+                }
+            }
+        }
+        guard group.wait(timeout: .now() + edgeWaitSeconds) == .success else { return lines }
+        guard let serial = agreedSerial(reads.all().flatMap { $0 }) else { return lines }
+        // Added as its own line, never merged over one: a real line near the edge is never replaced.
+        return lines + [serial]
+    }
+
+    /// A line read in a turned strip as an "edge" line in the whole crop, or nil when it isn't
+    /// a serial. What Vision first said rides along as an alternate.
+    static func edgeLine(_ line: TextLine, clockwise: Bool, from rect: CGRect, in image: CGImage) -> TextLine? {
+        guard let serial = edgeSerial(from: line.text) else { return nil }
+        let original = line.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return TextLine(text: serial, alternates: original == serial ? [] : [original], confidence: line.confidence, box: cropBox(unturned(line.box, clockwise: clockwise), from: rect, in: image), source: "edge")
+    }
+
+    /// The one serial the edge reads agree on. Read upside down, "06/10" looks like "01/90":
+    /// when two reads name different serials, neither is trusted and the run stays open.
+    static func agreedSerial(_ found: [TextLine]) -> TextLine? {
+        guard let best = found.max(by: { $0.confidence < $1.confidence }) else { return nil }
+        return found.allSatisfy({ $0.text == best.text }) ? best : nil
     }
 
     /// A box read inside a cropped piece (0...1 of the piece, origin bottom left) as a box in
