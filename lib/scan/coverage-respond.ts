@@ -1,4 +1,4 @@
-import { confirmKeyOf, type ClosestCard } from "./closest";
+import { cardKey, confirmKeyOf, type ClosestCard } from "./closest";
 import { scanMissFromBody, type ScanMiss } from "./miss";
 
 /**
@@ -10,7 +10,8 @@ import { scanMissFromBody, type ScanMiss } from "./miss";
  * user per card (the user id, server-only, never sent to a phone, deleted with the account), so one
  * person can't vote a card up twice.
  * A confirmation is only saved or shown for a card our checklists have for that player, filed under
- * that player's own read: a made-up card is refused ("Not a card we know") and never shown.
+ * that player's own read: a made-up card is refused ("Not a card we know") and never shown. It is
+ * saved and shown as the checklist spells it, so "T.o.p.p.s" and "Topps" never split the votes.
  * A store that fails (the tables are not there yet) never fails the scan: the answer is still ok.
  */
 
@@ -69,8 +70,11 @@ export function confirmedCardFromBody(value: unknown): ClosestCard | null {
   return card;
 }
 
-/** A card we know for its player (our checklists have it), filed under that player's own read. */
-export type KnownCard = (card: ClosestCard) => Promise<boolean>;
+/** The checklist's own card (player, sport, year, set, card #) for a card it has, or null. */
+export type KnownCard = (card: ClosestCard) => Promise<ClosestCard | null>;
+
+/** The most confirmed cards shown for a read. The store reads more rows so made-up ones on top can't crowd real ones out. */
+export const MAX_CONFIRMED_SHOWN = 5;
 
 export async function respondConfirmedCards(request: Request, deps: CoverageRouteDeps & { read: (key: string) => Promise<ClosestCard[]>; known: KnownCard }): Promise<Response> {
   const gated = await gate(deps);
@@ -79,9 +83,16 @@ export async function respondConfirmedCards(request: Request, deps: CoverageRout
   if (!KEY.test(key)) return Response.json({ error: "key is required" }, { status: 400 });
   try {
     const cards: ClosestCard[] = [];
-    // The same check as a save: a row that isn't this player's real card is never shown.
-    for (const card of await deps.read(key)) {
-      if (confirmKeyOf(card) === key && (await deps.known(card))) cards.push(card);
+    const seen = new Set<string>();
+    // The same check as a save: a row that isn't this player's real card is never shown. Rows come
+    // most confirmed first, so an old row under another spelling of the same card is skipped.
+    for (const row of await deps.read(key)) {
+      if (cards.length >= MAX_CONFIRMED_SHOWN) break;
+      if (confirmKeyOf(row) !== key) continue;
+      const known = await deps.known(row);
+      if (!known || seen.has(cardKey(known))) continue;
+      seen.add(cardKey(known));
+      cards.push(row.confirmed === undefined ? known : { ...known, confirmed: row.confirmed });
     }
     return Response.json({ cards }, { headers: PRIVATE });
   } catch {
@@ -100,16 +111,17 @@ export async function respondConfirmCard(
   const card = confirmedCardFromBody(body?.card);
   if (!KEY.test(key) || !card) return Response.json({ error: "A key and a card are required" }, { status: 400 });
   // The key is the card's own player's read, and the card is one our checklists have for them.
-  let known = false;
+  let known: ClosestCard | null = null;
   try {
-    known = confirmKeyOf(card) === key && (await deps.known(card));
+    known = confirmKeyOf(card) === key ? await deps.known(card) : null;
   } catch {
-    known = false;
+    known = null;
   }
   if (!known) return Response.json({ error: NOT_KNOWN_MESSAGE }, { status: 400, headers: PRIVATE });
   let stored = true;
   try {
-    await deps.save(key, card, gated.userId);
+    // The checklist's spelling, not the collector's: every spelling of a card is one row.
+    await deps.save(key, known, gated.userId);
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
     // The database's own answers: this user is voting too fast, or the row failed its checks.

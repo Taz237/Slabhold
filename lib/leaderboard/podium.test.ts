@@ -6,6 +6,23 @@ import { boardHtml, items, listHtml, pageModel, render, row, rows, snap } from "
 const PLACE_TAG = { 1: ">1st place<", 2: ">2nd place<", 3: ">3rd place<" } as const;
 
 describe("podium for the top 3", () => {
+  it("lets a long name wrap to two lines in a tighter size, and cuts it off only past two", () => {
+    const long = "Alexandria Montgomery-Whitfield";
+    const list = [1, 2, 3].map((rank) => row(`p${rank}`, 10 - rank, { title: `${long} ${rank}` }));
+    const podium = listHtml(boardHtml(render(pageModel(snap({ "most-cards-added": list }))), "most-cards-added"), "data-podium")!;
+    for (const [index, place] of items(podium).entries()) {
+      const name = place.body.match(/<span data-podium-name="" class="([^"]*)">([^<]*)</);
+      assert.ok(name, "the name is drawn");
+      assert.equal(name[2], `${long} ${index + 1}`, "the whole name is in the markup");
+      const classes = name[1].split(/\s+/);
+      assert.ok(classes.includes("line-clamp-2"), "two lines, then an ellipsis");
+      assert.ok(!classes.includes("truncate"), "not cut to one line");
+      assert.ok(classes.includes("break-words"));
+      assert.ok(classes.includes(index === 0 ? "text-15" : "text-13"), "a tighter size");
+      assert.ok(classes.includes("leading-tight"));
+    }
+  });
+
   it("draws ranks 1 to 3 as a three-column podium with #1 in the middle, in rank order for screen readers", () => {
     const section = boardHtml(render(pageModel(snap({ "most-cards-added": rows(10) }))), "most-cards-added");
     const podium = listHtml(section, "data-podium");
@@ -26,7 +43,7 @@ describe("podium for the top 3", () => {
       assert.match(place.body, new RegExp(`lb-ring-${rank}\\b`));
       assert.match(place.body, new RegExp(PLACE_TAG[rank]));
       assert.match(place.body, new RegExp(`aria-hidden="true" class="lb-engraved[^"]*">${rank}<`));
-      assert.match(place.body, /\btruncate\b/);
+      assert.match(place.body, /data-podium-name="" class="line-clamp-2\b/);
       if (rank === 1) assert.match(place.body, /data-crown=""/);
       else assert.doesNotMatch(place.body, /data-crown/);
     }

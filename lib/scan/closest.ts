@@ -100,9 +100,18 @@ function allPlayerCards(player: { name: string; sport: string }, index: PlayerCa
  * only ever saved or shown for one of these, so nobody can seed a made-up choice.
  */
 export function isKnownCard(card: ClosestCard, index: PlayerCards | null): boolean {
-  if (!index || !card.playerName) return false;
+  return indexedCardOf(card, index) !== null;
+}
+
+/**
+ * The checklist's own year, set and card # for a card ("1985-86 T.o.p.p.s #9" is 1985-86 Topps #9),
+ * and its sport as the list names it. The player name stays as given: the index keeps only name keys.
+ * Null for a card the checklists don't have for that player.
+ */
+export function indexedCardOf(card: ClosestCard, index: PlayerCards | null): ClosestCard | null {
+  if (!index || !card.playerName) return null;
   const key = cardKey(card);
-  return allPlayerCards({ name: card.playerName, sport: card.sport }, index).some((known) => cardKey(known) === key);
+  return allPlayerCards({ name: card.playerName, sport: card.sport }, index).find((known) => cardKey(known) === key) ?? null;
 }
 
 /**
