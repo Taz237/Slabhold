@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
-import { act, createElement } from "react";
+import { act, createElement, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { installDom } from "@/lib/test/dom";
+import { CollectionShareButton, type ChartShare } from "@/components/collection-actions";
+import { CollectionContext } from "@/components/collection-provider";
 import { collectionShare, PortfolioHero, type PortfolioHeroProps } from "@/components/portfolio-hero";
+import { SocialContext } from "@/components/social-provider";
 import { addDays } from "@/lib/chart/range";
 import { snapshotDateInNewYork } from "@/lib/collection/totals-shared";
 
@@ -30,7 +33,19 @@ const props: PortfolioHeroProps = {
   onRetry: () => {},
   snapshots: { rows, loading: false },
   shareable: true,
+  // The dashboard's one share control: the chart share is a row in its sheet.
+  actions: (chart: ChartShare | null) => createElement(CollectionShareButton, { chart }),
 };
+
+const owner = { id: "u1", username: "maya", displayName: "Maya" };
+
+function providers(child: ReactNode) {
+  return createElement(
+    SocialContext.Provider,
+    { value: { ready: true, mode: "supabase", user: owner } as never },
+    createElement(CollectionContext.Provider, { value: { ready: true, cards: [] } as never }, child),
+  );
+}
 
 const realLoad = collectionShare.load;
 const realWarn = console.warn;
@@ -65,10 +80,14 @@ describe("Share collection when its code fails to load", () => {
     const host = document.createElement("div");
     document.body.append(host);
     root = createRoot(host);
-    act(() => root!.render(createElement(PortfolioHero, props)));
-    const button = () => host.querySelector<HTMLButtonElement>('button[aria-label="Share your collection chart"]')!;
+    act(() => root!.render(providers(createElement(PortfolioHero, props))));
+    // The chart share is not on the page until the share sheet is open.
+    assert.equal(document.querySelector('button[aria-label="Share your collection chart"]'), null);
+    act(() => host.querySelector<HTMLButtonElement>('button[aria-label="Share my collection"]')!.click());
+    const sheet = () => document.querySelector<HTMLElement>("[data-collection-sheet]")!;
+    const button = () => sheet().querySelector<HTMLButtonElement>('button[aria-label="Share your collection chart"]')!;
     assert.ok(button());
-    assert.equal(host.textContent?.includes("Couldn't open sharing"), false);
+    assert.equal(sheet().textContent?.includes("Couldn't open sharing"), false);
 
     act(() => button().dispatchEvent(new MouseEvent("click", { bubbles: true })));
     await settle();
@@ -77,7 +96,7 @@ describe("Share collection when its code fails to load", () => {
 
     assert.deepEqual(unhandled, []);
     assert.equal(button().disabled, false);
-    assert.match(host.textContent ?? "", /Couldn't open sharing\. Try again\./);
+    assert.match(sheet().textContent ?? "", /Couldn't open sharing\. Try again\./);
     assert.equal(warned[0]?.[0], "[collection-share]");
 
     let shared = 0;
@@ -89,7 +108,7 @@ describe("Share collection when its code fails to load", () => {
     await settle();
     assert.equal(loads, 2);
     assert.equal(shared, 1);
-    assert.equal(host.textContent?.includes("Couldn't open sharing"), false);
+    assert.equal(sheet().textContent?.includes("Couldn't open sharing"), false);
     assert.equal(button().disabled, false);
   });
 });

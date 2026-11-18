@@ -160,8 +160,9 @@ describe("native scanner: the camera screen", () => {
     // Snap and photo both go through handle(): CardTextReader.read, the reader `recognize` uses.
     assert.equal([...camera.matchAll(/self\.handle\(image\)/g)].length, 2);
     // A snap also hands over the sharpest recent frames; a library photo hands over none.
-    assert.match(camera, /let read = CardTextReader\.read\(image: image, frames: frames\)/);
-    assert.match(reader, /static func read\(image: UIImage, frames: \[CGImage\] = \[\]\) -> CardRead/);
+    // `edges` turns the sideways serial pass off for a back (lib/ios/edge-serial.test.ts).
+    assert.match(camera, /let read = CardTextReader\.read\(image: image, frames: frames, edges: isFront\)/);
+    assert.match(reader, /static func read\(image: UIImage, frames: \[CGImage\] = \[\], edges: Bool = true\) -> CardRead/);
     assert.match(plugin, /CardTextReader\.read\(image: image\)\.jsObject/);
   });
 
@@ -355,7 +356,7 @@ describe("native scanner: small print (OCR settings, alternates, re-reads)", () 
     assert.match(reader, /static let voteWaitSeconds: TimeInterval = 0\.5/);
     assert.match(reader, /for frame in frames\.prefix\(2\)/);
     assert.match(reader, /_ = group\.wait\(timeout: \.now\(\) \+ voteWaitSeconds\)/);
-    assert.equal([...reader.matchAll(/CFAbsoluteTimeGetCurrent\(\) - started < rereadBudgetSeconds/g)].length, 2);
+    assert.equal([...reader.matchAll(/CFAbsoluteTimeGetCurrent\(\) - started < rereadBudgetSeconds/g)].length, 3);
     assert.match(reader, /if label, CFAbsoluteTimeGetCurrent\(\) - started < rereadBudgetSeconds \{/);
   });
 });

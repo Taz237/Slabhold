@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ChevronRight, Layers, Share, Trophy } from "lucide-react";
+import { ChevronRight, Layers, Trophy } from "lucide-react";
 import { AddCardLink } from "@/components/add-card-link";
-import { MoveArrow, TopMovers, muted, tile, type HeroCard } from "@/components/collection-movers";
+import type { ChartShare } from "@/components/collection-actions";
+import { MoveArrow, TopMovers, muted, type HeroCard } from "@/components/collection-movers";
 import { ShapedCardThumb } from "@/components/card-thumb";
 import { ValueChart, type ChartPoint } from "@/components/charts/value-chart";
 import { athIndex, dayLabel } from "@/lib/chart/geometry";
@@ -73,8 +74,13 @@ export type PortfolioHeroProps = {
   values?: Map<string, CardValueResult>;
   /** Opens the cards without a value yet. */
   onShowWithoutValue?: () => void;
-  /** False for a private collection: no Share button. */
+  /** False for a private collection: the chart image is not offered to share. */
   shareable?: boolean;
+  /**
+   * Controls in the hero's top row, before Add a card (share, the leaderboard
+   * switch). Handed the chart share when the chart can be shared, else null.
+   */
+  actions?: (chart: ChartShare | null) => ReactNode;
   /** Tests pass saved days in. The app reads them. */
   snapshots?: CollectionSnapshots;
   /** Tests pass per-card days in. The app reads them. */
@@ -89,7 +95,7 @@ export const collectionShare = {
 };
 
 const CHART_ID = "collection";
-const CHART_HEIGHT = 184;
+const CHART_HEIGHT = 148;
 const NO_CARDS: SportsCard[] = [];
 const NO_VALUES = new Map<string, CardValueResult>();
 
@@ -101,7 +107,6 @@ function storage(): Storage | null {
   }
 }
 
-const label = "text-xs font-medium text-zinc-500 dark:text-zinc-400";
 const pulse = "skeleton-shimmer";
 type CountUp = typeof import("@/components/hero-count-up");
 let countUp: CountUp | null = null;
@@ -205,6 +210,7 @@ export function PortfolioHero(props: PortfolioHeroProps) {
         snapshots={snapshots}
         markers={markers}
         shareable={shareable}
+        actions={props.actions}
         perf={perf}
         perfLoading={days.loading}
       />
@@ -231,6 +237,7 @@ type ValueCardProps = {
   snapshots: CollectionSnapshots;
   markers: Map<string, string>;
   shareable: boolean;
+  actions?: (chart: ChartShare | null) => ReactNode;
   /** Market-only daily performance, oldest first. */
   perf: PerformancePoint[];
   perfLoading: boolean;
@@ -239,9 +246,10 @@ type ValueCardProps = {
 export type ChartMode = "performance" | "value";
 
 const MODE_KEY = "slabhold:chart-mode:collection";
-const MODES: { id: ChartMode; label: string }[] = [
-  { id: "performance", label: "Performance" },
-  { id: "value", label: "Value" },
+/** The toggle shows the unit each mode's axis reads in; the name is for screen readers. */
+const MODES: { id: ChartMode; label: string; glyph: string }[] = [
+  { id: "performance", label: "Performance", glyph: "%" },
+  { id: "value", label: "Value", glyph: "$" },
 ];
 const RANGE_LABEL: Record<RangeId, string> = { "7d": "1W", "30d": "1M", "90d": "3M", "1y": "1Y", all: "All" };
 /** Smallest y span in Performance: 2 points of return, so a quiet week looks quiet. */
@@ -304,6 +312,7 @@ const CollectionValueCard = memo(function CollectionValueCard({
   snapshots,
   markers,
   shareable,
+  actions,
   perf,
   perfLoading,
 }: ValueCardProps) {
@@ -380,7 +389,6 @@ const CollectionValueCard = memo(function CollectionValueCard({
   const perfReady = move != null && indexed.length >= 2;
   const ariaLabel = moveSummary(collectionValue, move, range, firstDate);
   const countText = `${cardCount} card${cardCount === 1 ? "" : "s"}`;
-  const anyAdds = points.some((point) => point.marker);
 
   // The count-up, as values land: from the total this screen last showed (after adding a card, a
   // $2.25 card counts +$2.25), else the last saved day's total. Never $0 and never the range's
@@ -446,168 +454,112 @@ const CollectionValueCard = memo(function CollectionValueCard({
   const shownTone = moveTone(shownMove);
   const changeLoading = valuesLoading || perfLoading;
 
+  const chartShare: ChartShare | null =
+    shareable && canChart && liveReady ? { share: () => void share(), sharing, failed: shareFailed } : null;
+  const ranges = canChart && available.length > 1 && !loading ? RANGES.filter((item) => available.includes(item.id)) : [];
+  const showModes = canChart && !valuesLoading && !snapshots.loading;
+
   return (
-    <section
-      className="relative overflow-hidden rounded-3xl border border-zinc-950/[0.08] bg-white dark:border-white/10 dark:bg-[#18181B]"
-      aria-label="Collection value"
-    >
-      <div className="relative p-4 sm:p-5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className={label}>Collection value</p>
-          <div className="flex items-center gap-2">
-            {shareable && canChart && liveReady ? (
-              <button
-                type="button"
-                onClick={() => void share()}
-                disabled={sharing}
-                aria-label="Share your collection chart"
-                className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-200 text-zinc-700 transition-transform active:scale-95 disabled:opacity-60 motion-reduce:transition-none dark:border-white/15 dark:text-zinc-200"
-              >
-                <Share className="h-4 w-4" aria-hidden />
-              </button>
-            ) : null}
-            <AddCardLink />
-          </div>
+    <section className="collection-hero relative" aria-label="Collection value">
+      <div className="flex min-h-11 items-center justify-between gap-2">
+        <h1 className={`text-sm font-medium ${muted}`}>Collection</h1>
+        <div className="flex items-center gap-2">
+          {actions?.(chartShare)}
+          <AddCardLink />
         </div>
-        {shareFailed ? (
-          <p role="status" className="mt-1 text-right text-xs text-zinc-500">
-            Couldn&apos;t open sharing. Try again.
-          </p>
-        ) : null}
-        {valuesLoading ? (
+      </div>
+      {valuesLoading ? (
+        <>
+          <span className="mt-1 block h-[3.25rem] w-48 skeleton-shimmer rounded-lg" aria-hidden />
+          <span className="sr-only">Loading collection value</span>
+        </>
+      ) : (
+        <p
+          ref={headlineRef}
+          data-slot="hero-value"
+          className="mt-1 text-[2.75rem] leading-[3.25rem] font-semibold tracking-[-0.035em] tabular-nums max-[359px]:text-[2.375rem]"
+          aria-live={scrub ? "off" : "polite"}
+        >
+          {valuesFailed ? "—" : money(headline)}
+        </p>
+      )}
+
+      {/* One fixed line: scrubbing never moves the chart. */}
+      <div className="mt-1 flex h-6 items-center gap-2 overflow-hidden whitespace-nowrap" data-slot="hero-change">
+        {changeLoading && !valuesFailed ? (
+          <span className={`block h-5 w-36 rounded-full ${pulse}`} aria-hidden />
+        ) : liveReady && canChart && shownMove ? (
           <>
-            <span className="mt-1 block h-11 w-44 skeleton-shimmer rounded-lg" aria-hidden />
-            <span className="sr-only">Loading collection value</span>
-          </>
-        ) : (
-          <p
-            ref={headlineRef}
-            data-slot="hero-value"
-            className="mt-0.5 text-[2.5rem] leading-[1.1] font-semibold tracking-[-0.03em] tabular-nums"
-            aria-live={scrub ? "off" : "polite"}
-          >
-            {valuesFailed ? "—" : money(headline)}
-          </p>
-        )}
-
-        {/* One fixed line: scrubbing never moves the chart. */}
-        <div className="mt-2 flex h-6 items-center gap-2 overflow-hidden whitespace-nowrap" data-slot="hero-change">
-          {changeLoading && !valuesFailed ? (
-            <span className={`block h-5 w-36 rounded-full ${pulse}`} aria-hidden />
-          ) : liveReady && canChart && shownMove ? (
-            <>
-              <span
-                data-gain={shownTone}
-                className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${MOVE_PILL[shownTone]}`}
-              >
-                <MoveArrow tone={shownTone} />
-                {moveAmount(shownMove)}
-              </span>
-              <span className={`truncate text-xs font-medium ${muted}`}>
-                {scrub ? `· ${dayLabel(scrub.date)}` : "market move"}
-              </span>
-            </>
-          ) : liveReady && canChart ? (
-            <span className={`text-xs font-medium ${muted}`} data-slot="thin-history">
-              Not enough history yet{scrub ? ` · ${dayLabel(scrub.date)}` : ""}
+            <span
+              data-gain={shownTone}
+              className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 font-mono text-xs font-semibold tabular-nums ${MOVE_PILL[shownTone]}`}
+            >
+              <MoveArrow tone={shownTone} />
+              {moveAmount(shownMove)}
             </span>
-          ) : (
-            <span className={`text-xs font-medium ${muted}`}>{countText}</span>
-          )}
+            {scrub ? (
+              <span className={`truncate text-xs font-medium ${muted}`}>· {dayLabel(scrub.date)}</span>
+            ) : (
+              <span className="sr-only">market move</span>
+            )}
+          </>
+        ) : liveReady && canChart ? (
+          <span className={`text-xs font-medium ${muted}`} data-slot="thin-history">
+            Not enough history yet{scrub ? ` · ${dayLabel(scrub.date)}` : ""}
+          </span>
+        ) : (
+          <span className={`text-xs font-medium ${muted}`}>{countText}</span>
+        )}
+      </div>
+      {valuesFailed ? (
+        <div className="mt-2 text-sm font-medium">
+          <ValuesRetry onRetry={onRetry} detail={valuesMessage} />
         </div>
-        {valuesFailed ? (
-          <div className="mt-2 text-sm font-medium">
-            <ValuesRetry onRetry={onRetry} detail={valuesMessage} />
-          </div>
-        ) : null}
+      ) : null}
 
-        {canChart && !valuesLoading && !snapshots.loading ? (
-          <div className="mt-3 flex h-8 items-center justify-between gap-2">
-            <div
-              role="group"
-              aria-label="Chart mode"
-              data-slot="mode-toggle"
-              className="inline-flex shrink-0 rounded-full bg-zinc-100 p-0.5 dark:bg-white/[0.06]"
-            >
-              {MODES.map((item) => {
-                const on = item.id === mode;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    aria-pressed={on}
-                    onClick={() => chooseMode(item.id)}
-                    className={`hit-44 h-7 rounded-full px-3 text-xs font-medium ${press} ${
-                      on
-                        ? "bg-white text-zinc-950 shadow-sm dark:bg-zinc-700 dark:text-zinc-50"
-                        : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
-                    }`}
-                  >
-                    {item.label}
-                  </button>
-                );
-              })}
-            </div>
-            <p className={`flex min-w-0 items-center gap-1.5 truncate text-xs ${muted}`} data-slot="mode-hint">
-              {performance ? (
-                "Price moves only"
-              ) : anyAdds ? (
-                <>
-                  <span aria-hidden className={`inline-block h-2 w-2 shrink-0 rounded-full border-[1.5px] border-current ${TONE_CLASS.brand}`} />
-                  Card added
-                </>
-              ) : (
-                "Total value"
-              )}
-            </p>
-          </div>
-        ) : null}
-
-        <div className="relative mt-2" style={{ minHeight: CHART_HEIGHT }}>
-          {loading ? (
-            <div className="skeleton-shimmer rounded-xl bg-zinc-100 dark:bg-white/5" style={{ height: CHART_HEIGHT }} aria-hidden />
-          ) : !canChart ? (
-            <ThinChart />
-          ) : performance && !perfReady ? (
-            <ThinChart title="Not enough history yet" detail="Price moves show here once your cards have a few days of sold prices." />
-          ) : (
-            <ValueChart
-              points={performance ? indexed : points}
-              ariaLabel={ariaLabel}
-              tone="brand"
-              curve="monotone"
-              morphKey={`${mode}-${range}`}
-              onScrub={onScrub}
-              showAth={showAth}
-              minSpan={performance ? PERF_MIN_SPAN : minSpan}
-              format={performance ? "percent" : "money"}
-              markerDots={!performance}
-              lineWidth={2}
-              faintGrid
-              tooltip="date"
-              height={CHART_HEIGHT}
-            />
-          )}
-          {note ? (
-            <p
-              role="status"
-              data-slot="add-note"
-              className="pointer-events-none absolute top-0 left-0 inline-flex h-7 max-w-full items-center truncate rounded-full bg-zinc-900 px-3 text-xs font-medium text-white shadow-sm dark:bg-zinc-100 dark:text-zinc-950"
-            >
-              {note.text} · {dayLabel(note.date)}
-            </p>
-          ) : null}
-        </div>
-
-        {canChart && available.length > 1 && !loading ? (
-          <div
-            role="group"
-            aria-label="Chart range"
-            data-slot="range-track"
-            className="mt-3 grid gap-1 rounded-full bg-zinc-100 p-1 dark:bg-white/[0.04]"
-            style={{ gridTemplateColumns: `repeat(${available.length}, minmax(0, 1fr))` }}
+      {/* Edge to edge on a phone: the line runs off the left of the screen. */}
+      <div className="hero-chart relative mt-3 max-sm:-mr-2 max-sm:-ml-4" style={{ minHeight: CHART_HEIGHT }}>
+        {loading ? (
+          <div className="skeleton-shimmer rounded-xl bg-zinc-100 max-sm:mr-2 max-sm:ml-4 dark:bg-white/5" style={{ height: CHART_HEIGHT }} aria-hidden />
+        ) : !canChart ? (
+          <ThinChart />
+        ) : performance && !perfReady ? (
+          <ThinChart title="Not enough history yet" detail="Price moves show here once your cards have a few days of sold prices." />
+        ) : (
+          <ValueChart
+            points={performance ? indexed : points}
+            ariaLabel={ariaLabel}
+            tone="brand"
+            curve="monotone"
+            morphKey={`${mode}-${range}`}
+            onScrub={onScrub}
+            showAth={showAth}
+            minSpan={performance ? PERF_MIN_SPAN : minSpan}
+            format={performance ? "percent" : "money"}
+            markerDots={!performance}
+            lineWidth={2}
+            faintGrid
+            tooltip="date"
+            height={CHART_HEIGHT}
+            tickInset={16}
+          />
+        )}
+        {note ? (
+          <p
+            role="status"
+            data-slot="add-note"
+            className="pointer-events-none absolute top-0 left-0 inline-flex h-7 max-w-full items-center truncate rounded-full bg-zinc-900 px-3 text-xs font-medium text-white shadow-sm max-sm:left-4 dark:bg-zinc-100 dark:text-zinc-950"
           >
-            {RANGES.filter((item) => available.includes(item.id)).map((item) => {
+            {note.text} · {dayLabel(note.date)}
+          </p>
+        ) : null}
+      </div>
+
+      {/* Range on the left, the chart's unit on the right. The row holds its height, so nothing shifts as it fills. */}
+      <div className="mt-1 flex min-h-9 items-center justify-between gap-2" data-slot="hero-controls">
+        {ranges.length ? (
+          <div role="group" aria-label="Chart range" data-slot="range-track" className="-ml-2 flex min-w-0 items-center">
+            {ranges.map((item) => {
               const on = item.id === range;
               return (
                 <button
@@ -616,10 +568,10 @@ const CollectionValueCard = memo(function CollectionValueCard({
                   aria-pressed={on}
                   aria-label={item.id === "all" ? "All time" : item.phrase.replace(/^p/, "P")}
                   onClick={() => choose(item.id)}
-                  className={`hit-44 h-9 rounded-full text-xs font-semibold tabular-nums relative ${press} ${
+                  className={`hit-44 h-9 rounded-full text-xs font-semibold tabular-nums relative min-w-10 px-2 font-mono ${press} ${
                     on
-                      ? "bg-white text-zinc-950 shadow-sm dark:bg-zinc-800 dark:text-zinc-50"
-                      : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+                      ? "text-zinc-950 dark:text-zinc-50"
+                      : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-500 dark:hover:text-zinc-100"
                   }`}
                 >
                   {RANGE_LABEL[item.id]}
@@ -627,9 +579,40 @@ const CollectionValueCard = memo(function CollectionValueCard({
                     <span
                       aria-hidden
                       data-range-dot=""
-                      className={`absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-current ${TONE_CLASS.brand}`}
+                      className={`absolute bottom-0.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-current ${TONE_CLASS.brand}`}
                     />
                   ) : null}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <span />
+        )}
+        {showModes ? (
+          <div
+            role="group"
+            aria-label="Chart mode"
+            data-slot="mode-toggle"
+            className="inline-flex shrink-0 rounded-full bg-zinc-950/[0.05] p-0.5 dark:bg-white/[0.06]"
+          >
+            {MODES.map((item) => {
+              const on = item.id === mode;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  aria-pressed={on}
+                  aria-label={item.label}
+                  title={item.label}
+                  onClick={() => chooseMode(item.id)}
+                  className={`hit-44 h-7 w-9 rounded-full font-mono text-xs font-semibold ${press} ${
+                    on
+                      ? "bg-white text-zinc-950 shadow-sm dark:bg-white/[0.14] dark:text-zinc-50"
+                      : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-500 dark:hover:text-zinc-100"
+                  }`}
+                >
+                  <span aria-hidden>{item.glyph}</span>
                 </button>
               );
             })}
@@ -651,7 +634,7 @@ function ThinChart({
 
   return (
     <div
-      className="relative flex flex-col items-center justify-center gap-1 overflow-hidden rounded-xl bg-zinc-50 px-6 py-4 text-center dark:bg-white/[0.03]"
+      className="relative flex flex-col items-center justify-center gap-1 overflow-hidden rounded-xl bg-zinc-50 px-6 py-4 text-center max-sm:mr-2 max-sm:ml-4 dark:bg-white/[0.03]"
       style={{ minHeight: CHART_HEIGHT }}
     >
       <svg
@@ -694,43 +677,18 @@ export function ValuesRetry({
   );
 }
 
-const TILE_ICON: Record<string, typeof Layers> = { Cards: Layers, "Best card": Trophy, "Top card": Trophy };
-
-function Tile({
-  name,
-  loading,
-  children,
-}: {
-  name: string;
-  loading?: boolean;
-  children: ReactNode;
-}) {
-  const Icon = TILE_ICON[name] ?? Layers;
-  return (
-    <div className={`${tile} flex min-h-[124px] flex-col`} data-stat-tile={name}>
-      <p className={`flex h-4 items-center gap-1.5 ${label}`}>
-        <Icon className="h-4 w-4 shrink-0" strokeWidth={1.5} aria-hidden />
-        {name}
-      </p>
-      {loading ? (
-        <>
-          <div className={`mt-2.5 h-7 w-20 rounded-md ${pulse}`} aria-hidden />
-          <div className={`mt-auto h-3 w-24 max-w-full rounded-full ${pulse}`} aria-hidden />
-          <span className="sr-only">Loading {name}</span>
-        </>
-      ) : (
-        children
-      )}
-    </div>
-  );
-}
-
-const value = "mt-2 truncate text-xl leading-7 font-semibold tracking-tight tabular-nums";
-const helper = `mt-auto pt-2 truncate text-xs leading-4 tabular-nums ${muted}`;
+const chip =
+  "inline-flex h-11 shrink-0 items-center gap-2 rounded-full border border-zinc-950/[0.07] bg-white px-3.5 text-13 dark:border-white/[0.08] dark:bg-white/[0.04]";
+const chipIcon = "h-4 w-4 shrink-0 text-zinc-500 dark:text-zinc-400";
 
 type StatPick = { kind: "best"; best: BestCard<HeroCard> } | { kind: "top"; card: HeroCard };
 
-/** Cards and Best (or Top) card. Brand purple with ▲ on the gain, never green. */
+/**
+ * One slim strip: the card count, the Best (or Top) card with its real
+ * thumbnail and number, and the shortcut to cards without a value yet. It
+ * scrolls sideways when all three don't fit. Brand purple with ▲ on a gain,
+ * never green.
+ */
 function StatRow({
   cardCount,
   withoutValueCount,
@@ -749,63 +707,68 @@ function StatRow({
   const withoutText = `${withoutValueCount} without a value yet`;
   const name = pick?.kind === "top" ? "Top card" : "Best card";
   const card = pick ? (pick.kind === "best" ? pick.best.card : pick.card) : null;
+  const showWithout = !loading && !failed && withoutValueCount > 0;
 
   return (
-    <div className="grid grid-cols-2 gap-2 big:grid-cols-1" data-slot="collection-stats">
-      <Tile name="Cards">
-        <p className={value}>{cardCount.toLocaleString("en-US")}</p>
-        {loading || failed ? (
-          <p className={helper}>&nbsp;</p>
-        ) : withoutValueCount > 0 && onShowWithoutValue ? (
-          <span className="mt-auto pt-2">
-            <button
-              type="button"
-              onClick={onShowWithoutValue}
-              className={`hit-44 inline-flex min-h-6 max-w-full items-center gap-0.5 rounded-xl bg-violet-500/10 py-1 pr-1 pl-2 text-left text-xs leading-4 font-medium text-violet-700 hover:bg-violet-500/15 dark:text-violet-300 ${press}`}
-            >
-              <span>{withoutText}</span>
-              <ChevronRight className="h-4 w-4 shrink-0" strokeWidth={1.5} aria-hidden />
-            </button>
-          </span>
-        ) : (
-          <p className={helper}>{withoutValueCount > 0 ? withoutText : "All have a value"}</p>
-        )}
-      </Tile>
-      <Tile name={name} loading={loading}>
-        {pick && card ? (
-          <>
-            <Link
-              href={`/cards/${card.card.id}`}
-              className="-m-1 mt-1 block rounded-xl p-1 outline-none focus-visible:ring-2 focus-visible:ring-violet-600"
-            >
-              <span className="flex min-h-12 items-center gap-2">
-                <ShapedCardThumb card={card.card} className="h-12 w-9 shrink-0 rounded-md" landscapeClassName="h-9 w-12 shrink-0 rounded-md" />
-                <span className="min-w-0 truncate text-sm font-medium" title={card.playerName}>
-                  {card.playerName}
-                </span>
+    <div
+      data-slot="collection-stats"
+      data-no-pull
+      className="-mx-4 flex items-center gap-2 overflow-x-auto overscroll-x-contain px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    >
+      <p className={chip} data-stat-tile="Cards">
+        <Layers className={chipIcon} strokeWidth={1.5} aria-hidden />
+        <span>
+          <span className="font-mono font-semibold tabular-nums">{cardCount.toLocaleString("en-US")}</span>{" "}
+          <span className={muted}>{cardCount === 1 ? "card" : "cards"}</span>
+        </span>
+      </p>
+      {loading ? (
+        <p className={chip} data-stat-tile={name}>
+          <Trophy className={chipIcon} strokeWidth={1.5} aria-hidden />
+          <span className={`h-3 w-24 rounded-full ${pulse}`} aria-hidden />
+          <span className="sr-only">Loading {name}</span>
+        </p>
+      ) : pick && card ? (
+        <Link
+          href={`/cards/${card.card.id}`}
+          data-stat-tile={name}
+          title={pick.kind === "best" ? "Best card, since you paid" : "Top card"}
+          className={`${chip} tap pl-3 outline-none focus-visible:ring-2 focus-visible:ring-violet-600`}
+        >
+          <Trophy className={chipIcon} strokeWidth={1.5} aria-hidden />
+          <span className="sr-only">{name}</span>
+          <ShapedCardThumb card={card.card} className="h-8 w-6 shrink-0 rounded" landscapeClassName="h-6 w-8 shrink-0 rounded" />
+          <span className="max-w-32 truncate font-medium">{card.playerName}</span>
+          {pick.kind === "best" ? (
+            <>
+              <span
+                data-gain="up"
+                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-xs leading-4 font-semibold tabular-nums ${MOVE_PILL.up}`}
+              >
+                <MoveArrow tone="up" />
+                {signedMoney(pick.best.gain)}
               </span>
-              {/* Its own line, so a five-figure value fits at 320. */}
-              {pick.kind === "best" ? (
-                <span
-                  data-gain="up"
-                  className={`mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs leading-4 font-semibold tabular-nums ${MOVE_PILL.up}`}
-                >
-                  <MoveArrow tone="up" />
-                  {signedMoney(pick.best.gain)}
-                </span>
-              ) : (
-                <span className="mt-2 block text-sm leading-5 font-semibold tabular-nums">{money(pick.card.value ?? 0)}</span>
-              )}
-            </Link>
-            <p className={helper}>{pick.kind === "best" ? "Since you paid" : "Your most valuable"}</p>
-          </>
-        ) : (
-          <>
-            <p className={value}>—</p>
-            <p className={helper}>{failed ? "Values didn't load" : "Shows once a card has a value"}</p>
-          </>
-        )}
-      </Tile>
+              <span className="sr-only">since you paid</span>
+            </>
+          ) : (
+            <span className="font-mono font-semibold tabular-nums">{money(pick.card.value ?? 0)}</span>
+          )}
+        </Link>
+      ) : null}
+      {showWithout && onShowWithoutValue ? (
+        <button
+          type="button"
+          onClick={onShowWithoutValue}
+          className={`${chip} tap border-violet-500/20 bg-violet-500/10 pr-2 font-medium text-violet-700 hover:bg-violet-500/15 dark:border-violet-400/20 dark:bg-violet-400/10 dark:text-violet-300 ${press}`}
+        >
+          <span>{withoutText}</span>
+          <ChevronRight className="h-4 w-4 shrink-0" strokeWidth={1.5} aria-hidden />
+        </button>
+      ) : showWithout ? (
+        <p className={`${chip} ${muted}`}>{withoutText}</p>
+      ) : null}
+      {/* Room after the last chip: Safari ignores a scroller's end padding. */}
+      <span className="w-2 shrink-0" aria-hidden />
     </div>
   );
 }

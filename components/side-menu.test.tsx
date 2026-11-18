@@ -11,8 +11,12 @@ import { BOTTOM_NAV } from "@/lib/ui/bottom-nav";
 import {
   MENU_OPEN_HREF,
   SIDE_MENU_ADMIN,
+  SIDE_MENU_DELETE,
   SIDE_MENU_ITEMS,
+  SIDE_MENU_LEGAL,
+  SIDE_MENU_LEGAL_LABEL,
   SIDE_MENU_SETTINGS,
+  SIDE_MENU_SUPPORT,
   dragOffset,
   menuItemActive,
   menuQueryOpens,
@@ -191,6 +195,18 @@ function menuLink(name: string): HTMLAnchorElement {
   );
   assert.ok(link, `menu link ${name}`);
   return link;
+}
+
+function legalToggle(): HTMLButtonElement {
+  const toggle = [...dialog().querySelectorAll<HTMLButtonElement>("button")].find(
+    (button) => button.textContent?.trim() === SIDE_MENU_LEGAL_LABEL,
+  );
+  assert.ok(toggle, "About & legal row");
+  return toggle;
+}
+
+function panelHrefs(): string[] {
+  return [...dialog().querySelectorAll("a")].map((a) => a.getAttribute("href") ?? "");
 }
 
 async function settle() {
@@ -403,7 +419,17 @@ describe("side menu", () => {
       await openMenu();
       await settle();
       const panel = dialog();
-      const hrefs = new Set([...panel.querySelectorAll("a")].map((a) => a.getAttribute("href")));
+      // The quiet rows wait behind About & legal: one tap opens them in place.
+      for (const href of ["/about", "/privacy", "/terms", "/settings/invite", SIDE_MENU_DELETE.href]) {
+        assert.equal(panelHrefs().includes(href), false, `${href} starts folded away`);
+      }
+      assert.equal(legalToggle().getAttribute("aria-expanded"), "false");
+      await act(async () => {
+        legalToggle().click();
+      });
+      assert.equal(legalToggle().getAttribute("aria-expanded"), "true");
+      assert.equal(isOpen(), true, "the menu stays open");
+      const hrefs = new Set(panelHrefs());
       // Everything More linked to, signed in on hosted accounts.
       for (const href of [
         "/achievements",
@@ -414,9 +440,12 @@ describe("side menu", () => {
         "/settings/notifications",
         "/settings/privacy",
         "/settings/collecting",
+        "/settings/invite",
+        "/support",
         "/privacy",
         "/about",
         "/terms",
+        SIDE_MENU_DELETE.href,
       ]) {
         assert.ok(hrefs.has(href), `menu links ${href}`);
       }
@@ -436,6 +465,66 @@ describe("side menu", () => {
       assert.equal(pins[0]?.getAttribute("href"), "/u/maya/badges");
       // Admin rows wait on the admin check, which is false here.
       assert.equal(hrefs.has("/admin/reports"), false);
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("keeps the list short: everyday rows up front, legal and Delete account one tap in, Log out and admin last", async () => {
+    const view = await mount({ user: maya, showLogin: false });
+    try {
+      await openMenu();
+      await settle();
+      const panel = dialog();
+      assert.doesNotMatch(panel.textContent ?? "", /follows your device/);
+      assert.doesNotMatch(panel.textContent ?? "", /Settings and support/);
+      const closedRows = panel.querySelectorAll("nav a, nav button, [data-menu-quiet] a, [data-menu-quiet] button").length;
+      assert.ok(closedRows <= 14, `${closedRows} rows before About & legal opens`);
+      await act(async () => {
+        legalToggle().click();
+      });
+      const remove = menuLink(SIDE_MENU_DELETE.label);
+      assert.equal(remove.getAttribute("href"), "/settings/privacy#delete-account");
+      assert.match(remove.className, /text-rose-/, "muted red");
+      assert.ok(remove.closest("[data-menu-legal]"), "inside the About & legal group");
+      // Log out comes after every settings and legal row.
+      const controls = [...panel.querySelectorAll<HTMLElement>("a, button")];
+      const logOut = controls.findIndex((node) => node.textContent?.trim() === "Log out");
+      assert.ok(logOut > controls.indexOf(remove));
+      assert.ok(logOut > controls.indexOf(menuLink("Help & support")));
+      // Folding it back takes the rows away again.
+      await act(async () => {
+        legalToggle().click();
+      });
+      assert.equal(panelHrefs().includes("/terms"), false);
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("opens About & legal already when you are on one of its pages", async () => {
+    const view = await mount({ user: maya, showLogin: false }, { pathname: "/terms" });
+    try {
+      await openMenu();
+      assert.equal(legalToggle().getAttribute("aria-expanded"), "true");
+      assert.equal(menuLink("Terms").getAttribute("aria-current"), "page");
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("marks the active row with the shared glass pill and draws the panel as glass with a solid fallback", async () => {
+    const view = await mount({ user: maya, showLogin: false }, { pathname: "/collection" });
+    try {
+      await openMenu();
+      const active = menuLink("Collection");
+      assert.equal(active.getAttribute("aria-current"), "page");
+      assert.match(active.className, /\bglass-highlight\b/);
+      assert.doesNotMatch(menuLink("Leaderboard").className, /\bglass-highlight\b/);
+      assert.match(dialog().className, /\bglass\b/);
+      assert.match(dialog().className, /\bliquid-glass-panel\b/);
+      const source = read("components/side-menu.tsx");
+      assert.doesNotMatch(source, /font-bold|teal/);
     } finally {
       view.unmount();
     }
@@ -464,7 +553,12 @@ describe("side menu", () => {
     );
     assert.deepEqual(
       SIDE_MENU_SETTINGS.map((item) => item.href),
-      ["/settings/notifications", "/settings/privacy", "/settings/invite", "/settings/collecting", "/about", "/privacy", "/terms"],
+      ["/settings/notifications", "/settings/privacy", "/settings/collecting"],
+    );
+    assert.deepEqual(SIDE_MENU_SUPPORT, { href: "/support", label: "Help & support" });
+    assert.deepEqual(
+      SIDE_MENU_LEGAL.map((item) => item.href),
+      ["/about", "/privacy", "/terms", "/settings/invite"],
     );
     // Delete account moved from More to Privacy & safety.
     assert.match(read("app/(app)/settings/privacy/page.tsx"), /<DeleteAccount \/>/);

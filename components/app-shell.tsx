@@ -262,10 +262,20 @@ function Shell({
   const mainPad = chromeless
     ? ""
     : showNav
-      ? "pb-[calc(7rem+env(safe-area-inset-bottom))] md:pb-[calc(10rem+env(safe-area-inset-bottom))]"
+      ? "pb-[calc(7.5rem+env(safe-area-inset-bottom))] md:pb-[calc(10rem+env(safe-area-inset-bottom))]"
       : showJoin || reserveJoin
         ? "pb-[calc(5.25rem+env(safe-area-inset-bottom))]"
         : "pb-[max(1.5rem,env(safe-area-inset-bottom))]";
+
+  /*
+   * The glass pill sits behind the current tab. A tap moves it at once, before
+   * the new page arrives; the tap is forgotten as soon as the path changes.
+   */
+  const [tapped, setTapped] = useState<{ href: BottomNavTab["href"]; from: string } | null>(null);
+  if (tapped && tapped.from !== pathname) setTapped(null);
+  const pillHref = tapped?.href ?? tabs.find((tab) => isActive(pathname, tab.href, user))?.href ?? null;
+  const pillIndex = tabs.findIndex((tab) => tab.href === pillHref);
+  const pillShown = pillIndex >= 0 && pillHref !== SCAN_TAB_HREF;
 
   /** A tap on the tab (or the logo) for the screen you are on: scroll to the top, or refresh when already there. */
   const onTabClick = (event: React.MouseEvent<HTMLAnchorElement>, href: BottomNavTab["href"]) => {
@@ -278,7 +288,10 @@ function Shell({
     ) {
       return;
     }
-    if (!isCurrentTabScreen(pathname, href, user?.username ?? null)) return;
+    if (!isCurrentTabScreen(pathname, href, user?.username ?? null)) {
+      if (tabs.some((tab) => tab.href === href)) setTapped({ href, from: pathname });
+      return;
+    }
     event.preventDefault();
     const top = window.scrollY || document.documentElement.scrollTop || 0;
     const action = activeTabAction({ onThisScreen: true, scrollTop: top });
@@ -368,8 +381,20 @@ function Shell({
         <nav
           style={{ viewTransitionName: "app-nav" }}
           data-app-chrome=""
-          className="glass fixed inset-x-0 bottom-0 z-30 border-t border-zinc-200 bg-[color-mix(in_oklab,var(--background)_92%,transparent)] backdrop-blur-xl dark:border-white/10">
-          <div className="mx-auto flex max-w-lg items-end justify-between px-1 pt-1 pb-[max(0.45rem,env(safe-area-inset-bottom))]">
+          className="glass liquid-glass fixed inset-x-2 bottom-[var(--tabbar-bottom)] z-30 mx-auto max-w-[31rem] rounded-full max-[359px]:inset-x-1">
+          <div className="relative flex h-[var(--tabbar-h)] items-stretch px-1">
+            {/* One pill for the whole bar: it slides to the tab you pick. Scan is its own purple button. */}
+            <span
+              aria-hidden
+              data-tab-pill=""
+              style={{
+                width: `calc((100% - 0.5rem) / ${tabs.length})`,
+                transform: `translateX(${Math.max(0, pillIndex) * 100}%)`,
+              }}
+              className={`glass-highlight pointer-events-none absolute inset-y-1 left-1 rounded-full transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
+                pillShown ? "opacity-100" : "opacity-0"
+              }`}
+            />
             {tabs.map((tab) => {
               const active = isActive(pathname, tab.href, user);
               const Icon = tab.icon;
@@ -382,10 +407,10 @@ function Shell({
                     data-tour={tab.tour}
                     aria-label="Scan"
                     aria-current={active ? "page" : undefined}
-                    className="hit-44 tap flex min-w-0 flex-1 flex-col items-center gap-0.5 px-0.5 py-1 text-[min(0.6875rem,13px)] font-medium leading-none text-violet-700 dark:text-violet-200"
+                    className="hit-44 tap relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-0.5 text-[min(0.6875rem,13px)] font-medium leading-none text-[#5B21B6] dark:text-violet-200"
                   >
-                    <span className="grid h-11 w-11 -translate-y-3 place-items-center rounded-full bg-violet-600 text-white shadow-lg ring-4 ring-[var(--background)]">
-                      <Camera className="h-5 w-5" />
+                    <span className="-mt-4 grid h-12 w-12 place-items-center rounded-full bg-violet-600 text-white shadow-[0_1px_3px_rgba(0,0,0,0.3)] ring-1 ring-white/20">
+                      <Camera className="h-[22px] w-[22px]" />
                     </span>
                     Scan
                   </Link>
@@ -402,14 +427,14 @@ function Shell({
                     messageBadge > 0 ? `Messages, ${messageBadge} unread` : tab.label
                   }
                   aria-current={active ? "page" : undefined}
-                  className={`hit-44 tap relative flex min-w-0 flex-1 flex-col items-center gap-0.5 px-0.5 py-1 text-[min(0.6875rem,13px)] font-medium leading-none ${
-                    active ? "text-zinc-900 dark:text-white" : "text-zinc-500 dark:text-zinc-400"
+                  className={`hit-44 tap relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 px-0.5 text-[min(0.6875rem,13px)] font-medium leading-none ${
+                    active ? "text-zinc-950 dark:text-white" : "text-zinc-700 dark:text-zinc-300"
                   }`}
                 >
                   <span className="relative">
                     <Icon className="h-5 w-5" />
                     {messageBadge > 0 ? (
-                      <span className="absolute -top-1.5 -right-2.5 grid h-4 min-w-4 place-items-center rounded-full bg-[#7C3AED] px-1 text-11 font-semibold leading-none text-white ring-2 ring-[var(--background)]">
+                      <span className="absolute -top-1.5 -right-2.5 grid h-4 min-w-4 place-items-center rounded-full bg-[#7C3AED] px-1 text-11 font-semibold leading-none text-white">
                         {messageBadge > 9 ? "9+" : messageBadge}
                       </span>
                     ) : null}
