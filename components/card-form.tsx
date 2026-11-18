@@ -23,6 +23,7 @@ import { useCollection, useDefaultAccent } from "@/components/collection-provide
 import { NativeSelect, SearchSelect, SET_PARALLEL_HINT } from "@/components/search-select";
 import { useSocial } from "@/components/social-provider";
 import { toPublicAttachment } from "@/lib/social/card-posts";
+import { confirmTypedCard } from "@/lib/scan/typed-confirm";
 import { queueCardPost } from "@/lib/social/card-post-queue";
 import {
   FEED_POST_LABEL,
@@ -43,7 +44,7 @@ import { isTestAccount } from "@/lib/test-accounts";
 import { POST_LIMIT } from "@/lib/social/types";
 import { CharacterRing } from "@/components/character-ring";
 import { clearScanMatch, takeScan } from "@/lib/capture";
-import { scanCardStart, type ScanHandoff } from "@/lib/scan/handoff";
+import { insertNameForSave, scanCardStart, type ScanHandoff } from "@/lib/scan/handoff";
 import { catalogLabel, type CatalogCard } from "@/lib/card-catalog";
 import {
   CATALOG_MATCH_DEBOUNCE_MS,
@@ -358,7 +359,7 @@ export function CardForm({
   const [isAuto, setIsAuto] = useState(
     restored?.isAuto ?? (Boolean(existing?.isAuto) || Boolean(scanStart?.isAuto)),
   );
-  const [isRelic, setIsRelic] = useState(restored?.isRelic ?? Boolean(existing?.isRelic));
+  const [isRelic, setIsRelic] = useState(restored?.isRelic ?? (Boolean(existing?.isRelic) || Boolean(scanStart?.isRelic)));
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const sections = addFormSections(Boolean(existing));
   const [moreOpen, setMoreOpen] = useState(() => draftOpensMoreDetails(restored));
@@ -883,6 +884,13 @@ export function CardForm({
     const parsed = check.parsedYear;
     const liveCondition = check.conditionType;
 
+    // The insert name from the saved card being edited, or the scan: kept while the set and # are
+    // still that card's, cleared ("" → insert_name: null) once either changes.
+    const insertName = insertNameForSave(
+      existing ?? (scanStart ? { setBrand: scanStart.form.setBrand, cardNumber: scanStart.form.cardNumber, insertName: scanStart.insertName } : null),
+      { setBrand: values.setBrand, cardNumber: noNumber ? "" : normalizeCardNumberInput(values.cardNumber) },
+    );
+    const insertNamePatch: { insertName?: string } = insertName === undefined ? {} : { insertName };
     const payload = {
       playerName: values.playerName.trim(),
       year: parsed.year,
@@ -918,6 +926,8 @@ export function CardForm({
       category,
       isPublic: share,
       ...(offersKnown ? { openToOffers: Boolean(share && openToOffers) } : {}),
+      // A scanned card keeps the insert the scan placed it in ("Rookie Code"), while its set and # are the scan's.
+      ...insertNamePatch,
     };
 
     setSaving(true);
@@ -979,6 +989,8 @@ export function CardForm({
       await saved;
       // The stored card: its photo is the uploaded URL, so the feed post never uploads it again.
       const card = result.stored?.() ?? result.card;
+      // Typed in after a scan found no card: remembered for the next scan that reads the same.
+      if (!existing) confirmTypedCard(card);
       // Set once this add's post is on the feed: the haptic says "post", not "save".
       let postedNow = false;
       // The regular form's post failed: the card still saved, so the haptic says "save".
@@ -1109,7 +1121,7 @@ export function CardForm({
         <p
           className={
             existing
-              ? "text-[13px] text-zinc-500"
+              ? "text-13 text-zinc-500"
               : "text-sm font-medium text-zinc-500"
           }
         >
@@ -1443,7 +1455,7 @@ export function CardForm({
   ) : null;
 
   const gradeExtrasNode = graded ? (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 big:grid-cols-1 gap-3">
             <Field label="Cert #">
               <input
                 value={certNumber}
@@ -1542,7 +1554,7 @@ export function CardForm({
   );
 
   const sellFieldsNode = sold ? (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 big:grid-cols-1 gap-3">
           <Field
             label="Actual sell price"
             required
@@ -2242,7 +2254,7 @@ export function CardForm({
                 router.push("/");
               }
             }}
-            className={`flex min-h-12 w-full items-center px-4 text-left text-[15px] text-rose-600 transition-colors hover:bg-rose-500/5 dark:text-rose-400 ${focusRing} focus-visible:ring-inset focus-visible:ring-offset-0`}
+            className={`flex min-h-12 w-full items-center px-4 text-left text-15 text-rose-600 transition-colors hover:bg-rose-500/5 dark:text-rose-400 ${focusRing} focus-visible:ring-inset focus-visible:ring-offset-0`}
           >
             Delete card
           </button>
@@ -2593,7 +2605,7 @@ function FeedPostField({
             aria-label="Post caption"
             aria-invalid={over}
             onChange={(e) => onCaption(e.target.value)}
-            className={`${inputClass} mt-2 resize-y text-[15px]`}
+            className={`${inputClass} mt-2 resize-y text-15`}
             placeholder="Say something about it"
           />
           <div className="mt-1 flex min-h-7 items-center justify-between gap-3">

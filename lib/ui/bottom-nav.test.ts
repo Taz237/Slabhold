@@ -16,7 +16,7 @@ function read(path: string) {
 }
 
 describe("bottom nav", () => {
-  it("keeps five labels that fit at 390px, with Leaderboard on the bar", () => {
+  it("keeps five labels that fit at 390px: Catalog where Quick Comp was, Scan in the center", () => {
     const labels = BOTTOM_NAV.map((tab) => tab.label);
     assert.equal(labels.length, BOTTOM_NAV_MAX_ITEMS);
     assert.equal(BOTTOM_NAV_VIEWPORT_PX, 390);
@@ -24,18 +24,14 @@ describe("bottom nav", () => {
     assert.equal(labelWidthFits("Leaderboard", 5), true);
     assert.equal(labelWidthFits("Leaderboard", 6), false);
     assert.equal(labelWidthFits("Leaderboard", 7), false);
-    assert.equal(BOTTOM_NAV.some((tab) => tab.href === "/leaderboard" && tab.label === "Leaderboard"), true);
-    assert.deepEqual(
-      BOTTOM_NAV.map((tab) => tab.label),
-      ["Home", "Leaderboard", "Add card", "Collection", "Messages"],
-    );
+    assert.deepEqual(labels, ["Home", "Catalog", "Scan", "Collection", "Messages"]);
     assert.deepEqual(
       MOVED_TO_MENU.map((tab) => tab.label),
       ["Profile"],
     );
     const shell = read("components/app-shell.tsx");
     const nav = read("lib/ui/bottom-nav.ts");
-    assert.match(shell, /Trophy/);
+    assert.match(shell, /LayoutGrid/);
     assert.match(shell, /BOTTOM_NAV/);
     assert.match(shell, /TAB_ICONS/);
     for (const tab of BOTTOM_NAV) {

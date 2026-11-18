@@ -15,13 +15,13 @@ export function CompBasis({
   if (count < 1) return null;
   return (
     <div className="mt-1">
-      <p className="text-[11px] text-zinc-500">{basedOnSalesLabel(count)}</p>
+      <p className="text-11 text-zinc-500">{basedOnSalesLabel(count)}</p>
       {basis.length > 0 ? (
         <ul className="mt-1 max-h-40 space-y-0.5 overflow-y-auto">
           {basis.map((sale, index) => (
             <li
               key={`${sale.date}-${sale.price}-${sale.grade}-${index}`}
-              className="text-[11px] tabular-nums text-zinc-500"
+              className="text-11 tabular-nums text-zinc-500"
             >
               {formatDate(sale.date)} · {money(sale.price, true)} · {sale.grade}
             </li>
@@ -40,10 +40,10 @@ export const compCard =
 /** Inner tile: the range bar, the plot, the retry. */
 export const compTile = "rounded-xl bg-zinc-50 dark:bg-white/[0.03]";
 export const compLabel = "text-xs font-medium text-zinc-500";
-export const compCaption = "text-[11px] text-zinc-400 dark:text-zinc-500";
-export const compHeroValue = "text-[34px] leading-10 font-semibold tracking-tight tabular-nums";
-export const compSectionValue = "text-xl leading-[26px] font-semibold tabular-nums";
-export const compRowPrice = "text-[15px] leading-5 font-semibold tabular-nums";
+export const compCaption = "text-11 text-zinc-400 dark:text-zinc-500";
+export const compHeroValue = "text-[2.125rem] leading-10 font-semibold tracking-tight tabular-nums";
+export const compSectionValue = "text-xl leading-[1.625rem] font-semibold tabular-nums";
+export const compRowPrice = "text-15 leading-5 font-semibold tabular-nums";
 /** Plot tile height. The chart inside is 152px. */
 export const COMP_PLOT_HEIGHT = 152;
 
@@ -113,7 +113,7 @@ export function CompEmpty({
 }) {
   return (
     <section data-slot={slot} data-comp-empty="" className={compCard}>
-      <p className={`flex h-5 items-center ${compLabel}`}>{label}</p>
+      <p className={`flex min-h-5 items-center ${compLabel}`}>{label}</p>
       <p className={`mt-1 text-xl leading-10 font-semibold tracking-tight text-zinc-500`}>{title}</p>
       <p className={`mt-2 leading-4 ${compCaption}`}>{caption}</p>
       <GhostPlot>{children}</GhostPlot>

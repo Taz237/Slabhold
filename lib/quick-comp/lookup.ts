@@ -1,6 +1,7 @@
 import "server-only";
 
-import { unstable_cache } from "next/cache";
+import { loadProductData } from "@/lib/cards/product-data";
+import { withProductList } from "@/lib/comps/known-run";
 import { getCompsSource, payloadFromSales, samplePayload, type CompsSource } from "@/lib/comps";
 import { buildSoldSearchQuery } from "@/lib/comps/match";
 import { sharedCompValue } from "@/lib/comps/shared-value";
@@ -10,6 +11,7 @@ import { loadSharedQuickComp, QuickCompFailure, type CacheFn } from "./cache";
 import { toMatchCard, toSoldCompCard, type QuickCompIdentity } from "./identity";
 import { pickQuickCompPhoto, samplePhoto, type QuickCompPhoto } from "./photo";
 import { spendQuickCompLookup, type QuickCompLimitDeps, type QuickCompLimitReason } from "./limits";
+import { keyedCache } from "@/lib/quick-comp/keyed-cache";
 import { serverQuickCompLimits } from "./limits-server";
 
 /**
@@ -38,7 +40,7 @@ const defaultDeps: QuickCompDeps = {
   hasTrawlKey: () => Boolean(getTrawlApiKey()),
   fetchSold: fetchTrawlSold,
   limits: serverQuickCompLimits,
-  cache: unstable_cache as CacheFn,
+  cache: keyedCache,
   now: Date.now,
 };
 
@@ -62,8 +64,11 @@ export async function getQuickComp(
     return { ok: true, payload: { ...sample, photo: samplePhoto(sample.comps.map((comp) => comp.soldDate)) } };
   }
 
-  const matchCard = toMatchCard(identity);
-  const query = buildSoldSearchQuery(matchCard);
+  // A version picked from a catalog row carries no run: the checklist's run fills the filter
+  // (never the search text), so a Gold Refractor keeps its /50 sales only.
+  const searchCard = toMatchCard(identity, { openRun: true });
+  const matchCard = withProductList(searchCard, await loadProductData().catch(() => null));
+  const query = buildSoldSearchQuery(searchCard);
   if (!query || !deps.hasTrawlKey()) return { ok: false, reason: "unavailable" };
 
   try {

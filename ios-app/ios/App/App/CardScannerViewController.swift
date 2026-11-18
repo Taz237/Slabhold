@@ -3,16 +3,16 @@ import CoreImage
 import PhotosUI
 import UIKit
 
-/// The card scanner: a full-screen live camera, like the iPhone camera. The
-/// collector frames the card and taps the shutter; nothing is taken on its own.
-/// Nothing is drawn over the live picture: no outline, no guide box. The photo button
-/// next to the shutter reads a library photo the same way (CardTextReader, the
-/// reader the plugin's `recognize` method uses). One hint at a time, 44pt tap
-/// targets, and no flash or snap animation when Reduce Motion is on.
+/// The card scanner: a full-screen live camera, like the iPhone camera. Purple corner guides
+/// show where the card goes; the collector lines it up and taps the shutter. Nothing is ever
+/// taken on its own. The photo button next to the shutter reads a library photo the same way
+/// (CardTextReader, the reader the plugin's `recognize` method uses). One hint at a time, 44pt
+/// tap targets, a light tap of haptics on the shutter, and no flash or snap animation when
+/// Reduce Motion is on.
 ///
-/// A raw card whose front shows no card number gets one more step: "Flip it
-/// over for the card #", then a second tap (or a photo) for the back, or Skip.
-/// Slabs never ask: the label carries the number.
+/// Front, then back: after the front of a raw card, "Now flip it over", then a second tap (or a
+/// photo) for the back, or Skip. The back's photo comes back too, for the reveal on the web side.
+/// Slabs never ask: the label carries everything.
 ///
 /// While the collector frames the card, the live frames are scored for sharpness and glare
 /// (FrameQuality). That only changes the hint ("Hold steady", "Tilt to cut glare") and keeps
@@ -29,17 +29,21 @@ final class CardScannerViewController: UIViewController {
     }
 
     enum Hint: String {
-        case frame = "Frame the card, then tap to take it"
+        case frame = "Line the card up in the box, then tap"
         case reading = "Reading the card"
-        case flip = "Flip it over for the card #"
+        case flip = "Now flip it over"
         case steady = "Hold steady"
         case glare = "Tilt to cut glare"
         case noText = "We couldn't read that one. Try again with the card flat and in good light."
     }
 
-    /// Brand colors from CLAUDE.md: background #09090B, off-white #F4F4F5.
+    /// Brand colors from CLAUDE.md: background #09090B, off-white #F4F4F5, purple #7C3AED.
     static let background = UIColor(red: 9 / 255, green: 9 / 255, blue: 11 / 255, alpha: 1)
     static let offWhite = UIColor(red: 244 / 255, green: 244 / 255, blue: 245 / 255, alpha: 1)
+    static let purple = UIColor(red: 124 / 255, green: 58 / 255, blue: 237 / 255, alpha: 1)
+    /// The guide box: a card's shape (2.5 x 3.5 in), this share of the screen's width.
+    static let guideWidthShare: CGFloat = 0.78
+    static let guideAspect: CGFloat = 3.5 / 2.5
 
     static let minTapTarget: CGFloat = 44
     static let shutterSize: CGFloat = 76
@@ -68,6 +72,7 @@ final class CardScannerViewController: UIViewController {
     private let libraryButton = UIButton(type: .system)
     private let skipButton = UIButton(type: .system)
     private let flashView = UIView()
+    private let guides = CardGuideView()
 
     /// The front, kept while the camera waits for the back. Main thread only.
     private var front: CardRead?
@@ -264,6 +269,11 @@ final class CardScannerViewController: UIViewController {
     // MARK: Overlay
 
     private func setUpOverlay() {
+        guides.translatesAutoresizingMaskIntoConstraints = false
+        guides.isUserInteractionEnabled = false
+        guides.isAccessibilityElement = false
+        view.addSubview(guides)
+
         flashView.backgroundColor = .white
         flashView.alpha = 0
         flashView.isUserInteractionEnabled = false
@@ -324,11 +334,24 @@ final class CardScannerViewController: UIViewController {
         view.addSubview(skipButton)
 
         let safe = view.safeAreaLayoutGuide
+        // As wide as the share allows; the limits below win on a short screen.
+        let guideWidth = guides.widthAnchor.constraint(equalTo: view.widthAnchor, multiplier: Self.guideWidthShare)
+        guideWidth.priority = .defaultHigh
+        guideWidth.isActive = true
         NSLayoutConstraint.activate([
             flashView.topAnchor.constraint(equalTo: view.topAnchor),
             flashView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             flashView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             flashView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+
+            // The card's shape, centered a little above the middle, clear of the hint and shutter.
+            guides.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            guides.centerYAnchor.constraint(equalTo: safe.centerYAnchor, constant: -36),
+            guides.widthAnchor.constraint(lessThanOrEqualTo: view.widthAnchor, multiplier: Self.guideWidthShare),
+            guides.heightAnchor.constraint(equalTo: guides.widthAnchor, multiplier: Self.guideAspect),
+            // On a short screen the box shrinks to stay clear of the top buttons and the hint.
+            guides.topAnchor.constraint(greaterThanOrEqualTo: closeButton.bottomAnchor, constant: 12),
+            guides.bottomAnchor.constraint(lessThanOrEqualTo: hintLabel.topAnchor, constant: -16),
 
             closeButton.topAnchor.constraint(equalTo: safe.topAnchor, constant: 8),
             closeButton.leadingAnchor.constraint(equalTo: safe.leadingAnchor, constant: 12),
@@ -425,16 +448,15 @@ final class CardScannerViewController: UIViewController {
 
     /// Done without the back: the front's read goes through as it is.
     @objc private func skipTapped() {
-        guard let front, !capturing else { return }
+        guard var front, !capturing else { return }
+        front.backAsked = true
         end(.captured(front))
     }
 
-    /// A raw card's front with no card number line: the back usually has it.
+    /// Front, then back, on every raw card: the back prints the card #, the set and the year.
+    /// A slab's label carries them, so a slab never asks.
     static func needsBack(_ read: CardRead) -> Bool {
-        if read.kind == "slab" { return false }
-        return !read.lines.contains { line in
-            line.range(of: #"(#|\bNO\.)\s*[A-Z0-9]"#, options: [.regularExpression, .caseInsensitive]) != nil
-        }
+        read.kind != "slab"
     }
 
     /// The front is in; wait for the collector to flip it and tap again.
@@ -443,6 +465,7 @@ final class CardScannerViewController: UIViewController {
         capturing = false
         skipButton.isHidden = false
         doneHaptic.notificationOccurred(.success)
+        guides.flipped()
         show(.flip)
     }
 
@@ -483,6 +506,7 @@ final class CardScannerViewController: UIViewController {
         capturing = true
         voteFrames = sharpestFrames()
         captureHaptic.impactOccurred()
+        guides.taken()
         doneHaptic.prepare()
         show(.reading)
         flash()
@@ -511,6 +535,8 @@ final class CardScannerViewController: UIViewController {
         if var front = self.front {
             front.backLines = read.lines
             front.backDetails = read.details
+            front.backImage = read.image
+            front.backAsked = true
             doneHaptic.notificationOccurred(.success)
             end(.captured(front))
             return
@@ -659,5 +685,93 @@ final class FrameWatch: @unchecked Sendable {
         let showSoft = softRun >= Self.hintRun
         guard showGlare || showSoft || clearRun == Self.hintRun else { return nil }
         return (showSoft, showGlare)
+    }
+}
+
+/// Four purple corner brackets in a card's shape: where the card goes. Drawn only, never a
+/// trigger: the picture is taken when the collector taps. A tap brightens them for a moment, and
+/// the flip to the back gives them one small turn; neither moves with Reduce Motion on.
+final class CardGuideView: UIView {
+    private let corners = CAShapeLayer()
+    /// Corner arm length and line width, in points.
+    static let arm: CGFloat = 28
+    static let lineWidth: CGFloat = 4
+    static let restingAlpha: Float = 0.85
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        corners.strokeColor = CardScannerViewController.purple.cgColor
+        corners.fillColor = UIColor.clear.cgColor
+        corners.lineWidth = Self.lineWidth
+        corners.lineCap = .round
+        corners.lineJoin = .round
+        corners.opacity = Self.restingAlpha
+        // A soft dark edge so the purple reads on a light table too.
+        corners.shadowColor = UIColor.black.cgColor
+        corners.shadowOpacity = 0.35
+        corners.shadowRadius = 3
+        corners.shadowOffset = .zero
+        layer.addSublayer(corners)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        corners.frame = bounds
+        let inset = Self.lineWidth / 2
+        let box = bounds.insetBy(dx: inset, dy: inset)
+        let arm = min(Self.arm, box.width / 3)
+        let radius: CGFloat = 12
+        let path = UIBezierPath()
+        // Top left, top right, bottom right, bottom left: each a short L with a rounded corner.
+        path.move(to: CGPoint(x: box.minX, y: box.minY + arm))
+        path.addLine(to: CGPoint(x: box.minX, y: box.minY + radius))
+        path.addQuadCurve(to: CGPoint(x: box.minX + radius, y: box.minY), controlPoint: CGPoint(x: box.minX, y: box.minY))
+        path.addLine(to: CGPoint(x: box.minX + arm, y: box.minY))
+        path.move(to: CGPoint(x: box.maxX - arm, y: box.minY))
+        path.addLine(to: CGPoint(x: box.maxX - radius, y: box.minY))
+        path.addQuadCurve(to: CGPoint(x: box.maxX, y: box.minY + radius), controlPoint: CGPoint(x: box.maxX, y: box.minY))
+        path.addLine(to: CGPoint(x: box.maxX, y: box.minY + arm))
+        path.move(to: CGPoint(x: box.maxX, y: box.maxY - arm))
+        path.addLine(to: CGPoint(x: box.maxX, y: box.maxY - radius))
+        path.addQuadCurve(to: CGPoint(x: box.maxX - radius, y: box.maxY), controlPoint: CGPoint(x: box.maxX, y: box.maxY))
+        path.addLine(to: CGPoint(x: box.maxX - arm, y: box.maxY))
+        path.move(to: CGPoint(x: box.minX + arm, y: box.maxY))
+        path.addLine(to: CGPoint(x: box.minX + radius, y: box.maxY))
+        path.addQuadCurve(to: CGPoint(x: box.minX, y: box.maxY - radius), controlPoint: CGPoint(x: box.minX, y: box.maxY))
+        path.addLine(to: CGPoint(x: box.minX, y: box.maxY - arm))
+        corners.path = path.cgPath
+    }
+
+    /// The shutter was tapped: full strength for a beat, then back to resting.
+    func taken() {
+        corners.opacity = 1
+        guard !UIAccessibility.isReduceMotionEnabled else {
+            corners.opacity = Self.restingAlpha
+            return
+        }
+        let fade = CABasicAnimation(keyPath: "opacity")
+        fade.fromValue = 1
+        fade.toValue = Self.restingAlpha
+        fade.duration = 0.35
+        fade.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        corners.opacity = Self.restingAlpha
+        corners.add(fade, forKey: "taken")
+    }
+
+    /// The front is in: one quick turn about the vertical axis, so "flip it over" reads at a glance.
+    func flipped() {
+        guard !UIAccessibility.isReduceMotionEnabled else { return }
+        var turn = CATransform3DIdentity
+        turn.m34 = -1 / 600
+        let spin = CABasicAnimation(keyPath: "transform")
+        spin.fromValue = CATransform3DRotate(turn, .pi, 0, 1, 0)
+        spin.toValue = CATransform3DRotate(turn, 0, 0, 1, 0)
+        spin.duration = 0.45
+        spin.timingFunction = CAMediaTimingFunction(controlPoints: 0.2, 0.7, 0.2, 1)
+        layer.add(spin, forKey: "flipped")
     }
 }

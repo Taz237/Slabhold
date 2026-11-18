@@ -49,14 +49,14 @@ export function StartupError({ onRetry }: { onRetry: () => void }) {
       className="flex min-h-dvh flex-col items-center justify-center bg-[var(--background)] px-6 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] text-center text-[var(--foreground)]"
     >
       <LogoMark />
-      <h1 className="mt-6 text-[22px] leading-7 font-semibold tracking-tight">{STARTUP_TITLE}</h1>
-      <p className="mt-2 max-w-[18rem] text-[15px] leading-6 text-zinc-600 dark:text-zinc-400">{STARTUP_DETAIL}</p>
+      <h1 className="mt-6 text-[1.375rem] leading-7 font-semibold tracking-tight">{STARTUP_TITLE}</h1>
+      <p className="mt-2 max-w-[18rem] text-15 leading-6 text-zinc-600 dark:text-zinc-400">{STARTUP_DETAIL}</p>
       <button
         type="button"
         onClick={retry}
         disabled={trying}
         aria-busy={trying || undefined}
-        className="mt-8 flex h-12 min-w-[11rem] items-center justify-center gap-2 rounded-full bg-violet-600 px-6 text-[16px] font-semibold text-white transition-[transform,opacity] duration-150 active:scale-[0.98] disabled:opacity-60 motion-reduce:transition-none motion-reduce:active:scale-100 focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] focus-visible:outline-none"
+        className="mt-8 flex h-12 min-w-[11rem] items-center justify-center gap-2 rounded-full bg-violet-600 px-6 text-16 font-semibold text-white transition-[transform,opacity] duration-150 active:scale-[0.98] disabled:opacity-60 motion-reduce:transition-none motion-reduce:active:scale-100 focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] focus-visible:outline-none"
       >
         <RotateCw aria-hidden size={18} strokeWidth={1.75} />
         {trying ? STARTUP_RETRYING : STARTUP_RETRY}
@@ -72,7 +72,7 @@ export function StartupNotice({ onRetry }: { onRetry: () => void }) {
     <div
       role="status"
       data-startup-notice=""
-      className="flex items-center justify-center gap-2 border-b border-zinc-200 px-4 text-[14px] text-zinc-600 dark:border-white/10 dark:text-zinc-300"
+      className="flex items-center justify-center gap-2 border-b border-zinc-200 px-4 text-14 text-zinc-600 dark:border-white/10 dark:text-zinc-300"
     >
       <span>{STARTUP_NOTICE}</span>
       <button

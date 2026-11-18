@@ -29,7 +29,7 @@ export function OfflineBanner() {
     <p
       role="status"
       data-offline-banner=""
-      className="flex min-h-8 items-center justify-center gap-2 border-t border-zinc-200 bg-zinc-100 px-4 py-1.5 text-[13px] leading-5 font-medium text-zinc-700 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200"
+      className="flex min-h-8 items-center justify-center gap-2 border-t border-zinc-200 bg-zinc-100 px-4 py-1.5 text-13 leading-5 font-medium text-zinc-700 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200"
     >
       <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-zinc-400 dark:bg-zinc-500" />
       {OFFLINE_COPY}

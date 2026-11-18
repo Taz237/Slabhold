@@ -19,6 +19,8 @@ import {
   replyMentionCandidates,
 } from "./reply-mentions";
 import { draftPostPhotos } from "./post-photos";
+import { sanitizeGif, type PostGif } from "./gifs";
+import { postsAfterThreadDelete, THREAD_MAX, threadSlots } from "./threads";
 import { decidePin, pinnedPostIdAfterDelete } from "./profile-tabs";
 import { replyNoticePreview } from "./reply-images";
 import { shouldNotifyQuoteAuthor, validateQuoteContent } from "./quotes";
@@ -611,11 +613,13 @@ export function localAddComment(
   postId: string,
   body: string,
   images?: readonly string[] | null,
+  gifInput?: PostGif | null,
 ): { db: LocalDb; error?: string } {
   if (!db.sessionUserId) return { db, error: "Log in to comment." };
   const text = body.trim().slice(0, COMMENT_LIMIT);
-  const photos = draftPostPhotos({ images: images ?? [] });
-  if (!text && photos.length === 0) return { db, error: "Write a comment." };
+  const gif = sanitizeGif(gifInput);
+  const photos = gif ? [] : draftPostPhotos({ images: images ?? [] });
+  if (!text && photos.length === 0 && !gif) return { db, error: "Write a comment." };
   const textProblem = contentProblem(text);
   if (textProblem) return { db, error: textProblem };
   if (!db.posts.some((post) => post.id === postId)) return { db, error: "That post is gone." };
@@ -625,6 +629,7 @@ export function localAddComment(
     authorId: db.sessionUserId,
     body: text,
     ...(photos.length ? { images: photos } : {}),
+    ...(gif ? { gif } : {}),
     createdAt: new Date().toISOString(),
   };
   const next: LocalDb = { ...db, comments: [...(db.comments ?? []), comment] };
@@ -635,7 +640,7 @@ export function localAddComment(
     actorId: db.sessionUserId,
     kind: "comment",
     postId,
-    preview: replyNoticePreview(text, photos),
+    preview: replyNoticePreview(text, photos) ?? (gif ? "GIF" : null),
     ...(photos.length ? { metadata: { images: photos } } : {}),
     createdAt: comment.createdAt,
   });
@@ -683,30 +688,35 @@ export function localCreatePost(
     card: PublicCard | null;
     quotedPostId?: string | null;
     shareOfNewCard?: boolean;
+    gif?: PostGif | null;
   },
+  /** Set by localCreateThread: this post's place in a thread. */
+  slot?: { threadId: string | null; threadPosition: number | null },
 ): { db: LocalDb; error?: string; postId?: string } {
   if (!db.sessionUserId) return { db, error: "Log in to post." };
   const body = input.body.trim();
-  const photos = draftPostPhotos(input);
+  const gif = sanitizeGif(input.gif);
+  const photos = gif ? [] : draftPostPhotos(input);
   const quotedPostId = input.quotedPostId?.trim() || null;
   if (quotedPostId) {
     const quoteError = validateQuoteContent({
       body,
-      imageDataUrl: photos[0] ?? null,
+      imageDataUrl: photos[0] ?? gif?.still ?? null,
       card: input.card,
     });
     if (quoteError) return { db, error: quoteError };
     const original = db.posts.find((item) => item.id === quotedPostId);
     if (!original) return { db, error: "That post is unavailable." };
-  } else if (!body && photos.length === 0 && !input.card) {
+  } else if (!body && photos.length === 0 && !input.card && !gif) {
     return { db, error: "Write something, add a photo, or attach a card." };
   }
   if (body.length > 280) return { db, error: "Keep it to 280 characters." };
   const bodyProblem = contentProblem(body);
   if (bodyProblem) return { db, error: bodyProblem };
   const createdAt = new Date().toISOString();
+  const threaded = slot?.threadId != null && slot.threadPosition != null;
   const post: Post = {
-    id: `post-${Date.now().toString(36)}`,
+    id: `post-${Date.now().toString(36)}${threaded ? `-${slot.threadPosition}` : ""}`,
     authorId: db.sessionUserId,
     body,
     imageDataUrl: photos[0] ?? null,
@@ -714,6 +724,8 @@ export function localCreatePost(
     card: input.card,
     quotedPostId,
     createdAt,
+    ...(gif ? { gif } : {}),
+    ...(threaded ? { threadId: slot.threadId, threadPosition: slot.threadPosition } : {}),
   };
   let notifications = withMentionNotifications(
     db,
@@ -753,18 +765,46 @@ export function localCreatePost(
   };
 }
 
+/** A thread: every post is saved, in order, or none is. */
+export function localCreateThread(
+  db: LocalDb,
+  inputs: readonly Parameters<typeof localCreatePost>[1][],
+): { db: LocalDb; error?: string; postIds?: string[] } {
+  if (inputs.length === 0) return { db, error: "Write something, add a photo, or attach a card." };
+  if (inputs.length > THREAD_MAX) return { db, error: "A thread can have up to 10 posts." };
+  const slots = threadSlots(inputs.length, `thread-${Date.now().toString(36)}`);
+  let next = db;
+  const postIds: string[] = [];
+  for (const [index, input] of inputs.entries()) {
+    const result = localCreatePost(next, input, slots[index]);
+    if (result.error || !result.postId) {
+      const error = result.error ?? "Could not save that thread.";
+      return { db, error: inputs.length > 1 ? `Post ${index + 1} of ${inputs.length}: ${error}` : error };
+    }
+    next = result.db;
+    postIds.push(result.postId);
+  }
+  return { db: next, postIds };
+}
+
 export function localUpdatePost(
   db: LocalDb,
   postId: string,
-  input: { body: string; imageDataUrl: string | null; images?: readonly string[] | null },
+  input: {
+    body: string;
+    imageDataUrl: string | null;
+    images?: readonly string[] | null;
+    gif?: PostGif | null;
+  },
 ): { db: LocalDb; error?: string } {
   if (!db.sessionUserId) return { db, error: "Log in to edit." };
   const post = db.posts.find((item) => item.id === postId);
   if (!post) return { db, error: "That post is gone." };
   if (post.authorId !== db.sessionUserId) return { db, error: "You can only edit your own posts." };
   const body = input.body.trim();
-  const photos = draftPostPhotos(input);
-  if (!body && photos.length === 0 && !post.card) {
+  const gif = input.gif === undefined ? (post.gif ?? null) : sanitizeGif(input.gif);
+  const photos = gif ? [] : draftPostPhotos(input);
+  if (!body && photos.length === 0 && !post.card && !gif) {
     return { db, error: "Write something or add a photo." };
   }
   if (body.length > 280) return { db, error: "Keep it to 280 characters." };
@@ -775,7 +815,7 @@ export function localUpdatePost(
       ...db,
       posts: db.posts.map((item) =>
         item.id === postId
-          ? { ...item, body, imageDataUrl: photos[0] ?? null, images: photos }
+          ? { ...item, body, imageDataUrl: photos[0] ?? null, images: photos, gif }
           : item,
       ),
       notifications: withMentionNotifications(
@@ -901,7 +941,8 @@ export function localDeletePost(db: LocalDb, postId: string): { db: LocalDb; err
         ...user,
         pinnedPostId: pinnedPostIdAfterDelete(user.pinnedPostId, postId),
       })),
-      posts: db.posts.filter((item) => item.id !== postId),
+      // The rest of a thread stays, in order.
+      posts: postsAfterThreadDelete(db.posts, postId),
       comments: (db.comments ?? []).filter((comment) => comment.postId !== postId),
       likes: (db.likes ?? []).filter((like) => like.postId !== postId),
       reposts: (db.reposts ?? []).filter((repost) => repost.postId !== postId),

@@ -11,8 +11,6 @@ import { profileLinkFor } from "./profile-link";
 import {
   LEADERBOARD_TABS,
   LEADERBOARD_TOP_LIMIT,
-  ON_BOARD_THIN_DETAIL,
-  ON_BOARD_THIN_TITLE,
   OPEN_SPOT_CLOSED_LABEL,
   OPEN_SPOT_LABEL,
   RULES_LINE,
@@ -72,7 +70,7 @@ function model(
 }
 
 function html(input: ReturnType<typeof model>) {
-  return renderToStaticMarkup(createElement(LeaderboardView, { model: input }));
+  return renderToStaticMarkup(withRouter(createElement(LeaderboardView, { model: input })));
 }
 
 /** The markup of one board's section. */
@@ -88,7 +86,7 @@ function many(count: number): CandidateRow[] {
 }
 
 describe("three boards on one page", () => {
-  it("stacks the 3 boards in page order with at most 10 rows each and no chips", () => {
+  it("keeps the 3 boards in page order with at most 10 rows each, one tab per board, and no lead sentences", () => {
     const page = model(snap({ "most-cards-added": many(12), "rising-collectors": many(4), "top-card-post": many(2) }));
     assert.deepEqual(
       page.boards.map((board) => board.id),
@@ -102,10 +100,25 @@ describe("three boards on one page", () => {
     assert.equal(page.boards[0]?.entries.length, 10);
     assert.equal("tabs" in page, false);
     const markup = html(page);
-    assert.doesNotMatch(markup, /data-board-tabs/);
     const order = PAGE_ORDER.map((id) => markup.indexOf(`data-board="${id}"`));
     assert.deepEqual([...order].sort((a, b) => a - b), order);
-    assert.match(markup, /Add cards with a real photo this week\./);
+    // One tab per board, in page order. The first board is on screen.
+    const tabs = markup.slice(markup.indexOf("data-board-tabs"), markup.indexOf("data-board-panels"));
+    assert.deepEqual(
+      [...tabs.matchAll(/aria-controls="board-([a-z-]+)"/g)].map((match) => match[1]),
+      PAGE_ORDER,
+    );
+    assert.deepEqual(
+      [...tabs.matchAll(/aria-selected="(true|false)"/g)].map((match) => match[1]),
+      ["true", "false", "false"],
+    );
+    for (const label of ["Most cards added", "Rising collectors", "Top card post"]) assert.match(tabs, new RegExp(`>${label}<`));
+    assert.match(markup, /data-active-board="most-cards-added"/);
+    // The board's how-to sentence lives in the rules sheet only, never on the board.
+    const boards = markup.slice(markup.indexOf("data-board-panels"));
+    assert.doesNotMatch(boards, /Add cards with a real photo|Get follows from real collectors|Replies from real collectors count/);
+    const sheet = markup.slice(markup.indexOf("<details"), markup.indexOf("</details>"));
+    assert.match(sheet, /Add cards with a real photo this week\./);
     assert.equal(
       readFileSync(join(process.cwd(), "components/leaderboard-view.tsx"), "utf8").includes("leaderboard-chips"),
       false,
@@ -129,6 +142,8 @@ describe("three boards on one page", () => {
     assert.match(markup, /id="board-rising-collectors"/);
     assert.match(markup, /data-board="rising-collectors"[^>]*data-board-focus=""|data-board-focus=""[^>]*data-board="rising-collectors"/);
     assert.equal((markup.match(/data-board-focus=""/g) ?? []).length, 1);
+    assert.match(markup, /data-active-board="rising-collectors"/, "the linked board's tab is the one on screen");
+    assert.match(markup, /id="tab-rising-collectors"[^>]*aria-selected="true"/);
     assert.doesNotMatch(html(model(snap({}))), /data-board-focus=""/);
     assert.equal(model(snap({}), null, "previous").weekLinks[0]?.href, "/leaderboard");
     assert.equal(model(snap({})).weekLinks[1]?.href, "/leaderboard?week=last");
@@ -140,7 +155,7 @@ describe("three boards on one page", () => {
     assert.match(markup, /rounded-full[^"]*"[^>]*data-standing=""|data-standing=""[^>]*class="[^"]*rounded-full/);
   });
 
-  it("draws 3 skeleton board cards while loading", () => {
+  it("draws 3 skeleton board tabs and a podium while loading", () => {
     const loading = readFileSync(join(process.cwd(), "app/(app)/leaderboard/loading.tsx"), "utf8");
     assert.match(loading, /data-leaderboard-loading/);
     assert.match(loading, /data-board-skeleton/);
@@ -156,20 +171,26 @@ describe("rows", () => {
       return markup.slice(start, markup.indexOf("</li>", start));
     };
     assert.match(rowHtml(1), /lb-banner lb-banner-1/);
-    assert.match(rowHtml(1), />1ST</);
+    assert.match(rowHtml(1), />1st place</);
     assert.match(rowHtml(1), /data-crown=""/);
     assert.match(rowHtml(2), /lb-banner lb-banner-2/);
-    assert.match(rowHtml(2), />2ND</);
+    assert.match(rowHtml(2), />2nd place</);
     assert.match(rowHtml(3), /lb-banner lb-banner-3/);
-    assert.match(rowHtml(3), />3RD</);
+    assert.match(rowHtml(3), />3rd place</);
     for (let rank = 4; rank <= 10; rank += 1) {
-      assert.doesNotMatch(rowHtml(rank), /lb-banner|>1ST<|>2ND<|>3RD<|data-crown/);
+      assert.doesNotMatch(rowHtml(rank), /lb-banner|place<|data-crown/);
     }
     assert.match(rowHtml(1), /href="\/u\/u0\?tab=cards"/);
     assert.match(rowHtml(1), /Name u0/);
-    assert.match(rowHtml(1), /@u0/);
     assert.match(rowHtml(1), /30<\/span>/);
-    assert.match(rowHtml(4), /min-h-12/);
+    // The unit is written once, on 1st. Every other score is its number, with the unit for screen readers.
+    assert.match(rowHtml(1), />cards</);
+    assert.equal((markup.match(/(?<!sr-only")>cards</g) ?? []).length, 1);
+    assert.match(rowHtml(2), /class="sr-only">cards</);
+    assert.match(rowHtml(4), /class="sr-only"> cards</);
+    // Handles are in the collector's sheet, not on the board.
+    assert.doesNotMatch(markup, /@u\d/);
+    assert.match(rowHtml(4), /min-h-14/);
     assert.doesNotMatch(markup, /data-rank="11"/);
   });
 
@@ -218,6 +239,8 @@ describe("rows", () => {
     assert.match(markup, /@keyframes lb-rise/);
     assert.match(markup, /prefers-reduced-motion: reduce\)[\s\S]*\.lb-row[\s\S]*animation: none/);
     assert.match(markup, /\.lb-banner-1::after/);
+    assert.match(markup, /prefers-reduced-motion: reduce\)[\s\S]*\.lb-banner[\s\S]*\.lb-panel[\s\S]*\.lb-sheet[\s\S]*animation: none/);
+    assert.doesNotMatch(markup, /infinite/, "nothing loops");
   });
 });
 
@@ -256,7 +279,7 @@ describe("thin boards", () => {
     assert.doesNotMatch(markup, /data-empty-cta|data-thin-board|Be the first name here/);
   });
 
-  it("shows 3 open spots and the lead line on an empty board", () => {
+  it("shows 3 open spots and no lead line on an empty board", () => {
     const page = model(snap({}));
     for (const board of page.boards) {
       assert.equal(board.entries.length, 0);
@@ -266,7 +289,7 @@ describe("thin boards", () => {
       );
     }
     const cards = section(html(page), "most-cards-added");
-    assert.match(cards, /Add cards with a real photo this week\./);
+    assert.doesNotMatch(cards, /Add cards with a real photo/);
     assert.match(cards, /lb-ghost lb-ghost-1[\s\S]*lb-ghost lb-ghost-2[\s\S]*lb-ghost lb-ghost-3/);
   });
 
@@ -284,7 +307,7 @@ describe("thin boards", () => {
     const markup = html(page);
     assert.match(markup, /No one took this spot/);
     assert.doesNotMatch(markup, /href="\/cards\/new"|href="\/search"|href="\/compose"/);
-    assert.match(section(markup, "rising-collectors"), /Get follows from real collectors last week\./);
+    assert.doesNotMatch(markup, /Get follows from real collectors last week/);
   });
 
   it("never draws open spots past rank 3", () => {
@@ -296,18 +319,19 @@ describe("thin boards", () => {
     }
   });
 
-  it("says You're on the board only this week", () => {
+  it("marks the viewer on a thin board with the You tag, not a sentence", () => {
     const rows = { "most-cards-added": [person("me", 2)] };
-    const current = model(snap(rows), "me").boards[0];
-    assert.equal(current?.leadTitle, ON_BOARD_THIN_TITLE);
-    assert.equal(current?.lead, ON_BOARD_THIN_DETAIL);
+    const current = model(snap(rows), "me");
+    assert.equal(current.boards[0]?.entries[0]?.mine, true);
+    assert.equal("lead" in (current.boards[0] ?? {}), false);
+    assert.equal("leadTitle" in (current.boards[0] ?? {}), false);
+    const markup = html(current);
+    const cards = section(markup, "most-cards-added");
+    assert.match(cards, /data-viewer-row=""[\s\S]*>You</);
+    assert.doesNotMatch(markup, /You(?:'|&#x27;)re on the board|Hold your spot/);
     const last = model(snap({}, rows), "me", "previous");
     assert.equal(last.boards[0]?.entries.length, 1);
-    assert.equal(last.boards[0]?.leadTitle, null);
-    assert.equal(last.boards[0]?.lead, "Add cards with a real photo last week.");
-    const markup = html(last);
-    assert.doesNotMatch(markup, /You(?:'|&#x27;)re on the board/);
-    assert.doesNotMatch(markup, new RegExp(ON_BOARD_THIN_DETAIL));
+    assert.doesNotMatch(html(last), /You(?:'|&#x27;)re on the board|Add cards with a real photo last week/);
   });
 });
 
@@ -340,14 +364,17 @@ describe("your spot and rules", () => {
     assert.doesNotMatch(markup, /data-you-row|data-you-spacer|fixed inset-x-0|-mb-\[calc/);
   });
 
-  it("keeps the rules to one line plus an info control", () => {
+  it("keeps every rule, and the reset line, behind the info control", () => {
     const page = model(snap({}));
     assert.equal("howTo" in page, false);
     assert.equal("checklist" in page, false);
     const markup = html(page);
     assert.doesNotMatch(markup, /How to get on the leaderboard|Your checklist/);
-    assert.match(markup, new RegExp(RULES_LINE.replace("·", "·")));
     const sheet = markup.slice(markup.indexOf("<details"), markup.indexOf("</details>"));
+    const outside = markup.slice(0, markup.indexOf("<details")) + markup.slice(markup.indexOf("</details>"));
+    assert.match(sheet, new RegExp(RULES_LINE));
+    assert.doesNotMatch(outside, new RegExp(RULES_LINE), "not an always-visible line");
+    assert.doesNotMatch(outside, /Real collectors only|Resets Monday/);
     assert.match(sheet, /data-rules=""/);
     assert.match(sheet, /aria-label="How the boards work"/);
     for (const tab of LEADERBOARD_TABS) {

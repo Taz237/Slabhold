@@ -6,7 +6,7 @@ import { lazyPart } from "@/lib/ui/lazy-part";
 
 type IntroProps = { userId: string; onEnd: () => void };
 
-const PULSE = "motion-safe:animate-pulse motion-reduce:animate-none";
+const PULSE = "skeleton-shimmer on-dark";
 
 /**
  * Holds the screen while the intro's chunk loads: the intro's own background,

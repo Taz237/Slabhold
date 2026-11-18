@@ -175,6 +175,7 @@ function assertNoRows(host: HTMLElement, lane: string) {
   }
   assert.equal(host.querySelector('a[href="/comp"]'), null, lane);
   assert.equal(host.querySelector('a[href="/moving-today"]'), null, lane);
+  assert.equal(host.querySelector('a[href="/catalog"]'), null, lane);
   assert.equal(host.querySelector('a[href="/leaderboard"]'), null, lane);
 }
 
@@ -284,28 +285,17 @@ describe("Home after the cleanup", () => {
   });
 });
 
-describe("Moving today in the drawer", () => {
+describe("Catalog on the bar, not in the drawer", () => {
   for (const flag of [false, true]) {
-    it(`sits directly after Leaderboard (flag ${flag ? "on" : "off"})`, async () => {
+    it(`the drawer has no Catalog and no Quick Comp; Leaderboard stays (flag ${flag ? "on" : "off"})`, async () => {
       setFlag(flag);
       const drawer = await drawerRows();
       try {
         const labels = drawer.rows.map(label);
-        const leaderboard = labels.indexOf("Leaderboard");
-        assert.ok(leaderboard >= 0, labels.join(", "));
-        const moving = drawer.rows[leaderboard + 1];
-        assert.ok(moving);
-        assert.equal(moving.tagName, "A");
-        assert.equal(moving.getAttribute("href"), "/moving-today");
-        assert.equal(label(moving), "Moving today");
-        assert.equal(labels.filter((name) => name === "Moving today").length, 1);
-        if (flag) {
-          const quick = labels.indexOf("Quick Comp");
-          assert.ok(quick >= 0, labels.join(", "));
-          assert.equal(labels[quick + 1], "Add card");
-        } else {
-          assert.equal(labels.includes("Quick Comp"), false);
-        }
+        assert.ok(labels.includes("Leaderboard"), labels.join(", "));
+        assert.equal(labels.includes("Catalog"), false);
+        assert.equal(labels.includes("Quick Comp"), false);
+        assert.equal(labels.includes("Moving today"), false);
       } finally {
         drawer.done();
       }

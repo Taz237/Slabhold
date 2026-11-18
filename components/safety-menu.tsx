@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Ellipsis, X } from "lucide-react";
+import { Ban, Ellipsis, Flag, Tag, VolumeX, X } from "lucide-react";
+import { MenuSheet, MenuSheetIcon, menuSheetItem } from "@/components/menu-sheet";
 import { useSocial } from "@/components/social-provider";
-import { useCloseOnOutsideTap } from "@/lib/ui/menu-outside-tap";
 import {
   blockAccount,
   muteAccount,
@@ -18,9 +18,6 @@ const SAFETY_ACTIONS = { blockAccount, muteAccount, submitReport, unblockAccount
 
 /** A server action that rejected (offline, or a deploy mid-request). */
 const ACTION_FAILED = { ok: false as const, error: SAFETY_ACTION_FAILED };
-
-const menuItem =
-  "block w-full px-4 py-2.5 text-left text-[15px] font-semibold hover:bg-zinc-100 dark:hover:bg-white/10";
 
 export function SafetyMenu({
   targetType,
@@ -53,8 +50,6 @@ export function SafetyMenu({
   const rootRef = useRef<HTMLDivElement>(null);
   const blocked = blockedIds.includes(reportedUserId);
   const muted = mutedIds.includes(reportedUserId);
-
-  useCloseOnOutsideTap(open, rootRef, () => setOpen(false));
 
   useEffect(() => {
     if (!toast) return;
@@ -149,41 +144,37 @@ export function SafetyMenu({
         <Ellipsis className="h-5 w-5" />
       </button>
       {open ? (
-        <div
-          role="menu"
-          className="absolute top-9 right-0 z-30 w-56 overflow-hidden rounded-2xl border border-zinc-200 bg-[var(--background)] py-1 shadow-lg dark:border-white/10"
-        >
+        <MenuSheet label={`Options for @${username}`} onClose={() => setOpen(false)}>
           {askPriceHref ? (
             <Link
               href={askPriceHref}
               role="menuitem"
               prefetch={false}
               data-ask-price=""
-              className={menuItem}
-              onClick={(event) => {
-                event.stopPropagation();
-                setOpen(false);
-              }}
+              className={menuSheetItem}
+              onClick={() => setOpen(false)}
             >
+              <MenuSheetIcon icon={Tag} />
               Ask price
             </Link>
           ) : null}
           <button
             type="button"
             role="menuitem"
-            className={menuItem}
+            className={menuSheetItem}
             onClick={() => {
               setOpen(false);
               setError(null);
               setDialog("report");
             }}
           >
+            <MenuSheetIcon icon={Flag} />
             {reportLabel}
           </button>
           <button
             type="button"
             role="menuitem"
-            className={menuItem}
+            className={menuSheetItem}
             onClick={() => {
               setOpen(false);
               setError(null);
@@ -191,12 +182,13 @@ export function SafetyMenu({
               else setDialog("mute");
             }}
           >
+            <MenuSheetIcon icon={VolumeX} />
             {muted ? `Unmute @${username}` : `Mute @${username}`}
           </button>
           <button
             type="button"
             role="menuitem"
-            className={`${menuItem} text-rose-600`}
+            className={`${menuSheetItem} text-rose-600 dark:text-rose-400`}
             onClick={() => {
               setOpen(false);
               setError(null);
@@ -204,9 +196,10 @@ export function SafetyMenu({
               else setDialog("block");
             }}
           >
+            <MenuSheetIcon icon={Ban} />
             {blocked ? `Unblock @${username}` : `Block @${username}`}
           </button>
-        </div>
+        </MenuSheet>
       ) : null}
 
       {dialog === "report" ? (

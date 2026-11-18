@@ -1,4 +1,5 @@
-import { createElement } from "react";
+import { createRequire } from "node:module";
+import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { LeaderboardView } from "@/components/leaderboard-view";
 import { presentLeaderboard, type LeaderboardSnapshot } from "@/lib/leaderboard/present";
@@ -41,8 +42,19 @@ export function pageModel(snapshot: LeaderboardSnapshot, viewer: string | null =
   return presentLeaderboard({ snapshot, viewer: { userId: viewer, hiddenIds: [] }, week, focusBoardId: null, now: VIEW_NOW });
 }
 
+// Pull to refresh and Try again use the app router, as they do in the app.
+const testRouter = { back() {}, forward() {}, refresh() {}, push() {}, replace() {}, prefetch() {} };
+const { AppRouterContext } = createRequire(process.cwd() + "/package.json")(
+  "next/dist/shared/lib/app-router-context.shared-runtime",
+) as { AppRouterContext: { Provider: (props: { value: unknown; children?: ReactNode }) => ReactNode } };
+
+/** The node inside the app router, for a static render. */
+export function withRouter(node: ReactNode): ReactNode {
+  return createElement(AppRouterContext.Provider, { value: testRouter }, node);
+}
+
 export function render(model: ReturnType<typeof pageModel>): string {
-  return renderToStaticMarkup(createElement(LeaderboardView, { model }));
+  return renderToStaticMarkup(withRouter(createElement(LeaderboardView, { model })));
 }
 
 /** One board's section markup. */

@@ -1,5 +1,6 @@
 "use client";
 
+import { useSheetDrag } from "@/lib/ui/use-sheet-drag";
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, Download, Link2, X } from "lucide-react";
@@ -22,7 +23,7 @@ function XLogo({ className }: { className?: string }) {
 }
 
 const rowClass =
-  "tap-fade flex min-h-14 w-full items-center gap-3 rounded-2xl px-3 text-left text-[15px] font-semibold transition-colors hover:bg-zinc-100 focus-visible:bg-zinc-100 focus-visible:outline-none dark:hover:bg-white/[0.06] dark:focus-visible:bg-white/[0.06]";
+  "tap-fade flex min-h-14 w-full items-center gap-3 rounded-2xl px-3 text-left text-15 font-semibold transition-colors hover:bg-zinc-100 focus-visible:bg-zinc-100 focus-visible:outline-none dark:hover:bg-white/[0.06] dark:focus-visible:bg-white/[0.06]";
 
 const iconWell = "grid h-10 w-10 shrink-0 place-items-center rounded-full";
 
@@ -30,6 +31,9 @@ export function ShareSheet({ target, onClose }: { target: ShareTarget; onClose: 
   const titleId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  /** Swipe down to close; the backdrop and Close slide it away first. */
+  const dismiss = useSheetDrag(dialogRef, rootRef, onClose);
   const onCloseRef = useRef(onClose);
   const [copied, setCopied] = useState<"idle" | "copied" | "failed">("idle");
   const url = shareUrl(target.path);
@@ -78,8 +82,9 @@ export function ShareSheet({ target, onClose }: { target: ShareTarget; onClose: 
   if (typeof document === "undefined") return null;
   return createPortal(
     <div
+      ref={rootRef}
       className="backdrop-in fixed inset-0 z-[70] grid place-items-end bg-black/60 sm:place-items-center"
-      onClick={onClose}
+      onClick={dismiss}
     >
       <div
         ref={dialogRef}
@@ -87,7 +92,7 @@ export function ShareSheet({ target, onClose }: { target: ShareTarget; onClose: 
         aria-modal="true"
         aria-labelledby={titleId}
         onClick={(event) => event.stopPropagation()}
-        className="sheet-up w-full max-w-sm rounded-t-3xl border-t border-zinc-200 bg-[var(--background)] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] text-zinc-900 shadow-2xl sm:rounded-3xl sm:border dark:border-white/10 dark:text-zinc-100"
+        className="sheet-slide w-full max-w-sm rounded-t-3xl border-t border-zinc-200 bg-[var(--background)] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] text-zinc-900 shadow-2xl sm:rounded-3xl sm:border dark:border-white/10 dark:text-zinc-100"
       >
         <div aria-hidden className="mx-auto mb-1 h-1 w-9 rounded-full bg-zinc-300 sm:hidden dark:bg-white/20" />
         <div className="flex items-center justify-between gap-3 px-2 pt-1">
@@ -95,12 +100,12 @@ export function ShareSheet({ target, onClose }: { target: ShareTarget; onClose: 
             <h2 id={titleId} className="text-base font-semibold tracking-tight">
               Share
             </h2>
-            <p className="truncate text-[13px] text-zinc-500">{target.title}</p>
+            <p className="truncate text-13 text-zinc-500">{target.title}</p>
           </div>
           <button
             ref={closeRef}
             type="button"
-            onClick={onClose}
+            onClick={dismiss}
             aria-label="Close"
             className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-zinc-500 hover:bg-zinc-100 dark:hover:bg-white/10"
           >

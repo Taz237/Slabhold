@@ -12,7 +12,7 @@ import { Keyboard } from "@capacitor/keyboard";
 import { PushNotifications } from "@capacitor/push-notifications";
 import { Share } from "@capacitor/share";
 import { SplashScreen } from "@capacitor/splash-screen";
-import { StatusBar, Style } from "@capacitor/status-bar";
+import { Animation, StatusBar, Style } from "@capacitor/status-bar";
 import { oauthReturnPath } from "@/lib/auth/oauth";
 import { appLinkPath, routeLink, routeWindowOpen, safeAppPath } from "@/lib/ios/links";
 import type { PhotoSource } from "@/lib/ios/camera";
@@ -267,6 +267,11 @@ export function startNativeShell({ navigate }: ShellDeps): () => void {
     void urlOpen.then((handle) => handle.remove()).catch(() => {});
     stopPush();
   };
+}
+
+/** The photo viewer is fullscreen: the status bar fades out while it's open. */
+export function setStatusBarHidden(hidden: boolean): Promise<void> {
+  return hidden ? StatusBar.hide({ animation: Animation.Fade }) : StatusBar.show({ animation: Animation.Fade });
 }
 
 /** The iOS share sheet. Links only: the plugin takes file paths, not Files. Cancel is an AbortError. */

@@ -26,6 +26,8 @@ export const CONFIRM_COPY = {
   others: "Or one of these",
   parallel: "Parallel",
   pickParallel: "Pick the parallel",
+  /** A slab whose label named no parallel: Base and the versions that look like it. */
+  whichVersion: "Which version?",
   somethingElse: "Something else",
   serialLabel: "Your number",
   notSure: "Not sure",
@@ -35,6 +37,16 @@ export const CONFIRM_COPY = {
   noMatchTitle: "We couldn't find this one yet",
   noMatchBody: "It's not in our catalog yet. We'll keep the photo.",
   offlineBody: "You're offline, so we couldn't check our catalog. We'll keep the photo.",
+  /** Every card we found disagreed with what the back printed (its maker or its card #): we don't guess. */
+  unpinnedTitle: "We couldn't pin this one down",
+  unpinnedBody: "What the card prints doesn't match a card we know, so we won't guess. Search for it instead.",
+  search: "Search for it",
+  /** Only the player was read: their real cards from our checklists, to pick from. Never a guess. */
+  closestTitle: "Is it one of these?",
+  closestBody: "but not the year, set or card number. Tap your card, or add it yourself.",
+  closestList: "Cards we know for this player",
+  /** A choice other collectors picked for a scan that read the same. */
+  closestConfirmed: "Picked by other collectors",
   stepByStep: "Add it step by step",
   close: "Close",
 } as const;
@@ -42,10 +54,25 @@ export const CONFIRM_COPY = {
 /** The parallel the collector has picked on the sheet. Null leaves it for Add card to ask. */
 export type ParallelPick = { name: string; serialRun: number | null } | null;
 
-export function matchLine(match: Pick<ScanMatch, "yearLabel" | "setBrand" | "cardNumber">): string {
-  return [match.yearLabel, match.setBrand, match.cardNumber ? `#${match.cardNumber}` : ""]
+export function matchLine(match: Pick<ScanMatch, "yearLabel" | "setBrand" | "cardNumber"> & Pick<Partial<ScanMatch>, "insertName">): string {
+  return [match.yearLabel, setWithInsert(match), match.cardNumber ? `#${match.cardNumber}` : ""]
     .filter(Boolean)
     .join(" ");
+}
+
+/** The set with the insert the card # is in: "Topps Rookie Code". The insert alone when no set was read. */
+export function setWithInsert(match: Pick<ScanMatch, "setBrand"> & Pick<Partial<ScanMatch>, "insertName">): string {
+  const insert = match.insertName?.trim() ?? "";
+  if (!insert || match.setBrand.toLowerCase().includes(insert.toLowerCase())) return match.setBrand;
+  return [match.setBrand, insert].filter(Boolean).join(" ");
+}
+
+/**
+ * A version's name as the sheet shows it. On an insert (Rookie Code), the plain version is the
+ * insert itself, so "Base" reads "Rookie Code". Display only: it's still looked up as Base.
+ */
+export function versionLabel(name: string, insertName?: string): string {
+  return insertName?.trim() && /^base$/i.test(name.trim()) ? insertName.trim() : name;
 }
 
 export function gradeLabel(grade: ScanGrade | null): string | null {
@@ -76,6 +103,15 @@ export function initialChoice(match: ScanMatch): ParallelPick {
   if (!match.parallel) return null;
   const option = match.parallelOptions.find((item) => item.name === match.parallel);
   return { name: match.parallel, serialRun: option?.serialRun ?? match.serialRun };
+}
+
+/**
+ * The line beside "Parallel" while nothing is picked. A slab asks "Which version?": its label
+ * named none, and Base, Refractor and X-Fractor read the same. Null once picked or deferred.
+ */
+export function parallelHint(match: ScanMatch, pick: ParallelPick, deferred: boolean): string | null {
+  if (pick || deferred) return null;
+  return match.grade ? CONFIRM_COPY.whichVersion : CONFIRM_COPY.pickParallel;
 }
 
 /** The match with the sheet's picks applied, ready for the Add card handoff. */

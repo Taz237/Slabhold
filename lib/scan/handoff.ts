@@ -1,5 +1,7 @@
 import { SETS } from "@/lib/card-options";
 import { ADD_FLOW_STEPS, resumeStep, stepSkipped, type AddFlowStep, type FlowAnswers } from "@/lib/cards/add-flow";
+import { insertNameOf } from "@/lib/cards/insert-name";
+import { checklistNumberKey } from "@/lib/cards/checklists";
 import { listedParallel } from "@/lib/cards/parallels";
 import type { CatalogPickSnapshot } from "@/lib/catalog/catalog-queue";
 import type { FieldSureness, ScanGrade, ScanMatch } from "./match";
@@ -32,10 +34,14 @@ export type ScanHandoff = {
   serialNo: string;
   isRookie: boolean;
   isAuto: boolean;
+  /** The card holds a patch, a swatch or a relic. Older handoffs have none. */
+  isRelic?: boolean;
   grade: ScanGrade | null;
   sureness: ScanMatch["sureness"];
   /** "Yes, add it": Add card saves on open instead of waiting on Review. */
   autoSave: boolean;
+  /** The insert the card # is in ("Rookie Code"), or "". Older handoffs have none. */
+  insertName: string;
 };
 
 export function isScanId(value: string): boolean {
@@ -69,11 +75,13 @@ export function scanHandoffFrom(match: ScanMatch, id: string, options: { autoSav
     serialNo: match.serialNo,
     isRookie: match.isRookie,
     isAuto: match.isAuto,
+    ...(match.isRelic ? { isRelic: true } : {}),
     grade: match.grade,
     sureness: match.sureness,
     // An autograph, a variation or a numbered card with its parallel still open is never saved as
     // Base on its own: the collector picks the parallel on the Add card screen first.
     autoSave: options.autoSave === true && !parallelStillOpen(match),
+    insertName: insertNameOf(match),
   };
 }
 
@@ -144,6 +152,7 @@ export function parseScanHandoff(raw: string | null): ScanHandoff | null {
   const sureness = parseSureness(data.sureness);
   if (!sureness) return null;
   if (data.autoSave !== undefined && typeof data.autoSave !== "boolean") return null;
+  if (data.insertName !== undefined && typeof data.insertName !== "string") return null;
   return {
     v: SCAN_HANDOFF_VERSION,
     id: data.id,
@@ -158,9 +167,11 @@ export function parseScanHandoff(raw: string | null): ScanHandoff | null {
     serialNo: values.serialNo!,
     isRookie: data.isRookie,
     isAuto: data.isAuto,
+    ...(data.isRelic === true ? { isRelic: true } : {}),
     grade,
     sureness,
     autoSave: data.autoSave === true,
+    insertName: typeof data.insertName === "string" ? insertNameOf({ insertName: data.insertName }) : "",
   };
 }
 
@@ -180,6 +191,8 @@ export type ScanCardStart = {
   parallelIsCustom: boolean;
   isRookie: boolean;
   isAuto: boolean;
+  /** The card holds a patch, a swatch or a relic. */
+  isRelic?: boolean;
   /** "" for a raw card: Add card keeps its own default. */
   gradeCompany: string;
   gradeNumber: string;
@@ -187,6 +200,8 @@ export type ScanCardStart = {
   certNumber: string;
   /** Compared at save time, like a catalog pick. Null when no catalog row backs the match. */
   snapshot: CatalogPickSnapshot | null;
+  /** The insert the scan placed the card # in ("Rookie Code"), or "". */
+  insertName: string;
 };
 
 /** The Add card fields for a scan, in the shapes CardForm keeps. */
@@ -209,10 +224,12 @@ export function scanCardStart(handoff: ScanHandoff): ScanCardStart {
     parallelIsCustom,
     isRookie: handoff.isRookie,
     isAuto: handoff.isAuto,
+    ...(handoff.isRelic ? { isRelic: true } : {}),
     gradeCompany: handoff.grade?.company ?? "",
     gradeNumber: handoff.grade?.number ?? "",
     gradeQualifier: handoff.grade?.qualifier ?? "",
     certNumber: handoff.grade?.certNumber ?? "",
+    insertName: handoff.insertName,
     snapshot: handoff.catalogId
       ? {
           playerName: form.playerName,
@@ -223,6 +240,23 @@ export function scanCardStart(handoff: ScanHandoff): ScanCardStart {
         }
       : null,
   };
+}
+
+/**
+ * The insert name to save, from where it came (the scan, or the saved card being edited): kept
+ * while the set and card # are still that card's. A collector who changed either is saving another
+ * card, which isn't in that insert: "" clears it (the save sends insert_name: null). Undefined when
+ * there was none to begin with: the save leaves the column alone.
+ */
+export function insertNameForSave(
+  start: { setBrand: string; cardNumber: string; insertName?: string | null } | null | undefined,
+  values: { setBrand: string; cardNumber: string },
+): string | undefined {
+  const insert = start ? insertNameOf(start) : "";
+  if (!start || !insert) return undefined;
+  const sameSet = start.setBrand.trim().toLowerCase() === values.setBrand.trim().toLowerCase();
+  const sameNumber = checklistNumberKey(start.cardNumber) === checklistNumberKey(values.cardNumber);
+  return sameSet && sameNumber ? insert : "";
 }
 
 const SURENESS_STEPS: Record<(typeof SURENESS_KEYS)[number], AddFlowStep> = {

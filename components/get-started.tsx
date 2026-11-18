@@ -37,7 +37,7 @@ function iconProps() {
 const EASE = "ease-[cubic-bezier(0.22,1,0.36,1)]";
 
 /** Rows sit 8px into the card's 16px padding, so their 8px corners nest inside its 16px ones. */
-const rowClass = "-mx-2 flex min-h-14 w-[calc(100%+16px)] items-center gap-3 rounded-lg px-2 text-left text-[15px] leading-5";
+const rowClass = "-mx-2 flex min-h-14 w-[calc(100%+16px)] items-center gap-3 rounded-lg px-2 text-left text-15 leading-5";
 const stepClass = `${rowClass} transition-colors duration-150 ${EASE} hover:bg-zinc-950/[0.03] focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:outline-none motion-reduce:transition-none dark:hover:bg-white/[0.04]`;
 
 /** How long "You're set" stays before it fades and Get started is put away. */
@@ -193,10 +193,10 @@ export function GetStartedCard({
         >
           <X {...iconProps()} />
         </button>
-        <h2 id="get-started-title" className="pr-10 text-[17px] leading-6 font-semibold">
+        <h2 id="get-started-title" className="pr-10 text-17 leading-6 font-semibold">
           {state.complete ? "You're set" : "Set up your collection"}
         </h2>
-        <p className="mt-1 pr-10 text-[15px] leading-5 text-zinc-600 dark:text-zinc-400">
+        <p className="mt-1 pr-10 text-15 leading-5 text-zinc-600 dark:text-zinc-400">
           {state.complete
             ? "Your cards and the collectors you follow now fill Home."
             : "Show your cards, follow collectors, and see what your cards sell for."}
@@ -215,7 +215,7 @@ export function GetStartedCard({
               style={{ transform: `scaleX(${doneCount / total})` }}
             />
           </div>
-          <p className="text-[13px] leading-5 text-zinc-500 tabular-nums">
+          <p className="text-13 leading-5 text-zinc-500 tabular-nums">
             {doneCount} of {total}
           </p>
         </div>
@@ -234,7 +234,7 @@ export function GetStartedCard({
                     {label}
                   </span>
                   {step.id === "profile" && !complete ? (
-                    <span className="block text-[13px] leading-5 text-zinc-500">Optional</span>
+                    <span className="block text-13 leading-5 text-zinc-500">Optional</span>
                   ) : null}
                 </span>
                 {complete ? null : <StepAction current={isCurrent} label={step.action} />}
@@ -277,7 +277,7 @@ export function GetStartedCard({
 function StepAction({ current, label }: { current: boolean; label: string }) {
   if (!current) return <ChevronRight {...iconProps()} className="h-4 w-4 shrink-0 text-zinc-400" />;
   return (
-    <span className="inline-flex h-8 shrink-0 items-center rounded-lg bg-violet-600 px-3 text-[13px] font-medium text-white">
+    <span className="inline-flex h-8 shrink-0 items-center rounded-lg bg-violet-600 px-3 text-13 font-medium text-white">
       {label}
     </span>
   );

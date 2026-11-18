@@ -1,0 +1,375 @@
+{
+ "sport": "Hockey",
+ "yearLabel": "2024-25",
+ "product": "Upper Deck",
+ "manufacturer": "Upper Deck",
+ "source": "https://www.checklistinsider.com/2024-25-upper-deck-series-2-hockey",
+ "official": false,
+ "parallels": [
+  {
+   "subset": "Base",
+   "name": "Outburst",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Clear Cut",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Deluxe",
+   "serialRun": 250
+  },
+  {
+   "subset": "Base",
+   "name": "Exclusives",
+   "serialRun": 100
+  },
+  {
+   "subset": "Base",
+   "name": "Outburst Red",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base",
+   "name": "High Gloss",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base",
+   "name": "Outburst Gold",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base",
+   "name": "Silver Foil",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Speckled Rainbow Foil",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Young Guns Rookies",
+   "name": "Outburst",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Young Guns Rookies",
+   "name": "Clear Cut",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Young Guns Rookies",
+   "name": "Deluxe",
+   "serialRun": 250
+  },
+  {
+   "subset": "Base Young Guns Rookies",
+   "name": "Exclusives",
+   "serialRun": 100
+  },
+  {
+   "subset": "Base Young Guns Rookies",
+   "name": "Outburst Red",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Young Guns Rookies",
+   "name": "High Gloss",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Young Guns Rookies",
+   "name": "Outburst Gold",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Young Guns Rookies",
+   "name": "Silver Foil",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Young Guns Rookies",
+   "name": "Speckled Rainbow Foil",
+   "serialRun": null
+  },
+  {
+   "subset": "Bang For Your Puck",
+   "name": "Speckle",
+   "serialRun": null
+  },
+  {
+   "subset": "Bang For Your Puck",
+   "name": "Black",
+   "serialRun": null
+  },
+  {
+   "subset": "Bang For Your Puck",
+   "name": "Red",
+   "serialRun": 99
+  },
+  {
+   "subset": "Bang For Your Puck",
+   "name": "Gold",
+   "serialRun": 10
+  },
+  {
+   "subset": "Bang For Your Puck",
+   "name": "Printing Plates",
+   "serialRun": 1
+  },
+  {
+   "subset": "ElectriCITY",
+   "name": "Speckle",
+   "serialRun": null
+  },
+  {
+   "subset": "ElectriCITY",
+   "name": "Black",
+   "serialRun": null
+  },
+  {
+   "subset": "ElectriCITY",
+   "name": "Red",
+   "serialRun": 99
+  },
+  {
+   "subset": "ElectriCITY",
+   "name": "Gold",
+   "serialRun": 10
+  },
+  {
+   "subset": "ElectriCITY",
+   "name": "Printing Plates",
+   "serialRun": 1
+  },
+  {
+   "subset": "On a Heater",
+   "name": "Speckle",
+   "serialRun": null
+  },
+  {
+   "subset": "On a Heater",
+   "name": "Black",
+   "serialRun": null
+  },
+  {
+   "subset": "On a Heater",
+   "name": "Red",
+   "serialRun": 99
+  },
+  {
+   "subset": "On a Heater",
+   "name": "Gold",
+   "serialRun": 10
+  },
+  {
+   "subset": "On a Heater",
+   "name": "Printing Plates",
+   "serialRun": 1
+  },
+  {
+   "subset": "Ooh La La",
+   "name": "Speckle",
+   "serialRun": null
+  },
+  {
+   "subset": "Ooh La La",
+   "name": "Black",
+   "serialRun": null
+  },
+  {
+   "subset": "Ooh La La",
+   "name": "Red",
+   "serialRun": 99
+  },
+  {
+   "subset": "Ooh La La",
+   "name": "Gold",
+   "serialRun": 10
+  },
+  {
+   "subset": "Ooh La La",
+   "name": "Printing Plates",
+   "serialRun": 1
+  },
+  {
+   "subset": "OPC Glossy",
+   "name": "Gold",
+   "serialRun": null
+  },
+  {
+   "subset": "Outburst Retro Young Guns",
+   "name": "Red",
+   "serialRun": 25
+  },
+  {
+   "subset": "Outburst Retro Young Guns",
+   "name": "Gold",
+   "serialRun": 1
+  },
+  {
+   "subset": "On Tour",
+   "name": "Speckle",
+   "serialRun": null
+  },
+  {
+   "subset": "On Tour",
+   "name": "Black",
+   "serialRun": null
+  },
+  {
+   "subset": "On Tour",
+   "name": "Red",
+   "serialRun": 99
+  },
+  {
+   "subset": "On Tour",
+   "name": "Gold",
+   "serialRun": 10
+  },
+  {
+   "subset": "On Tour",
+   "name": "Printing Plates",
+   "serialRun": 1
+  },
+  {
+   "subset": "Playlist",
+   "name": "Speckle",
+   "serialRun": null
+  },
+  {
+   "subset": "Playlist",
+   "name": "Black",
+   "serialRun": null
+  },
+  {
+   "subset": "Playlist",
+   "name": "Red",
+   "serialRun": 99
+  },
+  {
+   "subset": "Playlist",
+   "name": "Gold",
+   "serialRun": 10
+  },
+  {
+   "subset": "Playlist",
+   "name": "Printing Plates",
+   "serialRun": 1
+  },
+  {
+   "subset": "Rookie Commemorative Class",
+   "name": "Red",
+   "serialRun": null
+  },
+  {
+   "subset": "UD Canvas",
+   "name": "Black & White",
+   "serialRun": null
+  },
+  {
+   "subset": "UD Canvas",
+   "name": "Printing Plates",
+   "serialRun": 1
+  },
+  {
+   "subset": "UD Canvas Young Guns",
+   "name": "Black & White",
+   "serialRun": null
+  },
+  {
+   "subset": "UD Canvas Young Guns",
+   "name": "Printing Plates",
+   "serialRun": 1
+  },
+  {
+   "subset": "UD Canvas Retired",
+   "name": "Black & White",
+   "serialRun": null
+  },
+  {
+   "subset": "UD Canvas Retired",
+   "name": "Printing Plates",
+   "serialRun": 1
+  },
+  {
+   "subset": "UD Canvas Program of Excellence",
+   "name": "Black & White",
+   "serialRun": null
+  },
+  {
+   "subset": "UD Canvas Program of Excellence",
+   "name": "Printing Plates",
+   "serialRun": 1
+  },
+  {
+   "subset": "UD Portraits",
+   "name": "Speckle",
+   "serialRun": null
+  },
+  {
+   "subset": "UD Portraits",
+   "name": "Black",
+   "serialRun": null
+  },
+  {
+   "subset": "UD Portraits",
+   "name": "Red",
+   "serialRun": 99
+  },
+  {
+   "subset": "UD Portraits",
+   "name": "Gold",
+   "serialRun": 10
+  },
+  {
+   "subset": "UD Portraits",
+   "name": "Printing Plates",
+   "serialRun": 1
+  },
+  {
+   "subset": "Welcome Aboard",
+   "name": "Speckle",
+   "serialRun": null
+  },
+  {
+   "subset": "Welcome Aboard",
+   "name": "Black",
+   "serialRun": null
+  },
+  {
+   "subset": "Welcome Aboard",
+   "name": "Red",
+   "serialRun": 99
+  },
+  {
+   "subset": "Welcome Aboard",
+   "name": "Gold",
+   "serialRun": 10
+  },
+  {
+   "subset": "Welcome Aboard",
+   "name": "Printing Plates",
+   "serialRun": 1
+  },
+  {
+   "subset": "Young Guns Achievements",
+   "name": "Exclusives",
+   "serialRun": 100
+  },
+  {
+   "subset": "Young Guns Renewed Series 2",
+   "name": "Exclusives",
+   "serialRun": 100
+  },
+  {
+   "subset": "Young Guns Renewed Series 2",
+   "name": "High Gloss",
+   "serialRun": 10
+  }
+ ]
+}

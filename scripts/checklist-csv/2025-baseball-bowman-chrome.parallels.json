@@ -1,0 +1,1505 @@
+{
+ "sport": "Baseball",
+ "yearLabel": "2025",
+ "product": "Bowman Chrome",
+ "manufacturer": "Topps",
+ "source": "https://www.checklistinsider.com/2025-bowman-chrome-baseball",
+ "official": false,
+ "parallels": [
+  {
+   "subset": "Base Chrome",
+   "name": "Pearl Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Chrome",
+   "name": "Refractor /499 (1:20 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Chrome",
+   "name": "1:38 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Chrome",
+   "name": "Geometric Refractor",
+   "serialRun": 499
+  },
+  {
+   "subset": "Base Chrome",
+   "name": "Pulsar Refractor",
+   "serialRun": 399
+  },
+  {
+   "subset": "Base Chrome",
+   "name": "Fuchsia Refractor /299 (1:33 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Chrome",
+   "name": "1:63 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Chrome",
+   "name": "Fuchsia Wave Refractor",
+   "serialRun": 299
+  },
+  {
+   "subset": "Base Chrome",
+   "name": "Purple Geometric Refractor",
+   "serialRun": 250
+  },
+  {
+   "subset": "Base Chrome",
+   "name": "Aqua RayWave Refractor /199 (1:49 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Chrome",
+   "name": "1:94 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Chrome",
+   "name": "Blue Refractor /150 (1:65 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Chrome",
+   "name": "1:125 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Chrome",
+   "name": "Blue Wave Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Base Chrome",
+   "name": "Blue Geometric Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Base Chrome",
+   "name": "Aqua Geometric Refractor",
+   "serialRun": 125
+  },
+  {
+   "subset": "Base Chrome",
+   "name": "Wave Refractor",
+   "serialRun": 100
+  },
+  {
+   "subset": "Base Chrome",
+   "name": "Green Refractor /99 (1:98 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Chrome",
+   "name": "1:189 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Chrome",
+   "name": "Green Wave Refractor /99 (1:98 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Chrome",
+   "name": "1:189 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Chrome",
+   "name": "Green Geometric Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base Chrome",
+   "name": "Yellow Geometric Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Base Chrome",
+   "name": "Yellow Refractor /75 (1:129 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Chrome",
+   "name": "1:249 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Chrome",
+   "name": "Gold Refractor /50 (1:193 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Chrome",
+   "name": "1:374 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Chrome",
+   "name": "Gold Geometric Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base Chrome",
+   "name": "Orange Refractor /25 (1:385 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Chrome",
+   "name": "1:745 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Chrome",
+   "name": "Orange Geometric Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Chrome",
+   "name": "Black Geometric Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Chrome",
+   "name": "Black Refractor /10 (1:961 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Chrome",
+   "name": "1:1,876 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Chrome",
+   "name": "Red Refractor /5 (1:1,924 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Chrome",
+   "name": "1:3,752 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Chrome",
+   "name": "Red Geometric Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Chrome",
+   "name": "SuperFractor 1/1 (1:10,243 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Chrome",
+   "name": "1:6,432 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Mini-Diamond Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Shimmer Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Pearl Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Refractor /499 (1:20 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "1:38 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Geometric Refractor",
+   "serialRun": 499
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Pulsar Refractor",
+   "serialRun": 399
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Speckle Refractor /299 (1:33 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "1:63 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Purple Refractor /250 (1:39 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "1:75 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Purple Pulsar Refractor",
+   "serialRun": 250
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Purple Shimmer Refractor",
+   "serialRun": 250
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Purple Wave Refractor",
+   "serialRun": 250
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Purple Geometric Refractor",
+   "serialRun": 250
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Fuchsia Shimmer Refractor",
+   "serialRun": 199
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Fuchsia Geometric Refractor",
+   "serialRun": 199
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Blue Refractor /150 (1:65 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "1:125 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Blue Wave Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Reptilian Blue Refractor /150 (1:65 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "1:125 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Blue Geometric Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Aqua Refractor /125 (1:77 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "1:150 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Aqua Pulsar Refractor",
+   "serialRun": 125
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Aqua Geometric Refractor",
+   "serialRun": 125
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Wave Refractor",
+   "serialRun": 100
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Green Refractor /99 (1:98 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "1:189 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Reptilian Green Refractor /99 (1:98 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "1:189 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Green Shimmer Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Green Wave Refractor /99 (1:98 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "1:189 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Green Geometric Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Yellow Refractor /75 (1:129 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "1:249 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Yellow Wave Refractor /75 (1:129 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "1:249 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Yellow Geometric Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Gold Refractor /50 (1:193 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "1:374 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Gold Shimmer Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Reptilian Gold Refractor /50 (1:193 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "1:374 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Gold Wave Refractor /50 (1:193 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "1:374 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Gold Geometric Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Orange Refractor /25 (1:385 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "1:745 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Reptilian Orange Refractor /25 (1:385 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "1:745 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Orange Shimmer Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Orange Wave Refractor /25 (1:385 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "1:745 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Orange Geometric Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Black Refractor /10 (1:961 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "1:1,876 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Reptilian Black Refractor /10 (1:961 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "1:1,876 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Black Wave Refractor /10 (1:961 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "1:1,876 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Black Geometric Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Red Refractor /5 (1:1,924 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "1:3,752 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Reptilian Red Refractor /5 (1:1,924 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "1:3,752 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Red Shimmer Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Red Wave Refractor /5 (1:1,924 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "1:3,752 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Red Geometric Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "SuperFractor 1/1 (1:10,243 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "1:9,004 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Gum Ball Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Peanuts Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Popcorn Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospects",
+   "name": "Sunflower Seeds Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome RetroFractor",
+   "name": "Gold Refractor /50 (1:9,680 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome RetroFractor",
+   "name": "1:18,008 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome RetroFractor",
+   "name": "Orange Refractor /25 (1:19,149 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome RetroFractor",
+   "name": "1:45,018 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome RetroFractor",
+   "name": "Red Refractor /5 (1:88,085 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome RetroFractor",
+   "name": "1:90,036 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome RetroFractor",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Adios Autographs",
+   "name": "Gold Mini-Diamond Refractor /50 (1:2,197 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Adios Autographs",
+   "name": "1:216 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Adios Autographs",
+   "name": "Orange Refractor /25 (1:4,059 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Adios Autographs",
+   "name": "1:401 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Adios Autographs",
+   "name": "Red Refractor /5 (1:19,573 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Adios Autographs",
+   "name": "1:1,916 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Adios Autographs",
+   "name": "SuperFractor 1/1 (1:88,078 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Adios Autographs",
+   "name": "1:9,005 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "All-America Game Autographs",
+   "name": "Red Ink (1:176,116 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "All-America Game Autographs",
+   "name": "1:18,008 Breaker.)",
+   "serialRun": null
+  },
+  {
+   "subset": "All-America Game Autographs",
+   "name": "Cal Raleigh",
+   "serialRun": null
+  },
+  {
+   "subset": "All-America Game Autographs",
+   "name": "Jordon Adell",
+   "serialRun": null
+  },
+  {
+   "subset": "All-America Game Autographs",
+   "name": "Nolan McLean",
+   "serialRun": null
+  },
+  {
+   "subset": "All-America Game Autographs",
+   "name": "Rece Hinds",
+   "serialRun": null
+  },
+  {
+   "subset": "All-America Game Autographs",
+   "name": "Ryan Sloan",
+   "serialRun": null
+  },
+  {
+   "subset": "Bowman Ascensions Autographs",
+   "name": "Red Refractor /5 (1:19,148 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Bowman Ascensions Autographs",
+   "name": "1:1,876 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Bowman Ascensions Autographs",
+   "name": "SuperFractor 1/1 (1:88,078 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Bowman Ascensions Autographs",
+   "name": "1:8,186 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Bowman GPK Autographs",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Bowman GPK Autographs",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Bowman GPK Autographs",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Black & White Shimmer Refractor (1:1,020 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "1:139 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Refractor /499 (1:37 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "1:4 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Speckle Refractor /299 (1:59 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "1:6 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Purple Refractor /250 (1:70 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "1:7 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Blue Refractor /150 (1:116 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "1:11 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Reptilian Blue Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Blue RayWave Refractor /150 (1:144 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "1:14 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "HTA Choice",
+   "serialRun": 150
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Mini-Diamond Refractor /100 (1:175 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "1:18 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Reptilian Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Green Refractor /99 (1:175 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "1:18 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Green Lava Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Yellow Refractor /75 (1:232 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "1:23 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Gold Refractor /50 (1:348 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "1:35 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Gold Mini-Diamond Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Gold Shimmer Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Orange Shimmer Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Orange Wave Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Reptilian Black Refractor /10 (1:1,530 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "1:168 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Black Refractor /10 (1:1,530 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "1:209 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Gum Ball Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Peanuts Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Popcorn Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Red Refractor /5 (1:3,324 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "1:335 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Red Shimmer Refractor /5 (1:3,324 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "1:419 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Red Wave Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Reptilian Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "Sunflower Seeds Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "SuperFractor 1/1 (1:16,620 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Prospect Autographs",
+   "name": "1:1,668 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "Refractor /499 (1:176 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "1:18 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "Blue Refractor /150 (1:474 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "1:47 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "Green Refractor /99 (1:691 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "1:68 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "Gold Refractor /50 (1:1,083 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "1:107 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "Black Refractor /10 (1:10,742 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "1:1,060 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "Red Refractor /5 (1:10,873 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "1:1,060 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "SuperFractor 1/1 (1:51,811 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Rookie Autographs",
+   "name": "1:5,297 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Rookie Image Variations Autographs",
+   "name": "SuperFractor 1/1 (1:2,200,194 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Rookie Image Variations Autographs",
+   "name": "1:22,511 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Max Volume Autographs",
+   "name": "Orange Refractor /25 (1:6,117 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Max Volume Autographs",
+   "name": "1:605 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Max Volume Autographs",
+   "name": "SuperFractor 1/1 (1:146,796 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Max Volume Autographs",
+   "name": "1:15,008 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Melt Mashers Autographs",
+   "name": "Gold Mini-Diamond Refractor /50 (1:2,154 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Melt Mashers Autographs",
+   "name": "1:212 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Melt Mashers Autographs",
+   "name": "Orange Refractor /25 (1:3,670 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Melt Mashers Autographs",
+   "name": "1:361 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Melt Mashers Autographs",
+   "name": "Red Refractor /5 (1:18,351 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Melt Mashers Autographs",
+   "name": "1:1,801 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Melt Mashers Autographs",
+   "name": "SuperFractor 1/1 (1:88,085 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Melt Mashers Autographs",
+   "name": "1:8186 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Prime Chrome Signatures",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Prime Chrome Signatures",
+   "name": "SuperFractor 1/1 (1:73,399 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Prime Chrome Signatures",
+   "name": "1:7,504 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Auto Relics",
+   "name": "Gold Refractor /50 (1:1,184 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Auto Relics",
+   "name": "1:117 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Auto Relics",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Chrome Auto Relics",
+   "name": "Black Refractor /10 (1:5,243 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Auto Relics",
+   "name": "1:515 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Auto Relics",
+   "name": "Red Refractor /5 (1:10,124 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Auto Relics",
+   "name": "1:1,001 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Auto Relics",
+   "name": "SuperFractor 1/1 (1:48,933 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Chrome Auto Relics",
+   "name": "1:4,740 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Adios",
+   "name": "Mini-Diamond Refractor /150 (1:257 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Adios",
+   "name": "1:498 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Adios",
+   "name": "Gold Refractor /50 (1:769 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Adios",
+   "name": "1:1,501 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Adios",
+   "name": "Orange Refractor /25 (1:1,535 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Adios",
+   "name": "1:3,002 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Adios",
+   "name": "Red Refractor /5 (1:7,660 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Adios",
+   "name": "1:15,006 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Adios",
+   "name": "SuperFractor 1/1 (1:38,298 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Adios",
+   "name": "1:90,036 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Bowman Ascensions",
+   "name": "Black Refractor /10 (1:3,847 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Bowman Ascensions",
+   "name": "1:7,503 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Bowman Ascensions",
+   "name": "Red Refractor /5 (1:7,660 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Bowman Ascensions",
+   "name": "1:15,006 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Bowman Ascensions",
+   "name": "SuperFractor 1/1 (1:38,298 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Bowman Ascensions",
+   "name": "1:90,036 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Bowman GPK",
+   "name": "Red Refractor /5 (1:7,133 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Bowman GPK",
+   "name": "1:5,146 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Bowman GPK",
+   "name": "SuperFractor 1/1 (1:24,468 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Bowman GPK",
+   "name": "1:10,004 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Bowman Spotlights",
+   "name": "Red Refractor /5 (1:19,149 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Bowman Spotlights",
+   "name": "1:45,018 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Bowman Spotlights",
+   "name": "SuperFractor 1/1 (1:88,085 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Bowman Spotlights",
+   "name": "1:90,036 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Hidden Gems Emerald Green",
+   "name": "Citrine Orange",
+   "serialRun": 10
+  },
+  {
+   "subset": "Hidden Gems Emerald Green",
+   "name": "Alexandrite Blue",
+   "serialRun": 5
+  },
+  {
+   "subset": "Hidden Gems Emerald Green",
+   "name": "Painite Red",
+   "serialRun": 1
+  },
+  {
+   "subset": "It Came to the League",
+   "name": "Mini-Diamond Refractor /150 (1:321 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "It Came to the League",
+   "name": "1:621 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "It Came to the League",
+   "name": "Gold Refractor /50 (1:908 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "It Came to the League",
+   "name": "1:1,876 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "It Came to the League",
+   "name": "Orange Refractor /25 (1:1,924 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "It Came to the League",
+   "name": "1:3,752 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "It Came to the League",
+   "name": "Red Refractor /5 (1:9,680 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "It Came to the League",
+   "name": "1:18,008 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "It Came to the League",
+   "name": "SuperFractor 1/1 (1:46,361 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "It Came to the League",
+   "name": "1:90,036 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Max Volume",
+   "name": "Mini-Diamond Refractor /150 (1:427 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Max Volume",
+   "name": "1:827 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Max Volume",
+   "name": "Gold Refractor /50 (1:1,283 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Max Volume",
+   "name": "1:2,501 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Max Volume",
+   "name": "Orange Refractor /25 (1:2,561 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Max Volume",
+   "name": "1:5,002 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Max Volume",
+   "name": "Red Refractor /5 (1:12,766 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Max Volume",
+   "name": "1:22,509 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Max Volume",
+   "name": "SuperFractor 1/1 91:62,918 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Max Volume",
+   "name": "1:90,036 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Melt Mashers",
+   "name": "Mini-Diamond Refractor /150 (1:257 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Melt Mashers",
+   "name": "1:498 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Melt Mashers",
+   "name": "Gold Refractor /50 (1:769 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Melt Mashers",
+   "name": "1:1,501 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Melt Mashers",
+   "name": "Orange Refractor /25 (1:1,535 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Melt Mashers",
+   "name": "1:3,002 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Melt Mashers",
+   "name": "Red Refractor /5 (1:7,660 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Melt Mashers",
+   "name": "1:15,006 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Melt Mashers",
+   "name": "SuperFractor 1/1 (1:38,298 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Melt Mashers",
+   "name": "1:90,036 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Meteoric Rise",
+   "name": "Mini-Diamond Refractor /150 (1:427 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Meteoric Rise",
+   "name": "1:827 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Meteoric Rise",
+   "name": "Gold Refractor /50 (1:1,283 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Meteoric Rise",
+   "name": "1:2,501 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Meteoric Rise",
+   "name": "Orange Refractor /25 (1:2,561 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Meteoric Rise",
+   "name": "1:5,002 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Meteoric Rise",
+   "name": "Red Refractor /5 (1:12,766 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Meteoric Rise",
+   "name": "1:22,509 Breaker)",
+   "serialRun": null
+  },
+  {
+   "subset": "Meteoric Rise",
+   "name": "SuperFractor 1/1 91:62,918 Hobby",
+   "serialRun": null
+  },
+  {
+   "subset": "Meteoric Rise",
+   "name": "1:90,036 Breaker)",
+   "serialRun": null
+  }
+ ]
+}

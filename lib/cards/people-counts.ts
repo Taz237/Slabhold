@@ -2,8 +2,8 @@ import type { OwnersAndHunters } from "./people";
 
 /**
  * Owners and hunters as two counts, for the card-added screen after a scan.
- * No names, avatars or lists: only these numbers leave the server
- * (/api/cards/people/counts). The card page doesn't show owners or hunters.
+ * No names, avatars or lists: only these two numbers. The card page doesn't
+ * show owners or hunters.
  */
 
 export type PeopleCounts = {

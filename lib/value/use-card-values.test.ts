@@ -159,3 +159,22 @@ describe("useCardValues failure", { concurrency: 1 }, () => {
     }
   });
 });
+
+describe("a refresh keeps known prices on screen", () => {
+  const value = {} as CardValueResult;
+
+  it("covers a key only when every card in it has a value", async () => {
+    const { valuesCover } = await import("./use-card-values");
+    const values = new Map([["a", value], ["b", value]]);
+    assert.equal(valuesCover("a,b", values), true);
+    assert.equal(valuesCover("a", values), true, "a card was removed");
+    assert.equal(valuesCover("a,b,c", values), false, "a card was added: its price is not in yet");
+    assert.equal(valuesCover("", values), false);
+    assert.equal(valuesCover("a", new Map()), false);
+  });
+
+  it("is not loading while it re-reads cards it already has, unless the last read failed", () => {
+    const hook = readFileSync(join(process.cwd(), "lib/value/use-card-values.ts"), "utf8");
+    assert.match(hook, /\(settledKey !== key \|\| pending\) && !\(valuesCover\(key, values\) && !error\)/);
+  });
+});

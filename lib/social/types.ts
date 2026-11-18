@@ -1,3 +1,6 @@
+import type { PostGif } from "./gifs";
+import type { PostVideo } from "./videos";
+
 export type Profile = {
   id: string;
   email: string;
@@ -85,6 +88,14 @@ export type Post = {
   likeCount?: number;
   /** True when this viewer has a likes row. Omitted until that query runs. */
   viewerLiked?: boolean;
+  /** One GIPHY GIF. A post has photos or a GIF, not both. */
+  gif?: PostGif | null;
+  /** One short video. A post has photos, a GIF or a video, never a mix. */
+  video?: PostVideo | null;
+  /** Set on every post of a thread. Null or omitted on a normal post. */
+  threadId?: string | null;
+  /** Place in the thread, 0 first. Timelines show the post at 0 only. */
+  threadPosition?: number | null;
 };
 
 export type FollowEdge = {
@@ -112,6 +123,10 @@ export type PostComment = {
   body: string;
   /** Photo URLs, first to last. Omitted when the reply has none. */
   images?: string[];
+  /** One GIPHY GIF. Omitted when the reply has none. */
+  gif?: PostGif | null;
+  /** One short video. Omitted when the reply has none. */
+  video?: PostVideo | null;
   createdAt: string;
 };
 
@@ -123,7 +138,9 @@ export type NotificationKind =
   | "mention"
   | "quote"
   | "want_alert"
-  | "deal_confirm";
+  | "deal_confirm"
+  /** Someone reacted to your DM. Quiet: never a push. */
+  | "dm_reaction";
 
 export type Notification = {
   id: string;

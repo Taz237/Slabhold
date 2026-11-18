@@ -139,7 +139,7 @@ export function ProfileEditSheet({
             >
               Cancel
             </button>
-            <h2 id="edit-profile-title" className="text-[15px] font-semibold">
+            <h2 id="edit-profile-title" className="text-15 font-semibold">
               Edit profile
             </h2>
             <button type="submit" disabled={saving} className={solidButton}>
@@ -247,14 +247,14 @@ export function ProfileEditSheet({
                   onChange={(event) => setDisplayName(event.target.value)}
                   autoComplete="name"
                   maxLength={50}
-                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-[15px] outline-none focus:border-zinc-400 dark:border-white/10 dark:bg-white/5 dark:focus:border-white/30"
+                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-15 outline-none focus:border-zinc-400 dark:border-white/10 dark:bg-white/5 dark:focus:border-white/30"
                 />
               </label>
 
               <label className="block text-sm">
                 <span className="mb-1.5 block text-zinc-500">Username</span>
                 <div className="flex items-center rounded-xl border border-zinc-200 bg-white focus-within:border-zinc-400 dark:border-white/10 dark:bg-white/5 dark:focus-within:border-white/30">
-                  <span className="pl-3 text-[15px] text-zinc-500">@</span>
+                  <span className="pl-3 text-15 text-zinc-500">@</span>
                   <input
                     value={handle}
                     onChange={(event) =>
@@ -264,7 +264,7 @@ export function ProfileEditSheet({
                     autoCorrect="off"
                     spellCheck={false}
                     autoComplete="username"
-                    className="min-w-0 flex-1 bg-transparent px-1 py-2.5 text-[15px] outline-none"
+                    className="min-w-0 flex-1 bg-transparent px-1 py-2.5 text-15 outline-none"
                   />
                 </div>
                 <span className="mt-1.5 block text-xs text-zinc-500">
@@ -283,7 +283,7 @@ export function ProfileEditSheet({
                   value={bio}
                   onChange={(event) => setBio(event.target.value.slice(0, 160))}
                   rows={4}
-                  className="w-full resize-none rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-[15px] leading-5 outline-none focus:border-zinc-400 dark:border-white/10 dark:bg-white/5 dark:focus:border-white/30"
+                  className="w-full resize-none rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-15 leading-5 outline-none focus:border-zinc-400 dark:border-white/10 dark:bg-white/5 dark:focus:border-white/30"
                 />
               </label>
               <Link href="/settings/collecting" className="inline-flex min-h-11 items-center text-sm font-semibold underline">

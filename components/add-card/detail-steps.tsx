@@ -259,7 +259,7 @@ export function ParallelStep({
       ) : null}
 
       {loading ? (
-        <ul className="grid grid-cols-2 gap-2">
+        <ul className="grid grid-cols-2 big:grid-cols-1 gap-2">
           {Array.from({ length: 6 }, (_, index) => (
             <li key={`skeleton-${index}`} aria-hidden>
               <span className="skeleton-shimmer block h-12 rounded-xl" />
@@ -271,13 +271,13 @@ export function ParallelStep({
           {inserts.length > 0 ? (
             <div>
               <SectionLabel>{groups.inserts.label}</SectionLabel>
-              <ul className="grid grid-cols-2 gap-2">{inserts.map(chip)}</ul>
+              <ul className="grid grid-cols-2 big:grid-cols-1 gap-2">{inserts.map(chip)}</ul>
             </div>
           ) : null}
           {parallels.length > 0 ? (
             <div>
               <SectionLabel>Parallels</SectionLabel>
-              <ul className="grid grid-cols-2 gap-2">{parallels.map(chip)}</ul>
+              <ul className="grid grid-cols-2 big:grid-cols-1 gap-2">{parallels.map(chip)}</ul>
             </div>
           ) : null}
         </>

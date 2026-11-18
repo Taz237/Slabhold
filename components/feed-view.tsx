@@ -1,10 +1,11 @@
 "use client";
 
+import { scrollBehavior } from "@/lib/ui/scroll-behavior";
 import Link from "next/link";
 import { ReadRetry } from "@/components/read-retry";
 import { usePathname, useRouter } from "next/navigation";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Compass, ImagePlus } from "lucide-react";
+import { Compass, ImagePlus, Plus } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { LazyMentionTextarea } from "@/components/mention-textarea-lazy";
 import { CharacterRing } from "@/components/character-ring";
@@ -38,9 +39,17 @@ import { loginPath, signupPath } from "@/lib/auth/safe-next";
 import { takeCompose } from "@/lib/capture";
 import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 import { ComposePhotoDrafts } from "@/components/compose-photo-drafts";
+import { GifPicker } from "@/components/gif-picker";
+import { GifDraft } from "@/components/post-gif";
+import { VideoDraftTile } from "@/components/post-video";
+import { useVideoDraft } from "@/components/use-video-draft";
+import { libraryAccept, planMediaPick, postsSupportVideo } from "@/lib/social/videos";
+import { composeDraftKey, keepComposeDraft, threadDraftFromHome } from "@/lib/social/compose-draft";
+import type { PostGif } from "@/lib/social/gifs";
+import { postsSupportGifsAndThreads } from "@/lib/social/threads";
 import { PhotoFileInputs } from "@/components/photo-file-inputs";
 import { usePostPhotos } from "@/components/use-post-photos";
-import { PHOTO_HEIC_ERROR, readPhotoFile } from "@/lib/photos";
+import { PHOTO_ACCEPT, PHOTO_HEIC_ERROR, readPhotoFile } from "@/lib/photos";
 import {
   POST_PHOTO_LIMIT_ERROR,
   POST_PHOTO_SINGLE_ERROR,
@@ -407,7 +416,7 @@ export function FeedView({
   function openCollectors() {
     const section = document.getElementById("collectors-to-follow");
     if (section) {
-      section.scrollIntoView({ behavior: "smooth", block: "start" });
+      section.scrollIntoView({ behavior: scrollBehavior(), block: "start" });
       return;
     }
     router.push("/search");
@@ -556,10 +565,10 @@ function SignedOutBanner() {
   return (
     <div className="border-b border-zinc-200/70 px-4 py-4 dark:border-white/[0.07]">
       <div className="relative overflow-hidden rounded-2xl bg-[#7C3AED] p-4 text-white">
-        <p className="text-[13px] font-medium text-white/90">
+        <p className="text-13 font-medium text-white/90">
           Join the collectors
         </p>
-        <p className="mt-1 text-[19px] leading-6 font-semibold tracking-tight text-balance">
+        <p className="mt-1 text-[1.1875rem] leading-6 font-semibold tracking-tight text-balance">
           Track your cards and see what collectors are posting.
         </p>
         <p className="mt-1.5 text-sm leading-5 text-white/80">
@@ -585,10 +594,19 @@ function SignedOutBanner() {
 }
 
 function Composer({ onPosted }: { onPosted?: () => void }) {
-  const { createPost, user } = useSocial();
+  const router = useRouter();
+  const { createPost, user, mode } = useSocial();
   const { cards, ready: cardsReady, syncError } = useCollection();
   const libraryRef = useRef<HTMLInputElement>(null);
   const [body, setBody] = useState("");
+  /** A post has photos or a GIF, not both. */
+  const [gif, setGif] = useState<PostGif | null>(null);
+  const [gifOpen, setGifOpen] = useState(false);
+  /** GIFs and threads need their database columns. Until those are there, the buttons stay hidden. */
+  const [extrasOn, setExtrasOn] = useState(mode !== "supabase");
+  /** Videos need Supabase Storage and the posts.video column. */
+  const [videoOn, setVideoOn] = useState(false);
+  const video = useVideoDraft(user?.id);
   const [composePhoto] = useState(() => takeComposePrefill());
   const {
     images,
@@ -613,6 +631,12 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
       void postsSupportMultipleImages(supabase).then((ok) => {
         if (!cancelled) setLimit(postPhotoLimit(ok));
       });
+      void postsSupportGifsAndThreads(supabase).then((ok) => {
+        if (!cancelled) setExtrasOn(ok);
+      });
+      void postsSupportVideo(supabase).then((ok) => {
+        if (!cancelled) setVideoOn(ok);
+      });
     }).catch(() => {
       // supabase-js failed to load: the photo limit stays at its default.
     });
@@ -630,24 +654,70 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
     if (overLimit) return;
     const selected = cards.find((card) => card.id === cardId);
     const card: PublicCard | null = selected ? toPublicAttachment(selected) : null;
+    if (video.busy) return;
     setSending(true);
     const result = await createPost({
       body,
       imageDataUrl: images[0] ?? null,
       images,
       card,
+      gif,
+      video: video.draft.video,
     });
     setSending(false);
     if (result.error) {
+      // A failed save deleted the uploaded video too: clear the tile so it's added again.
+      if ("videoRemoved" in result && result.videoRemoved) video.remove();
       setError(result.error);
       return;
     }
-    setBody("");
-    replaceAll([]);
-    setCardId("");
-    setError(null);
+    video.posted();
+    clear();
     haptic("post");
     onPosted?.();
+  }
+
+  function clear() {
+    setBody("");
+    replaceAll([]);
+    setGif(null);
+    video.remove();
+    setCardId("");
+    setError(null);
+  }
+
+  /** A library pick: photos, or one video. Never both, and never with a GIF. */
+  function pickFromLibrary(files: File[]) {
+    const plan = planMediaPick(files, {
+      photos: images.length,
+      hasVideo: video.active,
+      hasGif: Boolean(gif),
+      videoAllowed: videoOn,
+    });
+    if (plan.kind === "none") return;
+    if (plan.kind === "error") {
+      video.setError(plan.message);
+      return;
+    }
+    video.setError(null);
+    if (plan.kind === "video") void video.pick(plan.file);
+    else void addFiles(plan.files);
+  }
+
+  const hasDraft = body.trim().length > 0 || images.length > 0 || Boolean(gif) || video.active;
+
+  /**
+   * The plus button: what is written here becomes the first post of a thread,
+   * and the full composer opens on the second. This box is cleared, so the
+   * same words are never posted twice.
+   */
+  function continueAsThread() {
+    if (!hasDraft || overLimit || readingPhoto) return;
+    const key = composeDraftKey({ edit: null, quote: null, card: null });
+    if (!key) return;
+    keepComposeDraft(key, threadDraftFromHome({ body, images, cardId, gif }));
+    clear();
+    router.push("/compose");
   }
 
   return (
@@ -670,27 +740,54 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
           maxLength={POST_LIMIT}
           rows={2}
           placeholder="What's happening?"
-          className="w-full resize-none bg-transparent text-[15px] leading-5 outline-none placeholder:text-zinc-500"
+          className="w-full resize-none bg-transparent text-15 leading-5 outline-none placeholder:text-zinc-500"
         />
         <ComposePhotoDrafts images={images} onRemove={removePhoto} />
+        {gif ? <GifDraft gif={gif} onRemove={() => setGif(null)} /> : null}
+        <VideoDraftTile draft={video.draft} onRemove={video.remove} />
+        {video.draft.error ? (
+          <p role="alert" className="mt-2 text-sm text-rose-600 dark:text-rose-400">
+            {video.draft.error}
+          </p>
+        ) : null}
         {readingPhoto ? <p className="mt-2 text-xs text-zinc-500">Reading photo…</p> : null}
-        <div className="mt-2 flex flex-wrap items-center gap-2">
+        <div className="mt-2 flex flex-wrap items-center gap-1">
           <PhotoFileInputs
             libraryRef={libraryRef}
             libraryMultiple
+            libraryAccept={libraryAccept(PHOTO_ACCEPT, videoOn)}
             onPick={() => undefined}
-            onPickMany={(files) => void addFiles(files)}
+            onPickMany={pickFromLibrary}
           />
           <button
             type="button"
-            disabled={photosFull}
+            disabled={photosFull || Boolean(gif) || video.active}
             aria-describedby={photosFull ? "feed-photo-cap" : undefined}
             onClick={() => libraryRef.current?.click()}
             className="inline-flex min-h-11 items-center gap-1 rounded-full px-2 text-sm text-zinc-500 hover:bg-zinc-100 disabled:opacity-40 dark:hover:bg-white/10"
           >
             <ImagePlus className="h-4 w-4" />
-            Photo
+            {videoOn ? "Media" : "Photo"}
           </button>
+          {extrasOn ? (
+            <button
+              type="button"
+              aria-label="Add a GIF"
+              disabled={Boolean(gif) || images.length > 0 || readingPhoto || video.active}
+              onClick={() => {
+                void GifPicker.preload().catch(() => {});
+                setGifOpen(true);
+              }}
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full px-2 text-zinc-500 hover:bg-zinc-100 disabled:opacity-40 dark:hover:bg-white/10"
+            >
+              <span
+                aria-hidden="true"
+                className="rounded-[5px] border-[1.5px] border-current px-[3px] font-mono text-11 leading-[15px] font-semibold"
+              >
+                GIF
+              </span>
+            </button>
+          ) : null}
           {photosFull ? (
             <span id="feed-photo-cap" className="text-xs text-zinc-500">
               {photoCapHint}
@@ -701,14 +798,14 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
               cards={cards}
               value={cardId}
               onChange={setCardId}
-              selectClassName="max-w-[180px] rounded-full border border-zinc-200 bg-transparent px-2 py-1 text-xs text-zinc-600 dark:border-white/10 dark:text-zinc-300"
+              selectClassName="max-w-[136px] rounded-full border border-zinc-200 bg-transparent px-2 py-1 text-xs text-zinc-600 dark:border-white/10 dark:text-zinc-300"
             />
           ) : (
             <select
               disabled
               value=""
               aria-label="Attach a card"
-              className="max-w-[180px] rounded-full border border-zinc-200 bg-transparent px-2 py-1 text-xs text-zinc-600 dark:border-white/10 dark:text-zinc-300"
+              className="max-w-[136px] rounded-full border border-zinc-200 bg-transparent px-2 py-1 text-xs text-zinc-600 dark:border-white/10 dark:text-zinc-300"
             >
               <option value="">Attach a card</option>
             </select>
@@ -719,10 +816,30 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
               {body.length}/{POST_LIMIT}
             </span>
           </span>
-          <button type="submit" disabled={sending || readingPhoto || overLimit} className={solidButton}>
+          {extrasOn ? (
+            <button
+              type="button"
+              aria-label="Add another post"
+              disabled={!hasDraft || overLimit || readingPhoto || sending || video.active}
+              onClick={continueAsThread}
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-[#7C3AED] transition-colors hover:bg-violet-500/10 disabled:opacity-40 dark:text-[#A78BFA]"
+            >
+              <Plus className="h-5 w-5" />
+            </button>
+          ) : null}
+          <button type="submit" disabled={sending || readingPhoto || overLimit || video.busy} className={solidButton}>
             Post
           </button>
         </div>
+        {gifOpen ? (
+          <GifPicker
+            onPick={(picked) => {
+              setGif(picked);
+              setGifOpen(false);
+            }}
+            onClose={() => setGifOpen(false)}
+          />
+        ) : null}
         {photoError ? (
           <p className="mt-2 text-xs text-rose-600 dark:text-rose-400" role="alert">
             {photoError}

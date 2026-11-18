@@ -89,7 +89,8 @@ before(() => {
       if (!holdSearch) return respond();
       return new Promise<Response>((resolve) => held.push(() => resolve(respond())));
     }
-    if (url.startsWith(QUICK_COMP_API)) {
+    // The comp lookup only: /api/quick-comp/suggest and /player are their own routes.
+    if (url.startsWith(`${QUICK_COMP_API}?`)) {
       lookups.push(new URL(url, "http://localhost"));
       return Response.json(compsBody);
     }

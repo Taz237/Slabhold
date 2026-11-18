@@ -174,7 +174,8 @@ describe("manifest", () => {
     assert.match(shell, /env\(safe-area-inset-bottom\)/);
     assert.match(shell, /env\(safe-area-inset-top\)/);
     const css = read("app/globals.css");
-    assert.match(css, /font-size: 16px/);
+    // 1rem: 16px at the default text size, and it grows with the reader's setting.
+    assert.match(css, /font-size: 1rem/);
     assert.match(css, /min-height: 44px/);
     assert.match(css, /\.hit-44::after/);
     assert.match(

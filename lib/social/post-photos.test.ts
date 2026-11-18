@@ -5,9 +5,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, it } from "node:test";
 import { join } from "node:path";
 import { ComposePhotoDrafts } from "@/components/compose-photo-drafts";
-import { LightboxNav } from "@/components/image-lightbox";
 import { PhotoFileInputs } from "@/components/photo-file-inputs";
 import { PostPhotoGrid } from "@/components/post-photo-grid";
+import { forgetPhotoSizes, rememberPhotoSize } from "./photo-sizes";
 import {
   MAX_POST_PHOTOS,
   POST_PHOTO_CAP_HINT,
@@ -293,11 +293,11 @@ describe("post photos", () => {
     );
     assert.match(prefill, /try \{/);
 
-    const lightbox = read("components/image-lightbox.tsx");
+    const lightbox = read("components/image-lightbox.tsx") + read("components/photo-viewer.tsx");
     assert.match(lightbox, /ArrowLeft/);
     assert.match(lightbox, /ArrowRight/);
     assert.match(lightbox, /activeElement/);
-    assert.match(lightbox, /opener\?\.focus\(\)/);
+    assert.match(lightbox, /opener\?\.focus\(\{ preventScroll: true \}\)/);
   });
 
   it("keeps photo scroll margin and shows the four-photo hint", () => {
@@ -309,11 +309,12 @@ describe("post photos", () => {
 
     const feed = read("components/feed-view.tsx");
     const compose = read("components/compose-view.tsx");
-    assert.match(feed, /disabled=\{photosFull\}/);
+    assert.match(feed, /disabled=\{photosFull \|\| Boolean\(gif\)(?: \|\| [^}]+)?\}/);
     assert.match(feed, /aria-describedby=\{photosFull \? "feed-photo-cap" : undefined\}/);
     assert.match(feed, /id="feed-photo-cap"/);
     assert.doesNotMatch(feed, /aria-label=\{photosFull/);
-    assert.match(compose, /disabled=\{photosFull\}/);
+    // A post has photos, a GIF or a video, so a picked GIF (or video) turns the photo buttons off too.
+    assert.match(compose, /disabled=\{photosFull \|\| Boolean\(gif\)(?: \|\| [^}]+)?\}/);
     assert.match(compose, /aria-describedby=\{photosFull \? "compose-photo-cap" : undefined\}/);
     assert.match(compose, /id="compose-photo-cap" className="block px-1 pb-1 text-xs text-zinc-500"/);
     assert.doesNotMatch(compose, /compose-photo-cap" className="shrink-0/);
@@ -322,7 +323,7 @@ describe("post photos", () => {
     assert.match(read("components/use-post-photos.ts"), /setPhotoError\(postPhotoLimitError\(limitRef\.current\)\)/);
   });
 
-  it("gives draft remove buttons a 44px target and steps through a multi-photo lightbox", () => {
+  it("gives draft remove buttons a 44px target", () => {
     const drafts = renderToStaticMarkup(
       createElement(ComposePhotoDrafts, {
         images: ["data:image/jpeg;base64,abc"],
@@ -332,39 +333,14 @@ describe("post photos", () => {
     assert.match(drafts, /aria-label="Remove photo 1"/);
     assert.match(drafts, /h-11 w-11/);
     assert.match(drafts, /min-h-11 min-w-11/);
+  });
 
-    const nav = renderToStaticMarkup(
-      createElement(LightboxNav, {
-        count: 3,
-        index: 1,
-        onPrev: () => undefined,
-        onNext: () => undefined,
-      }),
-    );
-    assert.match(nav, /aria-label="Previous photo"/);
-    assert.match(nav, /aria-label="Next photo"/);
-    assert.match(nav, /h-11 w-11/);
-    assert.equal(
-      renderToStaticMarkup(
-        createElement(LightboxNav, {
-          count: 1,
-          index: 0,
-          onPrev: () => undefined,
-          onNext: () => undefined,
-        }),
-      ),
-      "",
-    );
-    const atStart = renderToStaticMarkup(
-      createElement(LightboxNav, {
-        count: 2,
-        index: 0,
-        onPrev: () => undefined,
-        onNext: () => undefined,
-      }),
-    );
-    assert.match(atStart, /aria-label="Previous photo" disabled/);
-    assert.doesNotMatch(atStart, /aria-label="Next photo" disabled/);
+  it("the photo viewer swipes instead of showing arrow buttons", () => {
+    const lightbox = read("components/photo-viewer.tsx");
+    assert.doesNotMatch(lightbox, /ChevronLeft|ChevronRight|LightboxNav/);
+    assert.match(lightbox, /onPointerDown=\{onPointerDown\}/);
+    // Motion is transform and opacity (and the open's clip), never layout.
+    assert.doesNotMatch(lightbox, /style\.(top|left|width|height) =/);
   });
 });
 
@@ -379,6 +355,39 @@ describe("feed photo frame", () => {
     assert.doesNotMatch(html, /aspect-square/);
     assert.doesNotMatch(html, /max-h-80/);
     assert.match(html, /aria-label="View photo"/);
+  });
+
+  it("hands the viewer every thumbnail so it can grow out of the tapped one", () => {
+    const grid = renderToStaticMarkup(
+      createElement(PostPhotoGrid, { images: ["a", "b"], onOpen: () => undefined }),
+    );
+    assert.match(grid, /data-photo-index="0"/);
+    assert.match(grid, /data-photo-index="1"/);
+    const single = renderToStaticMarkup(createElement(PostPhotoGrid, { images: ["a"], onOpen: () => undefined }));
+    assert.match(single, /data-photo-index="0"/);
+    assert.match(single, /data-photo-radius="16"/);
+    assert.match(read("components/post-photo-grid.tsx"), /origins: originsFrom\(event\.currentTarget\)/);
+  });
+
+  it("gives a photo the feed already loaded its real shape on the post page: no letterbox, no pop-in", () => {
+    forgetPhotoSizes();
+    rememberPhotoSize("seen.jpg", 1200, 900);
+    try {
+      const html = renderToStaticMarkup(
+        createElement(PostPhotoGrid, { images: ["seen.jpg"], onOpen: () => undefined, fit: "full" }),
+      );
+      assert.match(html, /aspect-ratio:1200 \/ 900/);
+      assert.doesNotMatch(html, /aspect-\[4\/5\]/);
+      assert.match(html, /bg-transparent/);
+      assert.match(html, /decoding="sync"/);
+      // The feed keeps its 4:5 crop either way.
+      const feed = renderToStaticMarkup(createElement(PostPhotoGrid, { images: ["seen.jpg"], onOpen: () => undefined }));
+      assert.match(feed, /aspect-\[4\/5\]/);
+    } finally {
+      forgetPhotoSizes();
+    }
+    // The post page's photo is fetched at once, not lazily.
+    assert.match(read("components/tweet.tsx"), /eager=\{firstScreen \|\| variant === "detail"\}/);
   });
 
   it("shows the whole photo uncropped on the post page", () => {

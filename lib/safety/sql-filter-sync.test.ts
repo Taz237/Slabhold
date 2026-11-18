@@ -34,7 +34,13 @@ describe("proposed safety guards SQL", () => {
     assert.ok(!existsSync(join(migrations, "proposed-safety-guards.sql")));
     for (const file of readdirSync(migrations)) {
       const text = readFileSync(join(migrations, file), "utf8");
-      assert.doesNotMatch(text, /blocked_text|guard_user_text|cap_reports/, file);
+      // A migration may call the word filter (GIF titles do). It never defines the guards.
+      assert.doesNotMatch(
+        text,
+        /create (or replace )?function private\.(blocked_text|guard_user_text|cap_reports|filter_normalise|filter_pattern)\b/,
+        file,
+      );
+      assert.doesNotMatch(text, /guard_user_text|cap_reports/, file);
     }
   });
 

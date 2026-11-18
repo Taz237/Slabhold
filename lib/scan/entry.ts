@@ -17,6 +17,11 @@ export function scannerEnabled(
 }
 
 export const HUB_COPY = {
+  /** The one Scan screen. */
+  title: "Scan",
+  body: "Scan the front, then the back. See what it sold for, and add it in one tap.",
+  searchTitle: "Search sold prices",
+  searchBody: "Find any card by player, year, set or number. Nothing gets added.",
   addTitle: "Scan a card",
   compTitle: "Scan to comp",
   addBody: "Point your camera at a card or slab. We'll find it and fill it in.",

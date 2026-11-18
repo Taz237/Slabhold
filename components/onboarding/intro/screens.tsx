@@ -44,10 +44,10 @@ export const SCREEN_FRAMES: readonly { width: number; height: number; radius: nu
 function SampleNote() {
   return (
     <p className="mt-4 flex items-center justify-center gap-2">
-      <span className="inline-flex h-6 items-center rounded-full border border-white/15 px-2 font-mono text-[11px] font-medium text-zinc-300">
+      <span className="inline-flex h-6 items-center rounded-full border border-white/15 px-2 font-mono text-11 font-medium text-zinc-300">
         Sample
       </span>
-      <span className="text-[13px] text-zinc-500">{SAMPLE_ACCOUNTS_NOTE}</span>
+      <span className="text-13 text-zinc-500">{SAMPLE_ACCOUNTS_NOTE}</span>
     </p>
   );
 }
@@ -179,18 +179,18 @@ export function QuickCompVisual({ motion }: { motion: boolean }) {
         </div>
         <div className="flex min-w-0 flex-1 flex-col justify-end">
           <p className="text-xs font-medium text-zinc-500">Median sold price</p>
-          <p className="relative text-[34px] leading-10 font-semibold tracking-tight text-white tabular-nums">
+          <p className="relative text-[2.125rem] leading-10 font-semibold tracking-tight text-white tabular-nums">
             <span ref={median}>{dollars(STATS.median)}</span>
             <span ref={spark} aria-hidden className="pointer-events-none absolute top-1/2 left-12" />
           </p>
-          <p className="text-[11px] text-zinc-500 tabular-nums">Based on {STATS.count} sample sales</p>
+          <p className="text-11 text-zinc-500 tabular-nums">Based on {STATS.count} sample sales</p>
         </div>
       </div>
       <ul ref={chips} aria-label="Recent sold prices" className="mt-4 grid grid-cols-5 gap-1.5">
         {SAMPLE_SALES.map((sale) => (
           <li
             key={sale.ago}
-            className="flex h-8 items-center justify-center rounded-md border border-white/[0.08] bg-white/[0.04] font-mono text-[13px] text-zinc-100 tabular-nums"
+            className="flex h-8 items-center justify-center rounded-md border border-white/[0.08] bg-white/[0.04] font-mono text-13 text-zinc-100 tabular-nums"
           >
             {dollars(sale.price)}
           </li>
@@ -273,8 +273,8 @@ export function CollectionVisual({ motion }: { motion: boolean }) {
     <div className="flex h-full w-full flex-col p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-[13px] leading-5 text-zinc-400">Collection value</p>
-          <p className="text-[34px] leading-10 font-semibold tracking-tight text-white tabular-nums">
+          <p className="text-13 leading-5 text-zinc-400">Collection value</p>
+          <p className="text-[2.125rem] leading-10 font-semibold tracking-tight text-white tabular-nums">
             <span ref={value}>{dollars(last)}</span>
           </p>
           <p className="text-sm font-semibold text-[#A78BFA] tabular-nums">+$38 · 10.2%</p>
@@ -375,19 +375,19 @@ export function SocialVisual({ motion }: { motion: boolean }) {
                         draggable={false}
                         className="h-8 w-8 shrink-0 rounded-full bg-zinc-800 object-cover"
                       />
-                      <p className="min-w-0 text-[13px] leading-4">
+                      <p className="min-w-0 text-13 leading-4">
                         <span className="block truncate font-semibold text-zinc-100">{post.persona.name}</span>
                         <span className="block truncate text-zinc-500">@{post.persona.handle}</span>
                       </p>
                     </div>
-                    <p className="mt-2 text-[14px] leading-5 text-zinc-100">{post.body}</p>
+                    <p className="mt-2 text-14 leading-5 text-zinc-100">{post.body}</p>
                     <div className="mt-2 flex items-center gap-3">
                       <div className="w-11 shrink-0">
                         {/* A team member's own card on Jake's kitchen-table post, used with their OK. */}
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src="/landing/kitchen-table-card.webp" alt="Numbered patch card in a top-loader" width={300} height={420} loading="lazy" decoding="async" draggable={false} className="aspect-[5/7] w-11 rounded-md border border-white/10 object-cover" />
                       </div>
-                      <span className="flex items-center gap-1.5 text-[13px] text-zinc-500 tabular-nums">
+                      <span className="flex items-center gap-1.5 text-13 text-zinc-500 tabular-nums">
                         <Heart aria-hidden size={16} strokeWidth={1.5} />
                         {post.likes}
                       </span>
@@ -396,7 +396,7 @@ export function SocialVisual({ motion }: { motion: boolean }) {
                 ) : (
                   <div className="flex h-[200px] w-[160px] flex-col items-center justify-center gap-3 rounded-2xl border border-white/10 bg-[#18181B]">
                     <Badge category="collector" tier={item.tier} size={104} animate={item.tier === "legendary"} label="" />
-                    <span className="text-[15px] font-semibold text-zinc-100">{TIER_LABELS[item.tier]}</span>
+                    <span className="text-15 font-semibold text-zinc-100">{TIER_LABELS[item.tier]}</span>
                   </div>
                 )}
               </div>
@@ -439,7 +439,7 @@ export function AlertsVisual({ motion }: { motion: boolean }) {
         <span
           ref={count}
           aria-hidden={shown === 0 || undefined}
-          className={`absolute -top-2 -right-2 grid h-6 min-w-6 place-items-center rounded-full bg-[#E5484D] px-1.5 text-[13px] font-semibold text-white tabular-nums ring-2 ring-[#09090B] ${
+          className={`absolute -top-2 -right-2 grid h-6 min-w-6 place-items-center rounded-full bg-[#E5484D] px-1.5 text-13 font-semibold text-white tabular-nums ring-2 ring-[#09090B] ${
             shown === 0 ? "opacity-0" : ""
           }`}
         >
@@ -475,11 +475,11 @@ export function AlertsVisual({ motion }: { motion: boolean }) {
               className="h-9 w-9 shrink-0 rounded-full bg-zinc-800 object-cover"
             />
             <div className="min-w-0 flex-1">
-              <p className="flex justify-between text-[12px] leading-4 text-zinc-500">
+              <p className="flex justify-between text-12 leading-4 text-zinc-500">
                 <span>Slabhold</span>
                 <span>now</span>
               </p>
-              <p className="truncate text-[14px] leading-5 text-zinc-100">
+              <p className="truncate text-14 leading-5 text-zinc-100">
                 <span className="font-semibold">{alert.persona.handle}</span> {alert.text}
               </p>
             </div>

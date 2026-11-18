@@ -46,13 +46,64 @@
   --color-violet-700: #6D28D9;
 }
 
+/*
+ * Big text (lib/ui/text-scale.ts). Text sizes are in rem, so they follow the
+ * root font size. When the screen is under 20rem across, <html data-big-text>
+ * is set: `big:` classes stack rows that no longer fit side by side, and a
+ * name that was cut with "…" wraps instead. Card art keeps its own fixed type.
+ */
+@custom-variant big (&:where([data-big-text] *));
+
+[data-big-text] .truncate:not([data-kind="slab"] *, [data-art] *) {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+/*
+ * Text sizes by their px at the default text size: text-13 is 13px there.
+ * In rem, so they grow with the reader's text size. Size only, no line height.
+ */
+@utility text-10 {
+  font-size: 0.625rem;
+}
+
+@utility text-11 {
+  font-size: 0.6875rem;
+}
+
+@utility text-12 {
+  font-size: 0.75rem;
+}
+
+@utility text-13 {
+  font-size: 0.8125rem;
+}
+
+@utility text-14 {
+  font-size: 0.875rem;
+}
+
+@utility text-15 {
+  font-size: 0.9375rem;
+}
+
+@utility text-16 {
+  font-size: 1rem;
+}
+
+@utility text-17 {
+  font-size: 1.0625rem;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
-/* Text fields stay at least 44px tall. 16px on phones stops iOS from zooming on focus. */
+/* Text fields stay at least 44px tall. 1rem on phones (16px or more) stops iOS from zooming on focus. */
 input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="file"]):not([type="hidden"]):not([type="color"]):not([type="image"]),
 select,
 textarea {
@@ -63,7 +114,7 @@ textarea {
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="file"]):not([type="hidden"]):not([type="color"]):not([type="image"]),
   select,
   textarea {
-    font-size: 16px;
+    font-size: 1rem;
   }
 }
 
@@ -332,6 +383,20 @@ textarea {
   }
 }
 
+/* The photo viewer is fullscreen: the header and tab bar fade out under it, and back as it closes. */
+[data-app-chrome] {
+  transition: opacity 200ms ease-out;
+}
+html[data-photo-viewer] [data-app-chrome] {
+  opacity: 0;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-app-chrome] {
+    transition: none;
+  }
+}
+
 @keyframes lightbox-fade {
   from {
     opacity: 0;
@@ -353,6 +418,33 @@ textarea {
   }
 }
 
+/* Quick Comp's manual "Check sold prices": the button's busy ring turns while the lookup is out. */
+@keyframes qc-busy-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Quick Comp scan hero: one line sweeps the slab, like the viewfinder. Off for reduced motion. */
+@keyframes qc-scan-sweep {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(var(--qc-sweep, 120px));
+  }
+}
+
+.qc-scan-line {
+  animation: qc-scan-sweep 2.4s cubic-bezier(0.65, 0, 0.35, 1) infinite alternate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qc-scan-line {
+    animation: none;
+  }
+}
+
 /* Home feed: new posts fade up. Transform and opacity only, so no layout shift. */
 @keyframes feed-in {
   from {
@@ -362,6 +454,21 @@ textarea {
   to {
     opacity: 1;
     transform: none;
+  }
+}
+
+/* A lazy photo stays clear over its frame's placeholder until it loads, then fades in. Opacity only. */
+img[data-fade] {
+  transition: opacity 180ms ease-out;
+}
+
+img[data-fade]:not([data-loaded]) {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  img[data-fade] {
+    transition: none;
   }
 }
 
@@ -441,6 +548,39 @@ textarea {
   }
 }
 
+/* Catalog feed: a double tap drops a big heart that pops, then floats up and fades. Centering is the element's own translate. */
+@keyframes feed-heart {
+  0% {
+    opacity: 0;
+    transform: scale(0.4) rotate(-8deg);
+  }
+  18% {
+    opacity: 1;
+    transform: scale(1.12) rotate(-8deg);
+  }
+  32% {
+    transform: scale(0.96) rotate(-8deg);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(-10%) scale(1) rotate(-8deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-40%) scale(1.05) rotate(-8deg);
+  }
+}
+
+/* Catalog feed: the comments sheet rises from the bottom. */
+@keyframes feed-sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
 /* Counts roll to the new number. */
 @keyframes count-up {
   from {
@@ -481,6 +621,37 @@ textarea {
   from {
     opacity: 0;
     transform: translateY(10px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* DM reactions: the emoji bar springs up from the bubble, each emoji just after. */
+@keyframes reaction-bar-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.6);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.03);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes reaction-emoji-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.4);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.08);
   }
   to {
     opacity: 1;
@@ -560,7 +731,7 @@ textarea {
   }
 }
 
-/* Skeleton shimmer: one gradient sweep, no shadows or blur. */
+/* Skeleton shimmer: one gradient sweep, no shadows or blur. Reduce Motion: a still gray block. */
 @keyframes skeleton-shimmer {
   from {
     background-position: 150% 0;
@@ -588,6 +759,18 @@ textarea {
 @media (prefers-reduced-motion: reduce) {
   .skeleton-shimmer {
     animation: none;
+    background-image: none;
+  }
+}
+
+/* On a surface that is dark in both themes (the leaderboard, a photo overlay). */
+.skeleton-shimmer.on-dark {
+  background-color: rgb(255 255 255 / 0.07);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .skeleton-shimmer.on-dark {
+    background-image: linear-gradient(90deg, transparent 0%, rgb(255 255 255 / 0.1) 50%, transparent 100%);
   }
 }
 
@@ -1077,17 +1260,31 @@ a[data-pressed]:not(.tap, .tap-row, [data-tile] a, .tap-row a),
   opacity: 0.7;
 }
 
+/* Every button answers a press on the same frame. Ones with their own press style keep it. */
+button[data-pressed]:not(.tap, .tap-row, .tap-fade) {
+  opacity: 0.7;
+}
+
 /*
  * A card tile tap shows the card skeleton at once (NavPendingSkeleton), with
  * the same slide a pushed screen gets. The page then swaps in place.
  */
-[data-nav-pending-skeleton] {
+[data-nav-pending-skeleton],
+[data-pending-kind] {
   display: none;
 }
 
-html[data-nav-pending="card"] [data-nav-pending-skeleton] {
+html[data-nav-pending="card"] [data-nav-pending-skeleton],
+html[data-nav-pending="post"] [data-nav-pending-skeleton],
+html[data-nav-pending="profile"] [data-nav-pending-skeleton] {
   display: block;
   animation: var(--page-slide) var(--page-ease) both page-from-right;
+}
+
+html[data-nav-pending="card"] [data-pending-kind="card"],
+html[data-nav-pending="post"] [data-pending-kind="post"],
+html[data-nav-pending="profile"] [data-pending-kind="profile"] {
+  display: block;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1097,7 +1294,7 @@ html[data-nav-pending="card"] [data-nav-pending-skeleton] {
     opacity: 0.75;
   }
 
-  html[data-nav-pending="card"] [data-nav-pending-skeleton] {
+  html[data-nav-pending] [data-nav-pending-skeleton] {
     animation: none;
   }
 }
@@ -1107,13 +1304,14 @@ html[data-nav-pending="card"] [data-nav-pending-skeleton] {
   transition: background-color 120ms ease-out;
 }
 
-.tap-row:active {
+/* Not while a button or link inside it is the thing being pressed. */
+.tap-row:active:not(:has(button:active, a:active)) {
   background-color: rgb(24 24 27 / 0.045);
   transition-delay: 60ms;
 }
 
 @media (prefers-color-scheme: dark) {
-  .tap-row:active {
+  .tap-row:active:not(:has(button:active, a:active)) {
     background-color: rgb(255 255 255 / 0.045);
   }
 }
@@ -1408,6 +1606,103 @@ html[data-nav="none"]::view-transition-new(.page-in) {
 }
 
 /* Scan reveal: the photo flips in from its back, once. Skipped for reduced motion. */
+/* A scanned card added in one tap (components/scan/added-pop.tsx): a quick swell, then it settles. */
+@keyframes added-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* The scan reveal's card while it is read (components/scan/scan-reveal.tsx): it shows its front,
+   turns to the back, holds, and turns home. Transform only. Never runs under reduced motion. */
+@keyframes reveal-turn {
+  0%,
+  30% {
+    transform: rotateY(-10deg) rotateX(4deg);
+  }
+  50%,
+  80% {
+    transform: rotateY(170deg) rotateX(4deg);
+  }
+  100% {
+    transform: rotateY(350deg) rotateX(4deg);
+  }
+}
+
+/* The read is in: the card spins from its back to its front, once. */
+@keyframes reveal-land {
+  from {
+    transform: rotateY(180deg);
+  }
+  to {
+    transform: rotateY(0deg);
+  }
+}
+
+/* Only a front: a short turn home. */
+@keyframes reveal-land-front {
+  from {
+    transform: rotateY(-28deg);
+  }
+  to {
+    transform: rotateY(0deg);
+  }
+}
+
+/* A band of light sweeping across the card. */
+@keyframes reveal-glare {
+  0% {
+    opacity: 0;
+    transform: translateX(0) skewX(-12deg);
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(300%) skewX(-12deg);
+  }
+}
+
+/* The reveal's label types in, a character at a time (steps), clipped, never resized. */
+@keyframes reveal-type {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+/* The caret while the card is still being read. */
+@keyframes reveal-caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* Only a front: a slow tilt side to side, so the screen is never still while it reads. */
+@keyframes reveal-tilt {
+  from {
+    transform: rotateY(-12deg) rotateX(5deg);
+  }
+  to {
+    transform: rotateY(12deg) rotateX(-3deg);
+  }
+}
+
 @keyframes card-flip-in {
   0% {
     opacity: 0;
@@ -1565,6 +1860,22 @@ html[data-session] [data-guest-pending] {
 }
 
 /*
+ * An account page before the snapshot loads: its skeleton instead of a blank
+ * screen, only when the session hint says someone is signed in.
+ */
+[data-pending-route-skeleton] {
+  display: none;
+}
+
+html[data-session] [data-pending-route-skeleton] {
+  display: block;
+}
+
+html[data-session] [data-pending-route-skeleton] + [data-pending-blank] {
+  display: none;
+}
+
+/*
  * Server-drawn Home for a new account: Get started and the first-card prompt
  * are both in the HTML. getStartedHintScript (lib/social/home-seed.ts) tags
  * <html data-get-started-hidden> before the first paint when this device
@@ -1609,8 +1920,55 @@ html:not([data-get-started-hidden]) [data-after-get-started] {
   }
 }
 
+/*
+ * Bottom sheets (share, send in a DM, mark sold, Add card): the whole sheet
+ * slides up from the bottom edge on a spring with no overshoot, so no gap
+ * ever shows under it. lib/ui/use-sheet-drag.ts lets it follow a downward
+ * swipe and slides it away on close. Transform only.
+ */
+:root {
+  --sheet-spring: cubic-bezier(0.32, 0.72, 0, 1);
+  --sheet-ms: 380ms;
+}
+
+@supports (animation-timing-function: linear(0, 1)) {
+  :root {
+    --sheet-spring: linear(0, 0.075, 0.228, 0.391, 0.537, 0.657, 0.751, 0.822, 0.874, 0.912, 0.939, 0.958, 0.971, 0.98, 0.987, 0.991, 0.994, 0.996, 0.997, 0.998, 1);
+    --sheet-ms: 460ms;
+  }
+}
+
+@keyframes sheet-slide {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
+/* The ⋯ and repost menus: a quick pop from the corner they open at. */
+@keyframes menu-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* Motion-safe only: with reduced motion the sheet simply appears. */
 @media (prefers-reduced-motion: no-preference) {
+  .sheet-slide {
+    animation: sheet-slide var(--sheet-ms) var(--sheet-spring) both;
+  }
+
+  .menu-pop {
+    animation: menu-pop 140ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+
   .sheet-up {
     animation: sheet-up 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }

@@ -56,14 +56,25 @@ describe("product data", () => {
     assert.equal(new Set(keys).size, keys.length);
     const topps = JSON.parse(
       readFileSync(new URL("./data/topps-parallels.json", import.meta.url), "utf8"),
-    ) as { official: boolean; parallels: unknown[] }[];
-    assert.equal(topps.length, 9);
+    ) as { yearLabel: string; product: string; source?: string; official: boolean; parallels: unknown[] }[];
+    // 10 from Topps sheets, plus 15 lists from the hobby pages in scripts/checklist-csv (not official).
+    assert.equal(topps.length, 25);
     assert.equal(
       topps.reduce((sum, product) => sum + product.parallels.length, 0),
-      437,
+      // 473 from the Topps sheets, 30 numbered parallels the hobby lists add, and the new hobby lists.
+      1218,
     );
-    assert.ok(topps.every((product) => product.official === true));
-    assert.equal(data.length, 33 + 9);
+    // Print runs filled from a hobby checklist name that page.
+    for (const product of topps as { runsFrom?: string }[]) {
+      if (product.runsFrom) assert.match(product.runsFrom, /^https:\/\//);
+    }
+    // Every Topps row names its source. The ones not from a Topps sheet are hobby checklist pages.
+    assert.ok(topps.every((product) => /^https:\/\//.test(product.source ?? "")));
+    assert.deepEqual(
+      topps.filter((product) => product.official !== true).map((product) => `${product.yearLabel} ${product.product}`),
+["2024 Bowman", "2024-25 Bowman U Chrome", "2024 Bowman U Chrome", "2025-26 Bowman", "2025 Bowman Chrome Sapphire", "2025 Bowman Draft", "2025 Topps Chrome Sapphire", "2025 Topps Chrome Update", "2025 Bowman U Chrome", "2026 Topps", "2025 Topps Chrome", "2025-26 Bowman U Best", "2025 Topps Chrome Update Sapphire", "2025 Bowman U Best", "2025 Topps Resurgence", "2026-27 Topps"],
+    );
+    assert.equal(data.length, 33 + 25);
   });
 
   it("lists Basketball 2023-24 Prizm parallels with Base first and the JSON runs", async () => {

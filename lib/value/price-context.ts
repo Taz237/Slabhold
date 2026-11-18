@@ -1,5 +1,7 @@
 import "server-only";
 
+import { loadProductData } from "@/lib/cards/product-data";
+import { withProductList } from "@/lib/comps/known-run";
 import { unstable_cache } from "next/cache";
 import { formatGrade, parseGrade } from "@/lib/card-options";
 import {
@@ -218,8 +220,10 @@ export async function readPriceContext(
   const flagged = (cardId: string, userId: string) => flags.get(`${cardId}|${userId}`) ?? new Set<string>();
   const subjectFlags = flagged(card.id, ownerId);
 
+  // Each card is matched with its parallel's known print run (see lib/comps/known-run.ts).
+  const products = await loadProductData().catch(() => null);
   const exactGroups: FallbackSale[][] = [
-    fallbackSales(card, batches.get(ownKey) ?? [], subjectFlags),
+    fallbackSales(withProductList(card, products), batches.get(ownKey) ?? [], subjectFlags),
   ];
 
   const userIds = [
@@ -243,7 +247,7 @@ export async function readPriceContext(
     if (!copyOwner) continue;
     const copy = soldCardFromPublic(row);
     const sales = fallbackSales(
-      copy,
+      withProductList(copy, products),
       batches.get(publicCardQueryKey(row)) ?? [],
       flagged(row.id, copyOwner),
     );

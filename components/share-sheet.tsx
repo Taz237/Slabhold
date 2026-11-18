@@ -89,7 +89,7 @@ export function ShareButton({
     icon: "grid h-11 w-11 shrink-0 place-items-center rounded-full border border-zinc-200 bg-white text-zinc-700 dark:border-white/10 dark:bg-white/5 dark:text-zinc-100",
     // The one big action on a dark sheet: off-white with near-black text.
     primary:
-      "tap inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-[#F4F4F5] px-5 text-[15px] font-semibold text-[#09090B] transition-colors hover:bg-white",
+      "tap inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-[#F4F4F5] px-5 text-15 font-semibold text-[#09090B] transition-colors hover:bg-white",
   }[variant];
   return (
     <>

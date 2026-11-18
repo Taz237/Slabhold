@@ -10,6 +10,7 @@ import { loadPostById } from "@/lib/social/load-feed-page";
 import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 import { messageLinks, type MessageLink } from "@/lib/social/dm-inbox";
 import { imagesFromPost } from "@/lib/social/post-photos";
+import { VideoThumbMark } from "@/components/post-video";
 import type { DirectMessage, OwnedCard, Post, Profile } from "@/lib/social/types";
 import { usePublicCards } from "@/lib/social/use-public-cards";
 import { userHref } from "@/lib/social/user-href";
@@ -142,7 +143,7 @@ function PostUnavailable() {
   return (
     <span
       data-post-unavailable=""
-      className="mt-1 inline-flex min-h-7 items-center rounded-full bg-zinc-100 px-3 text-[13px] font-medium text-zinc-500 dark:bg-white/[0.06] dark:text-zinc-400"
+      className="mt-1 inline-flex min-h-7 items-center rounded-full bg-zinc-100 px-3 text-13 font-medium text-zinc-500 dark:bg-white/[0.06] dark:text-zinc-400"
     >
       Post unavailable
     </span>
@@ -150,7 +151,8 @@ function PostUnavailable() {
 }
 
 function SharedPostMini({ post, author }: { post: Post; author: Profile }) {
-  const photo = post.card?.photoDataUrl ?? imagesFromPost(post)[0] ?? null;
+  const photo = post.card?.photoDataUrl ?? imagesFromPost(post)[0] ?? post.video?.poster ?? null;
+  const videoThumb = Boolean(post.video) && photo === post.video?.poster;
   return (
     <Link
       href={`/posts/${encodeURIComponent(post.id)}`}
@@ -166,17 +168,20 @@ function SharedPostMini({ post, author }: { post: Post; author: Profile }) {
             expandable={false}
             className="h-5 w-5 text-[8px]"
           />
-          <span className="truncate text-[13px] font-semibold tracking-tight">{author.displayName}</span>
-          <span className="truncate text-[13px] text-zinc-500">@{author.username}</span>
+          <span className="truncate text-13 font-semibold tracking-tight">{author.displayName}</span>
+          <span className="truncate text-13 text-zinc-500">@{author.username}</span>
         </span>
         {post.body ? (
-          <span className="mt-1 line-clamp-2 text-[14px] leading-5 text-zinc-700 dark:text-zinc-200">{post.body}</span>
+          <span className="mt-1 line-clamp-2 text-14 leading-5 text-zinc-700 dark:text-zinc-200">{post.body}</span>
         ) : (
-          <span className="mt-1 block text-[14px] leading-5 text-zinc-500">View post</span>
+          <span className="mt-1 block text-14 leading-5 text-zinc-500">View post</span>
         )}
       </span>
       {photo || post.card ? (
-        <SharedCardPhoto imageUrl={photo} player={post.card?.playerName ?? author.displayName} />
+        <span className="relative shrink-0 self-start">
+          <SharedCardPhoto imageUrl={photo} player={post.card?.playerName ?? author.displayName} />
+          {videoThumb ? <VideoThumbMark /> : null}
+        </span>
       ) : null}
     </Link>
   );
@@ -202,7 +207,7 @@ export function useInboxThumb(last: DirectMessage): { imageUrl: string | null; l
   }
   const found = linkedPost(link.id, loaded);
   if (!found) return null;
-  const photo = found.post.card?.photoDataUrl ?? imagesFromPost(found.post)[0] ?? null;
+  const photo = found.post.card?.photoDataUrl ?? imagesFromPost(found.post)[0] ?? found.post.video?.poster ?? null;
   if (!photo && !found.post.card) return null;
   return { imageUrl: photo, label: found.post.card?.playerName ?? found.author.displayName };
 }

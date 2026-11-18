@@ -190,6 +190,27 @@ export function parallelMatchKey(value: string): string {
 }
 
 /**
+ * Words a checklist name carries that a sold title often skips: "Fuchsia Border" sells as
+ * "Fuchsia", "Gold Refractor" as "Gold". A pattern word (Shimmer, Wave, Pattern) is never one.
+ */
+const OPTIONAL_PARALLEL_WORDS = new Set(["border", "refractor"]);
+
+function looseParallelKey(value: string): string {
+  return value
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((word) => word && !OPTIONAL_PARALLEL_WORDS.has(word))
+    .sort()
+    .join(" ");
+}
+
+/** The same parallel, give or take "Border" and "Refractor": "Fuchsia" is "Fuchsia Border". Never a bare "Refractor". */
+export function sameParallelLoosely(left: string, right: string): boolean {
+  const key = looseParallelKey(left);
+  return Boolean(key) && key === looseParallelKey(right);
+}
+
+/**
  * Extra names that store and display as the listed parallel.
  * "Optic Preview-Pink", "Optic Preview Pink Prizm", and
  * "Optic Rated Rookies Preview Pink" are Optic Preview Pink.

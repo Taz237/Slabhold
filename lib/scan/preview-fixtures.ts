@@ -25,6 +25,23 @@ export const PREVIEW_PHOTO = `data:image/svg+xml;utf8,${encodeURIComponent(
 </svg>`,
 )}`;
 
+/** A made-up card back: a code, a name bar and lines of text. No logos, no photo. */
+export const PREVIEW_BACK_PHOTO = `data:image/svg+xml;utf8,${encodeURIComponent(
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 350">
+<rect width="250" height="350" rx="14" fill="#27272a"/>
+<rect x="14" y="14" width="222" height="322" rx="8" fill="#3f3f46"/>
+<rect x="100" y="34" width="50" height="14" rx="3" fill="#e4e4e7"/>
+<rect x="60" y="120" width="130" height="14" rx="3" fill="#f4f4f5"/>
+<rect x="72" y="142" width="106" height="10" rx="3" fill="#a1a1aa"/>
+<rect x="40" y="186" width="170" height="7" rx="3" fill="#71717a"/>
+<rect x="46" y="200" width="158" height="7" rx="3" fill="#71717a"/>
+<rect x="40" y="214" width="170" height="7" rx="3" fill="#71717a"/>
+<rect x="56" y="228" width="138" height="7" rx="3" fill="#71717a"/>
+<rect x="40" y="300" width="170" height="5" rx="2" fill="#52525b"/>
+<rect x="60" y="310" width="130" height="5" rx="2" fill="#52525b"/>
+</svg>`,
+)}`;
+
 const SURE = { player: "sure", year: "sure", set: "sure", number: "sure", parallel: "sure" } as const;
 
 export const PREVIEW_SLAB: ScanMatch = {
@@ -43,6 +60,32 @@ export const PREVIEW_SLAB: ScanMatch = {
   score: 125,
   sureness: SURE,
   parallelOptions: [{ name: "Silver", serialRun: null }],
+};
+
+/** A slab whose label named no parallel: the sheet asks "Which version?". A made-up player and card. */
+export const PREVIEW_SLAB_VERSION: ScanMatch = {
+  ...PREVIEW_SLAB,
+  catalogId: null,
+  playerName: "Fixture Player",
+  sport: "Football",
+  yearLabel: "2025",
+  setBrand: "Topps Chrome",
+  cardNumber: "306",
+  parallel: "",
+  sureness: { ...SURE, parallel: "unsure" },
+  parallelOptions: [
+    { name: "Base", serialRun: null },
+    { name: "Refractor", serialRun: null },
+    { name: "X-Fractor", serialRun: null },
+    { name: "Prism Refractor", serialRun: null },
+  ],
+};
+
+/** The same slab after X-Fractor was picked and the read again failed: the pick stays, prices say unavailable. */
+export const PREVIEW_SLAB_VERSION_PICKED: ScanMatch = {
+  ...PREVIEW_SLAB_VERSION,
+  parallel: "X-Fractor",
+  sureness: { ...PREVIEW_SLAB_VERSION.sureness, parallel: "sure" },
 };
 
 const RAW_OPTIONS = [
@@ -218,6 +261,67 @@ export const PREVIEW_SOLDS_BASE_OFFERS: SoldsState = {
   query: "preview",
 };
 
+/**
+ * The 2026-27 Topps Rookie Code #RC-3 (TestFlight 7): the insert named from its front, its version
+ * open. "Pick your card" lists it above his Bounce insert; its sales show by version, never as Base.
+ */
+export const PREVIEW_ROOKIE_CODE: ScanMatch[] = [
+  {
+    catalogId: null,
+    playerName: "Cameron Boozer",
+    sport: "Basketball",
+    yearLabel: "2026-27",
+    setBrand: "Topps",
+    cardNumber: "RC-3",
+    insertName: "Rookie Code",
+    parallel: "",
+    serialRun: null,
+    serialNo: "",
+    isRookie: true,
+    isAuto: false,
+    grade: null,
+    score: 70,
+    sureness: { player: "sure", year: "sure", set: "likely", number: "likely", parallel: "unsure" },
+    parallelOptions: [
+      { name: "Base", serialRun: null },
+      { name: "Rainbow Foilboard", serialRun: null },
+      { name: "Purple Rainbow", serialRun: 250 },
+      { name: "Gold Rainbow", serialRun: 50 },
+    ],
+  },
+  {
+    catalogId: null,
+    playerName: "Cameron Boozer",
+    sport: "Basketball",
+    yearLabel: "2026-27",
+    setBrand: "Topps",
+    cardNumber: "TB-18",
+    insertName: "Bounce",
+    parallel: "",
+    serialRun: null,
+    serialNo: "",
+    isRookie: true,
+    isAuto: false,
+    grade: null,
+    score: 40,
+    sureness: { player: "sure", year: "sure", set: "likely", number: "unsure", parallel: "unsure" },
+    parallelOptions: [],
+  },
+];
+
+/** The Rookie Code's sales by version: the plain insert and its Refractor, never priced as Base. */
+export const PREVIEW_SOLDS_ROOKIE_CODE: SoldsState = {
+  status: "done",
+  comp: {
+    status: "split",
+    groups: [
+      { label: "Base", nSales: 3, lastPriceCents: 700, lastSoldAt: "2026-11-14T12:00:00Z" },
+      { label: "Refractor", nSales: 2, lastPriceCents: 1700, lastSoldAt: "2026-11-13T12:00:00Z" },
+    ],
+  },
+  query: "preview",
+};
+
 /** Only Silver sales came back: no Base price. */
 export const PREVIEW_SOLDS_NO_BASE: SoldsState = {
   status: "done",
@@ -301,9 +405,9 @@ export async function previewSolds(_capture: unknown, matches: ScanMatch[]): Pro
 
 /** "Or one of these" with listing photos: the top match and one alternate have one, one has none. Made up. */
 export const PREVIEW_WITH_PHOTOS: ScanMatch[] = [
-  { ...PREVIEW_RAW[0], listing: { imageUrl: "/quick-comp/sample-card.svg", url: null, soldAt: "2026-11-02T18:00:00.000Z" } },
+  { ...PREVIEW_RAW[0], listing: { imageUrl: "/quick-comp/sample-card.svg", soldAt: "2026-11-02T18:00:00.000Z" } },
   ...PREVIEW_RAW.slice(1).map((match, index) =>
-    index === 0 ? { ...match, listing: { imageUrl: "/quick-comp/sample-card.svg", url: null, soldAt: "2026-10-20T18:00:00.000Z" } } : match,
+    index === 0 ? { ...match, listing: { imageUrl: "/quick-comp/sample-card.svg", soldAt: "2026-10-20T18:00:00.000Z" } } : match,
   ),
 ];
 

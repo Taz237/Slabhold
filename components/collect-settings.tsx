@@ -1,5 +1,6 @@
 "use client";
 
+import { CollectSettingsSkeleton } from "@/components/collect-settings-skeleton";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -121,7 +122,7 @@ export function CollectSettings() {
     router.push("/profile");
   }
 
-  if (!ready) return <p className="text-sm text-zinc-500">Loading…</p>;
+  if (!ready) return <CollectSettingsSkeleton />;
   if (!user) return null;
   if (mode !== "supabase" || state === "missing") {
     return (
@@ -133,7 +134,7 @@ export function CollectSettings() {
       </div>
     );
   }
-  if (state === "loading") return <p className="text-sm text-zinc-500">Loading…</p>;
+  if (state === "loading") return <CollectSettingsSkeleton />;
 
   return (
     <div>

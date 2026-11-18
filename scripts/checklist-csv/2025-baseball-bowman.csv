@@ -1,0 +1,904 @@
+CARD SET,CARD NUMBER,ATHLETE,TEAM,RC,FIRST BOWMAN
+Base Paper,1,Mike Trout,Los Angeles Angels,,
+Base Paper,2,Gunnar Henderson,Baltimore Orioles,,
+Base Paper,3,Bryce Harper,Philadelphia Phillies,,
+Base Paper,4,Adrian Del Castillo,Arizona Diamondbacks,RC,
+Base Paper,5,Freddie Freeman,Los Angeles Dodgers,,
+Base Paper,6,Rhett Lowder,Cincinnati Reds,RC,
+Base Paper,7,Bobby Witt Jr.,Kansas City Royals,,
+Base Paper,8,Drew Thorpe,Chicago White Sox,RC,
+Base Paper,9,Jacob Wilson,Athletics,RC,
+Base Paper,10,Rafael Devers,Boston Red Sox,,
+Base Paper,11,Jackson Chourio,Milwaukee Brewers,,
+Base Paper,12,Roki Sasaki,Los Angeles Dodgers,RC,
+Base Paper,13,Junior Caminero,Tampa Bay Rays,,
+Base Paper,14,Lawrence Butler,Athletics,,
+Base Paper,15,Emmanuel Clase,Cleveland Guardians,,
+Base Paper,16,Mookie Betts,Los Angeles Dodgers,,
+Base Paper,17,Shohei Ohtani,Los Angeles Dodgers,,
+Base Paper,18,Yoshinobu Yamamoto,Los Angeles Dodgers,,
+Base Paper,19,Randy Arozarena,Seattle Mariners,,
+Base Paper,20,Tarik Skubal,Detroit Tigers,,
+Base Paper,21,Ronald Acuña Jr.,Atlanta Braves,,
+Base Paper,22,Juan Soto,New York Mets,,
+Base Paper,23,Fernando Tatis Jr.,San Diego Padres,,
+Base Paper,24,Marcus Semien,Texas Rangers,,
+Base Paper,25,Yordan Alvarez,Houston Astros,,
+Base Paper,26,Manny Machado,San Diego Padres,,
+Base Paper,27,Vladimir Guerrero Jr.,Toronto Blue Jays,,
+Base Paper,28,Jacob deGrom,Texas Rangers,,
+Base Paper,29,James Wood,Washington Nationals,RC,
+Base Paper,30,Paul Skenes,Pittsburgh Pirates,,
+Base Paper,31,Adael Amador,Colorado Rockies,RC,
+Base Paper,32,Austin Riley,Atlanta Braves,,
+Base Paper,33,Wyatt Langford,Texas Rangers,,
+Base Paper,34,Salvador Perez,Kansas City Royals,,
+Base Paper,35,Adley Rutschman,Baltimore Orioles,,
+Base Paper,36,Triston Casas,Boston Red Sox,,
+Base Paper,37,Coby Mayo,Baltimore Orioles,RC,
+Base Paper,38,Corey Seager,Texas Rangers,,
+Base Paper,39,Eury Pérez,Miami Marlins,,
+Base Paper,40,Cole Ragans,Kansas City Royals,,
+Base Paper,41,Tomoyuki Sugano,Baltimore Orioles,RC,
+Base Paper,42,Dylan Crews,Washington Nationals,RC,
+Base Paper,43,Kyle Tucker,Chicago Cubs,,
+Base Paper,44,Elly De La Cruz,Cincinnati Reds,,
+Base Paper,45,Zack Wheeler,Philadelphia Phillies,,
+Base Paper,46,Connor Norby,Miami Marlins,RC,
+Base Paper,47,Shay Whitcomb,Houston Astros,RC,
+Base Paper,48,Shane McClanahan,Tampa Bay Rays,,
+Base Paper,49,CJ Abrams,Washington Nationals,,
+Base Paper,50,Jackson Jobe,Detroit Tigers,RC,
+Base Paper,51,Shota Imanaga,Chicago Cubs,,
+Base Paper,52,Cody Bellinger,New York Yankees,,
+Base Paper,53,Ceddanne Rafaela,Boston Red Sox,,
+Base Paper,54,David Festa,Minnesota Twins,RC,
+Base Paper,55,Zach Neto,Los Angeles Angels,,
+Base Paper,56,Pete Alonso,New York Mets,,
+Base Paper,57,Thomas Saggese,St. Louis Cardinals,RC,
+Base Paper,58,Riley Greene,Detroit Tigers,,
+Base Paper,59,Jace Jung,Detroit Tigers,RC,
+Base Paper,60,Willy Adames,San Francisco Giants,,
+Base Paper,61,Hurston Waldrep,Atlanta Braves,RC,
+Base Paper,62,Will Smith,Los Angeles Dodgers,,
+Base Paper,63,Jose Altuve,Houston Astros,,
+Base Paper,64,Jackson Merrill,San Diego Padres,,
+Base Paper,65,Trea Turner,Philadelphia Phillies,,
+Base Paper,66,Bryan Reynolds,Pittsburgh Pirates,,
+Base Paper,67,Christian Yelich,Milwaukee Brewers,,
+Base Paper,68,Nolan Arenado,St. Louis Cardinals,,
+Base Paper,69,River Ryan,Los Angeles Dodgers,RC,
+Base Paper,70,William Contreras,Milwaukee Brewers,,
+Base Paper,71,Ozzie Albies,Atlanta Braves,,
+Base Paper,72,Brooks Lee,Minnesota Twins,RC,
+Base Paper,73,Carlos Correa,Minnesota Twins,,
+Base Paper,74,Matt Chapman,San Francisco Giants,,
+Base Paper,75,Orelvis Martinez,Toronto Blue Jays,RC,
+Base Paper,76,Ketel Marte,Arizona Diamondbacks,,
+Base Paper,77,Jackson Holliday,Baltimore Orioles,,
+Base Paper,78,Spencer Schwellenbach,Atlanta Braves,RC,
+Base Paper,79,Julio Rodríguez,Seattle Mariners,,
+Base Paper,80,Kumar Rocker,Texas Rangers,RC,
+Base Paper,81,Jhonkensy Noel,Cleveland Guardians,RC,
+Base Paper,82,Chris Sale,Atlanta Braves,,
+Base Paper,83,Luisangel Acuña,New York Mets,RC,
+Base Paper,84,Ezequiel Tovar,Colorado Rockies,,
+Base Paper,85,Ben Rice,New York Yankees,RC,
+Base Paper,86,Francisco Lindor,New York Mets,,
+Base Paper,87,Logan Gilbert,Seattle Mariners,,
+Base Paper,88,Luis Robert Jr.,Chicago White Sox,,
+Base Paper,89,José Ramírez,Cleveland Guardians,,
+Base Paper,90,Jung Hoo Lee,San Francisco Giants,,
+Base Paper,91,Hyeseong Kim,Los Angeles Dodgers,RC,
+Base Paper,92,Bo Bichette,Toronto Blue Jays,,
+Base Paper,93,Tyler Locklear,Seattle Mariners,RC,
+Base Paper,94,Caden Dana,Los Angeles Angels,RC,
+Base Paper,95,Kevin Alcántara,Chicago Cubs,RC,
+Base Paper,96,Corbin Carroll,Arizona Diamondbacks,,
+Base Paper,97,Nick Yorke,Pittsburgh Pirates,RC,
+Base Paper,98,Matt Olson,Atlanta Braves,,
+Base Paper,99,Aaron Judge,New York Yankees,,
+Base Paper,100,Masyn Winn,St. Louis Cardinals,,
+Paper Prospects,BP-1,Walker Jenkins,Minnesota Twins,,
+Paper Prospects,BP-2,Zyhir Hope,Los Angeles Dodgers,,
+Paper Prospects,BP-3,Romeo Sanabria,San Diego Padres,,1st
+Paper Prospects,BP-4,Asbel Gonzalez,Kansas City Royals,,1st
+Paper Prospects,BP-5,Franyerber Montilla,Detroit Tigers,,1st
+Paper Prospects,BP-6,Wen-Hui Pan,Philadelphia Phillies,,1st
+Paper Prospects,BP-7,Gregory Barrios,Tampa Bay Rays,,1st
+Paper Prospects,BP-8,Dawel Joseph,Seattle Mariners,,
+Paper Prospects,BP-9,Esteban Mejia,Texas Rangers,,1st
+Paper Prospects,BP-10,Cade Horton,Chicago Cubs,,
+Paper Prospects,BP-11,Jackson Humphries,Cleveland Guardians,,1st
+Paper Prospects,BP-12,Hayden Alvarez,Los Angeles Angels,,1st
+Paper Prospects,BP-13,Josue Briceno,Detroit Tigers,,1st
+Paper Prospects,BP-14,Owen Wild,Tampa Bay Rays,,1st
+Paper Prospects,BP-15,Walker Janek,Houston Astros,,1st
+Paper Prospects,BP-16,Engelth Urena,New York Yankees,,1st
+Paper Prospects,BP-17,Colt Emerson,Seattle Mariners,,
+Paper Prospects,BP-18,Ichiro Cano Hernandez,Cincinnati Reds,,1st
+Paper Prospects,BP-19,Fabian Lopez,Miami Marlins,,1st
+Paper Prospects,BP-20,Ashly Andujar,Colorado Rockies,,1st
+Paper Prospects,BP-21,Slade Caldwell,Arizona Diamondbacks,,1st
+Paper Prospects,BP-22,JJ Wetherholt,St. Louis Cardinals,,1st
+Paper Prospects,BP-23,Lazaro Montes,Seattle Mariners,,
+Paper Prospects,BP-24,Max Clark,Detroit Tigers,,
+Paper Prospects,BP-25,Quinn Mathews,St. Louis Cardinals,,1st
+Paper Prospects,BP-26,Jancel Villarroel,Houston Astros,,1st
+Paper Prospects,BP-27,Yu-Min Lin,Arizona Diamondbacks,,1st
+Paper Prospects,BP-28,Carlos Tavares,Washington Nationals,,1st
+Paper Prospects,BP-29,David Ortiz Jr.,Texas Rangers,,1st
+Paper Prospects,BP-30,Bishop Letson,Milwaukee Brewers,,1st
+Paper Prospects,BP-31,Ricardo Yan,Arizona Diamondbacks,,1st
+Paper Prospects,BP-32,Cole Fontenelle,Los Angeles Angels,,1st
+Paper Prospects,BP-33,Aron Estrada,Baltimore Orioles,,1st
+Paper Prospects,BP-34,Rafael Flores,New York Yankees,,1st
+Paper Prospects,BP-35,Will Simpson,Athletics,,1st
+Paper Prospects,BP-36,Yophery Rodriguez,Milwaukee Brewers,,1st
+Paper Prospects,BP-37,Esmith Pineda,Cincinnati Reds,,1st
+Paper Prospects,BP-38,Luis Pena,Milwaukee Brewers,,
+Paper Prospects,BP-39,James Tibbs III,San Francisco Giants,,
+Paper Prospects,BP-40,Robert Calaz,Colorado Rockies,,
+Paper Prospects,BP-41,Mitch Jebb,Pittsburgh Pirates,,1st
+Paper Prospects,BP-42,Kristian Campbell,Boston Red Sox,,
+Paper Prospects,BP-43,Jhostynxon Garcia,Boston Red Sox,,1st
+Paper Prospects,BP-44,Hagen Smith,Chicago White Sox,,
+Paper Prospects,BP-45,Victor Rodrigues,Los Angeles Dodgers,,1st
+Paper Prospects,BP-46,Cam Caminiti,Atlanta Braves,,
+Paper Prospects,BP-47,Dylan Fien,Athletics,,1st
+Paper Prospects,BP-48,Cam Smith,Houston Astros,,
+Paper Prospects,BP-49,Bryce Rainer,Detroit Tigers,,
+Paper Prospects,BP-50,Sammy Hernandez,St. Louis Cardinals,,1st
+Paper Prospects,BP-51,Hyun-Seok Jang,Los Angeles Dodgers,,1st
+Paper Prospects,BP-52,Ismael Javier,San Diego Padres,,1st
+Paper Prospects,BP-53,Jacob Bresnahan,San Francisco Giants,,1st
+Paper Prospects,BP-54,Aidan Miller,Philadelphia Phillies,,
+Paper Prospects,BP-55,Gary Gill Hill,Tampa Bay Rays,,1st
+Paper Prospects,BP-56,Chase Mobley,Cleveland Guardians,,1st
+Paper Prospects,BP-57,Chase Hampton,New York Yankees,,1st
+Paper Prospects,BP-58,Jonathon Long,Chicago Cubs,,1st
+Paper Prospects,BP-59,Leo De Vries,San Diego Padres,,
+Paper Prospects,BP-60,Jack Penney,Detroit Tigers,,1st
+Paper Prospects,BP-61,D'Angelo Ortiz,Boston Red Sox,,1st
+Paper Prospects,BP-62,Luke Sinnard,Atlanta Braves,,1st
+Paper Prospects,BP-63,George Klassen,Los Angeles Angels,,1st
+Paper Prospects,BP-64,Jack Lines,Tampa Bay Rays,,1st
+Paper Prospects,BP-65,Aroon Escobar,Philadelphia Phillies,,1st
+Paper Prospects,BP-66,Jesus Made,Milwaukee Brewers,,1st
+Paper Prospects,BP-67,Franklin Arias,Boston Red Sox,,1st
+Paper Prospects,BP-68,Javier Mogollon,Chicago White Sox,,1st
+Paper Prospects,BP-69,Thomas White,Miami Marlins,,1st
+Paper Prospects,BP-70,Esteban Gonzalez,Cleveland Guardians,,1st
+Paper Prospects,BP-71,Richard Matic,New York Yankees,,1st
+Paper Prospects,BP-72,Paulino Santana,Texas Rangers,,
+Paper Prospects,BP-73,Steven Echavarria,Athletics,,1st
+Paper Prospects,BP-74,Zack Showalter,St. Louis Cardinals,,1st
+Paper Prospects,BP-75,Charlie Condon,Colorado Rockies,,1st
+Paper Prospects,BP-76,Blake Wolters,Kansas City Royals,,1st
+Paper Prospects,BP-77,Khadim Diaw,Minnesota Twins,,1st
+Paper Prospects,BP-78,Payton Eeles,Minnesota Twins,,1st
+Paper Prospects,BP-79,Kevin McGonigle,Detroit Tigers,,1st
+Paper Prospects,BP-80,Edgleen Perez,New York Yankees,,1st
+Paper Prospects,BP-81,Aidan Smith,Tampa Bay Rays,,
+Paper Prospects,BP-82,Kevyn Castillo,Los Angeles Angels,,1st
+Paper Prospects,BP-83,Émilien Pitre,Tampa Bay Rays,,1st
+Paper Prospects,BP-84,Jansel Luis,Arizona Diamondbacks,,1st
+Paper Prospects,BP-85,Jared Sundstrom,Seattle Mariners,,1st
+Paper Prospects,BP-86,Konnor Griffin,Pittsburgh Pirates,,
+Paper Prospects,BP-87,Didier Fuentes,Atlanta Braves,,1st
+Paper Prospects,BP-88,Jesus Lopez,Texas Rangers,,1st
+Paper Prospects,BP-89,Sean Keys,Toronto Blue Jays,,1st
+Paper Prospects,BP-90,Andrew Morris,Minnesota Twins,,1st
+Paper Prospects,BP-91,PJ Morlando,Miami Marlins,,1st
+Paper Prospects,BP-92,Bo Walker,Arizona Diamondbacks,,1st
+Paper Prospects,BP-93,Seaver King,Washington Nationals,,
+Paper Prospects,BP-94,Marcos Torres,Texas Rangers,,1st
+Paper Prospects,BP-95,Tsung-Che Cheng,Pittsburgh Pirates,,1st
+Paper Prospects,BP-96,Humberto Cruz,San Diego Padres,,1st
+Paper Prospects,BP-97,Cameron Sullivan,Cleveland Guardians,,1st
+Paper Prospects,BP-98,Anderson Brito,Houston Astros,,1st
+Paper Prospects,BP-99,Naibel Mariano,Cincinnati Reds,,1st
+Paper Prospects,BP-100,Sammy Stafura,Cincinnati Reds,,1st
+Paper Prospects,BP-101,Tink Hence,St. Louis Cardinals,,
+Paper Prospects,BP-102,Nate Nankil,Athletics,,1st
+Paper Prospects,BP-103,Jac Caglianone,Kansas City Royals,,
+Paper Prospects,BP-104,Cobb Hightower,San Diego Padres,,1st
+Paper Prospects,BP-105,Jonah Tong,New York Mets,,1st
+Paper Prospects,BP-106,Jose Perdomo,Atlanta Braves,,
+Paper Prospects,BP-107,Christian Moore,Los Angeles Angels,,
+Paper Prospects,BP-108,Carson Benge,New York Mets,,
+Paper Prospects,BP-109,Samuel Basallo,Baltimore Orioles,,
+Paper Prospects,BP-110,Fernando Cruz,Chicago Cubs,,
+Paper Prospects,BP-111,Jose Pirela,Cleveland Guardians,,1st
+Paper Prospects,BP-112,Cody Freeman,Texas Rangers,,1st
+Paper Prospects,BP-113,Caden Kendle,Minnesota Twins,,1st
+Paper Prospects,BP-114,Nick Kurtz,Athletics,,
+Paper Prospects,BP-115,Eduardo Quintero,Los Angeles Dodgers,,1st
+Paper Prospects,BP-116,Andrew Painter,Philadelphia Phillies,,
+Paper Prospects,BP-117,Jesus Tillero,Los Angeles Dodgers,,1st
+Paper Prospects,BP-118,Kyle Teel,Chicago White Sox,,
+Paper Prospects,BP-119,Hyungchan Um,Kansas City Royals,,1st
+Paper Prospects,BP-120,Caleb Lomavita,Washington Nationals,,1st
+Paper Prospects,BP-121,Winston Santos,Texas Rangers,,1st
+Paper Prospects,BP-122,Chase Burns,Cincinnati Reds,,
+Paper Prospects,BP-123,Jhonayker Ugarte,Kansas City Royals,,1st
+Paper Prospects,BP-124,Elvin Garcia,Baltimore Orioles,,1st
+Paper Prospects,BP-125,Alejandro Rosario,Texas Rangers,,1st
+Paper Prospects,BP-126,Jhancarlos Lara,Atlanta Braves,,1st
+Paper Prospects,BP-127,Emil Morales,Los Angeles Dodgers,,
+Paper Prospects,BP-128,Cory Lewis,Minnesota Twins,,1st
+Paper Prospects,BP-129,Malcolm Moore,Texas Rangers,,1st
+Paper Prospects,BP-130,Conrad Cason,Boston Red Sox,,1st
+Paper Prospects,BP-131,Travis Bazzana,Cleveland Guardians,,
+Paper Prospects,BP-132,Braden Montgomery,Chicago White Sox,,
+Paper Prospects,BP-133,Sebastian Walcott,Texas Rangers,,
+Paper Prospects,BP-134,Onil Perez,San Francisco Giants,,1st
+Paper Prospects,BP-135,Lucas Ramirez,Los Angeles Angels,,1st
+Paper Prospects,BP-136,Josh Knoth,Milwaukee Brewers,,1st
+Paper Prospects,BP-137,Kellon Lindsey,Los Angeles Dodgers,,
+Paper Prospects,BP-138,Druw Jones,Arizona Diamondbacks,,
+Paper Prospects,BP-139,Kyle DeBarge,Minnesota Twins,,1st
+Paper Prospects,BP-140,Luis Merejo,Cleveland Guardians,,1st
+Paper Prospects,BP-141,Chen-Wei Lin,St. Louis Cardinals,,1st
+Paper Prospects,BP-142,Santiago Suarez,Tampa Bay Rays,,1st
+Paper Prospects,BP-143,Jakob Wright,Los Angeles Dodgers,,1st
+Paper Prospects,BP-144,Pablo Guerrero,Texas Rangers,,
+Paper Prospects,BP-145,Matt Wilkinson,Cleveland Guardians,,1st
+Paper Prospects,BP-146,Yeremi Cabrera,Texas Rangers,,1st
+Paper Prospects,BP-147,Jhonny Level,San Francisco Giants,,1st
+Paper Prospects,BP-148,Braylon Payne,Milwaukee Brewers,,
+Paper Prospects,BP-149,Alex Mooney,Cleveland Guardians,,1st
+Paper Prospects,BP-150,Charles McAdoo,Toronto Blue Jays,,1st
+Chrome Prospects,BCP-1,Walker Jenkins,Minnesota Twins,,
+Chrome Prospects,BCP-2,Zyhir Hope,Los Angeles Dodgers,,
+Chrome Prospects,BCP-3,Romeo Sanabria,San Diego Padres,,1st
+Chrome Prospects,BCP-4,Asbel Gonzalez,Kansas City Royals,,1st
+Chrome Prospects,BCP-5,Franyerber Montilla,Detroit Tigers,,1st
+Chrome Prospects,BCP-6,Wen-Hui Pan,Philadelphia Phillies,,1st
+Chrome Prospects,BCP-7,Gregory Barrios,Tampa Bay Rays,,1st
+Chrome Prospects,BCP-8,Dawel Joseph,Seattle Mariners,,
+Chrome Prospects,BCP-9,Esteban Mejia,Texas Rangers,,1st
+Chrome Prospects,BCP-10,Cade Horton,Chicago Cubs,,
+Chrome Prospects,BCP-11,Jackson Humphries,Cleveland Guardians,,1st
+Chrome Prospects,BCP-12,Hayden Alvarez,Los Angeles Angels,,1st
+Chrome Prospects,BCP-13,Josue Briceno,Detroit Tigers,,1st
+Chrome Prospects,BCP-14,Owen Wild,Tampa Bay Rays,,1st
+Chrome Prospects,BCP-15,Walker Janek,Houston Astros,,1st
+Chrome Prospects,BCP-16,Engelth Urena,New York Yankees,,1st
+Chrome Prospects,BCP-17,Colt Emerson,Seattle Mariners,,
+Chrome Prospects,BCP-18,Ichiro Cano Hernandez,Cincinnati Reds,,1st
+Chrome Prospects,BCP-19,Fabian Lopez,Miami Marlins,,1st
+Chrome Prospects,BCP-20,Ashly Andujar,Colorado Rockies,,1st
+Chrome Prospects,BCP-21,Slade Caldwell,Arizona Diamondbacks,,1st
+Chrome Prospects,BCP-22,JJ Wetherholt,St. Louis Cardinals,,1st
+Chrome Prospects,BCP-23,Lazaro Montes,Seattle Mariners,,
+Chrome Prospects,BCP-24,Max Clark,Detroit Tigers,,
+Chrome Prospects,BCP-25,Quinn Mathews,St. Louis Cardinals,,1st
+Chrome Prospects,BCP-26,Jancel Villarroel,Houston Astros,,1st
+Chrome Prospects,BCP-27,Yu-Min Lin,Arizona Diamondbacks,,1st
+Chrome Prospects,BCP-28,Carlos Tavares,Washington Nationals,,1st
+Chrome Prospects,BCP-29,David Ortiz Jr.,Texas Rangers,,1st
+Chrome Prospects,BCP-30,Bishop Letson,Milwaukee Brewers,,1st
+Chrome Prospects,BCP-31,Ricardo Yan,Arizona Diamondbacks,,1st
+Chrome Prospects,BCP-32,Cole Fontenelle,Los Angeles Angels,,1st
+Chrome Prospects,BCP-33,Aron Estrada,Baltimore Orioles,,1st
+Chrome Prospects,BCP-34,Rafael Flores,New York Yankees,,1st
+Chrome Prospects,BCP-35,Will Simpson,Athletics,,1st
+Chrome Prospects,BCP-36,Yophery Rodriguez,Milwaukee Brewers,,1st
+Chrome Prospects,BCP-37,Esmith Pineda,Cincinnati Reds,,1st
+Chrome Prospects,BCP-38,Luis Pena,Milwaukee Brewers,,
+Chrome Prospects,BCP-39,James Tibbs III,San Francisco Giants,,
+Chrome Prospects,BCP-40,Robert Calaz,Colorado Rockies,,
+Chrome Prospects,BCP-41,Mitch Jebb,Pittsburgh Pirates,,1st
+Chrome Prospects,BCP-42,Kristian Campbell,Boston Red Sox,,
+Chrome Prospects,BCP-43,Jhostynxon Garcia,Boston Red Sox,,1st
+Chrome Prospects,BCP-44,Hagen Smith,Chicago White Sox,,
+Chrome Prospects,BCP-45,Victor Rodrigues,Los Angeles Dodgers,,1st
+Chrome Prospects,BCP-46,Cam Caminiti,Atlanta Braves,,
+Chrome Prospects,BCP-47,Dylan Fien,Athletics,,1st
+Chrome Prospects,BCP-48,Cam Smith,Houston Astros,,
+Chrome Prospects,BCP-49,Bryce Rainer,Detroit Tigers,,
+Chrome Prospects,BCP-50,Jesus Made,Milwaukee Brewers,,1st
+Chrome Prospects,BCP-51,Hyun-Seok Jang,Los Angeles Dodgers,,1st
+Chrome Prospects,BCP-52,Ismael Javier,San Diego Padres,,1st
+Chrome Prospects,BCP-53,Jacob Bresnahan,San Francisco Giants,,1st
+Chrome Prospects,BCP-54,Aidan Miller,Philadelphia Phillies,,
+Chrome Prospects,BCP-55,Gary Gill Hill,Tampa Bay Rays,,1st
+Chrome Prospects,BCP-56,Chase Mobley,Cleveland Guardians,,1st
+Chrome Prospects,BCP-57,Chase Hampton,New York Yankees,,1st
+Chrome Prospects,BCP-58,Jonathon Long,Chicago Cubs,,1st
+Chrome Prospects,BCP-59,Leo De Vries,San Diego Padres,,
+Chrome Prospects,BCP-60,Jack Penney,Detroit Tigers,,1st
+Chrome Prospects,BCP-61,D'Angelo Ortiz,Boston Red Sox,,1st
+Chrome Prospects,BCP-62,Luke Sinnard,Atlanta Braves,,1st
+Chrome Prospects,BCP-63,George Klassen,Los Angeles Angels,,1st
+Chrome Prospects,BCP-64,Jack Lines,Tampa Bay Rays,,1st
+Chrome Prospects,BCP-65,Aroon Escobar,Philadelphia Phillies,,1st
+Chrome Prospects,BCP-66,Sammy Hernandez,St. Louis Cardinals,,1st
+Chrome Prospects,BCP-67,Franklin Arias,Boston Red Sox,,1st
+Chrome Prospects,BCP-68,Javier Mogollon,Chicago White Sox,,1st
+Chrome Prospects,BCP-69,Thomas White,Miami Marlins,,1st
+Chrome Prospects,BCP-70,Esteban Gonzalez,Cleveland Guardians,,1st
+Chrome Prospects,BCP-71,Richard Matic,New York Yankees,,1st
+Chrome Prospects,BCP-72,Paulino Santana,Texas Rangers,,
+Chrome Prospects,BCP-73,Steven Echavarria,Athletics,,1st
+Chrome Prospects,BCP-74,Zack Showalter,St. Louis Cardinals,,1st
+Chrome Prospects,BCP-75,Charlie Condon,Colorado Rockies,,1st
+Chrome Prospects,BCP-76,Blake Wolters,Kansas City Royals,,1st
+Chrome Prospects,BCP-77,Khadim Diaw,Minnesota Twins,,1st
+Chrome Prospects,BCP-78,Payton Eeles,Minnesota Twins,,1st
+Chrome Prospects,BCP-79,Kevin McGonigle,Detroit Tigers,,1st
+Chrome Prospects,BCP-80,Edgleen Perez,New York Yankees,,1st
+Chrome Prospects,BCP-81,Aidan Smith,Tampa Bay Rays,,
+Chrome Prospects,BCP-82,Kevyn Castillo,Los Angeles Angels,,1st
+Chrome Prospects,BCP-83,Émilien Pitre,Tampa Bay Rays,,1st
+Chrome Prospects,BCP-84,Jansel Luis,Arizona Diamondbacks,,1st
+Chrome Prospects,BCP-85,Jared Sundstrom,Seattle Mariners,,1st
+Chrome Prospects,BCP-86,Konnor Griffin,Pittsburgh Pirates,,
+Chrome Prospects,BCP-87,Didier Fuentes,Atlanta Braves,,1st
+Chrome Prospects,BCP-88,Jesus Lopez,Texas Rangers,,1st
+Chrome Prospects,BCP-89,Sean Keys,Toronto Blue Jays,,1st
+Chrome Prospects,BCP-90,Andrew Morris,Minnesota Twins,,1st
+Chrome Prospects,BCP-91,PJ Morlando,Miami Marlins,,1st
+Chrome Prospects,BCP-92,Bo Walker,Arizona Diamondbacks,,1st
+Chrome Prospects,BCP-93,Seaver King,Washington Nationals,,
+Chrome Prospects,BCP-94,Marcos Torres,Texas Rangers,,1st
+Chrome Prospects,BCP-95,Tsung-Che Cheng,Pittsburgh Pirates,,1st
+Chrome Prospects,BCP-96,Humberto Cruz,San Diego Padres,,1st
+Chrome Prospects,BCP-97,Cameron Sullivan,Cleveland Guardians,,1st
+Chrome Prospects,BCP-98,Anderson Brito,Houston Astros,,1st
+Chrome Prospects,BCP-99,Naibel Mariano,Cincinnati Reds,,1st
+Chrome Prospects,BCP-100,Sammy Stafura,Cincinnati Reds,,1st
+Chrome Prospects,BCP-101,Tink Hence,St. Louis Cardinals,,
+Chrome Prospects,BCP-102,Nate Nankil,Athletics,,1st
+Chrome Prospects,BCP-103,Jac Caglianone,Kansas City Royals,,
+Chrome Prospects,BCP-104,Cobb Hightower,San Diego Padres,,1st
+Chrome Prospects,BCP-105,Jonah Tong,New York Mets,,1st
+Chrome Prospects,BCP-106,Jose Perdomo,Atlanta Braves,,
+Chrome Prospects,BCP-107,Christian Moore,Los Angeles Angels,,
+Chrome Prospects,BCP-108,Carson Benge,New York Mets,,
+Chrome Prospects,BCP-109,Samuel Basallo,Baltimore Orioles,,
+Chrome Prospects,BCP-110,Fernando Cruz,Chicago Cubs,,
+Chrome Prospects,BCP-111,Jose Pirela,Cleveland Guardians,,1st
+Chrome Prospects,BCP-112,Cody Freeman,Texas Rangers,,1st
+Chrome Prospects,BCP-113,Caden Kendle,Minnesota Twins,,1st
+Chrome Prospects,BCP-114,Nick Kurtz,Athletics,,
+Chrome Prospects,BCP-115,Eduardo Quintero,Los Angeles Dodgers,,1st
+Chrome Prospects,BCP-116,Andrew Painter,Philadelphia Phillies,,
+Chrome Prospects,BCP-117,Jesus Tillero,Los Angeles Dodgers,,1st
+Chrome Prospects,BCP-118,Kyle Teel,Chicago White Sox,,
+Chrome Prospects,BCP-119,Hyungchan Um,Kansas City Royals,,1st
+Chrome Prospects,BCP-120,Caleb Lomavita,Washington Nationals,,1st
+Chrome Prospects,BCP-121,Winston Santos,Texas Rangers,,1st
+Chrome Prospects,BCP-122,Chase Burns,Cincinnati Reds,,
+Chrome Prospects,BCP-123,Jhonayker Ugarte,Kansas City Royals,,1st
+Chrome Prospects,BCP-124,Elvin Garcia,Baltimore Orioles,,1st
+Chrome Prospects,BCP-125,Alejandro Rosario,Texas Rangers,,1st
+Chrome Prospects,BCP-126,Jhancarlos Lara,Atlanta Braves,,1st
+Chrome Prospects,BCP-127,Emil Morales,Los Angeles Dodgers,,
+Chrome Prospects,BCP-128,Cory Lewis,Minnesota Twins,,1st
+Chrome Prospects,BCP-129,Malcolm Moore,Texas Rangers,,1st
+Chrome Prospects,BCP-130,Conrad Cason,Boston Red Sox,,1st
+Chrome Prospects,BCP-131,Travis Bazzana,Cleveland Guardians,,
+Chrome Prospects,BCP-132,Braden Montgomery,Chicago White Sox,,
+Chrome Prospects,BCP-133,Sebastian Walcott,Texas Rangers,,
+Chrome Prospects,BCP-134,Onil Perez,San Francisco Giants,,1st
+Chrome Prospects,BCP-135,Lucas Ramirez,Los Angeles Angels,,1st
+Chrome Prospects,BCP-136,Josh Knoth,Milwaukee Brewers,,1st
+Chrome Prospects,BCP-137,Kellon Lindsey,Los Angeles Dodgers,,
+Chrome Prospects,BCP-138,Druw Jones,Arizona Diamondbacks,,
+Chrome Prospects,BCP-139,Kyle DeBarge,Minnesota Twins,,1st
+Chrome Prospects,BCP-140,Luis Merejo,Cleveland Guardians,,1st
+Chrome Prospects,BCP-141,Chen-Wei Lin,St. Louis Cardinals,,1st
+Chrome Prospects,BCP-142,Santiago Suarez,Tampa Bay Rays,,1st
+Chrome Prospects,BCP-143,Jakob Wright,Los Angeles Dodgers,,1st
+Chrome Prospects,BCP-144,Pablo Guerrero,Texas Rangers,,
+Chrome Prospects,BCP-145,Matt Wilkinson,Cleveland Guardians,,1st
+Chrome Prospects,BCP-146,Yeremi Cabrera,Texas Rangers,,1st
+Chrome Prospects,BCP-147,Jhonny Level,San Francisco Giants,,1st
+Chrome Prospects,BCP-148,Braylon Payne,Milwaukee Brewers,,
+Chrome Prospects,BCP-149,Alex Mooney,Cleveland Guardians,,1st
+Chrome Prospects,BCP-150,Charles McAdoo,Toronto Blue Jays,,1st
+Bowman Chrome RetroFractor,BCP-151,Brooks Robinson,Baltimore Orioles,,
+Bowman Chrome RetroFractor,BCP-152,Steve Carlton,St. Louis Cardinals,,
+Base RetroFractor Autographs,CPR-SC,Steve Carlton,St. Louis Cardinals,,
+Chrome Prospect Autographs,CPA-AA,Ashly Andujar,Colorado Rockies,,
+Chrome Prospect Autographs,CPA-AE,Aroon Escobar,Philadelphia Phillies,,
+Chrome Prospect Autographs,CPA-AES,Aron Estrada,Baltimore Orioles,,
+Chrome Prospect Autographs,CPA-AM,Alex Mooney,Cleveland Guardians,,
+Chrome Prospect Autographs,CPA-AMO,Andrew Morris,Minnesota Twins,,
+Chrome Prospect Autographs,CPA-BH,Brody Hopkins,Tampa Bay Rays,,
+Chrome Prospect Autographs,CPA-BM,Braden Montgomery,Chicago White Sox,,
+Chrome Prospect Autographs,CPA-BWA,Bo Walker,Arizona Diamondbacks,,
+Chrome Prospect Autographs,CPA-CB,Chase Burns,Cincinnati Reds,,
+Chrome Prospect Autographs,CPA-CC,Charlie Condon,Colorado Rockies,,
+Chrome Prospect Autographs,CPA-CCN,Conrad Cason,Boston Red Sox,,
+Chrome Prospect Autographs,CPA-CF,Cole Fontenelle,Los Angeles Angels,,
+Chrome Prospect Autographs,CPA-CFR,Cody Freeman,Texas Rangers,,
+Chrome Prospect Autographs,CPA-CHI,Cobb Hightower,San Diego Padres,,
+Chrome Prospect Autographs,CPA-CKE,Caden Kendle,Minnesota Twins,,
+Chrome Prospect Autographs,CPA-CL,Chen-Wei Lin,St. Louis Cardinals,,
+Chrome Prospect Autographs,CPA-CLE,Cory Lewis,Minnesota Twins,,
+Chrome Prospect Autographs,CPA-CLO,Caleb Lomavita,Washington Nationals,,
+Chrome Prospect Autographs,CPA-CMA,Charles McAdoo,Toronto Blue Jays,,
+Chrome Prospect Autographs,CPA-CMO,Christian Moore,Los Angeles Angels,,
+Chrome Prospect Autographs,CPA-CMY,Chase Mobley,Cleveland Guardians,,
+Chrome Prospect Autographs,CPA-CS,Cameron Sullivan,Cleveland Guardians,,
+Chrome Prospect Autographs,CPA-CSM,Cam Smith,Houston Astros,,
+Chrome Prospect Autographs,CPA-DF,Dylan Fien,Athletics,,
+Chrome Prospect Autographs,CPA-DFU,Didier Fuentes,Atlanta Braves,,
+Chrome Prospect Autographs,CPA-DO,D'Angelo Ortiz,Boston Red Sox,,
+Chrome Prospect Autographs,CPA-EGO,Esteban Gonzalez,Cleveland Guardians,,
+Chrome Prospect Autographs,CPA-EM,Esteban Mejia,Texas Rangers,,
+Chrome Prospect Autographs,CPA-EP,Esmith Pineda,Cincinnati Reds,,
+Chrome Prospect Autographs,CPA-EPI,Émilien Pitre,Tampa Bay Rays,,
+Chrome Prospect Autographs,CPA-EPZ,Edgleen Perez,New York Yankees,,
+Chrome Prospect Autographs,CPA-EQ,Eduardo Quintero,Los Angeles Dodgers,,
+Chrome Prospect Autographs,CPA-EU,Engelth Urena,New York Yankees,,
+Chrome Prospect Autographs,CPA-FA,Franklin Arias,Boston Red Sox,,
+Chrome Prospect Autographs,CPA-FL,Fabian Lopez,Miami Marlins,,
+Chrome Prospect Autographs,CPA-FM,Franyerber Montilla,Detroit Tigers,,
+Chrome Prospect Autographs,CPA-GB,Gregory Barrios,Tampa Bay Rays,,
+Chrome Prospect Autographs,CPA-GG,Gary Gill Hill,Tampa Bay Rays,,
+Chrome Prospect Autographs,CPA-GK,George Klassen,Los Angeles Angels,,
+Chrome Prospect Autographs,CPA-HA,Hayden Alvarez,Los Angeles Angels,,
+Chrome Prospect Autographs,CPA-HC,Humberto Cruz,San Diego Padres,,
+Chrome Prospect Autographs,CPA-HJ,Hyun-Seok Jang,Los Angeles Dodgers,,
+Chrome Prospect Autographs,CPA-HU,Hyungchan Um,Kansas City Royals,,
+Chrome Prospect Autographs,CPA-IC,Ichiro Cano Hernandez,Cincinnati Reds,,
+Chrome Prospect Autographs,CPA-JB,Josue Briceno,Detroit Tigers,,
+Chrome Prospect Autographs,CPA-JBR,Jacob Bresnahan,San Francisco Giants,,
+Chrome Prospect Autographs,CPA-JCA,Jac Caglianone,Kansas City Royals,,
+Chrome Prospect Autographs,CPA-JF,Jadyn Fielder,Milwaukee Brewers,,
+Chrome Prospect Autographs,CPA-JGA,Jhostynxon Garcia,Boston Red Sox,,
+Chrome Prospect Autographs,CPA-JHU,Jackson Humphries,Cleveland Guardians,,
+Chrome Prospect Autographs,CPA-JL,Jhonny Level,San Francisco Giants,,
+Chrome Prospect Autographs,CPA-JLG,Jonathon Long,Chicago Cubs,,
+Chrome Prospect Autographs,CPA-JLI,Jack Lines,Tampa Bay Rays,,
+Chrome Prospect Autographs,CPA-JLO,Jesus Lopez,Texas Rangers,,
+Chrome Prospect Autographs,CPA-JLU,Jansel Luis,Arizona Diamondbacks,,
+Chrome Prospect Autographs,CPA-JM,Jesus Made,Milwaukee Brewers,,
+Chrome Prospect Autographs,CPA-JMO,Javier Mogollon,Chicago White Sox,,
+Chrome Prospect Autographs,CPA-JP,Jose Pirela,Cleveland Guardians,,
+Chrome Prospect Autographs,CPA-JPY,Jack Penney,Detroit Tigers,,
+Chrome Prospect Autographs,CPA-JSU,Jared Sundstrom,Seattle Mariners,,
+Chrome Prospect Autographs,CPA-JT,Jesus Tillero,Los Angeles Dodgers,,
+Chrome Prospect Autographs,CPA-JTO,Jonah Tong,New York Mets,,
+Chrome Prospect Autographs,CPA-JU,Jhonayker Ugarte,Kansas City Royals,,
+Chrome Prospect Autographs,CPA-JV,Jancel Villarroel,Houston Astros,,
+Chrome Prospect Autographs,CPA-JVA,Javier Vaz,Kansas City Royals,,
+Chrome Prospect Autographs,CPA-JW,JJ Wetherholt,St. Louis Cardinals,,
+Chrome Prospect Autographs,CPA-KC,Kevyn Castillo,Los Angeles Angels,,
+Chrome Prospect Autographs,CPA-KD,Kyle DeBarge,Minnesota Twins,,
+Chrome Prospect Autographs,CPA-KDW,Khadim Diaw,Minnesota Twins,,
+Chrome Prospect Autographs,CPA-KG,Konnor Griffin,Pittsburgh Pirates,,
+Chrome Prospect Autographs,CPA-KM,Kevin McGonigle,Detroit Tigers,,
+Chrome Prospect Autographs,CPA-LD,Leo De Vries,San Diego Padres,,
+Chrome Prospect Autographs,CPA-LM,Luis Merejo,Cleveland Guardians,,
+Chrome Prospect Autographs,CPA-LP,Luis Pena,Milwaukee Brewers,,
+Chrome Prospect Autographs,CPA-LR,Lucas Ramirez,Los Angeles Angels,,
+Chrome Prospect Autographs,CPA-MJ,Mitch Jebb,Pittsburgh Pirates,,
+Chrome Prospect Autographs,CPA-MMO,Malcolm Moore,Texas Rangers,,
+Chrome Prospect Autographs,CPA-MV,Mike Vasil,Tampa Bay Rays,,
+Chrome Prospect Autographs,CPA-MW,Matt Wilkinson,Cleveland Guardians,,
+Chrome Prospect Autographs,CPA-NK,Nick Kurtz,Athletics,,
+Chrome Prospect Autographs,CPA-NM,Naibel Mariano,Cincinnati Reds,,
+Chrome Prospect Autographs,CPA-NN,Nate Nankil,Athletics,,
+Chrome Prospect Autographs,CPA-PE,Payton Eeles,Minnesota Twins,,
+Chrome Prospect Autographs,CPA-PM,PJ Morlando,Miami Marlins,,
+Chrome Prospect Autographs,CPA-QM,Quinn Mathews,St. Louis Cardinals,,
+Chrome Prospect Autographs,CPA-RF,Rafael Flores,New York Yankees,,
+Chrome Prospect Autographs,CPA-RM,Richard Matic,New York Yankees,,
+Chrome Prospect Autographs,CPA-RY,Ricardo Yan,Arizona Diamondbacks,,
+Chrome Prospect Autographs,CPA-SC,Slade Caldwell,Arizona Diamondbacks,,
+Chrome Prospect Autographs,CPA-SE,Steven Echavarria,Athletics,,
+Chrome Prospect Autographs,CPA-SK,Sean Keys,Toronto Blue Jays,,
+Chrome Prospect Autographs,CPA-SS,Sammy Stafura,Cincinnati Reds,,
+Chrome Prospect Autographs,CPA-SW,Sebastian Walcott,Texas Rangers,,
+Chrome Prospect Autographs,CPA-TB,Travis Bazzana,Cleveland Guardians,,
+Chrome Prospect Autographs,CPA-TC,Tsung-Che Cheng,Pittsburgh Pirates,,
+Chrome Prospect Autographs,CPA-TW,Thomas White,Miami Marlins,,
+Chrome Prospect Autographs,CPA-VR,Victor Rodrigues,Los Angeles Dodgers,,
+Chrome Prospect Autographs,CPA-WJ,Walker Jenkins,Minnesota Twins,,
+Chrome Prospect Autographs,CPA-WJA,Walker Janek,Houston Astros,,
+Chrome Prospect Autographs,CPA-WP,Wen-Hui Pan,Philadelphia Phillies,,
+Chrome Prospect Autographs,CPA-WS,Winston Santos,Texas Rangers,,
+Chrome Prospect Autographs,CPA-WSI,Will Simpson,Athletics,,
+Chrome Prospect Autographs,CPA-YC,Yeremi Cabrera,Texas Rangers,,
+Chrome Prospect Autographs,CPA-YR,Yophery Rodriguez,Milwaukee Brewers,,
+Chrome Prospect Autographs,CPA-ZH,Zyhir Hope,Los Angeles Dodgers,,
+Chrome Rookie Autographs,CRA-CM,Coby Mayo,Baltimore Orioles,,
+Chrome Rookie Autographs,CRA-DC,Dylan Crews,Washington Nationals,,
+Chrome Rookie Autographs,CRA-JO,Jackson Jobe,Detroit Tigers,,
+Chrome Rookie Autographs,CRA-JW,James Wood,Washington Nationals,,
+Chrome Rookie Autographs,CRA-KA,Kevin Alcántara,Chicago Cubs,,
+Chrome Rookie Autographs,CRA-KR,Kumar Rocker,Texas Rangers,,
+Chrome Rookie Autographs,CRA-LA,Luisangel Acuña,New York Mets,,
+Chrome Rookie Autographs,CRA-RL,Rhett Lowder,Cincinnati Reds,,
+Chrome Rookie Autographs,CRA-RS,Roki Sasaki,Los Angeles Dodgers,,
+Chrome Rookie Autographs,CRA-SS,Spencer Schwellenbach,Atlanta Braves,,
+Chrome Rookie Autographs,CRA-SW,Shay Whitcomb,Houston Astros,,
+Bowman Dual Autographs,BDA-JB,Bobby Witt Jr.,Kansas City Royals,,
+Paper Prospect Autographs,BPA-AP,Andrew Painter,Philadelphia Phillies,,
+Paper Prospect Autographs,BPA-BA,Blake Aita,Boston Red Sox,,
+Paper Prospect Autographs,BPA-CB,Chase Burns,Cincinnati Reds,,
+Paper Prospect Autographs,BPA-CC,Charlie Condon,Colorado Rockies,,
+Paper Prospect Autographs,BPA-CHC,Chris Campos,Los Angeles Dodgers,,
+Paper Prospect Autographs,BPA-CHO,Cade Horton,Chicago Cubs,,
+Paper Prospect Autographs,BPA-CM,Charles McAdoo,Toronto Blue Jays,,
+Paper Prospect Autographs,BPA-CW,Chandler Welch,Milwaukee Brewers,,
+Paper Prospect Autographs,BPA-DH,David Hagaman,Texas Rangers,,
+Paper Prospect Autographs,BPA-DJ,Druw Jones,Arizona Diamondbacks,,
+Paper Prospect Autographs,BPA-EQ,Eduardo Quintero,Los Angeles Dodgers,,
+Paper Prospect Autographs,BPA-GH,Garrett Horn,Texas Rangers,,
+Paper Prospect Autographs,BPA-GK,Grant Knipp,Seattle Mariners,,
+Paper Prospect Autographs,BPA-HS,Hagen Smith,Chicago White Sox,,
+Paper Prospect Autographs,BPA-JC,Jac Caglianone,Kansas City Royals,,
+Paper Prospect Autographs,BPA-JH,Josh Hartle,Cleveland Guardians,,
+Paper Prospect Autographs,BPA-JM,Jesus Made,Milwaukee Brewers,,
+Paper Prospect Autographs,BPA-JR,Jeremy Rodriguez,New York Mets,,
+Paper Prospect Autographs,BPA-JW,JJ Wetherholt,St. Louis Cardinals,,
+Paper Prospect Autographs,BPA-KD,Kyle DeBarge,Minnesota Twins,,
+Paper Prospect Autographs,BPA-KE,Konner Eaton,Colorado Rockies,,
+Paper Prospect Autographs,BPA-KT,Kyle Teel,Chicago White Sox,,
+Paper Prospect Autographs,BPA-LA,Luis Almeyda,Baltimore Orioles,,
+Paper Prospect Autographs,BPA-LD,Leo De Vries,San Diego Padres,,
+Paper Prospect Autographs,BPA-MA,Mick Abel,Philadelphia Phillies,,
+Paper Prospect Autographs,BPA-NK,Nick Kurtz,Athletics,,
+Paper Prospect Autographs,BPA-PM,PJ Morlando,Miami Marlins,,
+Paper Prospect Autographs,BPA-PO,Peyton Olejnik,Los Angeles Angels,,
+Paper Prospect Autographs,BPA-SC,Slade Caldwell,Arizona Diamondbacks,,
+Paper Prospect Autographs,BPA-SS,Sam Stuhr,Athletics,,
+Paper Prospect Autographs,BPA-TB,Travis Bazzana,Cleveland Guardians,,
+Paper Prospect Autographs,BPA-TH,Tink Hence,St. Louis Cardinals,,
+Paper Prospect Autographs,BPA-TT,Tommy Troy,Arizona Diamondbacks,,
+Paper Prospect Autographs,BPA-WJ,Walker Jenkins,Minnesota Twins,,
+Paper Rookies and Veterans Retail Autographs,PRV-AP,Andy Pages,Los Angeles Dodgers,,
+Paper Rookies and Veterans Retail Autographs,PRV-BB,Brett Baty,New York Mets,,
+Paper Rookies and Veterans Retail Autographs,PRV-BD,Brenton Doyle,Colorado Rockies,,
+Paper Rookies and Veterans Retail Autographs,PRV-BR,Brayan Rocchio,Cleveland Guardians,,
+Paper Rookies and Veterans Retail Autographs,PRV-CC,Corbin Carroll,Arizona Diamondbacks,,
+Paper Rookies and Veterans Retail Autographs,PRV-CCO,Colton Cowser,Baltimore Orioles,,
+Paper Rookies and Veterans Retail Autographs,PRV-CM,Coby Mayo,Baltimore Orioles,,
+Paper Rookies and Veterans Retail Autographs,PRV-CR,Ceddanne Rafaela,Boston Red Sox,,
+Paper Rookies and Veterans Retail Autographs,PRV-DT,Drew Thorpe,Chicago White Sox,,
+Paper Rookies and Veterans Retail Autographs,PRV-EC,Evan Carter,Texas Rangers,,
+Paper Rookies and Veterans Retail Autographs,PRV-HW,Hurston Waldrep,Atlanta Braves,,
+Paper Rookies and Veterans Retail Autographs,PRV-JB,Jake Bloss,Toronto Blue Jays,,
+Paper Rookies and Veterans Retail Autographs,PRV-JD,Jasson Domínguez,New York Yankees,,
+Paper Rookies and Veterans Retail Autographs,PRV-JH,Jackson Holliday,Baltimore Orioles,,
+Paper Rookies and Veterans Retail Autographs,PRV-JJ,Josh Jung,Texas Rangers,,
+Paper Rookies and Veterans Retail Autographs,PRV-JJO,Jackson Jobe,Detroit Tigers,,
+Paper Rookies and Veterans Retail Autographs,PRV-JL,Jordan Lawlar,Arizona Diamondbacks,,
+Paper Rookies and Veterans Retail Autographs,PRV-JM,J.D. Martinez,New York Mets,,
+Paper Rookies and Veterans Retail Autographs,PRV-JW,Jordan Westburg,Baltimore Orioles,,
+Paper Rookies and Veterans Retail Autographs,PRV-KB,Kris Bryant,Colorado Rockies,,
+Paper Rookies and Veterans Retail Autographs,PRV-KR,Kumar Rocker,Texas Rangers,,
+Paper Rookies and Veterans Retail Autographs,PRV-LA,Luisangel Acuña,New York Mets,,
+Paper Rookies and Veterans Retail Autographs,PRV-MO,Matt Olson,Atlanta Braves,,
+Paper Rookies and Veterans Retail Autographs,PRV-MV,Mark Vientos,New York Mets,,
+Paper Rookies and Veterans Retail Autographs,PRV-OP,Oswald Peraza,New York Yankees,,
+Paper Rookies and Veterans Retail Autographs,PRV-RA,Ronald Acuña Jr.,Atlanta Braves,,
+Paper Rookies and Veterans Retail Autographs,PRV-SL,Seth Lugo,Kansas City Royals,,
+Paper Rookies and Veterans Retail Autographs,PRV-SS,Spencer Strider,Atlanta Braves,,
+Paper Rookies and Veterans Retail Autographs,PRV-TB,Tyler Black,Milwaukee Brewers,,
+Paper Rookies and Veterans Retail Autographs,PRV-TE,Tommy Edman,Los Angeles Dodgers,,
+Paper Rookies and Veterans Retail Autographs,PRV-TS,Thomas Saggese,St. Louis Cardinals,,
+Paper Rookies and Veterans Retail Autographs,PRV-TSA,Trey Sweeney,Detroit Tigers,,
+Paper Rookies and Veterans Retail Autographs,PRV-VG,Vladimir Guerrero Jr.,Toronto Blue Jays,,
+Paper Rookies and Veterans Retail Autographs,PRV-VS,Victor Scott II,St. Louis Cardinals,,
+Paper Rookies and Veterans Retail Autographs,PRV-XE,Xavier Edwards,Miami Marlins,,
+Hobby Stars Autographs,HSA-BW,Bobby Witt Jr.,Kansas City Royals,,
+Hobby Stars Autographs,HSA-CC,Charlie Condon,Colorado Rockies,,
+Hobby Stars Autographs,HSA-DC,Dylan Crews,Washington Nationals,,
+Hobby Stars Autographs,HSA-ED,Elly De La Cruz,Cincinnati Reds,,
+Hobby Stars Autographs,HSA-JC,Jackson Chourio,Milwaukee Brewers,,
+Hobby Stars Autographs,HSA-JH,Jackson Holliday,Baltimore Orioles,,
+Hobby Stars Autographs,HSA-JJW,JJ Wetherholt,St. Louis Cardinals,,
+Hobby Stars Autographs,HSA-JW,James Wood,Washington Nationals,,
+Hobby Stars Autographs,HSA-MT,Mike Trout,Los Angeles Angels,,
+Hobby Stars Autographs,HSA-PS,Paul Skenes,Pittsburgh Pirates,,
+Hobby Stars Autographs,HSA-RA,Ronald Acuña Jr.,Atlanta Braves,,
+Hobby Stars Autographs,HSA-TB,Travis Bazzana,Cleveland Guardians,,
+Rockstar Rookies Autographs,RRA-AA,Adael Amador,Colorado Rockies,,
+Rockstar Rookies Autographs,RRA-BL,Brooks Lee,Minnesota Twins,,
+Rockstar Rookies Autographs,RRA-CM,Coby Mayo,Baltimore Orioles,,
+Rockstar Rookies Autographs,RRA-CN,Connor Norby,Miami Marlins,,
+Rockstar Rookies Autographs,RRA-DC,Dylan Crews,Washington Nationals,,
+Rockstar Rookies Autographs,RRA-JJ,Jackson Jobe,Detroit Tigers,,
+Rockstar Rookies Autographs,RRA-JW,James Wood,Washington Nationals,,
+Rockstar Rookies Autographs,RRA-JWI,Jacob Wilson,Athletics,,
+Rockstar Rookies Autographs,RRA-KR,Kumar Rocker,Texas Rangers,,
+Rockstar Rookies Autographs,RRA-LA,Luisangel Acuña,New York Mets,,
+Rockstar Rookies Autographs,RRA-RL,Rhett Lowder,Cincinnati Reds,,
+Rockstar Rookies Autographs,RRA-SS,Spencer Schwellenbach,Atlanta Braves,,
+Rockstar Rookies Autographs,RRA-TS,Thomas Saggese,St. Louis Cardinals,,
+Rookie of the Year ROY Favorites Autographs,ROY-AA,Adael Amador,Colorado Rockies,,
+Rookie of the Year ROY Favorites Autographs,ROY-CD,Caden Dana,Los Angeles Angels,,
+Rookie of the Year ROY Favorites Autographs,ROY-CM,Coby Mayo,Baltimore Orioles,,
+Rookie of the Year ROY Favorites Autographs,ROY-DC,Dylan Crews,Washington Nationals,,
+Rookie of the Year ROY Favorites Autographs,ROY-DR,Drew Romo,Colorado Rockies,,
+Rookie of the Year ROY Favorites Autographs,ROY-JJ,Jackson Jobe,Detroit Tigers,,
+Rookie of the Year ROY Favorites Autographs,ROY-JJU,Jace Jung,Detroit Tigers,,
+Rookie of the Year ROY Favorites Autographs,ROY-KA,Kevin Alcántara,Chicago Cubs,,
+Rookie of the Year ROY Favorites Autographs,ROY-KR,Kumar Rocker,Texas Rangers,,
+Rookie of the Year ROY Favorites Autographs,ROY-LA,Luisangel Acuña,New York Mets,,
+Rookie of the Year ROY Favorites Autographs,ROY-RL,Rhett Lowder,Cincinnati Reds,,
+Rookie of the Year ROY Favorites Autographs,ROY-RS,Roki Sasaki,Los Angeles Dodgers,,
+Rookie of the Year ROY Favorites Autographs,ROY-TS,Thomas Saggese,St. Louis Cardinals,,
+Very Important Prospects VIP Autographs,VIP-CB,Chase Burns,Cincinnati Reds,,
+Very Important Prospects VIP Autographs,VIP-CC,Cam Caminiti,Atlanta Braves,,
+Very Important Prospects VIP Autographs,VIP-CCO,Charlie Condon,Colorado Rockies,,
+Very Important Prospects VIP Autographs,VIP-CE,Colt Emerson,Seattle Mariners,,
+Very Important Prospects VIP Autographs,VIP-CM,Christian Moore,Los Angeles Angels,,
+Very Important Prospects VIP Autographs,VIP-CP,Cooper Pratt,Milwaukee Brewers,,
+Very Important Prospects VIP Autographs,VIP-JC,Jac Caglianone,Kansas City Royals,,
+Very Important Prospects VIP Autographs,VIP-JW,JJ Wetherholt,St. Louis Cardinals,,
+Very Important Prospects VIP Autographs,VIP-KG,Konnor Griffin,Pittsburgh Pirates,,
+Very Important Prospects VIP Autographs,VIP-LD,Leo De Vries,San Diego Padres,,
+Very Important Prospects VIP Autographs,VIP-MS,Matt Shaw,Chicago Cubs,,
+Very Important Prospects VIP Autographs,VIP-NK,Nick Kurtz,Athletics,,
+Very Important Prospects VIP Autographs,VIP-SB,Samuel Basallo,Baltimore Orioles,,
+Very Important Prospects VIP Autographs,VIP-TB,Travis Bazzana,Cleveland Guardians,,
+Very Important Prospects VIP Autographs,VIP-TW,Thomas White,Miami Marlins,,
+Ultimate Autograph Book,UAC-1,Konnor Griffin,Pittsburgh Pirates,,
+Bowman Anime,BA-1,Mike Trout,Los Angeles Angels,,
+Bowman Anime,BA-2,Coby Mayo,Baltimore Orioles,,
+Bowman Anime,BA-3,Charlie Condon,Colorado Rockies,,
+Bowman Anime,BA-4,Bobby Witt Jr.,Kansas City Royals,,
+Bowman Anime,BA-5,Mookie Betts,Los Angeles Dodgers,,
+Bowman Anime,BA-6,Aaron Judge,New York Yankees,,
+Bowman Anime,BA-7,Bryce Harper,Philadelphia Phillies,,
+Bowman Anime,BA-8,Leo De Vries,San Diego Padres,,
+Bowman Anime,BA-9,JJ Wetherholt,St. Louis Cardinals,,
+Bowman Anime,BA-10,James Wood,Washington Nationals,,
+Bowman Anime,BA-11,Walker Jenkins,Minnesota Twins,,
+Bowman Anime,BA-12,Max Clark,Detroit Tigers,,
+Bowman Anime,BA-13,George Brett,Kansas City Royals,,
+Bowman Anime,BA-14,Ichiro,Seattle Mariners,,
+Bowman Anime,BA-15,Derek Jeter,New York Yankees,,
+Bowman Anime,BA-16,Jac Caglianone,Kansas City Royals,,
+Bowman Anime,BA-17,Travis Bazzana,Cleveland Guardians,,
+Bowman Anime,BA-18,Konnor Griffin,Pittsburgh Pirates,,
+Bowman Anime,BA-19,Christian Moore,Los Angeles Angels,,
+Bowman Anime,BA-20,Roki Sasaki,Los Angeles Dodgers,,
+Bowman Anime,BA-21,Hyeseong Kim,Los Angeles Dodgers,,
+Bowman Anime,BA-22,Albert Pujols,St. Louis Cardinals,,
+Bowman Anime,BA-23,Juan Soto,New York Mets,,
+Bowman Anime,BA-24,Hideki Matsui,New York Yankees,,
+Bowman Anime,BA-25,Dylan Crews,Washington Nationals,,
+Bowman Anime,BA-26,Luisangel Acuña,New York Mets,,
+Bowman Anime,BA-27,Shohei Ohtani,Los Angeles Dodgers,,
+Bowman Anime,BA-28,Fernando Tatis Jr.,San Diego Padres,,
+Bowman Anime,BA-29,Rafael Devers,Boston Red Sox,,
+Bowman Anime,BA-30,Vladimir Guerrero Jr.,Toronto Blue Jays,,
+Bowman Scouts’ Top 100,BTP-1,Roman Anthony,Boston Red Sox,,
+Bowman Scouts’ Top 100,BTP-2,Walker Jenkins,Minnesota Twins,,
+Bowman Scouts’ Top 100,BTP-3,Carson Williams,Tampa Bay Rays,,
+Bowman Scouts’ Top 100,BTP-4,Marcelo Mayer,Boston Red Sox,,
+Bowman Scouts’ Top 100,BTP-5,Samuel Basallo,Baltimore Orioles,,
+Bowman Scouts’ Top 100,BTP-6,Max Clark,Detroit Tigers,,
+Bowman Scouts’ Top 100,BTP-7,Charlie Condon,Colorado Rockies,,
+Bowman Scouts’ Top 100,BTP-8,Travis Bazzana,Cleveland Guardians,,
+Bowman Scouts’ Top 100,BTP-9,Ethan Salas,San Diego Padres,,
+Bowman Scouts’ Top 100,BTP-10,Jesus Made,Milwaukee Brewers,,
+Bowman Scouts’ Top 100,BTP-11,Bubba Chandler,Pittsburgh Pirates,,
+Bowman Scouts’ Top 100,BTP-12,Colt Emerson,Seattle Mariners,,
+Bowman Scouts’ Top 100,BTP-13,Kristian Campbell,Boston Red Sox,,
+Bowman Scouts’ Top 100,BTP-14,Jac Caglianone,Kansas City Royals,,
+Bowman Scouts’ Top 100,BTP-15,JJ Wetherholt,St. Louis Cardinals,,
+Bowman Scouts’ Top 100,BTP-16,Noah Schultz,Chicago White Sox,,
+Bowman Scouts’ Top 100,BTP-17,Chase Burns,Cincinnati Reds,,
+Bowman Scouts’ Top 100,BTP-18,Sebastian Walcott,Texas Rangers,,
+Bowman Scouts’ Top 100,BTP-19,Andrew Painter,Philadelphia Phillies,,
+Bowman Scouts’ Top 100,BTP-20,Leo De Vries,San Diego Padres,,
+Bowman Scouts’ Top 100,BTP-21,Josue De Paula,Los Angeles Dodgers,,
+Bowman Scouts’ Top 100,BTP-22,Kyle Teel,Chicago White Sox,,
+Bowman Scouts’ Top 100,BTP-23,Aidan Miller,Philadelphia Phillies,,
+Bowman Scouts’ Top 100,BTP-24,Matt Shaw,Chicago Cubs,,
+Bowman Scouts’ Top 100,BTP-25,Kevin McGonigle,Detroit Tigers,,
+Bowman Scouts’ Top 100,BTP-26,Emmanuel Rodriguez,Minnesota Twins,,
+Bowman Scouts’ Top 100,BTP-27,Bryce Eldridge,San Francisco Giants,,
+Bowman Scouts’ Top 100,BTP-28,Robert Calaz,Colorado Rockies,,
+Bowman Scouts’ Top 100,BTP-29,Colson Montgomery,Chicago White Sox,,
+Bowman Scouts’ Top 100,BTP-30,Xavier Isaac,Tampa Bay Rays,,
+Bowman Scouts’ Top 100,BTP-31,Chase DeLauter,Cleveland Guardians,,
+Bowman Scouts’ Top 100,BTP-32,Nick Kurtz,Athletics,,
+Bowman Scouts’ Top 100,BTP-33,Hagen Smith,Chicago White Sox,,
+Bowman Scouts’ Top 100,BTP-34,Thomas White,Miami Marlins,,
+Bowman Scouts’ Top 100,BTP-35,Brandon Sproat,New York Mets,,
+Bowman Scouts’ Top 100,BTP-36,Emil Morales,Los Angeles Dodgers,,
+Bowman Scouts’ Top 100,BTP-37,Jacob Misiorowski,Milwaukee Brewers,,
+Bowman Scouts’ Top 100,BTP-38,Tink Hence,St. Louis Cardinals,,
+Bowman Scouts’ Top 100,BTP-39,Owen Caissie,Chicago Cubs,,
+Bowman Scouts’ Top 100,BTP-40,Cole Young,Seattle Mariners,,
+Bowman Scouts’ Top 100,BTP-41,Dalton Rushing,Los Angeles Dodgers,,
+Bowman Scouts’ Top 100,BTP-42,Alejandro Rosario,Texas Rangers,,
+Bowman Scouts’ Top 100,BTP-43,Jeferson Quero,Milwaukee Brewers,,
+Bowman Scouts’ Top 100,BTP-44,Lazaro Montes,Seattle Mariners,,
+Bowman Scouts’ Top 100,BTP-45,Konnor Griffin,Pittsburgh Pirates,,
+Bowman Scouts’ Top 100,BTP-46,Christian Moore,Los Angeles Angels,,
+Bowman Scouts’ Top 100,BTP-47,Justin Crawford,Philadelphia Phillies,,
+Bowman Scouts’ Top 100,BTP-48,Harry Ford,Seattle Mariners,,
+Bowman Scouts’ Top 100,BTP-49,Cade Horton,Chicago Cubs,,
+Bowman Scouts’ Top 100,BTP-50,Braden Montgomery,Chicago White Sox,,
+Bowman Scouts’ Top 100,BTP-51,Zyhir Hope,Los Angeles Dodgers,,
+Bowman Scouts’ Top 100,BTP-52,Edgar Quero,Chicago White Sox,,
+Bowman Scouts’ Top 100,BTP-53,Bryce Rainer,Detroit Tigers,,
+Bowman Scouts’ Top 100,BTP-54,Blake Mitchell,Kansas City Royals,,
+Bowman Scouts’ Top 100,BTP-55,Moises Ballesteros,Chicago Cubs,,
+Bowman Scouts’ Top 100,BTP-56,Cam Smith,Houston Astros,,
+Bowman Scouts’ Top 100,BTP-57,Franklin Arias,Boston Red Sox,,
+Bowman Scouts’ Top 100,BTP-58,Jett Williams,New York Mets,,
+Bowman Scouts’ Top 100,BTP-59,Spencer Jones,New York Yankees,,
+Bowman Scouts’ Top 100,BTP-60,Drew Gilbert,New York Mets,,
+Bowman Scouts’ Top 100,BTP-61,Noble Meyer,Miami Marlins,,
+Bowman Scouts’ Top 100,BTP-62,Eduardo Quintero,Los Angeles Dodgers,,
+Bowman Scouts’ Top 100,BTP-63,Thayron Liranzo,Detroit Tigers,,
+Bowman Scouts’ Top 100,BTP-64,Cooper Pratt,Milwaukee Brewers,,
+Bowman Scouts’ Top 100,BTP-65,Drake Baldwin,Atlanta Braves,,
+Bowman Scouts’ Top 100,BTP-66,Luke Keaschall,Minnesota Twins,,
+Bowman Scouts’ Top 100,BTP-67,Termarr Johnson,Pittsburgh Pirates,,
+Bowman Scouts’ Top 100,BTP-68,Jacob Melton,Houston Astros,,
+Bowman Scouts’ Top 100,BTP-69,Jaison Chourio,Cleveland Guardians,,
+Bowman Scouts’ Top 100,BTP-70,Agustin Ramirez,Miami Marlins,,
+Bowman Scouts’ Top 100,BTP-71,Jonny Farmelo,Seattle Mariners,,
+Bowman Scouts’ Top 100,BTP-72,Slade Caldwell,Arizona Diamondbacks,,
+Bowman Scouts’ Top 100,BTP-73,Seaver King,Washington Nationals,,
+Bowman Scouts’ Top 100,BTP-74,PJ Morlando,Miami Marlins,,
+Bowman Scouts’ Top 100,BTP-75,Tommy Troy,Arizona Diamondbacks,,
+Bowman Scouts’ Top 100,BTP-76,Theo Gillen,Tampa Bay Rays,,
+Bowman Scouts’ Top 100,BTP-77,Angel Genao,Cleveland Guardians,,
+Bowman Scouts’ Top 100,BTP-78,James Tibbs III,San Francisco Giants,,
+Bowman Scouts’ Top 100,BTP-79,Brayden Taylor,Tampa Bay Rays,,
+Bowman Scouts’ Top 100,BTP-80,Felnin Celesten,Seattle Mariners,,
+Bowman Scouts’ Top 100,BTP-81,Kyle DeBarge,Minnesota Twins,,
+Bowman Scouts’ Top 100,BTP-82,Josue Briceno,Detroit Tigers,,
+Bowman Scouts’ Top 100,BTP-83,Joendry Vargas,Los Angeles Dodgers,,
+Bowman Scouts’ Top 100,BTP-84,Welbyn Francisca,Cleveland Guardians,,
+Bowman Scouts’ Top 100,BTP-85,Cam Caminiti,Atlanta Braves,,
+Bowman Scouts’ Top 100,BTP-86,Ryan Clifford,New York Mets,,
+Bowman Scouts’ Top 100,BTP-87,Trey Yesavage,Toronto Blue Jays,,
+Bowman Scouts’ Top 100,BTP-88,George Klassen,Los Angeles Angels,,
+Bowman Scouts’ Top 100,BTP-89,Jose Perdomo,Atlanta Braves,,
+Bowman Scouts’ Top 100,BTP-90,Jefferson Rojas,Chicago Cubs,,
+Bowman Scouts’ Top 100,BTP-91,Alex Freeland,Los Angeles Dodgers,,
+Bowman Scouts’ Top 100,BTP-92,Ralphy Velazquez,Cleveland Guardians,,
+Bowman Scouts’ Top 100,BTP-93,Paulino Santana,Texas Rangers,,
+Bowman Scouts’ Top 100,BTP-94,James Triantos,Chicago Cubs,,
+Bowman Scouts’ Top 100,BTP-95,Cam Collier,Cincinnati Reds,,
+Bowman Scouts’ Top 100,BTP-96,Druw Jones,Arizona Diamondbacks,,
+Bowman Scouts’ Top 100,BTP-97,Travis Sykora,Washington Nationals,,
+Bowman Scouts’ Top 100,BTP-98,Yophery Rodriguez,Milwaukee Brewers,,
+Bowman Scouts’ Top 100,BTP-99,Gary Gill Hill,Tampa Bay Rays,,
+Bowman Scouts’ Top 100,BTP-100,Carson Benge,New York Mets,,
+Bowman Spotlights,BS-1,Dylan Crews,Washington Nationals,,
+Bowman Spotlights,BS-2,Jacob Wilson,Athletics,,
+Bowman Spotlights,BS-3,Bobby Witt Jr.,Kansas City Royals,,
+Bowman Spotlights,BS-4,Jesus Made,Milwaukee Brewers,,
+Bowman Spotlights,BS-5,Roki Sasaki,Los Angeles Dodgers,,
+Bowman Spotlights,BS-6,Hyeseong Kim,Los Angeles Dodgers,,
+Bowman Spotlights,BS-7,PJ Morlando,Miami Marlins,,
+Bowman Spotlights,BS-8,Luisangel Acuña,New York Mets,,
+Bowman Spotlights,BS-9,Shohei Ohtani,Los Angeles Dodgers,,
+Bowman Spotlights,BS-10,JJ Wetherholt,St. Louis Cardinals,,
+Bowman Spotlights,BS-11,James Wood,Washington Nationals,,
+Bowman Spotlights,BS-12,Charlie Condon,Colorado Rockies,,
+Bowman Spotlights,BS-13,Coby Mayo,Baltimore Orioles,,
+Bowman Spotlights,BS-14,Ronald Acuña Jr.,Atlanta Braves,,
+Bowman Spotlights,BS-15,Kumar Rocker,Texas Rangers,,
+Crystallized,BWC-1,Jesus Made,Milwaukee Brewers,,
+Crystallized,BWC-2,Jac Caglianone,Kansas City Royals,,
+Crystallized,BWC-3,Jacob Wilson,Athletics,,
+Crystallized,BWC-4,Travis Bazzana,Cleveland Guardians,,
+Crystallized,BWC-5,Hagen Smith,Chicago White Sox,,
+Crystallized,BWC-6,Coby Mayo,Baltimore Orioles,,
+Crystallized,BWC-7,Charlie Condon,Colorado Rockies,,
+Crystallized,BWC-8,Walker Jenkins,Minnesota Twins,,
+Crystallized,BWC-9,Roki Sasaki,Los Angeles Dodgers,,
+Crystallized,BWC-10,Marcelo Mayer,Boston Red Sox,,
+Crystallized,BWC-11,Luisangel Acuña,New York Mets,,
+Crystallized,BWC-12,Dylan Crews,Washington Nationals,,
+Crystallized,BWC-13,JJ Wetherholt,St. Louis Cardinals,,
+Crystallized,BWC-14,Carson Williams,Tampa Bay Rays,,
+Crystallized,BWC-15,James Wood,Washington Nationals,,
+Greatness Loading,GL-1,Lazaro Montes,Seattle Mariners,,
+Greatness Loading,GL-2,Coby Mayo,Baltimore Orioles,,
+Greatness Loading,GL-3,Kevin Alcántara,Chicago Cubs,,
+Greatness Loading,GL-4,Cam Smith,Houston Astros,,
+Greatness Loading,GL-5,Bryce Rainer,Detroit Tigers,,
+Greatness Loading,GL-6,Hagen Smith,Chicago White Sox,,
+Greatness Loading,GL-7,Charlie Condon,Colorado Rockies,,
+Greatness Loading,GL-8,Travis Bazzana,Cleveland Guardians,,
+Greatness Loading,GL-9,Kevin McGonigle,Detroit Tigers,,
+Greatness Loading,GL-10,Spencer Schwellenbach,Atlanta Braves,,
+Greatness Loading,GL-11,Luisangel Acuña,New York Mets,,
+Greatness Loading,GL-12,Leo De Vries,San Diego Padres,,
+Greatness Loading,GL-13,Konnor Griffin,Pittsburgh Pirates,,
+Greatness Loading,GL-14,Brooks Lee,Minnesota Twins,,
+Greatness Loading,GL-15,Kyle Teel,Chicago White Sox,,
+Greatness Loading,GL-16,Jacob Wilson,Athletics,,
+Greatness Loading,GL-17,JJ Wetherholt,St. Louis Cardinals,,
+Greatness Loading,GL-18,Dylan Crews,Washington Nationals,,
+Greatness Loading,GL-19,Christian Moore,Los Angeles Angels,,
+Greatness Loading,GL-20,James Wood,Washington Nationals,,
+Greatness Loading,GL-21,Jac Caglianone,Kansas City Royals,,
+Greatness Loading,GL-22,Thomas Saggese,St. Louis Cardinals,,
+Greatness Loading,GL-23,Roki Sasaki,Los Angeles Dodgers,,
+Greatness Loading,GL-24,Walker Jenkins,Minnesota Twins,,
+Greatness Loading,GL-25,Bryce Eldridge,San Francisco Giants,,
+Hidden Gems,HG-11,Dylan Crews,Washington Nationals,,
+Hidden Gems,HG-12,Fernando Tatis Jr,San Diego Padres,,
+Hidden Gems,HG-13,Freddie Freeman,Los Angeles Dodgers,,
+Hidden Gems,HG-14,Gunnar Henderson,Baltimore Orioles,,
+Hidden Gems,HG-15,Luisangel Acuña,New York Mets,,
+Hobby Stars,HS-1,JJ Wetherholt,St. Louis Cardinals,,
+Hobby Stars,HS-2,Jackson Holliday,Baltimore Orioles,,
+Hobby Stars,HS-3,Jackson Chourio,Milwaukee Brewers,,
+Hobby Stars,HS-4,Shohei Ohtani,Los Angeles Dodgers,,
+Hobby Stars,HS-5,James Wood,Washington Nationals,,
+Hobby Stars,HS-6,Mike Trout,Los Angeles Angels,,
+Hobby Stars,HS-7,Travis Bazzana,Cleveland Guardians,,
+Hobby Stars,HS-8,Bobby Witt Jr.,Kansas City Royals,,
+Hobby Stars,HS-9,Roki Sasaki,Los Angeles Dodgers,,
+Hobby Stars,HS-10,Ronald Acuña Jr.,Atlanta Braves,,
+Hobby Stars,HS-11,Aaron Judge,New York Yankees,,
+Hobby Stars,HS-12,Dylan Crews,Washington Nationals,,
+Hobby Stars,HS-13,Paul Skenes,Pittsburgh Pirates,,
+Hobby Stars,HS-14,Charlie Condon,Colorado Rockies,,
+Hobby Stars,HS-15,Elly De La Cruz,Cincinnati Reds,,
+Rockstar Rookies,RR-1,Adael Amador,Colorado Rockies,,
+Rockstar Rookies,RR-2,Trey Sweeney,Detroit Tigers,,
+Rockstar Rookies,RR-3,Hyeseong Kim,Los Angeles Dodgers,,
+Rockstar Rookies,RR-4,Rhett Lowder,Cincinnati Reds,,
+Rockstar Rookies,RR-5,Jace Jung,Detroit Tigers,,
+Rockstar Rookies,RR-6,Kumar Rocker,Texas Rangers,,
+Rockstar Rookies,RR-7,Coby Mayo,Baltimore Orioles,,
+Rockstar Rookies,RR-8,Rece Hinds,Cincinnati Reds,,
+Rockstar Rookies,RR-9,Brooks Lee,Minnesota Twins,,
+Rockstar Rookies,RR-10,Jackson Jobe,Detroit Tigers,,
+Rockstar Rookies,RR-11,James Wood,Washington Nationals,,
+Rockstar Rookies,RR-12,Jhonkensy Noel,Cleveland Guardians,,
+Rockstar Rookies,RR-13,Connor Norby,Miami Marlins,,
+Rockstar Rookies,RR-14,Drew Thorpe,Chicago White Sox,,
+Rockstar Rookies,RR-15,Dylan Crews,Washington Nationals,,
+Rockstar Rookies,RR-16,Jacob Wilson,Athletics,,
+Rockstar Rookies,RR-17,Thomas Saggese,St. Louis Cardinals,,
+Rockstar Rookies,RR-18,Luisangel Acuña,New York Mets,,
+Rockstar Rookies,RR-19,Spencer Schwellenbach,Atlanta Braves,,
+Rockstar Rookies,RR-20,Roki Sasaki,Los Angeles Dodgers,,
+Rookie of the Year ROY Favorites Die-Cut,ROY-1,Dylan Crews,Washington Nationals,,
+Rookie of the Year ROY Favorites Die-Cut,ROY-2,Coby Mayo,Baltimore Orioles,,
+Rookie of the Year ROY Favorites Die-Cut,ROY-3,Jackson Jobe,Detroit Tigers,,
+Rookie of the Year ROY Favorites Die-Cut,ROY-4,Luisangel Acuña,New York Mets,,
+Rookie of the Year ROY Favorites Die-Cut,ROY-5,Kumar Rocker,Texas Rangers,,
+Rookie of the Year ROY Favorites Die-Cut,ROY-6,Thomas Saggese,St. Louis Cardinals,,
+Rookie of the Year ROY Favorites Die-Cut,ROY-7,Caden Dana,Los Angeles Angels,,
+Rookie of the Year ROY Favorites Die-Cut,ROY-8,Jace Jung,Detroit Tigers,,
+Rookie of the Year ROY Favorites Die-Cut,ROY-9,Drew Romo,Colorado Rockies,,
+Rookie of the Year ROY Favorites Die-Cut,ROY-10,Roki Sasaki,Los Angeles Dodgers,,
+Rookie of the Year ROY Favorites Die-Cut,ROY-11,Rhett Lowder,Cincinnati Reds,,
+Rookie of the Year ROY Favorites Die-Cut,ROY-12,Trey Sweeney,Detroit Tigers,,
+Rookie of the Year ROY Favorites Die-Cut,ROY-13,Adael Amador,Colorado Rockies,,
+Rookie of the Year ROY Favorites Die-Cut,ROY-14,Nick Yorke,Pittsburgh Pirates,,
+Rookie of the Year ROY Favorites Die-Cut,ROY-15,Kevin Alcántara,Chicago Cubs,,
+Very Important Prospects VIP,VIP-1,Carson Williams,Tampa Bay Rays,,
+Very Important Prospects VIP,VIP-2,Nick Kurtz,Athletics,,
+Very Important Prospects VIP,VIP-3,Sebastian Walcott,Texas Rangers,,
+Very Important Prospects VIP,VIP-4,Samuel Basallo,Baltimore Orioles,,
+Very Important Prospects VIP,VIP-5,Bryce Eldridge,San Francisco Giants,,
+Very Important Prospects VIP,VIP-6,Matt Shaw,Chicago Cubs,,
+Very Important Prospects VIP,VIP-7,Chase Burns,Cincinnati Reds,,
+Very Important Prospects VIP,VIP-8,Travis Bazzana,Cleveland Guardians,,
+Very Important Prospects VIP,VIP-9,Charlie Condon,Colorado Rockies,,
+Very Important Prospects VIP,VIP-10,Max Clark,Detroit Tigers,,
+Very Important Prospects VIP,VIP-11,Jac Caglianone,Kansas City Royals,,
+Very Important Prospects VIP,VIP-12,Christian Moore,Los Angeles Angels,,
+Very Important Prospects VIP,VIP-13,Colt Emerson,Seattle Mariners,,
+Very Important Prospects VIP,VIP-14,Leo De Vries,San Diego Padres,,
+Very Important Prospects VIP,VIP-15,Cooper Pratt,Milwaukee Brewers,,
+Very Important Prospects VIP,VIP-16,Walker Jenkins,Minnesota Twins,,
+Very Important Prospects VIP,VIP-17,Carson Benge,New York Mets,,
+Very Important Prospects VIP,VIP-18,JJ Wetherholt,St. Louis Cardinals,,
+Very Important Prospects VIP,VIP-19,Aidan Miller,Philadelphia Phillies,,
+Very Important Prospects VIP,VIP-20,Konnor Griffin,Pittsburgh Pirates,,

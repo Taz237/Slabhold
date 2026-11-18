@@ -1,0 +1,1000 @@
+{
+ "sport": "Basketball",
+ "yearLabel": "2024-25",
+ "product": "Panini Prizm",
+ "manufacturer": "Panini",
+ "source": "https://www.checklistinsider.com/2024-25-panini-prizm-basketball",
+ "official": false,
+ "parallels": [
+  {
+   "subset": "Base",
+   "name": "Black White Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "China Variation",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Choice Blue/Yellow/Green Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Choice Tiger Stripe Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Fast Break Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Glitter Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Green Ice Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Green Wave Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Hyper Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Ice Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Orange Ice Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Pink Ice Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Pulsar Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Red Ice Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Red Sparkle Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Red/White/Blue Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Ruby Wave Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Silver Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Snakeskin Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Wave Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "White Sparkle Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "White Tiger Stripe Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Red Prizms",
+   "serialRun": 299
+  },
+  {
+   "subset": "Base",
+   "name": "Red Seismic Prizms",
+   "serialRun": 299
+  },
+  {
+   "subset": "Base",
+   "name": "White Lazer Prizms",
+   "serialRun": 275
+  },
+  {
+   "subset": "Base",
+   "name": "Pink Prizms",
+   "serialRun": 249
+  },
+  {
+   "subset": "Base",
+   "name": "Skewed Prizms",
+   "serialRun": 249
+  },
+  {
+   "subset": "Base",
+   "name": "Basketball Prizms",
+   "serialRun": 225
+  },
+  {
+   "subset": "Base",
+   "name": "Teal Ice Prizms",
+   "serialRun": 225
+  },
+  {
+   "subset": "Base",
+   "name": "Blue Prizms",
+   "serialRun": 199
+  },
+  {
+   "subset": "Base",
+   "name": "Orange Seismic Prizms",
+   "serialRun": 199
+  },
+  {
+   "subset": "Base",
+   "name": "White Prizms",
+   "serialRun": 175
+  },
+  {
+   "subset": "Base",
+   "name": "Fast Break Blue Prizms",
+   "serialRun": 150
+  },
+  {
+   "subset": "Base",
+   "name": "Premium Factory Set Prizms",
+   "serialRun": 150
+  },
+  {
+   "subset": "Base",
+   "name": "Purple Ice Prizms",
+   "serialRun": 149
+  },
+  {
+   "subset": "Base",
+   "name": "Blue Sparkle Prizms",
+   "serialRun": 144
+  },
+  {
+   "subset": "Base",
+   "name": "Blue Ice Prizms",
+   "serialRun": 125
+  },
+  {
+   "subset": "Base",
+   "name": "Blue Wave Prizms",
+   "serialRun": 125
+  },
+  {
+   "subset": "Base",
+   "name": "Fast Break Orange Prizms",
+   "serialRun": 125
+  },
+  {
+   "subset": "Base",
+   "name": "Fast Break Red Prizms",
+   "serialRun": 100
+  },
+  {
+   "subset": "Base",
+   "name": "Blue Pulsar Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base",
+   "name": "Blue Seismic Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base",
+   "name": "Purple Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base",
+   "name": "Choice Red Prizms",
+   "serialRun": 88
+  },
+  {
+   "subset": "Base",
+   "name": "Dragon Year Prizms",
+   "serialRun": 88
+  },
+  {
+   "subset": "Base",
+   "name": "Multi Wave Prizms",
+   "serialRun": 88
+  },
+  {
+   "subset": "Base",
+   "name": "Fast Break Purple Prizms",
+   "serialRun": 75
+  },
+  {
+   "subset": "Base",
+   "name": "Red Power Prizms",
+   "serialRun": 75
+  },
+  {
+   "subset": "Base",
+   "name": "Red Pulsar Prizms",
+   "serialRun": 75
+  },
+  {
+   "subset": "Base",
+   "name": "Orange Wave Prizms",
+   "serialRun": 60
+  },
+  {
+   "subset": "Base",
+   "name": "Fast Break Pink Prizms",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base",
+   "name": "Choice Blue Prizms",
+   "serialRun": 49
+  },
+  {
+   "subset": "Base",
+   "name": "Orange Prizms",
+   "serialRun": 49
+  },
+  {
+   "subset": "Base",
+   "name": "Jade Dragon Scale Prizms",
+   "serialRun": 48
+  },
+  {
+   "subset": "Base",
+   "name": "Pink Pulsar Prizms",
+   "serialRun": 42
+  },
+  {
+   "subset": "Base",
+   "name": "White Wave Prizms",
+   "serialRun": 38
+  },
+  {
+   "subset": "Base",
+   "name": "Blue Shimmer FOTL Prizms",
+   "serialRun": 35
+  },
+  {
+   "subset": "Base",
+   "name": "Purple Pulsar Prizms",
+   "serialRun": 35
+  },
+  {
+   "subset": "Base",
+   "name": "Red Lazer Prizms",
+   "serialRun": 35
+  },
+  {
+   "subset": "Base",
+   "name": "White Ice Prizms",
+   "serialRun": 35
+  },
+  {
+   "subset": "Base",
+   "name": "Green Pulsar Prizms",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base",
+   "name": "Mojo Prizms",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base",
+   "name": "Gold Sparkle Prizms",
+   "serialRun": 24
+  },
+  {
+   "subset": "Base",
+   "name": "Choice Cherry Blossom Prizms",
+   "serialRun": 20
+  },
+  {
+   "subset": "Base",
+   "name": "Fast Break Bronze Prizms",
+   "serialRun": 20
+  },
+  {
+   "subset": "Base",
+   "name": "Lotus Flower Prizms",
+   "serialRun": 18
+  },
+  {
+   "subset": "Base",
+   "name": "Gold Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base",
+   "name": "Gold Ice Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base",
+   "name": "Gold Lazer Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base",
+   "name": "Gold Shimmer FOTL Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base",
+   "name": "Gold Wave Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base",
+   "name": "Choice Green Prizms",
+   "serialRun": 8
+  },
+  {
+   "subset": "Base",
+   "name": "Green Sparkle Prizms",
+   "serialRun": 8
+  },
+  {
+   "subset": "Base",
+   "name": "Lucky Envelopes Prizms",
+   "serialRun": 8
+  },
+  {
+   "subset": "Base",
+   "name": "Plum Blossom Prizms",
+   "serialRun": 8
+  },
+  {
+   "subset": "Base",
+   "name": "Black Gold Prizms",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base",
+   "name": "Fast Break Neon Green Prizms",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base",
+   "name": "Green Shimmer FOTL Prizms",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base",
+   "name": "Black Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base",
+   "name": "Black Shimmer FOTL Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base",
+   "name": "Choice Nebula Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Rookie Variations",
+   "name": "Fast Break",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Rookie Variations",
+   "name": "Fast Break Bronze",
+   "serialRun": 20
+  },
+  {
+   "subset": "Base Rookie Variations",
+   "name": "Fast Break Neon Green",
+   "serialRun": 5
+  },
+  {
+   "subset": "Fast Break Rookie Autographs",
+   "name": "Red /99 or",
+   "serialRun": 75
+  },
+  {
+   "subset": "Fast Break Rookie Autographs",
+   "name": "Blue",
+   "serialRun": 49
+  },
+  {
+   "subset": "Fast Break Rookie Autographs",
+   "name": "Gold",
+   "serialRun": 10
+  },
+  {
+   "subset": "Fast Break Rookie Autographs",
+   "name": "Black",
+   "serialRun": 1
+  },
+  {
+   "subset": "Penmanship",
+   "name": "Silver Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Penmanship",
+   "name": "Gold Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Prizmatrix Signatures",
+   "name": "Silver Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Prizmatrix Signatures",
+   "name": "Blue Prizms",
+   "serialRun": 49
+  },
+  {
+   "subset": "Prizmatrix Signatures",
+   "name": "Blue Shimmer FOTL Prizms",
+   "serialRun": 25
+  },
+  {
+   "subset": "Prizmatrix Signatures",
+   "name": "Snakeskin Prizms",
+   "serialRun": 15
+  },
+  {
+   "subset": "Prizmatrix Signatures",
+   "name": "Mojo Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Prizmatrix Signatures",
+   "name": "Gold Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Prizmatrix Signatures",
+   "name": "Gold Shimmer FOTL Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Prizmatrix Signatures",
+   "name": "Black Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "Prizmatrix Signatures",
+   "name": "Premium Set Parallels",
+   "serialRun": null
+  },
+  {
+   "subset": "Prizmatrix Signatures",
+   "name": "Premium Set Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Prizmatrix Signatures",
+   "name": "Premium Set Gold Prizms",
+   "serialRun": 5
+  },
+  {
+   "subset": "Signatures",
+   "name": "Blue Wave Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Signatures",
+   "name": "Choice Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Signatures",
+   "name": "Dragon Year Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Signatures",
+   "name": "Silver Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Signatures",
+   "name": "Red Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Signatures",
+   "name": "Blue Prizms",
+   "serialRun": 49
+  },
+  {
+   "subset": "Signatures",
+   "name": "Choice Blue Prizms /49 or",
+   "serialRun": 35
+  },
+  {
+   "subset": "Signatures",
+   "name": "Blue Shimmer FOTL Prizms",
+   "serialRun": 25
+  },
+  {
+   "subset": "Signatures",
+   "name": "Mojo Prizms",
+   "serialRun": 25
+  },
+  {
+   "subset": "Signatures",
+   "name": "Lotus Flower Prizms",
+   "serialRun": 18
+  },
+  {
+   "subset": "Signatures",
+   "name": "Snakeskin Prizms",
+   "serialRun": 15
+  },
+  {
+   "subset": "Signatures",
+   "name": "Gold Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Signatures",
+   "name": "Gold Shimmer FOTL Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Signatures",
+   "name": "Gold Wave Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Signatures",
+   "name": "Choice Green Prizms",
+   "serialRun": 8
+  },
+  {
+   "subset": "Signatures",
+   "name": "Black Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "Signatures",
+   "name": "Choice Nebula Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "Deep Space",
+   "name": "Green Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Deep Space",
+   "name": "Silver Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Deep Space",
+   "name": "Blue Pulsar Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Deep Space",
+   "name": "Red Pulsar Prizms",
+   "serialRun": 75
+  },
+  {
+   "subset": "Deep Space",
+   "name": "Pink Pulsar Prizms",
+   "serialRun": 42
+  },
+  {
+   "subset": "Deep Space",
+   "name": "Purple Pulsar Prizms",
+   "serialRun": 35
+  },
+  {
+   "subset": "Deep Space",
+   "name": "Green Pulsar Prizms",
+   "serialRun": 25
+  },
+  {
+   "subset": "Dominance",
+   "name": "Green Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Dominance",
+   "name": "Silver Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Dominance",
+   "name": "Blue Pulsar Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Dominance",
+   "name": "Red Pulsar Prizms",
+   "serialRun": 75
+  },
+  {
+   "subset": "Dominance",
+   "name": "Pink Pulsar Prizms",
+   "serialRun": 42
+  },
+  {
+   "subset": "Dominance",
+   "name": "Purple Pulsar Prizms",
+   "serialRun": 35
+  },
+  {
+   "subset": "Dominance",
+   "name": "Green Pulsar Prizms",
+   "serialRun": 25
+  },
+  {
+   "subset": "Emergent",
+   "name": "Green Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Emergent",
+   "name": "Silver Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Emergent",
+   "name": "Blue Pulsar Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Emergent",
+   "name": "Red Pulsar Prizms",
+   "serialRun": 75
+  },
+  {
+   "subset": "Emergent",
+   "name": "Pink Pulsar Prizms",
+   "serialRun": 42
+  },
+  {
+   "subset": "Emergent",
+   "name": "Purple Pulsar Prizms",
+   "serialRun": 35
+  },
+  {
+   "subset": "Emergent",
+   "name": "Green Pulsar Prizms",
+   "serialRun": 25
+  },
+  {
+   "subset": "Fireworks",
+   "name": "Fast Break Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Fireworks",
+   "name": "Silver Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Fireworks",
+   "name": "Blue Wave Prizms",
+   "serialRun": 175
+  },
+  {
+   "subset": "Fireworks",
+   "name": "Blue Ice Prizms",
+   "serialRun": 125
+  },
+  {
+   "subset": "Fireworks",
+   "name": "Orange Prizms",
+   "serialRun": 49
+  },
+  {
+   "subset": "Fireworks",
+   "name": "Mojo Prizms",
+   "serialRun": 25
+  },
+  {
+   "subset": "Fireworks",
+   "name": "White Wave Prizms",
+   "serialRun": 20
+  },
+  {
+   "subset": "Fireworks",
+   "name": "Gold Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Fireworks",
+   "name": "Black Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "Fractal",
+   "name": "Fast Break Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Fractal",
+   "name": "Silver Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Fractal",
+   "name": "Blue Wave Prizms",
+   "serialRun": 175
+  },
+  {
+   "subset": "Fractal",
+   "name": "Blue Ice Prizms",
+   "serialRun": 125
+  },
+  {
+   "subset": "Fractal",
+   "name": "Orange Prizms",
+   "serialRun": 49
+  },
+  {
+   "subset": "Fractal",
+   "name": "Mojo Prizms",
+   "serialRun": 25
+  },
+  {
+   "subset": "Fractal",
+   "name": "White Wave Prizms",
+   "serialRun": 20
+  },
+  {
+   "subset": "Fractal",
+   "name": "Gold Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Fractal",
+   "name": "Black Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "Global Reach",
+   "name": "Green Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Global Reach",
+   "name": "Silver Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Global Reach",
+   "name": "Blue Pulsar Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Global Reach",
+   "name": "Red Pulsar Prizms",
+   "serialRun": 75
+  },
+  {
+   "subset": "Global Reach",
+   "name": "Pink Pulsar Prizms",
+   "serialRun": 42
+  },
+  {
+   "subset": "Global Reach",
+   "name": "Purple Pulsar Prizms",
+   "serialRun": 35
+  },
+  {
+   "subset": "Global Reach",
+   "name": "Green Pulsar Prizms",
+   "serialRun": 25
+  },
+  {
+   "subset": "Instant Impact",
+   "name": "Green Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Instant Impact",
+   "name": "Silver Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Instant Impact",
+   "name": "Blue Pulsar Prizms",
+   "serialRun": 99
+  },
+  {
+   "subset": "Instant Impact",
+   "name": "Red Pulsar Prizms",
+   "serialRun": 75
+  },
+  {
+   "subset": "Instant Impact",
+   "name": "Pink Pulsar Prizms",
+   "serialRun": 42
+  },
+  {
+   "subset": "Instant Impact",
+   "name": "Purple Pulsar Prizms",
+   "serialRun": 35
+  },
+  {
+   "subset": "Instant Impact",
+   "name": "Green Pulsar Prizms",
+   "serialRun": 25
+  },
+  {
+   "subset": "Kaleidoscopic",
+   "name": "Fast Break Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Kaleidoscopic",
+   "name": "Silver Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Kaleidoscopic",
+   "name": "Blue Wave Prizms",
+   "serialRun": 175
+  },
+  {
+   "subset": "Kaleidoscopic",
+   "name": "Blue Ice Prizms",
+   "serialRun": 125
+  },
+  {
+   "subset": "Kaleidoscopic",
+   "name": "Orange Prizms",
+   "serialRun": 49
+  },
+  {
+   "subset": "Kaleidoscopic",
+   "name": "Mojo Prizms",
+   "serialRun": 25
+  },
+  {
+   "subset": "Kaleidoscopic",
+   "name": "White Wave Prizms",
+   "serialRun": 20
+  },
+  {
+   "subset": "Kaleidoscopic",
+   "name": "Gold Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Kaleidoscopic",
+   "name": "Black Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "Luck of the Lottery",
+   "name": "Fast Break Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Luck of the Lottery",
+   "name": "Silver Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Luck of the Lottery",
+   "name": "Blue Wave Prizms",
+   "serialRun": 175
+  },
+  {
+   "subset": "Luck of the Lottery",
+   "name": "Blue Ice Prizms",
+   "serialRun": 125
+  },
+  {
+   "subset": "Luck of the Lottery",
+   "name": "Orange Prizms",
+   "serialRun": 49
+  },
+  {
+   "subset": "Luck of the Lottery",
+   "name": "Mojo Prizms",
+   "serialRun": 25
+  },
+  {
+   "subset": "Luck of the Lottery",
+   "name": "White Wave Prizms",
+   "serialRun": 20
+  },
+  {
+   "subset": "Luck of the Lottery",
+   "name": "Gold Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Luck of the Lottery",
+   "name": "Black Prizms",
+   "serialRun": 1
+  },
+  {
+   "subset": "Talismen",
+   "name": "Fast Break Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Talismen",
+   "name": "Silver Prizms",
+   "serialRun": null
+  },
+  {
+   "subset": "Talismen",
+   "name": "Blue Wave Prizms",
+   "serialRun": 175
+  },
+  {
+   "subset": "Talismen",
+   "name": "Blue Ice Prizms",
+   "serialRun": 125
+  },
+  {
+   "subset": "Talismen",
+   "name": "Orange Prizms",
+   "serialRun": 49
+  },
+  {
+   "subset": "Talismen",
+   "name": "Mojo Prizms",
+   "serialRun": 25
+  },
+  {
+   "subset": "Talismen",
+   "name": "White Wave Prizms",
+   "serialRun": 20
+  },
+  {
+   "subset": "Talismen",
+   "name": "Gold Prizms",
+   "serialRun": 10
+  },
+  {
+   "subset": "Talismen",
+   "name": "Black Prizms",
+   "serialRun": 1
+  }
+ ]
+}

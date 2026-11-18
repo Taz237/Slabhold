@@ -1,0 +1,420 @@
+{
+ "sport": "Basketball",
+ "yearLabel": "2024-25",
+ "product": "Bowman U Chrome",
+ "manufacturer": "Topps",
+ "source": "https://www.checklistinsider.com/2024-25-bowman-university-chrome-basketball",
+ "official": false,
+ "parallels": [
+  {
+   "subset": "Base Prospects",
+   "name": "Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Prospects",
+   "name": "X-Fractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Prospects",
+   "name": "Sky Blue Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Prospects",
+   "name": "Purple Refractor",
+   "serialRun": 399
+  },
+  {
+   "subset": "Base Prospects",
+   "name": "Aqua Wave Refractor",
+   "serialRun": 299
+  },
+  {
+   "subset": "Base Prospects",
+   "name": "Blue Refractor",
+   "serialRun": 199
+  },
+  {
+   "subset": "Base Prospects",
+   "name": "Reptilian Blue Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Base Prospects",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base Prospects",
+   "name": "Reptilian Green Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Base Prospects",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base Prospects",
+   "name": "Reptilian Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Prospects",
+   "name": "Black Refractor",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Prospects",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Prospects",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Prospects",
+   "name": "Breaker Parallels",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Prospects",
+   "name": "Stealth Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Prospects",
+   "name": "Black & White Stealth Refractor",
+   "serialRun": 48
+  },
+  {
+   "subset": "Base Prospects",
+   "name": "Black & Gold Stealth Refractor",
+   "serialRun": 24
+  },
+  {
+   "subset": "Base Prospects",
+   "name": "Black & Red Stealth Refractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Prospects",
+   "name": "Value Blaster Parallels",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Prospects",
+   "name": "Purple Lava Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Prospects",
+   "name": "Black Wave Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Prospects",
+   "name": "Green Wave Refractor",
+   "serialRun": 85
+  },
+  {
+   "subset": "Base Prospects",
+   "name": "Red Wave Refractor",
+   "serialRun": 45
+  },
+  {
+   "subset": "Base Prospects",
+   "name": "Mega Parallels",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Prospects",
+   "name": "Green Shimmer Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Prospects",
+   "name": "Orange Shimmer Refractor",
+   "serialRun": 65
+  },
+  {
+   "subset": "Base Prospects",
+   "name": "Blue Shimmer Refractor",
+   "serialRun": 35
+  },
+  {
+   "subset": "Base Prospects Autographs",
+   "name": "Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Prospects Autographs",
+   "name": "Reptilian Blue Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Base Prospects Autographs",
+   "name": "Green Refractor",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base Prospects Autographs",
+   "name": "Reptilian Green Refractor",
+   "serialRun": 75
+  },
+  {
+   "subset": "Base Prospects Autographs",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base Prospects Autographs",
+   "name": "Reptilian Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Prospects Autographs",
+   "name": "Red Refractor",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Prospects Autographs",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Prospects Autographs",
+   "name": "Breaker Parallels",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Prospects Autographs",
+   "name": "Stealth Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Prospects Autographs",
+   "name": "Black & Blue Stealth Refractor",
+   "serialRun": 100
+  },
+  {
+   "subset": "Base Prospects Autographs",
+   "name": "Black & White Stealth Refractor",
+   "serialRun": 48
+  },
+  {
+   "subset": "Base Prospects Autographs",
+   "name": "Black & Gold Stealth Refractor",
+   "serialRun": 24
+  },
+  {
+   "subset": "Base Prospects Autographs",
+   "name": "Black & Red Stealth Refractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Prospects Autographs",
+   "name": "Value Blaster Parallels",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Prospects Autographs",
+   "name": "Black Wave Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Prospects Autographs",
+   "name": "Green Wave Refractor",
+   "serialRun": 85
+  },
+  {
+   "subset": "Base Prospects Autographs",
+   "name": "Red Wave Refractor",
+   "serialRun": 45
+  },
+  {
+   "subset": "Base Prospects Autographs",
+   "name": "Mega Parallels",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Prospects Autographs",
+   "name": "Green Shimmer Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Prospects Autographs",
+   "name": "Orange Shimmer Refractor",
+   "serialRun": 65
+  },
+  {
+   "subset": "Base Prospects Autographs",
+   "name": "Blue Shimmer Refractor",
+   "serialRun": 35
+  },
+  {
+   "subset": "Campus Dorm Signatures",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Campus Visits Autographs",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "College Application Autographs",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Course Load Autographs",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Eye Test Autographs",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Fanatics Fraternity Autographs",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Final Exam Autographs",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "The Big Kahuna Autographs",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Boundless Potential",
+   "name": "Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Boundless Potential",
+   "name": "X-Fractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Boundless Potential",
+   "name": "Blue Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Boundless Potential",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Boundless Potential",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Boundless Potential",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "College Rule Playbook",
+   "name": "Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "College Rule Playbook",
+   "name": "X-Fractor",
+   "serialRun": null
+  },
+  {
+   "subset": "College Rule Playbook",
+   "name": "Blue Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "College Rule Playbook",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "College Rule Playbook",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "College Rule Playbook",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Pep Rally",
+   "name": "Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Pep Rally",
+   "name": "X-Fractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Pep Rally",
+   "name": "Blue Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Pep Rally",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Pep Rally",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Pep Rally",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Warriors of the Paint",
+   "name": "Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Warriors of the Paint",
+   "name": "X-Fractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Warriors of the Paint",
+   "name": "Blue Refractor",
+   "serialRun": 150
+  },
+  {
+   "subset": "Warriors of the Paint",
+   "name": "Gold Refractor",
+   "serialRun": 50
+  },
+  {
+   "subset": "Warriors of the Paint",
+   "name": "Orange Refractor",
+   "serialRun": 25
+  },
+  {
+   "subset": "Warriors of the Paint",
+   "name": "SuperFractor",
+   "serialRun": 1
+  }
+ ]
+}

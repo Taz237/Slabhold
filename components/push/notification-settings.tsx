@@ -44,7 +44,7 @@ type DeviceState =
   | { kind: "ready"; on: boolean };
 
 export const card = "rounded-2xl bg-white ring-1 ring-zinc-200 dark:bg-white/[0.04] dark:ring-white/10";
-export const sectionLabel = "px-1 pb-2 text-[13px] font-medium text-zinc-500";
+export const sectionLabel = "px-1 pb-2 text-13 font-medium text-zinc-500";
 
 const noopSubscribe = () => () => {};
 
@@ -89,14 +89,14 @@ export function Switch({
       className="tap flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:outline-none focus-visible:ring-inset disabled:opacity-50"
     >
       {icon ? (
-        <span aria-hidden className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#7C3AED]/10 text-[#7C3AED] dark:bg-[#7C3AED]/20 dark:text-[#A78BFA]">
+        <span aria-hidden className="grid h-9 w-9 shrink-0 place-items-center rounded-xl big:hidden bg-[#7C3AED]/10 text-[#7C3AED] dark:bg-[#7C3AED]/20 dark:text-[#A78BFA]">
           {icon}
         </span>
       ) : null}
       <span className="min-w-0 flex-1">
-        <span className="block text-[15px] font-semibold">{label}</span>
+        <span className="block text-15 font-semibold">{label}</span>
         {description ? (
-          <span id={descriptionId} className="mt-0.5 block text-[13px] leading-5 text-zinc-500">
+          <span id={descriptionId} className="mt-0.5 block text-13 leading-5 text-zinc-500">
             {description}
           </span>
         ) : null}
@@ -109,7 +109,7 @@ export function Switch({
       >
         <span
           className={`absolute top-[2px] left-[2px] h-[27px] w-[27px] rounded-full bg-white shadow-sm transition-transform duration-200 motion-reduce:transition-none ${
-            checked ? "translate-x-5" : ""
+            checked ? "translate-x-[20px]" : ""
           }`}
         />
       </span>
@@ -120,12 +120,12 @@ export function Switch({
 export function Note({ icon, title, children }: { icon: ReactNode; title: string; children?: ReactNode }) {
   return (
     <div className="flex items-start gap-3 px-4 py-4">
-      <span aria-hidden className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-zinc-100 text-zinc-500 dark:bg-white/[0.06] dark:text-zinc-400">
+      <span aria-hidden className="grid h-9 w-9 shrink-0 place-items-center rounded-xl big:hidden bg-zinc-100 text-zinc-500 dark:bg-white/[0.06] dark:text-zinc-400">
         {icon}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-[15px] font-semibold">{title}</p>
-        {children ? <div className="mt-1 text-[13px] leading-5 text-zinc-500">{children}</div> : null}
+        <p className="text-15 font-semibold">{title}</p>
+        {children ? <div className="mt-1 text-13 leading-5 text-zinc-500">{children}</div> : null}
       </div>
     </div>
   );
@@ -150,11 +150,11 @@ type PrefsLoad = { kind: "loading" } | { kind: "loaded" | "error"; userId: strin
 export function PrefsLoadFailed({ retry }: { retry: () => void }) {
   return (
     <div role="alert" className="flex flex-col items-center gap-3 px-4 py-6 text-center">
-      <p className="text-[15px] text-zinc-500">Something went wrong. Try again.</p>
+      <p className="text-15 text-zinc-500">Something went wrong. Try again.</p>
       <button
         type="button"
         onClick={retry}
-        className="tap inline-flex min-h-11 items-center rounded-full bg-violet-600 px-5 text-[15px] font-semibold text-white hover:bg-violet-700 focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:ring-offset-2 focus-visible:outline-none"
+        className="tap inline-flex min-h-11 items-center rounded-full bg-violet-600 px-5 text-15 font-semibold text-white hover:bg-violet-700 focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:ring-offset-2 focus-visible:outline-none"
       >
         Retry
       </button>
@@ -368,7 +368,7 @@ export function NotificationSettings({ deviceSection }: { deviceSection?: ReactN
                   <button
                     type="button"
                     onClick={() => setGuideOpen(true)}
-                    className="tap h-11 w-full rounded-full bg-violet-600 text-[15px] font-semibold text-white hover:bg-violet-700 focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:ring-offset-2 focus-visible:outline-none"
+                    className="tap h-11 w-full rounded-full bg-violet-600 text-15 font-semibold text-white hover:bg-violet-700 focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:ring-offset-2 focus-visible:outline-none"
                   >
                     Show me how
                   </button>
@@ -411,7 +411,7 @@ export function NotificationSettings({ deviceSection }: { deviceSection?: ReactN
                     type="button"
                     onClick={sendTest}
                     disabled={!deviceOn || testing}
-                    className="tap inline-flex min-h-11 items-center gap-2 rounded-full px-1 text-[15px] font-semibold text-violet-700 focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:outline-none disabled:text-zinc-400 dark:text-[#A78BFA] dark:disabled:text-zinc-600"
+                    className="tap inline-flex min-h-11 items-center gap-2 rounded-full px-1 text-15 font-semibold text-violet-700 focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:outline-none disabled:text-zinc-400 dark:text-[#A78BFA] dark:disabled:text-zinc-600"
                   >
                     <Send aria-hidden className="h-4 w-4" />
                     {testing ? "Sending…" : "Send a test notification"}
@@ -483,26 +483,26 @@ export function NotificationSettings({ deviceSection }: { deviceSection?: ReactN
                     onChange={(next) => void save({ quietEnabled: next })}
                   />
                   {prefs.quietEnabled ? (
-                    <div className="grid grid-cols-2 gap-3 px-4 py-4">
+                    <div className="grid grid-cols-2 big:grid-cols-1 gap-3 px-4 py-4">
                       <label className="block">
-                        <span className="block text-[13px] font-medium text-zinc-500">From</span>
+                        <span className="block text-13 font-medium text-zinc-500">From</span>
                         <input
                           type="time"
                           value={prefs.quietStart}
                           onChange={(event) => event.target.value && void save({ quietStart: event.target.value })}
-                          className="mt-1.5 h-12 w-full rounded-xl bg-zinc-100 px-3 text-[17px] font-semibold tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-violet-600 dark:bg-white/[0.06] dark:[color-scheme:dark]"
+                          className="mt-1.5 h-12 w-full rounded-xl bg-zinc-100 px-3 text-17 font-semibold tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-violet-600 dark:bg-white/[0.06] dark:[color-scheme:dark]"
                         />
                       </label>
                       <label className="block">
-                        <span className="block text-[13px] font-medium text-zinc-500">Until</span>
+                        <span className="block text-13 font-medium text-zinc-500">Until</span>
                         <input
                           type="time"
                           value={prefs.quietEnd}
                           onChange={(event) => event.target.value && void save({ quietEnd: event.target.value })}
-                          className="mt-1.5 h-12 w-full rounded-xl bg-zinc-100 px-3 text-[17px] font-semibold tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-violet-600 dark:bg-white/[0.06] dark:[color-scheme:dark]"
+                          className="mt-1.5 h-12 w-full rounded-xl bg-zinc-100 px-3 text-17 font-semibold tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-violet-600 dark:bg-white/[0.06] dark:[color-scheme:dark]"
                         />
                       </label>
-                      <p className="col-span-2 text-[13px] text-zinc-500">
+                      <p className="col-span-2 text-13 text-zinc-500">
                         Your local time{zone ? ` (${zone.replace(/_/g, " ")})` : ""}.
                       </p>
                     </div>
@@ -516,7 +516,7 @@ export function NotificationSettings({ deviceSection }: { deviceSection?: ReactN
         </>
       )}
 
-      <p className="px-1 text-[13px] leading-5 text-zinc-500">
+      <p className="px-1 text-13 leading-5 text-zinc-500">
         What you choose here applies on all your devices. The push switch is just for this one.
       </p>
 

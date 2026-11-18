@@ -16,11 +16,19 @@ beforeEach(() => {
       <li data-tile="c1"><a id="tile" href="${CARD}"><span id="inner">Jalen Brunson</span></a></li>
       <li data-tile="c2"><a id="profile-tile" href="/u/maya">Maya</a></li>
     </ul>
+    <article id="row" data-nav-href="/posts/p1">
+      <p id="row-text">Pulled this today</p>
+      <a id="author" href="/u/sam">Sam</a>
+      <a id="me" href="/u/maya">Maya</a>
+      <button id="like" type="button"><span id="heart">Like</span></button>
+      <button id="off" type="button" disabled><span id="off-inner">Post</span></button>
+    </article>
+    <button id="back" type="button" data-nav-href="/posts/p2">Back</button>
     <a id="plain" href="/leaderboard">Leaderboard</a>
     <a id="away" href="https://example.test/">Away</a>`;
   window.history.replaceState(null, "", "/moving-today?dir=all");
   delete document.documentElement.dataset.navPending;
-  uninstall = installTapFeedback(window);
+  uninstall = installTapFeedback(window, { skip: (path) => path === "/u/maya" });
 });
 
 afterEach(() => {
@@ -57,6 +65,20 @@ describe("tap feedback", () => {
     assert.equal(el("plain").hasAttribute("data-pressed"), false);
   });
 
+  it("marks a pressed button too, and not the post row around it", () => {
+    pointer("pointerdown", el("heart"));
+    assert.equal(el("like").hasAttribute("data-pressed"), true);
+    assert.equal(el("row").hasAttribute("data-pressed"), false);
+    pointer("pointerup", el("heart"));
+    assert.equal(el("like").hasAttribute("data-pressed"), false);
+  });
+
+  it("leaves a disabled button alone", () => {
+    pointer("pointerdown", el("off-inner"));
+    assert.equal(el("off").hasAttribute("data-pressed"), false);
+    assert.equal(el("row").hasAttribute("data-pressed"), false);
+  });
+
   it("lets go when the finger moves off into a scroll", () => {
     pointer("pointerdown", el("tile"), { x: 10, y: 10 });
     pointer("pointermove", el("tile"), { x: 12, y: 14 });
@@ -82,8 +104,24 @@ describe("tap feedback", () => {
     assert.equal(clearPendingNav(document), false);
   });
 
-  it("does not show it for other links, modified clicks or the page already open", () => {
+  it("shows the post skeleton for a post row and the profile skeleton for a profile link", () => {
+    click(el("row-text"));
+    assert.equal(document.documentElement.dataset.navPending, "post");
+    clearPendingNav(document);
+    click(el("author"));
+    assert.equal(document.documentElement.dataset.navPending, "profile");
+  });
+
+  it("leaves a button inside a post row alone, and a screen the caller skips", () => {
+    click(el("heart"));
+    click(el("back"));
+    // Your own profile is a tab: it fades, so no pushed skeleton.
+    click(el("me"));
     click(el("profile-tile"));
+    assert.equal(document.documentElement.dataset.navPending, undefined);
+  });
+
+  it("does not show it for other links, modified clicks or the page already open", () => {
     click(el("plain"));
     click(el("away"));
     click(el("tile"), { metaKey: true });
@@ -103,7 +141,12 @@ describe("tap feedback", () => {
   it("knows the card page path", () => {
     assert.equal(pendingSkeletonFor(CARD), "card");
     assert.equal(pendingSkeletonFor(`${CARD}?from=moving`), "card");
-    assert.equal(pendingSkeletonFor("/u/maya"), null);
+    assert.equal(pendingSkeletonFor("/u/maya"), "profile");
+    assert.equal(pendingSkeletonFor("/u/maya?tab=cards"), "profile");
+    assert.equal(pendingSkeletonFor("/u/maya/followers"), null);
+    assert.equal(pendingSkeletonFor("/posts/abc"), "post");
+    assert.equal(pendingSkeletonFor("/posts/abc#reply"), "post");
+    assert.equal(pendingSkeletonFor("/posts"), null);
     assert.equal(pendingSkeletonFor("/u/maya/cards/x/edit"), null);
     assert.equal(pendingSkeletonFor("/cards/abc"), null);
   });
@@ -114,7 +157,7 @@ describe("tap feedback wiring", () => {
 
   it("runs from NavMotion and clears in the route change commit", () => {
     const nav = read("components/nav-motion.tsx");
-    assert.match(nav, /installTapFeedback\(window\)/);
+    assert.match(nav, /installTapFeedback\(window, \{/);
     assert.match(nav, /clearPendingNav\(document\)/);
     // A route the skeleton already slid in for swaps in place, no second slide.
     assert.match(nav, /pending \? "none"/);
@@ -127,7 +170,18 @@ describe("tap feedback wiring", () => {
     assert.match(shell, /<NavPendingSkeleton \/>/);
     assert.doesNotMatch(shell, /from "@\/components\/public-card-view"/, "the shell must not pull in the card page");
     const css = read("app/globals.css");
-    assert.match(css, /html\[data-nav-pending="card"\] \[data-nav-pending-skeleton\] \{\s*display: block;/);
+    assert.match(css, /html\[data-nav-pending="profile"\] \[data-nav-pending-skeleton\] \{\s*display: block;/);
+    for (const kind of ["card", "post", "profile"]) {
+      assert.match(css, new RegExp(`html\\[data-nav-pending="${kind}"\\] \\[data-pending-kind="${kind}"\\]`), kind);
+    }
+    // The post and profile skeletons load after the first idle moment, off every page's first load.
+    const skeleton = read("components/nav-pending-skeleton.tsx");
+    assert.match(skeleton, /lazyPart\(\(\) => import\("@\/components\/nav-pending-kinds"\)/);
+    assert.match(skeleton, /afterFirstIdle/);
+    assert.doesNotMatch(skeleton, /from "@\/components\/(status|post-skeleton)"/);
+    const kinds = read("components/nav-pending-kinds.tsx");
+    assert.match(kinds, /data-pending-kind="post">\s*<PostPageSkeleton \/>/);
+    assert.match(kinds, /data-pending-kind="profile">\s*<ProfileSkeleton \/>/);
     assert.match(css, /\[data-pressed\]/);
     const reduced = css.slice(css.indexOf("[data-nav-pending-skeleton]"));
     assert.match(reduced, /@media \(prefers-reduced-motion: reduce\)/);

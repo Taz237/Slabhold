@@ -1,5 +1,6 @@
 "use client";
 
+import { useSheetDrag } from "@/lib/ui/use-sheet-drag";
 import Link from "next/link";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -46,6 +47,10 @@ export function SendPostSheetView({ post, onClose }: { post: Post; onClose: () =
   const [toast, setToast] = useState<{ username: string } | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const onCloseRef = useRef(onClose);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  /** Swipe down to close; the backdrop and Close slide it away first. */
+  const dismiss = useSheetDrag(panelRef, rootRef, onClose);
   const handle = handleQuery(query);
   useProfiles(handle ? { usernames: [handle] } : null);
   const byHandle = handle ? profileByUsername(handle) : undefined;
@@ -125,10 +130,10 @@ export function SendPostSheetView({ post, onClose }: { post: Post; onClose: () =
           />
           <span className="min-w-0 flex-1">
             <span className="flex min-w-0 items-center gap-1">
-              <span className="truncate text-[15px] font-semibold leading-5 tracking-tight">{person.displayName}</span>
+              <span className="truncate text-15 font-semibold leading-5 tracking-tight">{person.displayName}</span>
               <TeamBadge username={person.username} />
             </span>
-            <span className="block truncate text-[13px] text-zinc-500">@{person.username}</span>
+            <span className="block truncate text-13 text-zinc-500">@{person.username}</span>
           </span>
           <button
             type="button"
@@ -157,16 +162,18 @@ export function SendPostSheetView({ post, onClose }: { post: Post; onClose: () =
   if (typeof document === "undefined") return null;
   return createPortal(
     <div
+      ref={rootRef}
       className="backdrop-in fixed inset-0 z-[70] grid place-items-end bg-black/60 sm:place-items-center"
-      onClick={onClose}
+      onClick={dismiss}
     >
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         data-send-post-sheet=""
         onClick={(event) => event.stopPropagation()}
-        className="sheet-up flex max-h-[85dvh] w-full max-w-sm flex-col rounded-t-3xl border-t border-zinc-200 bg-[var(--background)] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] text-zinc-900 shadow-2xl sm:rounded-3xl sm:border dark:border-white/10 dark:text-zinc-100"
+        className="sheet-slide flex max-h-[85dvh] w-full max-w-sm flex-col rounded-t-3xl border-t border-zinc-200 bg-[var(--background)] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] text-zinc-900 shadow-2xl sm:rounded-3xl sm:border dark:border-white/10 dark:text-zinc-100"
       >
         <div aria-hidden className="mx-auto mb-1 h-1 w-9 shrink-0 rounded-full bg-zinc-300 sm:hidden dark:bg-white/20" />
         <div className="flex shrink-0 items-center justify-between gap-3 px-2 pt-1">
@@ -192,19 +199,19 @@ export function SendPostSheetView({ post, onClose }: { post: Post; onClose: () =
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search people you follow"
             autoComplete="off"
-            className="min-h-11 w-full rounded-full border border-zinc-200 bg-zinc-50 pr-4 pl-10 text-[15px] outline-none placeholder:text-zinc-500 focus:border-violet-500/60 focus:ring-2 focus:ring-violet-600/20 dark:border-white/10 dark:bg-white/[0.06]"
+            className="min-h-11 w-full rounded-full border border-zinc-200 bg-zinc-50 pr-4 pl-10 text-15 outline-none placeholder:text-zinc-500 focus:border-violet-500/60 focus:ring-2 focus:ring-violet-600/20 dark:border-white/10 dark:bg-white/[0.06]"
           />
         </label>
         <div className="mt-2 min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {recent.length ? (
             <>
-              <p className="px-3 pt-1 pb-0.5 text-[13px] font-medium text-zinc-500">Recent</p>
+              <p className="px-3 pt-1 pb-0.5 text-13 font-medium text-zinc-500">Recent</p>
               <ul data-send-recent="">{recent.map(row)}</ul>
             </>
           ) : null}
           {others.length ? (
             <>
-              <p className="px-3 pt-2 pb-0.5 text-[13px] font-medium text-zinc-500">
+              <p className="px-3 pt-2 pb-0.5 text-13 font-medium text-zinc-500">
                 {query.trim() ? "People" : "Following"}
               </p>
               <ul data-send-others="">{others.map(row)}</ul>
@@ -229,7 +236,7 @@ export function SendPostSheetView({ post, onClose }: { post: Post; onClose: () =
             onChange={(event) => setNote(event.target.value)}
             placeholder="Add a note (optional)"
             autoComplete="off"
-            className="min-h-11 w-full rounded-full border border-zinc-200 bg-transparent px-4 text-[15px] outline-none placeholder:text-zinc-500 focus:border-violet-500/60 focus:ring-2 focus:ring-violet-600/20 dark:border-white/10"
+            className="min-h-11 w-full rounded-full border border-zinc-200 bg-transparent px-4 text-15 outline-none placeholder:text-zinc-500 focus:border-violet-500/60 focus:ring-2 focus:ring-violet-600/20 dark:border-white/10"
           />
           <p role="status" className="min-h-5 px-3 pt-1 text-xs text-zinc-500">
             {noteProblem

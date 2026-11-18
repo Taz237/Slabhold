@@ -36,7 +36,7 @@ export const FILL_STOPS: readonly { offset: number; opacity: number }[] = [
 /** Grid, ticks, baseline, band, median and tooltip; colors on .chart-surface. */
 export const CHART = {
   grid: "chart-grid",
-  tick: "chart-tick text-[10.5px] tabular-nums",
+  tick: "chart-tick text-[0.6562rem] tabular-nums",
   baseline: "chart-baseline",
   band: "chart-band",
   median: "chart-median",

@@ -348,22 +348,36 @@ async function readViewer(): Promise<ViewerRead> {
   }
 }
 
-export async function getLeaderboardPage(input: {
-  week?: string;
-  board?: string;
-  now?: Date;
-}): Promise<LeaderboardPageModel> {
+type LeaderboardPageDeps = {
+  snapshot: (now: Date) => Promise<LeaderboardSnapshot>;
+  viewer: () => Promise<ViewerRead>;
+};
+
+const pageDeps: LeaderboardPageDeps = { snapshot: getLeaderboardSnapshot, viewer: readViewer };
+
+export async function getLeaderboardPage(
+  input: {
+    week?: string;
+    board?: string;
+    now?: Date;
+  },
+  deps: LeaderboardPageDeps = pageDeps,
+): Promise<LeaderboardPageModel> {
   const now = input.now ?? new Date();
   const parsed = parseLeaderboardQuery(input.week, input.board);
   const focusBoardId = leaderboardFocus(input.board);
   const failed = () => unavailableLeaderboard({ week: parsed.week, focusBoardId, now });
+  // The shared boards and the viewer's own read don't depend on each other.
+  const viewerTask = deps.viewer();
+  // Don't leave a rejection unhandled if the snapshot fails first.
+  viewerTask.catch(() => {});
   let snapshot: LeaderboardSnapshot;
   try {
-    snapshot = await getLeaderboardSnapshot(now);
+    snapshot = await deps.snapshot(now);
   } catch {
     return failed();
   }
-  const viewer = await readViewer();
+  const viewer = await viewerTask;
   if (!viewer.ok) return failed();
   const ready: LeaderboardViewer = { userId: viewer.userId, hiddenIds: viewer.hiddenIds };
   return presentLeaderboard({ snapshot, viewer: ready, week: parsed.week, focusBoardId, now });

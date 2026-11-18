@@ -3,12 +3,16 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { memo, startTransition, useRef, useState } from "react";
-import { BadgeCheck, Ellipsis, Heart, MessageCircle, Pin, Quote, Repeat2, Send } from "lucide-react";
+import { BadgeCheck, Ellipsis, Heart, MessageCircle, Pencil, Pin, PinOff, Quote, Repeat2, Send, Trash2 } from "lucide-react";
+import { MenuSheet, MenuSheetIcon, menuSheetItem } from "@/components/menu-sheet";
 import { Avatar } from "@/components/avatar";
 import { useCollection } from "@/components/collection-provider";
-import { useImageLightbox } from "@/components/image-lightbox";
+import { useImageLightbox, type LightboxOptions } from "@/components/image-lightbox";
 import { PostCardTile, postCardHref } from "@/components/post-card-tile";
 import { PostPhotoGrid } from "@/components/post-photo-grid";
+import { PostGifPlayer } from "@/components/post-gif";
+import { PostVideoPlayer } from "@/components/post-video";
+import { isInThread } from "@/lib/social/threads";
 import { ReplyPhotos } from "@/components/reply-photos";
 import { MentionText } from "@/components/mention-text";
 import { QuotedPostEmbed } from "@/components/quoted-post-embed";
@@ -51,6 +55,8 @@ export const Tweet = memo(function Tweet({
   cardValuesLoading,
   pinned = false,
   firstScreen = false,
+  threadAbove = false,
+  threadBelow = false,
 }: {
   post: Post;
   author: Profile;
@@ -67,6 +73,10 @@ export const Tweet = memo(function Tweet({
   pinned?: boolean;
   /** On the first screen: its photos load at once, at high priority. */
   firstScreen?: boolean;
+  /** On the post page: the thread's line runs in from the post above. */
+  threadAbove?: boolean;
+  /** On the post page: the thread's line runs on to the post below. */
+  threadBelow?: boolean;
 }) {
   const router = useRouter();
   const openImage = useImageLightbox();
@@ -110,23 +120,47 @@ export const Tweet = memo(function Tweet({
     router.push(`/posts/${post.id}#reply`);
   }
 
-  const bodyClass = variant === "detail" ? "text-[17px] leading-6" : "text-[15px] leading-[1.4]";
+  /** The photo viewer shows this post's actions along the bottom, like X. */
+  function openPhoto(src: string, alt: string, gallery?: readonly string[], options?: LightboxOptions) {
+    openImage(src, alt, gallery, {
+      ...options,
+      footer: (close) => (
+        <Engagement
+          media
+          targetId={post.id}
+          replyCount={comments.length}
+          onReply={() => {
+            close();
+            openReplies();
+          }}
+          sharePath={`/posts/${post.id}`}
+          shareTitle={shareTitleForPost(post)}
+          shareText={post.body}
+          quoteAvailable={quoteAvailable}
+        />
+      ),
+    });
+  }
+
+  const bodyClass = variant === "detail" ? "text-17 leading-6" : "text-15 leading-[1.4]";
   const pill = postPill(post);
   const graded = Boolean(post.card && post.postType !== "mail_day" && gradedLabel(post.card));
+  const inThreadView = threadAbove || threadBelow;
 
   return (
     <article
       onClick={openPost}
       onPointerDown={warmPost}
       data-nav-href={variant === "feed" ? `/posts/${post.id}` : undefined}
-      className={`border-b border-zinc-200/70 dark:border-white/[0.07] ${
+      data-thread-row={inThreadView ? "" : undefined}
+      className={`relative ${threadBelow ? "" : "border-b border-zinc-200/70 dark:border-white/[0.07]"} ${
         variant === "feed"
           ? "tap-row cursor-pointer hover:bg-zinc-900/[0.015] dark:hover:bg-white/[0.015]"
           : ""
       }`}
     >
       {pinned ? (
-        <p className="flex items-center gap-3 px-4 pt-3 text-[13px] font-medium text-zinc-500 dark:text-zinc-400">
+        <p className="flex items-center gap-3 px-4 pt-3 text-13 font-medium text-zinc-500 dark:text-zinc-400">
           <span className="grid w-10 shrink-0 place-items-center">
             <Pin className="h-4 w-4" aria-hidden="true" />
           </span>
@@ -137,7 +171,7 @@ export const Tweet = memo(function Tweet({
         <Link
           prefetch={false}
           href={userHref(repostedBy.username)}
-          className="flex items-center gap-3 px-4 pt-3 text-[13px] font-medium text-zinc-500 dark:text-zinc-400"
+          className="flex items-center gap-3 px-4 pt-3 text-13 font-medium text-zinc-500 dark:text-zinc-400"
         >
           <span className="grid w-10 shrink-0 place-items-center">
             <Repeat2 className="h-4 w-4" />
@@ -145,8 +179,22 @@ export const Tweet = memo(function Tweet({
           <span className="truncate hover:underline">{repostedBy.displayName} reposted</span>
         </Link>
       ) : null}
+      {threadAbove ? (
+        <span
+          aria-hidden
+          data-thread-line="above"
+          className="absolute top-0 left-[35px] h-2.5 w-0.5 rounded-b-full bg-zinc-200 dark:bg-white/15"
+        />
+      ) : null}
+      {threadBelow ? (
+        <span
+          aria-hidden
+          data-thread-line="below"
+          className="absolute top-[58px] bottom-0 left-[35px] w-0.5 rounded-t-full bg-zinc-200 dark:bg-white/15"
+        />
+      ) : null}
       <div className={`flex gap-3 px-4 pb-1.5 ${pinned || repostedBy ? "pt-1" : "pt-3.5"}`}>
-      <Link prefetch={false} href={userHref(author.username)} aria-label={`${author.displayName}'s profile`} className="shrink-0">
+      <Link prefetch={false} href={userHref(author.username)} aria-label={`${author.displayName}'s profile`} className="relative shrink-0 self-start">
         <Avatar name={author.displayName} image={author.avatarDataUrl} accent={author.accent} />
       </Link>
       <div className="min-w-0 flex-1">
@@ -183,10 +231,14 @@ export const Tweet = memo(function Tweet({
             {photos.length ? (
               <PostPhotoGrid
                 images={photos}
-                onOpen={openImage}
-                eager={firstScreen}
+                onOpen={openPhoto}
+                eager={firstScreen || variant === "detail"}
                 fit={variant === "detail" ? "full" : "feed"}
               />
+            ) : null}
+            {post.gif && !photos.length ? <PostGifPlayer gif={post.gif} /> : null}
+            {post.video && !photos.length && !post.gif ? (
+              <PostVideoPlayer video={post.video} fit={variant === "detail" ? "full" : "feed"} />
             ) : null}
             {post.card && pill ? (
               <div className="mt-3 -mb-1 flex justify-center">
@@ -232,6 +284,16 @@ export const Tweet = memo(function Tweet({
           }
         />
         {sendOpen && sendable ? <SendPostSheet post={post} onClose={() => setSendOpen(false)} /> : null}
+        {variant === "feed" && !inThreadView && isInThread(post) ? (
+          <Link
+            prefetch={false}
+            href={`/posts/${post.id}`}
+            data-show-thread=""
+            className="-mt-1 mb-1 inline-flex min-h-11 items-center text-15 font-medium text-violet-600 hover:underline dark:text-[#A78BFA]"
+          >
+            Show thread
+          </Link>
+        ) : null}
         {variant === "feed" ? <CommentPreview postId={post.id} comments={comments} /> : null}
       </div>
       </div>
@@ -264,29 +326,31 @@ function CommentPreview({ postId, comments }: { postId: string; comments: PostCo
                   name={name}
                   image={person?.avatarDataUrl}
                   accent={person?.accent}
-                  className="h-6 w-6 text-[11px]"
+                  className="h-6 w-6 text-11"
                 />
               </Link>
             ) : (
-              <Avatar name={name} className="mt-0.5 h-6 w-6 text-[11px]" />
+              <Avatar name={name} className="mt-0.5 h-6 w-6 text-11" />
             )}
             <div className="min-w-0">
               <div className="flex min-w-0 items-center gap-1">
                 {href ? (
-                  <Link prefetch={false} href={href} className="block truncate text-[13px] leading-5 font-semibold hover:underline">
+                  <Link prefetch={false} href={href} className="block truncate text-13 leading-5 font-semibold hover:underline">
                     {name}
                   </Link>
                 ) : (
-                  <p className="truncate text-[13px] leading-5 font-semibold">{name}</p>
+                  <p className="truncate text-13 leading-5 font-semibold">{name}</p>
                 )}
                 <TeamBadge username={person?.username} />
               </div>
               {comment.body ? (
-                <p className="line-clamp-2 text-[13px] leading-5 text-zinc-600 dark:text-zinc-300">
+                <p className="line-clamp-2 text-13 leading-5 text-zinc-600 dark:text-zinc-300">
                   <MentionText text={comment.body} />
                 </p>
               ) : null}
               <ReplyPhotos images={comment.images} />
+              {comment.gif ? <PostGifPlayer gif={comment.gif} size="reply" /> : null}
+              {comment.video && !comment.gif ? <PostVideoPlayer video={comment.video} size="reply" /> : null}
             </div>
           </div>
         );
@@ -295,7 +359,7 @@ function CommentPreview({ postId, comments }: { postId: string; comments: PostCo
         <Link
           prefetch={false}
           href={`/posts/${postId}`}
-          className="inline-block text-[13px] font-medium text-violet-600 hover:underline dark:text-[#A78BFA]"
+          className="inline-block text-13 font-medium text-violet-600 hover:underline dark:text-[#A78BFA]"
         >
           View all comments
         </Link>
@@ -322,8 +386,8 @@ export function AuthorLine({
   const exact = exactTime(createdAt);
 
   return (
-    <div className="flex min-w-0 flex-1 items-baseline gap-x-1 text-[15px]">
-      <Link prefetch={false} href={href} className="max-w-[52%] truncate font-semibold tracking-tight hover:underline">
+    <div className="flex min-w-0 flex-1 items-baseline gap-x-1 text-15 big:flex-wrap">
+      <Link prefetch={false} href={href} className="max-w-[52%] truncate font-semibold tracking-tight hover:underline big:max-w-full">
         {name}
       </Link>
       {official ? (
@@ -336,12 +400,12 @@ export function AuthorLine({
       ) : (
         <TeamBadge username={username} />
       )}
-      <span className="min-w-0 truncate text-[14px] text-zinc-500 dark:text-zinc-400">@{username}</span>
+      <span className="min-w-0 truncate text-14 text-zinc-500 big:hidden dark:text-zinc-400">@{username}</span>
       {relative ? (
         <time
           dateTime={createdAt}
           title={exact || undefined}
-          className="shrink-0 text-[14px] whitespace-nowrap text-zinc-500 dark:text-zinc-400"
+          className="shrink-0 text-14 whitespace-nowrap text-zinc-500 dark:text-zinc-400"
         >
           · {relative}
         </time>
@@ -365,8 +429,6 @@ function PostMenu({ post }: { post: Post }) {
     setOpen(false);
     setConfirming(false);
   }
-
-  useCloseOnOutsideTap(open, rootRef, close);
 
   if (!user) return null;
   if (!mine) {
@@ -399,14 +461,11 @@ function PostMenu({ post }: { post: Post }) {
         <Ellipsis className="h-5 w-5" />
       </button>
       {open && mine ? (
-        <div
-          role="menu"
-          className="absolute top-9 right-0 z-30 w-52 overflow-hidden rounded-2xl border border-zinc-200 bg-[var(--background)] py-1 shadow-lg dark:border-white/10"
-        >
+        <MenuSheet label="Post options" onClose={close} cancel={!confirming}>
           {confirming ? (
-            <div className="px-3 py-2.5">
-              <p className="text-sm font-semibold">Delete this post?</p>
-              <div className="mt-2.5 flex gap-2">
+            <div className="px-5 pt-2 pb-2">
+              <p className="text-base font-semibold">Delete this post?</p>
+              <div className="mt-3 flex gap-2">
                 <button
                   type="button"
                   onClick={() => {
@@ -415,14 +474,14 @@ function PostMenu({ post }: { post: Post }) {
                       if (!result.error && pathname === `/posts/${post.id}`) router.replace("/");
                     });
                   }}
-                  className="hit-44 flex-1 rounded-full bg-rose-600 py-1.5 text-sm font-semibold text-white"
+                  className="tap min-h-12 flex-1 rounded-full bg-rose-600 text-base font-semibold text-white"
                 >
                   Delete
                 </button>
                 <button
                   type="button"
                   onClick={() => setConfirming(false)}
-                  className="hit-44 flex-1 rounded-full border border-zinc-300 py-1.5 text-sm font-semibold dark:border-white/20"
+                  className="tap min-h-12 flex-1 rounded-full border border-zinc-300 text-base font-semibold dark:border-white/20"
                 >
                   Cancel
                 </button>
@@ -443,8 +502,9 @@ function PostMenu({ post }: { post: Post }) {
                       close();
                     });
                   }}
-                  className="block w-full px-4 py-2.5 text-left text-[15px] font-semibold hover:bg-zinc-100 disabled:opacity-60 dark:hover:bg-white/10"
+                  className={menuSheetItem}
                 >
+                  <MenuSheetIcon icon={PinOff} />
                   Unpin
                 </button>
               ) : post.hiddenAt ? null : (
@@ -460,30 +520,36 @@ function PostMenu({ post }: { post: Post }) {
                       close();
                     });
                   }}
-                  className="block w-full px-4 py-2.5 text-left text-[15px] font-semibold hover:bg-zinc-100 disabled:opacity-60 dark:hover:bg-white/10"
+                  className={menuSheetItem}
                 >
+                  <MenuSheetIcon icon={Pin} />
                   Pin to profile
                 </button>
               )}
               <button
                 type="button"
                 role="menuitem"
-                onClick={() => router.push(`/compose?edit=${post.id}`)}
-                className="block w-full px-4 py-2.5 text-left text-[15px] font-semibold hover:bg-zinc-100 dark:hover:bg-white/10"
+                onClick={() => {
+                  close();
+                  router.push(`/compose?edit=${post.id}`);
+                }}
+                className={menuSheetItem}
               >
+                <MenuSheetIcon icon={Pencil} />
                 Edit post
               </button>
               <button
                 type="button"
                 role="menuitem"
                 onClick={() => setConfirming(true)}
-                className="block w-full px-4 py-2.5 text-left text-[15px] font-semibold text-rose-600 hover:bg-zinc-100 dark:hover:bg-white/10"
+                className={`${menuSheetItem} text-rose-600 dark:text-rose-400`}
               >
+                <MenuSheetIcon icon={Trash2} />
                 Delete post
               </button>
             </>
           )}
-        </div>
+        </MenuSheet>
       ) : null}
     </div>
   );
@@ -499,6 +565,7 @@ export function Engagement({
   quoteAvailable = true,
   onQuotesClick,
   onSend,
+  media = false,
 }: {
   targetId: string;
   replyCount?: number;
@@ -511,6 +578,8 @@ export function Engagement({
   onQuotesClick?: () => void;
   /** Opens the Send in a DM sheet. Left out when the post can't be sent. */
   onSend?: () => void;
+  /** Over a fullscreen photo: light icons on black. */
+  media?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname() || "/";
@@ -550,7 +619,10 @@ export function Engagement({
   }
 
   return (
-    <div data-engagement="" className="mt-0.5 -ml-2.5 flex min-w-0 items-center text-zinc-500 dark:text-zinc-400">
+    <div
+      data-engagement=""
+      className={`mt-0.5 -ml-2.5 flex min-w-0 items-center ${media ? "text-white/85" : "text-zinc-500 dark:text-zinc-400"}`}
+    >
       <ActionButton label="Reply" count={replyCount} active={false} tone="violet" onClick={onReply}>
         <MessageCircle className="h-[18px] w-[18px]" />
       </ActionButton>
@@ -573,7 +645,7 @@ export function Engagement({
         {repostMenuOpen ? (
           <div
             role="menu"
-            className="absolute bottom-10 left-0 z-30 w-44 overflow-hidden rounded-2xl border border-zinc-200 bg-[var(--background)] py-1 shadow-lg dark:border-white/10"
+            className="menu-pop origin-bottom-left absolute bottom-10 left-0 z-30 w-44 overflow-hidden rounded-2xl border border-zinc-200 bg-[var(--background)] py-1 shadow-lg dark:border-white/10"
           >
             <button
               type="button"
@@ -581,9 +653,10 @@ export function Engagement({
               onClick={() => {
                 setRepostMenuOpen(false);
                 if (!reposted && !reduceMotion) setRepostBurst((count) => count + 1);
+                if (!reposted) haptic("like");
                 toggleRepost(targetId);
               }}
-              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-[15px] font-semibold hover:bg-zinc-100 dark:hover:bg-white/10"
+              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-15 font-semibold hover:bg-zinc-100 dark:hover:bg-white/10"
             >
               <Repeat2 className="h-4 w-4" />
               {reposted ? "Undo repost" : "Repost"}
@@ -597,7 +670,7 @@ export function Engagement({
                 setRepostMenuOpen(false);
                 router.push(`/compose?quote=${encodeURIComponent(targetId)}`);
               }}
-              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-[15px] font-semibold hover:bg-zinc-100 disabled:opacity-40 dark:hover:bg-white/10"
+              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-15 font-semibold hover:bg-zinc-100 disabled:opacity-40 dark:hover:bg-white/10"
             >
               <Quote className="h-4 w-4" />
               Quote
@@ -736,7 +809,7 @@ function TickCount({ value, animate }: { value: number; animate: boolean }) {
   }
   if (value <= 0) return null;
   return (
-    <span className="min-w-0 overflow-hidden pr-1 text-[13px] tabular-nums">
+    <span className="min-w-0 overflow-hidden pr-1 text-13 tabular-nums">
       <span
         key={value}
         data-count=""

@@ -1,5 +1,6 @@
 "use client";
 
+import { goBack } from "@/components/nav-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -131,7 +132,7 @@ export function FollowList({
       <div className="flex items-center gap-2 border-b border-zinc-200 px-2 py-2 dark:border-white/10">
         <button
           type="button"
-          onClick={() => router.push(backHref)}
+          onClick={() => goBack({ to: backHref, push: (href) => router.push(href) })}
           data-nav-href={backHref}
           data-nav-back=""
           aria-label="Back to profile"
@@ -168,7 +169,7 @@ export function FollowList({
                 />
                 <span className="min-w-0">
                   <span className="flex min-w-0 items-center gap-1">
-                    <span className="truncate text-[15px] font-semibold leading-5">{person.displayName}</span>
+                    <span className="truncate text-15 font-semibold leading-5">{person.displayName}</span>
                     <TeamBadge username={person.username} inLink />
                   </span>
                   <span className="block truncate text-sm text-zinc-500">@{person.username}</span>

@@ -59,9 +59,9 @@ const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(r
 /** The server passes a real logger (live-solds-server.ts); tests and other callers stay quiet. */
 const defaultWarn: NonNullable<LiveSearchDeps["warn"]> = () => {};
 
-/** Case and spacing don't make a new search. */
+/** Case and spacing don't make a new search. v2: one entry for every reader and writer (makeKeyedCache). */
 export function liveSearchKey(query: string): string {
-  return `scan-live-v1|${query.toLowerCase().replace(/\s+/g, " ").trim()}`;
+  return `scan-live-v2|${query.toLowerCase().replace(/\s+/g, " ").trim()}`;
 }
 
 /** Only what the filters and the photo use, so a cached search stays small. */

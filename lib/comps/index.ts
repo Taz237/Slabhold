@@ -1,5 +1,8 @@
+import { loadProductData } from "@/lib/cards/product-data";
+import { withProductList } from "./known-run";
 import "server-only";
 
+import { runAfterResponse } from "@/lib/server/after-response";
 import { mockValueHistory } from "@/lib/value-history";
 import { notifyMatchedSales } from "@/lib/wants/dispatch";
 import { fairLowFromPrices } from "@/lib/wants/effective-target";
@@ -176,8 +179,12 @@ export async function getSoldComps(
     return { ok: true, payload };
   }
 
-  const matchCard = toMatchCard(card);
-  const query = buildSoldSearchQuery(matchCard);
+  // The search is the card as saved. The filter adds the parallel's known print run (the
+  // checklist's /50 for a Gold Refractor saved with no run), so a numbered parallel keeps its own
+  // /run sales and no others. The search text and its cache are unchanged.
+  const searchCard = toMatchCard(card);
+  const matchCard = withProductList(searchCard, await loadProductData().catch(() => null));
+  const query = buildSoldSearchQuery(searchCard);
   if (!query || !card.id) {
     return { ok: false, unavailable: true };
   }
@@ -252,18 +259,19 @@ export async function getSoldComps(
         (sale) => sale.itemId && sale.itemId !== "__empty__" && !previousIds.has(sale.itemId),
       );
       if (fresh.length > 0) {
-        try {
-          await notifyMatchedSales(
-            card,
-            fresh,
-            fairLowFromPrices(sales.map((sale) => sale.price)),
-          );
-        } catch (err) {
-          console.warn(
-            "[want_alerts]",
-            err instanceof Error ? err.message : "sale alerts failed",
-          );
-        }
+        // Alerts loop over every fresh sale and every want. The sold prices
+        // don't need them, so they go out after the response.
+        const fairLow = fairLowFromPrices(sales.map((sale) => sale.price));
+        await runAfterResponse(async () => {
+          try {
+            await notifyMatchedSales(card, fresh, fairLow);
+          } catch (err) {
+            console.warn(
+              "[want_alerts]",
+              err instanceof Error ? err.message : "sale alerts failed",
+            );
+          }
+        });
       }
     }
 

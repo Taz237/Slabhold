@@ -13,12 +13,12 @@ import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 // Same look as the sign-up form. Kept here, not imported from auth-form, so
 // the login screen's code isn't split into an extra shared chunk.
 const primaryButton =
-  "mt-3 flex h-14 w-full items-center justify-center rounded-full bg-violet-600 text-[17px] font-semibold text-white transition-[transform,opacity] duration-150 active:scale-[0.98] disabled:opacity-50 motion-reduce:transition-none motion-reduce:transform-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] focus-visible:outline-none";
+  "mt-3 flex h-14 w-full items-center justify-center rounded-full bg-violet-600 text-17 font-semibold text-white transition-[transform,opacity] duration-150 active:scale-[0.98] disabled:opacity-50 motion-reduce:transition-none motion-reduce:transform-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] focus-visible:outline-none";
 const inputClass =
-  "h-14 w-full rounded-2xl border border-zinc-300 bg-white px-4 text-[17px] outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-500 focus:ring-4 focus:ring-violet-500/15 aria-[invalid=true]:border-rose-500 motion-reduce:transition-none dark:border-white/12 dark:bg-white/[0.04] dark:placeholder:text-zinc-500";
+  "h-14 w-full rounded-2xl border border-zinc-300 bg-white px-4 text-17 outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-500 focus:ring-4 focus:ring-violet-500/15 aria-[invalid=true]:border-rose-500 motion-reduce:transition-none dark:border-white/12 dark:bg-white/[0.04] dark:placeholder:text-zinc-500";
 const labelClass = "mb-1.5 block text-sm font-medium text-zinc-600 dark:text-zinc-400";
 const errorText = "text-rose-600 dark:text-rose-400";
-const skeleton = "animate-pulse rounded-2xl bg-zinc-200/70 motion-reduce:animate-none dark:bg-white/5";
+const skeleton = "skeleton-shimmer rounded-2xl";
 
 /**
  * Apple and Google sign-ups skip the email form's handle and name steps, so
@@ -108,8 +108,8 @@ export function HandleSetup({ next, suggestedName }: { next: string; suggestedNa
 
   return (
     <div className="mx-auto max-w-md pt-10">
-      <h1 className="text-[28px] font-semibold leading-tight tracking-tight">Pick your handle</h1>
-      <p className="mt-2 text-[15px] leading-6 text-zinc-600 dark:text-zinc-400">
+      <h1 className="text-[1.75rem] font-semibold leading-tight tracking-tight">Pick your handle</h1>
+      <p className="mt-2 text-15 leading-6 text-zinc-600 dark:text-zinc-400">
         This is your @handle on Slabhold. Keep the one we made or choose your own.
       </p>
       <form onSubmit={(event) => void save(event)} noValidate className="mt-6 space-y-3">
@@ -117,7 +117,7 @@ export function HandleSetup({ next, suggestedName }: { next: string; suggestedNa
           <label className="block">
             <span className={labelClass}>Username</span>
             <span className="relative block">
-              <span aria-hidden className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-[17px] text-zinc-400">
+              <span aria-hidden className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-17 text-zinc-400">
                 @
               </span>
               <input

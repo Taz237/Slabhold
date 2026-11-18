@@ -17,6 +17,14 @@ export function isJoinBarPage(pathname: string): boolean {
   return false;
 }
 
+/**
+ * Screens that fill the whole display, like TikTok: the Catalog feed. No tab
+ * bar, + button or join bar over them; they bring their own Back.
+ */
+export function isFullScreenPath(pathname: string): boolean {
+  return pathOnly(pathname) === "/catalog";
+}
+
 export function shouldShowJoinBar(signedIn: boolean, pathname: string): boolean {
   return !signedIn && isJoinBarPage(pathname);
 }

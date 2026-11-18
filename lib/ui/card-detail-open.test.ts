@@ -31,7 +31,7 @@ describe("opening a card from the collection", () => {
     assert.doesNotMatch(loading, /getAuthUserId|loadCardPeople/);
     assert.match(shell, /useCollection/);
     assert.match(shell, /Edit card/);
-    assert.match(shell, /h-72 w-48/);
+    assert.match(shell, /aspect-\[2\/3\] w-48/);
     assert.match(shell, /h-44/);
   });
 

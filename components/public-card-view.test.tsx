@@ -72,6 +72,8 @@ function render(
     publicCardsReady: () => social.cardRead ?? social.ready,
     publicCardsFailed: () => social.cardFailed === true,
     profileByUsername: (name: string) => (social.ready && name === "maya" ? profile : undefined),
+    isFollowing: () => false,
+    toggleFollow: async () => {},
   };
   const collectionValue = { cards: [], ready: true };
   return renderToStaticMarkup(
@@ -105,6 +107,20 @@ describe("public card view first paint", () => {
     assert.match(html, /aria-hidden="true"[^>]*invisible[^>]*>Message owner|invisible[^>]*aria-hidden="true"[^>]*>Message owner/);
     const ready = render({ ready: true }, { initialCard: card, initialOwner: owner });
     assert.match(ready, /href="[^"]*"[^>]*>Message owner/);
+  });
+
+  it("shows the owner's avatar and @handle, and Follow only once the viewer is known", () => {
+    const early = render({ ready: false }, { initialCard: card, initialOwner: owner });
+    assert.match(early, /data-card-owner=""/);
+    assert.match(early, /aria-label="Maya, @maya"[^>]*href="\/u\/maya"/);
+    assert.match(early, />@maya</);
+    assert.doesNotMatch(early, />Follow</);
+    const viewer = render({ ready: true, user: { id: VIEWER } }, { initialCard: card, initialOwner: owner });
+    assert.match(viewer, /data-card-owner=""[\s\S]*>Follow</);
+    const signedOut = render({ ready: true }, { initialCard: card, initialOwner: owner });
+    assert.match(signedOut, /href="\/signup[^"]*"[^>]*>Follow</);
+    const own = render({ ready: true, user: { id: OWNER } }, { initialCard: card, initialOwner: owner });
+    assert.doesNotMatch(own, />Follow</);
   });
 
   it("still shows the skeleton with no server card", () => {

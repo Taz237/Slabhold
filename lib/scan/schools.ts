@@ -5,7 +5,7 @@ import { normInterest } from "@/lib/social/follow-rank";
  * prints its team. Names only: no logos. A school line is the card's team line, and it marks
  * the card as a college product. It never names the sport on its own (the position line does).
  */
-const SCHOOLS = [
+export const SCHOOLS = [
   "Alabama", "Arizona", "Arizona State", "Arkansas", "Auburn", "Baylor", "Boise State", "Boston College", "BYU",
   "California", "Cincinnati", "Clemson", "Colorado", "Connecticut", "UConn", "Creighton", "Duke", "Florida",
   "Florida State", "Georgia", "Georgia Tech", "Gonzaga", "Houston", "Illinois", "Indiana", "Iowa", "Iowa State",

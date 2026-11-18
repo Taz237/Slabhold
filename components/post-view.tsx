@@ -1,14 +1,16 @@
 "use client";
 
-import { goBackWithMotion } from "@/components/nav-motion";
+import { PostPageSkeleton } from "@/components/post-skeleton";
+import { goBack } from "@/components/nav-motion";
 import { ReadRetry } from "@/components/read-retry";
 import { visibleReplies } from "@/lib/social/reply-paging";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Ellipsis, ImagePlus } from "lucide-react";
+import { ArrowLeft, Ellipsis, ImagePlus, Trash2 } from "lucide-react";
+import { MenuSheet, MenuSheetIcon, menuSheetItem } from "@/components/menu-sheet";
 import { Avatar } from "@/components/avatar";
-import { EmptyState, LoadingRows } from "@/components/status";
+import { EmptyState } from "@/components/status";
 import { solidButton } from "@/components/button-styles";
 import { ReplyPhotoDrafts } from "@/components/compose-photo-drafts";
 import { MentionText } from "@/components/mention-text";
@@ -16,6 +18,14 @@ import { MentionTextarea } from "@/components/mention-textarea";
 import { CharacterRing } from "@/components/character-ring";
 import { PhotoFileInputs } from "@/components/photo-file-inputs";
 import { ReplyPhotos } from "@/components/reply-photos";
+import { GifPicker } from "@/components/gif-picker";
+import { GifDraft, PostGifPlayer } from "@/components/post-gif";
+import { PostVideoPlayer, VideoDraftTile } from "@/components/post-video";
+import { useVideoDraft } from "@/components/use-video-draft";
+import { PHOTO_ACCEPT } from "@/lib/photos";
+import { libraryAccept, planMediaPick, postsSupportVideo } from "@/lib/social/videos";
+import type { PostGif } from "@/lib/social/gifs";
+import { postsSupportGifsAndThreads } from "@/lib/social/threads";
 import { SafetyMenu } from "@/components/safety-menu";
 import { AuthorLine, Engagement, Tweet } from "@/components/tweet";
 import { usePostPhotos } from "@/components/use-post-photos";
@@ -30,7 +40,6 @@ import { commentsSupportReplyImages, isOptimisticReply } from "@/lib/social/repl
 import { COMMENT_LIMIT, type AuthResult, type PostComment } from "@/lib/social/types";
 import { isOverLimit } from "@/lib/ui/compose-limit";
 import { useKeyboardInset } from "@/lib/ui/use-keyboard-inset";
-import { useCloseOnOutsideTap } from "@/lib/ui/menu-outside-tap";
 
 const PAGE_SIZE = 20;
 
@@ -50,6 +59,8 @@ export function PostView({ id }: { id: string }) {
     loadingPostId,
     postLoadFailedId,
     retryPost,
+    threadPosts,
+    loadThreadPosts,
   } = useSocial();
   const post = posts.find((item) => item.id === id);
   const loadingPost = mode === "supabase" && !post && loadingPostId === id;
@@ -62,6 +73,25 @@ export function PostView({ id }: { id: string }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [replyPhotosOn, setReplyPhotosOn] = useState(mode !== "supabase");
+  const [replyGifsOn, setReplyGifsOn] = useState(mode !== "supabase");
+  const [gif, setGif] = useState<PostGif | null>(null);
+  const [gifOpen, setGifOpen] = useState(false);
+  /** Videos need Supabase Storage and the comments.video column. */
+  const [replyVideosOn, setReplyVideosOn] = useState(false);
+  const video = useVideoDraft(user?.id);
+  const threadId = post?.threadId ?? null;
+  const thread = threadId ? threadPosts(threadId) : [];
+  const place = thread.findIndex((item) => item.id === id);
+  const before = place > 0 ? thread.slice(0, place) : [];
+  const after = place >= 0 ? thread.slice(place + 1) : [];
+
+  // The rest of the thread, when this post is all that is on the device.
+  useEffect(() => {
+    if (!threadId || mode !== "supabase") return;
+    void loadThreadPosts(threadId).catch(() => {
+      // The post itself is on screen. The rest loads on the next visit.
+    });
+  }, [loadThreadPosts, mode, threadId]);
   const keyboardOffset = useKeyboardInset();
   const {
     images,
@@ -100,6 +130,12 @@ export function PostView({ id }: { id: string }) {
       if (!supabase || cancelled) return;
       void commentsSupportReplyImages(supabase).then((ok) => {
         if (!cancelled) setReplyPhotosOn(ok);
+      });
+      void postsSupportGifsAndThreads(supabase).then((ok) => {
+        if (!cancelled) setReplyGifsOn(ok);
+      });
+      void postsSupportVideo(supabase).then((ok) => {
+        if (!cancelled) setReplyVideosOn(ok);
       });
     }).catch(() => {
       // supabase-js failed to load: reply photos stay off.
@@ -144,12 +180,20 @@ export function PostView({ id }: { id: string }) {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (pending || isOverLimit(draft, COMMENT_LIMIT)) return;
+    // Reply waits for a video upload to finish.
+    if (video.busy) return;
     if (!user) {
       router.push(signupPath(pathname));
       return;
     }
     setPending(true);
-    const result = await addComment(id, draft, replyPhotosOn ? images : []);
+    const result = await addComment(
+      id,
+      draft,
+      replyPhotosOn ? images : [],
+      replyGifsOn ? gif : null,
+      replyVideosOn ? video.draft.video : null,
+    );
     // Your own reply lands at the end: show every page, so it is on screen.
     if (!result.error) setReplyPages(Number.POSITIVE_INFINITY);
     setPending(false);
@@ -159,10 +203,31 @@ export function PostView({ id }: { id: string }) {
     }
     setDraft("");
     replaceAll([]);
+    setGif(null);
+    video.posted();
+    video.remove();
     setError(result.notice ?? null);
     if (replyRef.current) {
       replyRef.current.style.height = "auto";
     }
+  }
+
+  /** A library pick: photos, or one video. Never both, and never with a GIF. */
+  function pickFromLibrary(files: File[]) {
+    const plan = planMediaPick(files, {
+      photos: images.length,
+      hasVideo: video.active,
+      hasGif: Boolean(gif),
+      videoAllowed: replyVideosOn,
+    });
+    if (plan.kind === "none") return;
+    if (plan.kind === "error") {
+      video.setError(plan.message);
+      return;
+    }
+    video.setError(null);
+    if (plan.kind === "video") void video.pick(plan.file);
+    else void addFiles(plan.files);
   }
 
   function updateDraft(next: string) {
@@ -175,13 +240,7 @@ export function PostView({ id }: { id: string }) {
     });
   }
 
-  if (!ready || (loadingPost && !post)) {
-    return (
-      <div className="-mx-4 -mt-5">
-        <LoadingRows count={2} />
-      </div>
-    );
-  }
+  if (!ready || (loadingPost && !post)) return <PostPageSkeleton />;
 
   // The read failed: the post may be fine, so never call it gone.
   if (!post && postLoadFailedId === id) {
@@ -201,7 +260,7 @@ export function PostView({ id }: { id: string }) {
   return (
     <div
       className={`-mx-4 -mt-5 ${
-        images.length > 0
+        images.length > 0 || gif || video.active
           ? "pb-[calc(18rem+env(safe-area-inset-bottom))] min-[391px]:pb-40"
           : "pb-[calc(10rem+env(safe-area-inset-bottom))] min-[391px]:pb-24"
       }`}
@@ -209,24 +268,32 @@ export function PostView({ id }: { id: string }) {
       <div className="flex items-center gap-3 border-b border-zinc-200 px-2 py-2 dark:border-white/10">
         <button
           type="button"
-          onClick={() => goBackWithMotion(() => router.back())}
+          onClick={() => goBack({ push: () => router.push("/") })}
           aria-label="Back"
           className="hit-44 grid h-9 w-9 place-items-center rounded-full hover:bg-zinc-100 dark:hover:bg-white/10"
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
-        <h1 className="text-lg font-semibold">Post</h1>
+        <h1 className="text-lg font-semibold">{thread.length > 1 ? "Thread" : "Post"}</h1>
       </div>
 
+      {before.map((item, index) => (
+        <Tweet key={item.id} post={item} author={author} threadAbove={index > 0} threadBelow />
+      ))}
       <Tweet
         post={post}
         author={author}
         variant="detail"
         onReply={() => focusReply()}
         onQuotesClick={() => setLane("quotes")}
+        threadAbove={before.length > 0}
+        threadBelow={after.length > 0}
       />
+      {after.map((item, index) => (
+        <Tweet key={item.id} post={item} author={author} threadAbove threadBelow={index < after.length - 1} />
+      ))}
 
-      <div className="grid grid-cols-2 border-b border-zinc-200 text-[15px] dark:border-white/10">
+      <div className="grid grid-cols-2 border-b border-zinc-200 text-15 dark:border-white/10">
         <LaneTab active={lane === "replies"} onClick={() => setLane("replies")}>
           Replies{replies.length > 0 ? ` · ${replies.length}` : ""}
         </LaneTab>
@@ -296,7 +363,7 @@ export function PostView({ id }: { id: string }) {
                       />
                     )}
                   </div>
-                  <p className="text-[13px] text-zinc-500">
+                  <p className="text-13 text-zinc-500">
                     Replying to{" "}
                     <Link
                       href={userHref(author.username)}
@@ -306,11 +373,13 @@ export function PostView({ id }: { id: string }) {
                     </Link>
                   </p>
                   {reply.body ? (
-                    <p className="mt-0.5 text-[15px] leading-5 break-words whitespace-pre-wrap">
+                    <p className="mt-0.5 text-15 leading-5 break-words whitespace-pre-wrap">
                       <MentionText text={reply.body} />
                     </p>
                   ) : null}
                   <ReplyPhotos images={reply.images} />
+                  {reply.gif ? <PostGifPlayer gif={reply.gif} size="reply" /> : null}
+                  {reply.video && !reply.gif ? <PostVideoPlayer video={reply.video} size="reply" /> : null}
                   {isOptimisticReply(reply.id) ? null : (
                     <Engagement
                       targetId={reply.id}
@@ -345,12 +414,15 @@ export function PostView({ id }: { id: string }) {
           {replyPhotosOn ? (
             <ReplyPhotoDrafts images={images} onRemove={removePhoto} />
           ) : null}
+          {gif ? <GifDraft gif={gif} size="reply" onRemove={() => setGif(null)} /> : null}
+          <VideoDraftTile draft={video.draft} size="reply" onRemove={video.remove} />
           <div className="flex min-w-0 items-end gap-2">
+            {/* With the GIF button a 390px bar is full, so the avatar steps aside while a reply is being written. */}
             <Avatar
               name={user.displayName}
               image={user.avatarDataUrl}
               accent={user.accent}
-              className="mb-1 h-8 w-8"
+              className={`mb-1 h-8 w-8 ${replyGifsOn && (draft || gif || images.length > 0 || video.active) ? "max-[430px]:hidden" : ""}`}
             />
             <MentionTextarea
               ref={replyRef}
@@ -361,21 +433,22 @@ export function PostView({ id }: { id: string }) {
               rows={1}
               menu="docked"
               placeholder="Post your reply"
-              className="max-h-32 min-h-11 w-full min-w-0 flex-1 resize-none bg-transparent py-2 text-[15px] leading-5 outline-none placeholder:text-zinc-500"
+              className="max-h-32 min-h-11 w-full min-w-0 flex-1 resize-none bg-transparent py-2 text-15 leading-5 outline-none placeholder:text-zinc-500"
             />
             {replyPhotosOn ? (
               <>
                 <PhotoFileInputs
                   libraryRef={libraryRef}
                   libraryMultiple
+                  libraryAccept={libraryAccept(PHOTO_ACCEPT, replyVideosOn)}
                   onPick={(file) => {
-                    if (file) void addFiles([file]);
+                    if (file) pickFromLibrary([file]);
                   }}
-                  onPickMany={(files) => void addFiles(files)}
+                  onPickMany={pickFromLibrary}
                 />
                 <button
                   type="button"
-                  disabled={photosFull}
+                  disabled={photosFull || Boolean(gif) || video.active}
                   aria-label="Add photos"
                   aria-describedby={photosFull ? "reply-photo-cap" : undefined}
                   onClick={() => {
@@ -388,7 +461,26 @@ export function PostView({ id }: { id: string }) {
                 </button>
               </>
             ) : null}
-            <span className="mb-1 flex min-h-11 shrink-0 items-center">
+            {replyGifsOn ? (
+              <button
+                type="button"
+                disabled={Boolean(gif) || images.length > 0 || readingPhoto || video.active}
+                aria-label="Add a GIF"
+                onClick={() => {
+                  void GifPicker.preload().catch(() => {});
+                  setGifOpen(true);
+                }}
+                className="mb-1 -ml-2 inline-flex h-11 w-11 min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full text-violet-700 disabled:opacity-40 dark:text-violet-300"
+              >
+                <span
+                  aria-hidden="true"
+                  className="rounded-[5px] border-[1.5px] border-current px-[3px] font-mono text-11 leading-[15px] font-semibold"
+                >
+                  GIF
+                </span>
+              </button>
+            ) : null}
+            <span className={`mb-1 flex min-h-11 shrink-0 items-center ${replyGifsOn && !draft ? "hidden" : ""}`}>
               <CharacterRing length={draft.length} limit={COMMENT_LIMIT} />
               <span className="sr-only" aria-live="polite">
                 {draft.length}/{COMMENT_LIMIT}
@@ -399,8 +491,9 @@ export function PostView({ id }: { id: string }) {
               disabled={
                 pending ||
                 readingPhoto ||
+                video.busy ||
                 isOverLimit(draft, COMMENT_LIMIT) ||
-                (!draft.trim() && images.length === 0)
+                (!draft.trim() && images.length === 0 && !gif && !video.draft.video)
               }
               className={`${solidButton} mb-1 min-h-11`}
             >
@@ -414,7 +507,22 @@ export function PostView({ id }: { id: string }) {
           ) : null}
           {readingPhoto ? <p className="mt-1 pl-10 text-xs text-zinc-500">Reading photo…</p> : null}
           {photoError ? <p className="mt-1 pl-10 text-xs text-rose-600 dark:text-rose-400">{photoError}</p> : null}
+          {video.draft.error ? (
+            <p role="alert" className="mt-1 pl-10 text-xs text-rose-600 dark:text-rose-400">
+              {video.draft.error}
+            </p>
+          ) : null}
           {error ? <p className="mt-1 pl-10 text-xs text-rose-600 dark:text-rose-400">{error}</p> : null}
+          {gifOpen ? (
+            <GifPicker
+              onPick={(picked) => {
+                setGif(picked);
+                setGifOpen(false);
+                requestAnimationFrame(() => replyRef.current?.focus());
+              }}
+              onClose={() => setGifOpen(false)}
+            />
+          ) : null}
         </form>
       ) : !user && lane === "replies" ? (
         <div className="flex items-center justify-between gap-3 border-t border-zinc-200 px-4 py-3 dark:border-white/10">
@@ -458,8 +566,6 @@ function ReplyMenu({
     setConfirming(false);
   }
 
-  useCloseOnOutsideTap(open, rootRef, close);
-
   return (
     <div ref={rootRef} className="relative -mt-1 shrink-0">
       <button
@@ -476,14 +582,11 @@ function ReplyMenu({
         <Ellipsis className="h-5 w-5" />
       </button>
       {open ? (
-        <div
-          role="menu"
-          className="absolute top-9 right-0 z-30 w-52 overflow-hidden rounded-2xl border border-zinc-200 bg-[var(--background)] py-1 shadow-lg dark:border-white/10"
-        >
+        <MenuSheet label="Reply options" onClose={close} cancel={!confirming}>
           {confirming ? (
-            <div className="px-3 py-2.5">
-              <p className="text-sm font-semibold">Delete this reply?</p>
-              <div className="mt-2.5 flex gap-2">
+            <div className="px-5 pt-2 pb-2">
+              <p className="text-base font-semibold">Delete this reply?</p>
+              <div className="mt-3 flex gap-2">
                 <button
                   type="button"
                   onClick={() => {
@@ -495,14 +598,14 @@ function ReplyMenu({
                       onResult(result);
                     });
                   }}
-                  className="hit-44 flex-1 rounded-full bg-rose-600 py-1.5 text-sm font-semibold text-white"
+                  className="tap min-h-12 flex-1 rounded-full bg-rose-600 text-base font-semibold text-white"
                 >
                   Delete
                 </button>
                 <button
                   type="button"
                   onClick={() => setConfirming(false)}
-                  className="hit-44 flex-1 rounded-full border border-zinc-300 py-1.5 text-sm font-semibold dark:border-white/20"
+                  className="tap min-h-12 flex-1 rounded-full border border-zinc-300 text-base font-semibold dark:border-white/20"
                 >
                   Cancel
                 </button>
@@ -513,12 +616,13 @@ function ReplyMenu({
               type="button"
               role="menuitem"
               onClick={() => setConfirming(true)}
-              className="block w-full px-4 py-2.5 text-left text-[15px] font-semibold text-rose-600 hover:bg-zinc-100 dark:hover:bg-white/10"
+              className={`${menuSheetItem} text-rose-600 dark:text-rose-400`}
             >
+              <MenuSheetIcon icon={Trash2} />
               Delete reply
             </button>
           )}
-        </div>
+        </MenuSheet>
       ) : null}
     </div>
   );

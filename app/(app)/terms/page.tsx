@@ -6,7 +6,7 @@ export const metadata: Metadata = { title: "Terms · Slabhold" };
 
 export default function TermsPage() {
   return (
-    <article className="space-y-4 text-[15px] leading-6">
+    <article className="space-y-4 text-15 leading-6">
       <h1 className="text-2xl font-semibold tracking-tight">Terms</h1>
       <p>
         Slabhold has zero tolerance for objectionable content or abusive users. Content that

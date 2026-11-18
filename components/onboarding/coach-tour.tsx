@@ -163,20 +163,20 @@ export function CoachTour({ userId }: { userId: string }) {
           }`}
           style={{ left: arrowLeft - 6 }}
         />
-        <p className="text-[13px] font-medium text-[#A78BFA]">
+        <p className="text-13 font-medium text-[#A78BFA]">
           {tourIndex + 1} of {TOUR_STEPS.length}
         </p>
-        <h2 id={titleId} className="mt-1 text-[17px] font-semibold tracking-tight">
+        <h2 id={titleId} className="mt-1 text-17 font-semibold tracking-tight">
           {step.title}
         </h2>
-        <p id={bodyId} className="mt-1 text-[15px] leading-5 text-zinc-300">
+        <p id={bodyId} className="mt-1 text-15 leading-5 text-zinc-300">
           {step.body}
         </p>
         <div className="mt-3 flex items-center justify-end gap-2">
           <button
             type="button"
             onClick={close}
-            className="min-h-11 rounded-full px-4 text-[15px] font-semibold text-zinc-400 hover:text-white focus-visible:ring-2 focus-visible:ring-[#A78BFA] focus-visible:outline-none"
+            className="min-h-11 rounded-full px-4 text-15 font-semibold text-zinc-400 hover:text-white focus-visible:ring-2 focus-visible:ring-[#A78BFA] focus-visible:outline-none"
           >
             Skip
           </button>
@@ -184,7 +184,7 @@ export function CoachTour({ userId }: { userId: string }) {
             ref={nextRef}
             type="button"
             onClick={() => (last ? close() : move(tourIndex + 1, 1))}
-            className="min-h-11 rounded-full bg-violet-600 px-5 text-[15px] font-semibold text-white focus-visible:ring-2 focus-visible:ring-[#A78BFA] focus-visible:ring-offset-2 focus-visible:ring-offset-[#18181B] focus-visible:outline-none"
+            className="min-h-11 rounded-full bg-violet-600 px-5 text-15 font-semibold text-white focus-visible:ring-2 focus-visible:ring-[#A78BFA] focus-visible:ring-offset-2 focus-visible:ring-offset-[#18181B] focus-visible:outline-none"
           >
             {last ? "Done" : "Next"}
           </button>

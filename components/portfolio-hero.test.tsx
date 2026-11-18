@@ -410,15 +410,15 @@ describe("PortfolioHero redesign: the count-up", () => {
     await hero.unmount();
   });
 
-  it("counts once from the range's first value, never $0, when values land, then hands aria-live back", async () => {
+  it("counts once from the last saved day's total, never $0 or the range's start, when values land, then hands aria-live back", async () => {
     win.localStorage.clear();
     const hero = await mountHero({ valuesLoading: true, collectionValue: 0 });
     await settle(50); // the count-up's own chunk, fetched on mount, lands before the values do
     await hero.rerender({ valuesLoading: false });
     const node = headline(hero.host);
     assert.ok(node);
-    // 30D starts at $41 (carried in); it counts up to $285.
-    assert.equal(node.textContent, "$41.00");
+    // Yesterday's total was $260 (30D starts at $41): it counts from $260 up to $285.
+    assert.equal(node.textContent, "$260.00");
     assert.equal(node.getAttribute("aria-live"), "off");
     await settle(120);
     assert.notEqual(node.textContent, "$0.00");
@@ -426,6 +426,32 @@ describe("PortfolioHero redesign: the count-up", () => {
     assert.equal(node.textContent, "$285.00");
     assert.equal(node.getAttribute("aria-live"), "polite");
     assert.equal((hero.host.textContent ?? "").split("$285.00").length - 1, 1, "one value, no screen-reader copy");
+    await hero.unmount();
+  });
+
+  it("after adding a card, counts from the total it just showed: a $2.25 card is +$2.25, not the whole range", async () => {
+    win.localStorage.clear();
+    const hero = await mountHero({ valuesLoading: true, collectionValue: 0 });
+    await settle(50);
+    await hero.rerender({ valuesLoading: false });
+    await settle(600);
+    const node = headline(hero.host);
+    assert.equal(node?.textContent, "$285.00");
+    // The new card's value loads, then lands.
+    await hero.rerender({ valuesLoading: true, cardCount: 4 });
+    await hero.rerender({ valuesLoading: false, cardCount: 4, collectionValue: 287.25 });
+    assert.equal(headline(hero.host)?.textContent, "$285.00", "from the total already on screen");
+    await settle(600);
+    assert.equal(headline(hero.host)?.textContent, "$287.25");
+    await hero.unmount();
+  });
+
+  it("no saved day and nothing shown yet: the total simply shows, no count from a made-up start", async () => {
+    win.localStorage.clear();
+    const hero = await mountHero({ valuesLoading: true, collectionValue: 0, snapshots: noDays });
+    await settle(50);
+    await hero.rerender({ valuesLoading: false, snapshots: noDays });
+    assert.equal(headline(hero.host)?.textContent, "$285.00");
     await hero.unmount();
   });
 

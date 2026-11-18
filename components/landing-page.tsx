@@ -21,7 +21,7 @@ export function LandingPage({ founder = null }: { founder?: FounderShowcase | nu
   const showcase = founder ? readFounderShowcase(founder) : null;
   const quickComp = quickCompEnabled();
   return (
-    <div data-always-dark="" className="min-h-dvh overflow-x-clip bg-[#09090b] text-zinc-100">
+    <div data-always-dark="" data-art="" className="min-h-dvh overflow-x-clip bg-[#09090b] text-zinc-100">
       <LandingGalaxy />
       <div className="relative mx-auto flex min-h-dvh w-full max-w-lg flex-col px-6 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] lg:max-w-5xl">
         <header className="flex min-h-14 items-center justify-between">
@@ -29,7 +29,7 @@ export function LandingPage({ founder = null }: { founder?: FounderShowcase | nu
             <NoHeadPreload>
               <Logo />
             </NoHeadPreload>
-            <span className="text-[17px] font-semibold tracking-tight">Slabhold</span>
+            <span className="text-17 font-semibold tracking-tight">Slabhold</span>
           </span>
           <LandingLogin />
         </header>
@@ -43,7 +43,7 @@ export function LandingPage({ founder = null }: { founder?: FounderShowcase | nu
               <br />
               <span className="text-[#A78BFA]">Show them off.</span>
             </h1>
-            <p className="mx-auto mt-4 max-w-sm text-[16px] leading-6 text-pretty text-zinc-400 lg:mx-0 lg:text-[18px] lg:leading-7">
+            <p className="mx-auto mt-4 max-w-sm text-16 leading-6 text-pretty text-zinc-400 lg:mx-0 lg:text-[1.125rem] lg:leading-7">
               {quickComp
                 ? "Recent sold prices for any card. Then track your cards and share them with collectors who get it."
                 : "Track your sports cards with recent sold prices, and share them with collectors who get it."}
@@ -67,7 +67,7 @@ export function LandingPage({ founder = null }: { founder?: FounderShowcase | nu
             <Logo className="mx-auto h-12 w-12" />
           </NoHeadPreload>
           <h2 className="mt-4 text-[2rem] leading-tight font-semibold tracking-tight text-white">Join Slabhold</h2>
-          <p className="mx-auto mt-2 max-w-xs text-[15px] leading-6 text-zinc-400">
+          <p className="mx-auto mt-2 max-w-xs text-15 leading-6 text-zinc-400">
             {quickComp
               ? "Comp a card, bring your collection, find your people. It takes a minute."
               : "Bring your collection, find your people. It takes a minute."}

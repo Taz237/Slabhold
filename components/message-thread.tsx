@@ -1,5 +1,6 @@
 "use client";
 
+import { goBack } from "@/components/nav-motion";
 import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, SendHorizontal, X } from "lucide-react";
@@ -10,7 +11,6 @@ import { DealThreadPanel } from "@/components/deal-response";
 import { MentionText } from "@/components/mention-text";
 import { MessageAttachments } from "@/components/message-attachments";
 import { CardMessagePreviewCard } from "@/components/open-to-offers";
-import { useReducedMotion } from "@/components/timeline-ui";
 import { MARK_SOLD_LABEL } from "@/lib/deals/state";
 import { EmptyState, LoadingRows } from "@/components/status";
 import { useLoadMore } from "@/components/load-more";
@@ -31,7 +31,24 @@ import { userHref } from "@/lib/social/user-href";
 import { MESSAGE_LIMIT, type DirectMessage } from "@/lib/social/types";
 import { TeamBadge } from "@/components/team-badge";
 import { useKeyboardInset } from "@/lib/ui/use-keyboard-inset";
-import { threadHeight } from "@/lib/ui/thread-height";
+import {
+  ReactionBar,
+  ReactionPillButton,
+  ReactionsSheet,
+  reactionHaptic,
+  useBubbleGestures,
+  type ReactionPerson,
+} from "@/components/message-reactions";
+import {
+  DOUBLE_TAP_EMOJI,
+  REACTION_NAMES,
+  reactionPill,
+  reactionsFor,
+  type MessageReaction,
+  type ReactionEmoji,
+} from "@/lib/social/message-reactions";
+import { useMessageReactions } from "@/lib/social/use-message-reactions";
+import { followsNewMessage, threadAtBottom, threadHeight } from "@/lib/ui/thread-height";
 
 /**
  * Keys that showed up after the list first had content. The first batch is
@@ -110,12 +127,13 @@ export function MessageThread({ username }: { username: string }) {
   /** Just confirmed. Their saved copy slides in without a second rise. */
   const [settled, setSettled] = useState<readonly string[]>([]);
   const [openTime, setOpenTime] = useState<string | null>(null);
-  const reduceMotion = useReducedMotion();
   const scroller = useRef<HTMLDivElement>(null);
   const fieldRef = useRef<HTMLTextAreaElement>(null);
   // The keyboard's height, from the iOS app's events or Safari's visual viewport.
   const keyboardInset = useKeyboardInset();
   const scrolledOnce = useRef(false);
+  /** The reader is at the newest message, so new content keeps it in view. */
+  const pinned = useRef(true);
   const thread = partner
     ? messages.filter(
         (message) =>
@@ -168,24 +186,77 @@ export function MessageThread({ username }: { username: string }) {
     ready && Boolean(partner),
   );
 
+  // Reactions: double-tap for a heart, long-press for the bar. Live for both people.
+  const { reactions, available: reactionsOn, react } = useMessageReactions(
+    partner ? (user?.id ?? null) : null,
+    thread.map((message) => message.id),
+  );
+  /** The message whose emoji bar is open. One at a time. */
+  const [barFor, setBarFor] = useState<string | null>(null);
+  /** The message whose "who reacted" sheet is open. */
+  const [sheetFor, setSheetFor] = useState<string | null>(null);
+  const reactTo = useCallback(
+    (messageId: string, emoji: ReactionEmoji) => {
+      void react(messageId, emoji).then((result) => {
+        if (result.error) setError(result.error);
+      });
+    },
+    [react],
+  );
+
   // Opening jumps to the newest message. Later messages glide into view.
   // Keyed on the newest message, so older ones loading above don't move it.
   const newestId = shownThread[shownThread.length - 1]?.id ?? null;
   const oldestId = shownThread[0]?.id ?? null;
-  useEffect(() => {
+  // Before paint, so the thread never shows its top for a frame. The new
+  // bubble rises in on its own (bubble-in), so the list itself does not glide.
+  const newestOwn = shownThread[shownThread.length - 1]?.senderId === user?.id;
+  useLayoutEffect(() => {
     const node = scroller.current;
     if (!node) return;
-    const glide = scrolledOnce.current && !reduceMotion && typeof node.scrollTo === "function";
+    const first = !scrolledOnce.current;
     scrolledOnce.current = true;
-    if (glide) node.scrollTo({ top: node.scrollHeight, behavior: "smooth" });
-    else node.scrollTop = node.scrollHeight;
-  }, [newestId, partner?.id, reduceMotion]);
+    if (!followsNewMessage({ first, pinned: pinned.current, own: newestOwn })) return;
+    node.scrollTop = node.scrollHeight;
+    pinned.current = true;
+  }, [newestId, newestOwn, partner?.id]);
 
-  // The keyboard opened: the thread got shorter, so keep the newest message in view.
+  // The keyboard opened or closed: the thread changed height. If the newest
+  // message was in view it stays in view, in the same frame.
+  useLayoutEffect(() => {
+    const node = scroller.current;
+    if (node && pinned.current) node.scrollTop = node.scrollHeight;
+    // iOS can scroll the whole page to reveal the box. The thread already
+    // ends at the keyboard, so put the page back: the header never jumps.
+    if (keyboardInset > 0 && window.scrollY !== 0) window.scrollTo(0, 0);
+  }, [keyboardInset]);
+
+  // Stay pinned while the reader is at the bottom: a shared post or card that
+  // fills in, a photo that loads or the deal panel changing height never
+  // leaves the newest message under the composer.
+  const threadShown = Boolean(partner) && ready;
   useEffect(() => {
     const node = scroller.current;
-    if (node && keyboardInset > 0) node.scrollTop = node.scrollHeight;
-  }, [keyboardInset]);
+    if (!node || !threadShown) return;
+    const repin = () => {
+      if (pinned.current) node.scrollTop = node.scrollHeight;
+    };
+    const onScroll = () => {
+      pinned.current = threadAtBottom(node);
+    };
+    const grown = typeof MutationObserver === "function" ? new MutationObserver(repin) : null;
+    grown?.observe(node, { childList: true, subtree: true });
+    const resized = typeof ResizeObserver === "function" ? new ResizeObserver(repin) : null;
+    resized?.observe(node);
+    node.addEventListener("load", repin, true);
+    node.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      grown?.disconnect();
+      resized?.disconnect();
+      node.removeEventListener("load", repin, true);
+      node.removeEventListener("scroll", onScroll);
+    };
+  }, [threadShown]);
 
   // Older messages landed above: keep what was on screen where it was.
   useLayoutEffect(() => {
@@ -303,7 +374,7 @@ export function MessageThread({ username }: { username: string }) {
       <div className="flex shrink-0 items-center gap-2 border-b border-zinc-200/80 glass bg-[color-mix(in_oklab,var(--background)_88%,transparent)] px-2 py-1.5 backdrop-blur-xl dark:border-white/[0.08]">
         <button
           type="button"
-          onClick={() => router.push("/messages")}
+          onClick={() => goBack({ to: "/messages", push: (href) => router.push(href) })}
           data-nav-href="/messages"
           data-nav-back=""
           aria-label="Back to messages"
@@ -321,7 +392,7 @@ export function MessageThread({ username }: { username: string }) {
           />
           <span className="min-w-0">
             <span className="flex min-w-0 items-center gap-1">
-              <span className="truncate text-[15px] font-semibold leading-5">{partner.displayName}</span>
+              <span className="truncate text-15 font-semibold leading-5">{partner.displayName}</span>
               <TeamBadge username={partner.username} inLink />
             </span>
             <span className="block truncate text-xs text-zinc-500 dark:text-zinc-400">@{partner.username}</span>
@@ -346,7 +417,19 @@ export function MessageThread({ username }: { username: string }) {
       ) : null}
       <DealThreadPanel partnerId={partner.id} />
 
-      <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-3 pb-2">
+      {sheetFor ? (
+        <ReactionsSheet
+          people={reactionPeople(reactionsFor(reactions, sheetFor), user, partner)}
+          onRemove={() => {
+            const mine = reactionsFor(reactions, sheetFor).find((item) => item.userId === user.id);
+            setSheetFor(null);
+            if (mine) reactTo(sheetFor, mine.emoji);
+          }}
+          onClose={() => setSheetFor(null)}
+        />
+      ) : null}
+
+      <div ref={scroller} data-thread-scroller="" className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-3 pb-2">
         {partnerId && threadMore(partnerId) ? (
           <div className="flex justify-center pb-2">
             <button
@@ -373,7 +456,7 @@ export function MessageThread({ username }: { username: string }) {
                 <p
                   key={row.key}
                   data-thread-time=""
-                  className="pt-4 pb-2 text-center text-[13px] font-medium text-zinc-500 dark:text-zinc-400"
+                  className="pt-4 pb-2 text-center text-13 font-medium text-zinc-500 dark:text-zinc-400"
                 >
                   <time dateTime={row.at} title={exactTime(row.at)}>
                     {threadTimeLabel(row.at)}
@@ -381,9 +464,26 @@ export function MessageThread({ username }: { username: string }) {
                 </p>
               );
             }
+            const rowReactions = reactionsFor(reactions, row.message.id);
             return (
               <MessageRow
                 key={row.key}
+                reactions={rowReactions}
+                viewerId={user.id}
+                partnerName={partner.displayName}
+                canReact={reactionsOn && !row.message.id.startsWith("sending-")}
+                barOpen={barFor === row.message.id}
+                onOpenBar={() => setBarFor(row.message.id)}
+                onCloseBar={() => setBarFor((current) => (current === row.message.id ? null : current))}
+                onReact={(emoji, via) => {
+                  const mine = rowReactions.find((item) => item.userId === user.id)?.emoji ?? null;
+                  setBarFor(null);
+                  reactionHaptic(via);
+                  // A double tap only ever adds the heart; it never takes it away.
+                  if (via === "double" && mine === emoji) return;
+                  reactTo(row.message.id, emoji);
+                }}
+                onShowReactions={() => setSheetFor(row.message.id)}
                 message={row.message}
                 mine={row.mine}
                 first={row.first}
@@ -432,7 +532,7 @@ export function MessageThread({ username }: { username: string }) {
             rows={1}
             placeholder="Start a message"
             aria-label={`Message ${partner.displayName}`}
-            className="max-h-32 min-h-11 flex-1 resize-none rounded-[22px] border border-zinc-200 bg-white px-4 py-[11px] text-[15px] leading-5 outline-none placeholder:text-zinc-500 focus:border-violet-500/60 focus:ring-2 focus:ring-violet-600/20 dark:border-white/10 dark:bg-white/[0.06] dark:focus:border-violet-400/50"
+            className="max-h-32 min-h-11 flex-1 resize-none rounded-[22px] border border-zinc-200 bg-white px-4 py-[11px] text-15 leading-5 outline-none placeholder:text-zinc-500 focus:border-violet-500/60 focus:ring-2 focus:ring-violet-600/20 dark:border-white/10 dark:bg-white/[0.06] dark:focus:border-violet-400/50"
           />
           <button
             type="submit"
@@ -448,6 +548,27 @@ export function MessageThread({ username }: { username: string }) {
   );
 }
 
+type Person = { id: string; displayName: string; username: string; avatarDataUrl: string | null; accent: string };
+
+/** The people in a pill, oldest reaction first, for the sheet. */
+function reactionPeople(list: MessageReaction[], user: Person, partner: Person): ReactionPerson[] {
+  return list.flatMap((item) => {
+    const person = item.userId === user.id ? user : item.userId === partner.id ? partner : null;
+    if (!person) return [];
+    return [
+      {
+        userId: item.userId,
+        emoji: item.emoji,
+        you: person.id === user.id,
+        name: person.displayName,
+        username: person.username,
+        avatar: person.avatarDataUrl,
+        accent: person.accent,
+      },
+    ];
+  });
+}
+
 function MessageRow({
   message,
   mine,
@@ -458,7 +579,26 @@ function MessageRow({
   onToggleTime,
   seen,
   sending = false,
+  reactions,
+  viewerId,
+  partnerName,
+  canReact,
+  barOpen,
+  onOpenBar,
+  onCloseBar,
+  onReact,
+  onShowReactions,
 }: {
+  reactions: MessageReaction[];
+  viewerId: string;
+  partnerName: string;
+  /** Off while sending, or before the reactions table exists. */
+  canReact: boolean;
+  barOpen: boolean;
+  onOpenBar: () => void;
+  onCloseBar: () => void;
+  onReact: (emoji: ReactionEmoji, via: "double" | "bar") => void;
+  onShowReactions: () => void;
   message: DirectMessage;
   mine: boolean;
   first: boolean;
@@ -479,6 +619,30 @@ function MessageRow({
   const tone = mine
     ? "bg-[#7C3AED] text-white"
     : "bg-zinc-200 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100";
+  const reactable = canReact && Boolean(text);
+  const bubbleRef = useRef<HTMLDivElement>(null);
+  const [below, setBelow] = useState(false);
+  const gestures = useBubbleGestures({
+    enabled: reactable,
+    onTap: onToggleTime,
+    onDoubleTap: () => onReact(DOUBLE_TAP_EMOJI, "double"),
+    onLongPress: () => {
+      // Near the top of the thread the bar would be cut off: open it under the bubble.
+      const bubble = bubbleRef.current?.getBoundingClientRect();
+      const scroller = bubbleRef.current?.closest("[data-thread-scroller]")?.getBoundingClientRect();
+      setBelow(Boolean(bubble && scroller && bubble.top - scroller.top < 64));
+      onOpenBar();
+    },
+  });
+  const pill = reactionPill(reactions, viewerId);
+  const mineReaction = pill?.mine ?? null;
+  const pillLabel = reactions
+    .map((item) => `${item.userId === viewerId ? "You" : partnerName} reacted ${REACTION_NAMES[item.emoji]}`)
+    .join(", ");
+  const closeBar = () => {
+    onCloseBar();
+    bubbleRef.current?.focus({ preventScroll: true });
+  };
   return (
     <div
       data-message-row=""
@@ -495,17 +659,29 @@ function MessageRow({
         {text ? (
           <div data-bubble={mine ? "mine" : "theirs"} className={`relative ${tone} ${shape}`}>
             {/* A div, not a button, so the text can still be long-pressed and copied on iOS. */}
+            {/* With reactions on, a long-press opens the bar (with Copy) instead of the iOS callout. */}
             <div
+              ref={bubbleRef}
               role="button"
               tabIndex={0}
               aria-expanded={timeOpen}
-              onClick={onToggleTime}
+              aria-haspopup={reactable ? "menu" : undefined}
+              aria-keyshortcuts={reactable ? "Shift+F10" : undefined}
+              {...gestures}
               onKeyDown={(event) => {
+                if (reactable && (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10"))) {
+                  event.preventDefault();
+                  setBelow(false);
+                  onOpenBar();
+                  return;
+                }
                 if (event.key !== "Enter" && event.key !== " ") return;
                 event.preventDefault();
                 onToggleTime();
               }}
-              className="cursor-default rounded-[inherit] px-3.5 py-2 text-[15px] leading-5 break-words whitespace-pre-wrap outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+              className={`cursor-default rounded-[inherit] px-3.5 py-2 text-15 leading-5 break-words whitespace-pre-wrap outline-none focus-visible:ring-2 focus-visible:ring-violet-400 ${
+                reactable ? "touch-manipulation select-none [-webkit-touch-callout:none]" : ""
+              }`}
             >
               <MentionText
                 text={message.content}
@@ -517,25 +693,42 @@ function MessageRow({
               />
             </div>
             {last ? <BubbleTail mine={mine} /> : null}
+            {barOpen ? (
+              <ReactionBar
+                mine={mine}
+                current={mineReaction}
+                below={below}
+                onPick={(emoji) => {
+                  onReact(emoji, "bar");
+                  bubbleRef.current?.focus({ preventScroll: true });
+                }}
+                onCopy={() => {
+                  void navigator.clipboard?.writeText(message.content).catch(() => {});
+                  closeBar();
+                }}
+                onClose={closeBar}
+              />
+            ) : null}
           </div>
         ) : null}
+        {pill ? <ReactionPillButton pill={pill} mine={mine} label={pillLabel} onOpen={onShowReactions} /> : null}
         {text ? <MessageAttachments text={text} /> : null}
         {timeOpen ? (
           <time
             data-bubble-time=""
             dateTime={message.createdAt}
-            className="mt-1 px-1 text-[11px] text-zinc-500 dark:text-zinc-400 motion-safe:animate-[add-fade_160ms_ease-out_both]"
+            className="mt-1 px-1 text-11 text-zinc-500 dark:text-zinc-400 motion-safe:animate-[add-fade_160ms_ease-out_both]"
           >
             {exactTime(message.createdAt)}
           </time>
         ) : null}
         {sending ? (
-          <span data-sending-label="" className="mt-1 px-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+          <span data-sending-label="" className="mt-1 px-1 text-11 text-zinc-500 dark:text-zinc-400">
             Sending…
           </span>
         ) : null}
         {seen ? (
-          <span data-seen="" className="mt-1 px-1 text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
+          <span data-seen="" className="mt-1 px-1 text-11 font-semibold text-zinc-500 dark:text-zinc-400">
             Seen
           </span>
         ) : null}
@@ -577,11 +770,11 @@ function ThreadHint({
       <span className="rounded-full p-1 ring-2 ring-violet-500/40">
         <Avatar name={name} image={avatar} accent={accent} expandable={false} className="h-16 w-16 text-base" />
       </span>
-      <p className="mt-3 text-[17px] font-semibold tracking-tight">
+      <p className="mt-3 text-17 font-semibold tracking-tight">
         {name}
         <TeamBadge username={username} className="ml-1 align-[-2px]" />
       </p>
-      <p className="text-[13px] text-zinc-500 dark:text-zinc-400">@{username}</p>
+      <p className="text-13 text-zinc-500 dark:text-zinc-400">@{username}</p>
       <p className="mt-4 max-w-[16rem] text-sm leading-5 text-zinc-500 dark:text-zinc-400">
         This is the start of your conversation. Say hi, ask about a card, or talk pickups.
       </p>

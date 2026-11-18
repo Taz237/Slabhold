@@ -47,7 +47,7 @@ describe("2.1: nothing in the app reads as unfinished", () => {
     assert.match(HUB_ERRORS.scannerDown, /^The scanner couldn't start\./);
     assert.match(HUB_ERRORS.compScannerDown, /^The scanner couldn't start\./);
     const hub = read("components/scan/scan-hub.tsx");
-    assert.match(hub, /deps\.nativeApp\(\)\s*\? comp\s*\? HUB_ERRORS\.compScannerDown\s*: HUB_ERRORS\.scannerDown/);
+    assert.match(hub, /deps\.nativeApp\(\) \? HUB_ERRORS\.scannerDown : HUB_COPY\.readerSoon/);
   });
 
   it("no 'yet', 'coming' or 'getting ready' in what the app can show", () => {

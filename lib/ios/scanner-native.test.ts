@@ -102,12 +102,17 @@ describe("native scanner: the camera screen", () => {
     assert.doesNotMatch(camera, /teal|systemTeal/i);
   });
 
-  it("fills the screen with the live camera, with nothing drawn over it: no outline, no guide box", () => {
+  it("fills the screen with the live camera, with purple corner guides where the card goes, drawn only", () => {
     assert.match(camera, /previewLayer\.videoGravity = \.resizeAspectFill/);
     assert.match(camera, /previewLayer\.frame = view\.bounds/);
-    assert.doesNotMatch(camera, /dimLayer|guideRect|guideLayer/);
-    // The purple card-finder outline is gone, and nothing replaces it.
-    assert.doesNotMatch(camera, /edgeLayer|drawEdge|edgeLineWidth|layerPointConverted|CAShapeLayer|strokeColor|brandPurple/);
+    // Four purple corners in a card's shape (2.5 x 3.5 in), never a dimmed mask over the picture.
+    assert.match(camera, /final class CardGuideView: UIView/);
+    assert.match(camera, /corners\.strokeColor = CardScannerViewController\.purple\.cgColor/);
+    assert.match(camera, /static let guideAspect: CGFloat = 3\.5 \/ 2\.5/);
+    assert.match(camera, /guides\.isUserInteractionEnabled = false/);
+    assert.doesNotMatch(camera, /dimLayer/);
+    // No card-finder outline that follows the card: the guides stay put.
+    assert.doesNotMatch(camera, /edgeLayer|drawEdge|edgeLineWidth|layerPointConverted/);
     // No live card detection on the viewfinder at all. Live frames are only scored for sharpness
     // and glare (FrameQuality, in the reader file): no Vision in the camera, and nothing drawn.
     assert.doesNotMatch(camera, /VNDetectRectanglesRequest|import Vision|VNRecognizeTextRequest|VNImageRequestHandler/);
@@ -163,9 +168,9 @@ describe("native scanner: the camera screen", () => {
   it("says one plain hint at a time, never the word free", () => {
     const hints = [...camera.matchAll(/case \w+ = "([^"]+)"/g)].map((match) => match[1]);
     assert.deepEqual(hints, [
-      "Frame the card, then tap to take it",
+      "Line the card up in the box, then tap",
       "Reading the card",
-      "Flip it over for the card #",
+      "Now flip it over",
       "Hold steady",
       "Tilt to cut glare",
       "We couldn't read that one. Try again with the card flat and in good light.",
@@ -174,21 +179,16 @@ describe("native scanner: the camera screen", () => {
   });
 });
 
-describe("native scanner: flip for the card #", () => {
-  it("asks for the back only on a raw card whose front shows no card number", () => {
-    assert.match(camera, /static func needsBack\(_ read: CardRead\) -> Bool \{\s*if read\.kind == "slab" \{ return false \}/);
-    const pattern = camera.match(/line\.range\(of: #"(.+?)"#/)?.[1];
-    assert.ok(pattern, "the card number pattern");
-    const number = new RegExp(pattern, "i");
-    assert.equal(number.test("#136"), true);
-    assert.equal(number.test("NO. 280"), true);
-    assert.equal(number.test("VICTOR WEMBANYAMA"), false);
-    assert.equal(number.test("PRIZM"), false);
+describe("native scanner: front, then back", () => {
+  it("front, then back: asks for the back on every raw card, never on a slab", () => {
+    assert.match(camera, /static func needsBack\(_ read: CardRead\) -> Bool \{\s*read\.kind != "slab"\s*\}/);
   });
 
   it("puts the back's lines with the front, and Skip sends the front alone", () => {
     assert.match(camera, /if var front = self\.front \{\s*front\.backLines = read\.lines/);
-    assert.match(camera, /@objc private func skipTapped\(\) \{\s*guard let front, !capturing else \{ return \}\s*end\(\.captured\(front\)\)/);
+    // The back's photo comes back too, for the reveal; and the web knows the camera asked.
+    assert.match(camera, /front\.backImage = read\.image\s*front\.backAsked = true/);
+    assert.match(camera, /@objc private func skipTapped\(\) \{\s*guard var front, !capturing else \{ return \}\s*front\.backAsked = true\s*end\(\.captured\(front\)\)/);
     assert.match(camera, /skipButton\.heightAnchor\.constraint\(equalToConstant: Self\.minTapTarget\)/);
   });
 

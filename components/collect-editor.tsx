@@ -19,7 +19,7 @@ import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 import { getSupabaseConfig } from "@/lib/supabase/client";
 
 const bigChipClass =
-  "inline-flex min-h-14 items-center gap-1.5 rounded-2xl border px-5 text-[17px] font-semibold transition-colors duration-150 motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:outline-none";
+  "inline-flex min-h-14 items-center gap-1.5 rounded-2xl border px-5 text-17 font-semibold transition-colors duration-150 motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:outline-none";
 
 const chipClass =
   "inline-flex min-h-11 items-center justify-center rounded-full border px-4 text-sm font-semibold";
@@ -338,7 +338,12 @@ export function NameSearch({
         />
       </label>
       {directory.status === "loading" && typed ? (
-        <p className="mt-2 text-sm text-zinc-500">Loading players…</p>
+        <div className="mt-2 space-y-2" aria-busy="true">
+          <span className="sr-only">Loading players</span>
+          {["w-40", "w-32", "w-36"].map((width, index) => (
+            <div key={index} className={`skeleton-shimmer h-11 rounded-2xl ${width}`} />
+          ))}
+        </div>
       ) : null}
       {directory.status === "error" ? (
         <div className="mt-2 text-sm text-zinc-500">
@@ -364,7 +369,7 @@ export function NameSearch({
                   onAdd(sharedName ? { ...hit, sharedName: true } : hit);
                   setSearchQuery("");
                 }}
-                className="flex min-h-11 w-full items-center justify-between gap-3 px-4 text-left text-[15px] hover:bg-zinc-100 dark:hover:bg-white/10"
+                className="flex min-h-11 w-full items-center justify-between gap-3 px-4 text-left text-15 hover:bg-zinc-100 dark:hover:bg-white/10"
               >
                 <span className="truncate font-medium">{nameSuggestionLabel(hit)}</span>
                 <span className="shrink-0 text-xs text-zinc-500">{nameRowLabel(hit)}</span>

@@ -259,7 +259,7 @@ describe("old prompts", () => {
 /** Fake on-screen anchors for the five coach marks. */
 function anchors(skip: string[] = []) {
   const holder = win.document.createElement("div");
-  ["menu", "add-card", "leaderboard", "collection", "messages"].forEach((target, index) => {
+  ["menu", "add-card", "catalog", "collection", "messages"].forEach((target, index) => {
     if (skip.includes(target)) return;
     const node = win.document.createElement("button");
     node.dataset.tour = target;
@@ -281,7 +281,7 @@ describe("quick tour", () => {
     const { YoureIn, YOURE_IN_MS } = await import("@/components/onboarding/youre-in");
     const { CoachTour } = await import("@/components/onboarding/coach-tour");
     const store = await import("@/lib/onboarding/store");
-    const remove = anchors(["leaderboard"]);
+    const remove = anchors(["catalog"]);
     try {
       store.completeSetup();
       await mount(
@@ -295,15 +295,15 @@ describe("quick tour", () => {
       assert.equal(win.document.querySelector('[role="status"]'), null);
       assert.equal(bubble()?.getAttribute("aria-modal"), "true");
       assert.match(bubble()?.textContent ?? "", /Your menu: profile, achievements, Moving today, settings\./);
-      assert.match(bubble()?.textContent ?? "", /1 of 6/);
+      assert.match(bubble()?.textContent ?? "", /1 of 5/);
       assert.equal(win.document.activeElement?.textContent, "Next", "focus moves into the bubble");
       assert.ok(bubble()?.getAttribute("aria-labelledby"));
       assert.ok(bubble()?.getAttribute("aria-describedby"));
 
       await click("Next");
-      assert.match(bubble()?.textContent ?? "", /Add a card in seconds/);
+      assert.match(bubble()?.textContent ?? "", /Scan a card to see what it sold for/);
       await click("Next");
-      assert.match(bubble()?.textContent ?? "", /Your cards and their value\./, "leaderboard isn't on screen, so it's skipped");
+      assert.match(bubble()?.textContent ?? "", /Your cards and their value\./, "catalog isn't on screen, so it's skipped");
       await click("Next");
       assert.match(bubble()?.textContent ?? "", /DM other collectors\./);
       await click("Done");
@@ -353,7 +353,7 @@ describe("quick tour", () => {
     const tour = read("components/onboarding/coach-tour.tsx");
     assert.match(menu, /data-tour="menu"/);
     assert.match(shell, /data-tour=\{tab\.tour\}/);
-    for (const target of ['"/leaderboard": "leaderboard"', '"/cards/new": "add-card"', '"/collection": "collection"', '"/messages": "messages"']) {
+    for (const target of ['"/catalog": "catalog"', '"/scan": "add-card"', '"/collection": "collection"', '"/messages": "messages"']) {
       assert.ok(shell.includes(target), target);
     }
     assert.match(tour, /env\(safe-area-inset-top\)/);

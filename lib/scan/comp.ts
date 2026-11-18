@@ -47,6 +47,8 @@ export const COMP_COPY = {
   unavailableBody: "The lookup didn't go through. Your card is still read.",
   retry: "Try again",
   assumedBase: "Showing Base. Tap your parallel if it's different.",
+  /** The parallel was read off the photo (its border color, at the run it printed). */
+  matchedFromPhoto: "Read from your photo. Tap another if it's different.",
   grade: "Grade",
   add: "Add to collection",
   next: "Scan another",
@@ -60,6 +62,8 @@ export const COMP_COPY = {
   /** A numbered card with no parallel named: last year's parallels at the same print run. */
   yearAgoParallels: "Last year's parallels at this print run",
   search: "Look it up by name",
+  /** A slab with its version open: the sold prices wait for the pick. */
+  pickVersion: "Pick the version to see its sold prices",
   needYear: "We need the year to show sold prices. Tap the card below that matches.",
   needPlayer: "We need the player to show sold prices. Add the card and name the player.",
 } as const;
@@ -102,6 +106,11 @@ export type ScanCompResult =
     }
   /** Today's or this hour's live lookups are used up. The identity still shows. */
   | { status: "limited"; reason: "daily" | "hourly" | "safety"; resetAt: string | null }
+  /**
+   * A slab whose label named no parallel: the sheet asks "Which version?" first. Nothing was
+   * searched or priced, so Base never stands in for an X-Fractor.
+   */
+  | { status: "version" }
   | { status: "unavailable" };
 
 /**
@@ -110,7 +119,21 @@ export type ScanCompResult =
  */
 export type SoldsState =
   | { status: "looking" }
-  | { status: "done"; comp: ScanCompResult; query: string | null; similar?: ScanEstimateResult };
+  | {
+      status: "done";
+      comp: ScanCompResult;
+      query: string | null;
+      /** Every search that answered for this scan (LiveSoldsResult.queries). Missing: only `query`. */
+      queries?: string[];
+      similar?: ScanEstimateResult;
+      /** A slab read again as the version the collector picked: the version these sales are for. */
+      version?: string;
+    };
+
+/** How many sales a price stands on, the way the price line says it: "1 sold", "3 sold". */
+export function soldCount(nSales: number): string {
+  return `${nSales} sold`;
+}
 
 /** The newest sale, for the one-line "Last sold" on the Add card sheet. */
 export function lastSale(result: ScanCompResult): ScanCompSale | null {
@@ -146,13 +169,18 @@ export function compIdentityFromMatch(
       cardNumber: match.cardNumber.trim(),
       parallel: parallel || "Base",
       grade,
+      // The insert the card # is in ("Rookie Code"): its sales are only titles that name it.
+      ...(match.insertName?.trim() ? { insertName: match.insertName.trim() } : {}),
     },
     assumedBase: !parallel,
   };
 }
 
+/** The most searches one scan runs (the ladder's rungs), so the most a lookup is ever asked to read back. */
+export const MAX_SCAN_QUERIES = 4;
+
 /** Same field names as /api/quick-comp, plus the print run the card shows (run) for the sold-listing cache. */
-export function compQueryString(identity: QuickCompIdentity, serialRun?: number | null, query?: string | null): string {
+export function compQueryString(identity: QuickCompIdentity, serialRun?: number | null, query?: string | readonly string[] | null): string {
   const params = new URLSearchParams();
   params.set("player", identity.playerName);
   params.set("year", identity.yearLabel);
@@ -161,7 +189,9 @@ export function compQueryString(identity: QuickCompIdentity, serialRun?: number 
   params.set("parallel", identity.parallel || "Base");
   params.set("grade", identity.grade);
   if (serialRun != null && Number.isInteger(serialRun) && serialRun > 0) params.set("run", String(serialRun));
-  if (query) params.set("q", query);
+  // One q per search the scan ran: the lookup reads them all, so it sees every sale the scan counted.
+  for (const item of (typeof query === "string" ? [query] : (query ?? [])).filter(Boolean).slice(0, MAX_SCAN_QUERIES)) params.append("q", item);
+  if (identity.insertName?.trim()) params.set("insert", identity.insertName.trim());
   return params.toString();
 }
 

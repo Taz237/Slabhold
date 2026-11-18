@@ -75,7 +75,7 @@ export function AddToHomeTip({ userId }: { userId: string }) {
           <Share className="h-4 w-4" aria-hidden />
           Add to Home Screen
         </p>
-        <p className="mt-1 pr-12 text-[15px] leading-5 text-zinc-600 dark:text-zinc-300">
+        <p className="mt-1 pr-12 text-15 leading-5 text-zinc-600 dark:text-zinc-300">
           Tap Share (it may be under ⋯), then Add to Home Screen.
         </p>
       </div>

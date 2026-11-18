@@ -7,13 +7,16 @@ import {
   titleLooksExcluded,
   titleSerialRuns,
 } from "@/lib/comps/match";
-import { parallelMatchKey, parallelsForSet } from "@/lib/cards/parallels";
+import { parallelMatchKey, parallelsForSet, sameParallelLoosely } from "@/lib/cards/parallels";
 import type { TrawlSoldResult } from "@/lib/comps/types";
 import type { IndexedDirectoryPlayer } from "@/lib/players/types";
+import { withoutSuffix } from "./player-lookup";
 import { toMatchCard, type QuickCompIdentity } from "@/lib/quick-comp/identity";
 import { parallelLabel, type ScanMatch } from "./match";
 import { SAPPHIRE_WORD, inSapphireFamily, isSapphireSet, withoutSapphire } from "./sapphire";
 import { COLOR_NAME_PHRASES, readRawCardText } from "./raw-text";
+import { setMakerOf, type CardMaker } from "./maker";
+import { insertNameOf } from "@/lib/cards/insert-name";
 
 /**
  * A scanned card's sold sales from eBay results, filtered the way eBay's own
@@ -121,6 +124,18 @@ export function isUnnamedRunLabel(label: string | null | undefined): boolean {
 }
 
 /**
+ * Sales of a card that is never a plain version (a patch card) whose titles name no parallel and
+ * no print run: we can't tell which version sold, so they are never this card's price and never
+ * "Base" or the insert's name.
+ */
+export const UNNAMED_VERSION_LABEL = "Version not named";
+
+/** A group that names no parallel (only a run, or nothing): shown, never a version to pick or to price a card by. */
+export function isUnnamedLabel(label: string | null | undefined): boolean {
+  return label === UNNAMED_VERSION_LABEL || isUnnamedRunLabel(label);
+}
+
+/**
  * The parallel a sold title names, from its color and finish words and insert, then the set's own
  * checklist (Choice, Snakeskin, X-Fractor). "Base" only when the title names no parallel or finish.
  */
@@ -188,9 +203,42 @@ function salePrice(result: TrawlSoldResult): number {
   return result.sale_price;
 }
 
+const titleWords = (text: string) => ` ${text.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()} `;
+
+/**
+ * A sale of a card in an insert (the 2026-27 Topps Rookie Code #RC-3) names the insert ("Rookie
+ * Code"), or at least its set ("Topps") beside the code. Cheap cards of his from other products
+ * print an RC-3 too, and name neither.
+ */
+function titleNamesInsert(title: string, insert: string, setBrand: string): boolean {
+  const text = titleWords(title);
+  if (text.includes(titleWords(insert))) return true;
+  const set = titleWords(setBrand).trim();
+  return Boolean(set) && text.includes(` ${set} `);
+}
+
+/** The title names a set, and that set's maker isn't the card's. A title naming no set says nothing. */
+function otherMakerTitle(title: string, cardMaker: CardMaker, yearLabel: string, directory: readonly IndexedDirectoryPlayer[]): boolean {
+  const named = readRawCardText([title], directory).setNames[0] ?? "";
+  const maker = named ? setMakerOf(named, yearLabel) : null;
+  return Boolean(maker) && maker !== cardMaker;
+}
+
 export function scanSalesFor(
-  match: Pick<ScanMatch, "playerName" | "cardNumber" | "serialRun" | "yearLabel"> & Pick<Partial<ScanMatch>, "runUnsure">,
-  identity: Pick<QuickCompIdentity, "grade"> & Partial<QuickCompIdentity>,
+  match: Pick<ScanMatch, "playerName" | "cardNumber" | "serialRun" | "yearLabel"> &
+    Pick<Partial<ScanMatch>, "runUnsure"> & {
+      /** The card is never a plain version (it holds a patch or a relic): a title naming no version isn't "Base". */
+      neverPlain?: boolean;
+    },
+  identity: Pick<QuickCompIdentity, "grade"> &
+    Partial<QuickCompIdentity> & {
+      /**
+       * The parallels on the card's own product list (lib/comps/known-run.ts listedParallelNames).
+       * A title naming one is that parallel's sale, never Base: "Sandglitter" and "Rainbow Foilboard"
+       * are 2026-27 Topps' own. Missing or empty: the set family's general list.
+       */
+      listedParallels?: readonly string[];
+    },
   results: readonly TrawlSoldResult[],
   directory: readonly IndexedDirectoryPlayer[],
 ): ScanSalesResult {
@@ -209,6 +257,8 @@ export function scanSalesFor(
     parallel: identity.parallel ?? "Base",
     grade: identity.grade,
   });
+  const cardMaker = setMakerOf(setBrand, match.yearLabel);
+  const insert = insertNameOf(identity);
   const raw = card.conditionType === "raw";
   const year = startYear(match.yearLabel);
   const kept: ScanSale[] = [];
@@ -223,12 +273,18 @@ export function scanSalesFor(
       dropped.junk += 1;
       continue;
     }
-    if (!titleHasPlayer(title, match.playerName)) {
+    // Sellers often leave off Jr. or III: the title still names him.
+    if (!titleHasPlayer(title, match.playerName) && !titleHasPlayer(title, withoutSuffix(match.playerName))) {
       dropped.player += 1;
       continue;
     }
     if (match.cardNumber && !titleHasCardNumber(title, match.cardNumber)) {
       dropped.number += 1;
+      continue;
+    }
+    // An insert's sales name it (or its set and code): another product's RC-3 is another card.
+    if (insert && !titleNamesInsert(title, insert, setBrand)) {
+      dropped.set += 1;
       continue;
     }
     // A numbered card keeps only titles naming its run (the corrected one, when OCR misread it).
@@ -237,6 +293,11 @@ export function scanSalesFor(
       continue;
     }
     if (sapphireFamily && SAPPHIRE_WORD.test(title) !== sapphireCard) {
+      dropped.set += 1;
+      continue;
+    }
+    // A title for a set by another maker (a Leaf card for a Topps card) is another card, whatever its #.
+    if (cardMaker && otherMakerTitle(title, cardMaker, match.yearLabel, directory)) {
       dropped.set += 1;
       continue;
     }
@@ -266,8 +327,20 @@ export function scanSalesFor(
       continue;
     }
     // "Sapphire" in the title is the product, not the parallel: "Sapphire Black /10" is Black.
-    const named = titleParallel(sapphireCard ? withoutSapphire(title) : title, directory, setBrand);
-    const parallel = named === "Base" && match.serialRun ? unnamedRunLabel(match.serialRun) : named;
+    const named = titleParallel(sapphireCard ? withoutSapphire(title) : title, directory, setBrand, identity.listedParallels?.length ? identity.listedParallels : undefined);
+    // A title that names no color is filed by the print run it names: the card's own when it was
+    // read, else the title's (one run only). A "/10" sale is never mixed in with unnumbered ones.
+    const runs = match.serialRun ? [] : [...new Set(titleSerialRuns(title))];
+    const parallel =
+      named !== "Base"
+        ? named
+        : match.serialRun
+          ? unnamedRunLabel(match.serialRun)
+          : runs.length === 1
+            ? unnamedRunLabel(runs[0])
+            : match.neverPlain
+              ? UNNAMED_VERSION_LABEL
+              : named;
     kept.push({ itemId: result.item_id, title, price, soldAt: result.date_sold ?? null, parallel });
   }
   return { kept, dropped };
@@ -287,8 +360,33 @@ export function groupByParallel(sales: readonly ScanSale[]): ParallelGroup[] {
   return [...groups.values()].sort((a, b) => b.sales.length - a.sales.length);
 }
 
-/** The group for a picked parallel, matched by its words in any order ("Pink/Red" is "Red Pink"). */
+const groupKey = (value: string) => value.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean).sort().join(" ");
+
+/**
+ * The group for a picked parallel, matched by its words in any order ("Pink/Red" is "Red Pink").
+ * With no exact group, the one group that is the same name give or take "Border" or "Refractor".
+ */
 export function groupFor(groups: readonly ParallelGroup[], parallel: string): ParallelGroup | null {
-  const key = (value: string) => value.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean).sort().join(" ");
-  return groups.find((group) => key(group.label) === key(parallel)) ?? null;
+  const exact = groups.find((group) => groupKey(group.label) === groupKey(parallel));
+  if (exact) return exact;
+  const loose = groups.filter((group) => sameParallelLoosely(group.label, parallel));
+  return loose.length === 1 ? loose[0] : null;
+}
+
+/** Most of the sales (and at least 2) are in this group. */
+export function isMajorityGroup(group: ParallelGroup | undefined, total: number): group is ParallelGroup {
+  return Boolean(group) && group!.sales.length >= 2 && group!.sales.length * 2 > total;
+}
+
+/**
+ * The group a card's price comes from. The picked parallel's own group first. When the card's
+ * print run alone picked the parallel off the checklist (the only one at that run), every kept
+ * sale already shares that run, so the clear majority is this card whatever its titles call it
+ * ("Pink/Red" for Fuchsia Border /299).
+ */
+export function groupForPick(groups: readonly ParallelGroup[], parallel: string, runPicked: boolean): ParallelGroup | null {
+  const own = groupFor(groups, parallel);
+  if (own || !runPicked) return own;
+  const total = groups.reduce((sum, group) => sum + group.sales.length, 0);
+  return isMajorityGroup(groups[0], total) ? groups[0] : null;
 }

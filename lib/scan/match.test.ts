@@ -92,7 +92,9 @@ describe("rankScanMatches: slabs", () => {
     const ids = result.matches.map((match) => `${match.playerName} ${match.setBrand} ${match.cardNumber}`);
     assert.equal(new Set(ids).size, ids.length);
     assert.ok(result.matches.length <= 3);
-    assert.equal(result.matches[1]?.catalogId, "luka-optic");
+    // The label prints #280: the Optic #177 is another card, never shown, not even as an alternative.
+    assert.ok(!result.matches.some((match) => match.catalogId === "luka-optic"));
+    assert.ok(result.matches.every((match) => match.cardNumber === "280"));
   });
 
   it("keeps a slab the catalog does not have, read from the label", () => {
@@ -106,7 +108,9 @@ describe("rankScanMatches: slabs", () => {
     assert.equal(top?.playerName, "Some Player");
     assert.equal(top?.setBrand, "Sage Hit");
     assert.equal(top?.cardNumber, "12");
-    assert.equal(top?.parallel, "Base");
+    // No parallel on the label, and the set has versions that look like Base: we ask, Base first.
+    assert.equal(top?.parallel, "");
+    assert.equal(top?.parallelOptions[0]?.name, "Base");
     assert.equal(top?.sureness.player, "likely");
     assert.equal(top?.grade?.number, "9");
   });
@@ -121,7 +125,10 @@ describe("rankScanMatches: slabs", () => {
     assert.equal(top?.playerName, "Paul Skenes");
     assert.equal(top?.sport, "Baseball");
     assert.equal(top?.yearLabel, "2024");
-    assert.equal(top?.parallel, "Base");
+    // Never "Rookie Auto" as the parallel. The label named none, so it is open with Base first.
+    assert.equal(top?.parallel, "");
+    assert.equal(top?.parallelOptions[0]?.name, "Base");
+    assert.ok(!top?.parallelOptions.some((option) => /rookie|auto/i.test(option.name)));
     assert.equal(top?.isAuto, true);
     assert.equal(top?.isRookie, true);
     assert.equal(top?.grade?.autoGrade, "10");
@@ -153,7 +160,7 @@ describe("rankScanMatches: raw cards", () => {
     assert.equal(result.settled, false);
   });
 
-  it("pins the parallel when the serial run fits one checklist parallel", () => {
+  it("picks the one checklist parallel the serial run fits, as likely until the card or a sold title names it", () => {
     const result = rankScanMatches(
       raw(["VICTOR WEMBANYAMA", "PRIZM", "07/10"], ["#136", "2023-24 PANINI PRIZM", "© 2024 Panini America, Inc."]),
       [WEMBY_PRIZM, WEMBY_SELECT],
@@ -164,10 +171,11 @@ describe("rankScanMatches: raw cards", () => {
     assert.equal(top?.parallel, "Gold");
     assert.equal(top?.serialRun, 10);
     assert.equal(top?.serialNo, "7");
-    assert.equal(top?.sureness.parallel, "sure");
+    assert.equal(top?.sureness.parallel, "likely");
+    assert.equal(top?.parallelSource, "run");
     assert.equal(top?.sureness.number, "sure");
     assert.equal(top?.sureness.year, "sure");
-    assert.equal(result.settled, true);
+    assert.equal(result.settled, false);
   });
 
   it("narrows the options when two parallels share a run, and a color word picks one", () => {
@@ -233,7 +241,8 @@ describe("matchScan", () => {
     });
     assert.ok(queries.length <= 2);
     assert.equal(result?.matches[0]?.catalogId, "luka-prizm-silver");
-    assert.equal(result?.matches.length, 2);
+    // The second search's Optic #177 isn't the #280 the label prints: never shown.
+    assert.equal(result?.matches.length, 1);
   });
 
   it("still matches from the label when search and checklists fail", async () => {

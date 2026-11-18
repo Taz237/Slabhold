@@ -41,7 +41,7 @@ export function QuickCompPhotoHero({
       <div data-quick-comp-photo="none">
         <div role="img" aria-label={NO_PHOTO_LABEL} className={`${photoBox} flex flex-col items-center justify-center gap-2`}>
           <ImageOff aria-hidden="true" size={18} strokeWidth={1.5} className={textMuted} />
-          <span aria-hidden="true" className={`text-[13px] leading-5 ${textMuted}`}>
+          <span aria-hidden="true" className={`text-13 leading-5 ${textMuted}`}>
             {NO_PHOTO_LABEL}
           </span>
         </div>
@@ -76,7 +76,7 @@ export function QuickCompPhotoHero({
           className={`h-full w-full object-contain motion-safe:transition-opacity motion-safe:duration-300 motion-safe:ease-[cubic-bezier(0.22,1,0.36,1)] ${loaded === src ? "opacity-100" : "opacity-0"}`}
         />
       </div>
-      <figcaption className={`${photoCaptionRow} text-[13px] leading-5 ${textMuted}`}>{PHOTO_CAPTION}</figcaption>
+      <figcaption className={`${photoCaptionRow} text-13 leading-5 ${textMuted}`}>{PHOTO_CAPTION}</figcaption>
     </figure>
   );
 }

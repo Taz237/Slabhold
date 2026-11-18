@@ -14,7 +14,7 @@ import { SITE_URL } from "@/lib/site-url";
 import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 
 const card = "rounded-2xl bg-white ring-1 ring-zinc-200 dark:bg-white/[0.04] dark:ring-white/10";
-const sectionLabel = "px-1 pb-2 text-[13px] font-medium text-zinc-500";
+const sectionLabel = "px-1 pb-2 text-13 font-medium text-zinc-500";
 const focusRing =
   "outline-none focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]";
 
@@ -65,7 +65,7 @@ export function ResetLinkSheet({
         <p className="mt-1.5 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
           Your current link stops working right away. Anyone who already joined stays connected.
         </p>
-        <div className="mt-4 grid grid-cols-2 gap-2">
+        <div className="mt-4 grid grid-cols-2 big:grid-cols-1 gap-2">
           <button
             ref={cancelRef}
             type="button"
@@ -145,7 +145,7 @@ export function InviteSettings() {
               <UserPlus className="h-5 w-5" />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-[15px] font-semibold tracking-tight">Invite a collector</p>
+              <p className="text-15 font-semibold tracking-tight">Invite a collector</p>
               <p className="mt-0.5 text-sm leading-5 text-zinc-500">
                 When someone joins with your link, you follow each other.
               </p>
@@ -153,9 +153,9 @@ export function InviteSettings() {
           </div>
           <div className="mt-3 flex h-10 items-center rounded-xl bg-zinc-100 px-3 dark:bg-white/[0.06]">
             {hosted && loading ? (
-              <span aria-hidden className="h-3.5 w-48 animate-pulse rounded bg-zinc-200 dark:bg-white/10" />
+              <span aria-hidden className="h-3.5 w-48 skeleton-shimmer rounded" />
             ) : (
-              <p data-invite-link="" className="min-w-0 truncate font-mono text-[12px] text-zinc-600 dark:text-zinc-300">
+              <p data-invite-link="" className="min-w-0 truncate font-mono text-12 text-zinc-600 dark:text-zinc-300">
                 {displayInviteLink(user.username, code)}
               </p>
             )}

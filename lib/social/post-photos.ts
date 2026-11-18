@@ -1,6 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { cleanImageUrl } from "./link-preview";
+import type { PostGif } from "./gifs";
 import type { PublicCard } from "./types";
+import type { PostVideo } from "./videos";
 
 /**
  * A normal post stores its first photo on posts.image_url and any further
@@ -23,6 +25,10 @@ export type PostWrite = {
   quotedPostId?: string | null;
   /** Set when the post is created with a card that was just added. */
   shareOfNewCard?: boolean;
+  /** One GIPHY GIF. Not saved together with photos. */
+  gif?: PostGif | null;
+  /** One uploaded video. Not saved together with photos or a GIF. */
+  video?: PostVideo | null;
 };
 
 export function postPhotoLimit(multiPhoto: boolean): number {

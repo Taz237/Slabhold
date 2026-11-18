@@ -1,45 +1,43 @@
 "use client";
 
-import { useId, useState } from "react";
-import { PrimaryButton, QuietButton, focusRing } from "@/components/add-card/flow-ui";
-import {
-  LastSold,
-  OtherMatches,
-  SetNotes,
-  withSoldGroups,
-  ParallelStrip,
-  RevealCard,
-  RevealName,
-  RevealNameSkeleton,
-  SheetFrame,
-  parallelOptionsFor,
-} from "@/components/scan/sheet-parts";
-import { COMP_COPY, type SoldsState } from "@/lib/scan/comp";
-import {
-  CONFIRM_COPY,
-  confirmMatch,
-  initialChoice,
-  matchesKey,
-  promoteMatch,
-  readyToSave,
-  type ParallelPick,
-} from "@/lib/scan/confirm";
-import type { ProductParallel } from "@/lib/cards/product-data";
+import { PrimaryButton, QuietButton } from "@/components/add-card/flow-ui";
+import { ScanSteps, useScanSteps, type CompLookup } from "@/components/scan/comp-sheet";
+import { PickCard } from "@/components/scan/pick-card";
+import { RevealCard, SheetFrame, FlipStep } from "@/components/scan/sheet-parts";
+import type { SoldsState } from "@/lib/scan/comp";
+import { CONFIRM_COPY } from "@/lib/scan/confirm";
 import type { ScanMatch } from "@/lib/scan/match";
+import { REVEAL_COPY } from "@/lib/scan/reveal";
 
 export type ConfirmSheetState =
   | { kind: "matching" }
+  /** "Flip it over": the front alone couldn't pin the year, set or card #. Its read waits here. */
+  | { kind: "back"; matches: ScanMatch[] }
   /** solds: the top card's last eBay solds, looked up after the card is read. */
   | { kind: "ready"; matches: ScanMatch[]; solds?: SoldsState }
-  | { kind: "none"; offline?: boolean };
+  /** unpinned: what we found conflicts with the card's back, so nothing is shown ("We couldn't pin this one down"). */
+  | {
+      kind: "none";
+      offline?: boolean;
+      unpinned?: boolean;
+      /**
+       * Only the player was read: their real cards to pick from (checklists, and what other
+       * collectors picked for the same read). Choices, never an answer: nothing is preselected.
+       */
+      closest?: { player: string; cards: ScanMatch[]; confirmed: boolean[] };
+    };
 
 type Props = {
   /** The cropped scan. Null shows a designed placeholder. */
   photo: string | null;
+  /** The back's photo, when the camera took the back too: the reveal card turns to it. */
+  backPhoto?: string | null;
+  /** Sold prices for another parallel or grade on the price screen. None: they show as unavailable. */
+  lookup?: CompLookup;
   state: ConfirmSheetState;
   /**
-   * The top match with the sheet's parallel and serial picks applied.
-   * save: "Yes, add it" (Add card saves on open). Otherwise Add card opens on Review or what's missing.
+   * The picked card with its parallel and grade from the price screen: "Add to collection".
+   * save: nothing is left to ask (Add card saves on open). Otherwise Add card opens on what's missing.
    */
   onConfirm: (match: ScanMatch, options: { save: boolean }) => void;
   /** None of these, or no match: the guided Add card with the photo. */
@@ -47,206 +45,101 @@ type Props = {
   onRetake: () => void;
   /** "Is this Sapphire?": read the card again as its Sapphire Edition and look its sales up. */
   onSapphire?: () => void;
+  /** "Which version?": read the slab again as the version picked and look that version's sales up. */
+  onVersion?: (version: string, rows: ScanMatch[]) => void;
+  /** "Scan the back" on the Flip it over step. */
+  onScanBack?: () => void;
+  /** "Skip" on the Flip it over step: go on with the front as read. */
+  onSkipBack?: () => void;
+  /** A card picked from the closest choices: the scan is read again as that card. */
+  onPickClosest?: (index: number) => void;
   onClose: () => void;
 };
 
+/** Without a lookup (tests, previews), another parallel's prices say they're unavailable. */
+const NO_LOOKUP: CompLookup = async () => ({ status: "unavailable" });
+
 /**
- * "Is this your card?" The scan reveal over the camera: the photo flips in,
- * and the card's name fills in under it step by step while the lookup runs.
- * The top match is one tap to accept; a wrong row or parallel is one tap to fix.
+ * Scan to add. The reveal over the camera: the collector's own photos turn while the card is read,
+ * its fields filling in as each is found, then "Pick your card" lists the top matches. One tap
+ * opens that card's price screen, Quick Comp style, with a big Add to collection.
  */
-export function ConfirmSheet({ photo, state, onConfirm, onStepByStep, onRetake, onSapphire, onClose }: Props) {
-  const title = state.kind === "none" ? CONFIRM_COPY.noMatchTitle : CONFIRM_COPY.title;
+export function ConfirmSheet({ photo, backPhoto = null, lookup = NO_LOOKUP, state, onConfirm, onStepByStep, onRetake, onSapphire, onVersion, onScanBack, onSkipBack, onPickClosest, onClose }: Props) {
+  const steps = useScanSteps(state);
+  const title =
+    state.kind === "none"
+      ? state.unpinned
+        ? CONFIRM_COPY.unpinnedTitle
+        : state.closest?.cards.length
+          ? CONFIRM_COPY.closestTitle
+          : CONFIRM_COPY.noMatchTitle
+      : steps.view === "list"
+        ? REVEAL_COPY.pickTitle
+        : steps.view === "card"
+          ? REVEAL_COPY.yourCard
+          : REVEAL_COPY.reading;
   return (
     <SheetFrame title={title} busy={state.kind === "matching"} variant="scene" onClose={onClose}>
-      {/* Mounted once for every state, so the card flips in once and the name lands under it. */}
-      <RevealCard photo={photo} />
-      {state.kind === "matching" ? <RevealNameSkeleton label={CONFIRM_COPY.finding} /> : null}
-      {state.kind === "none" ? (
-        <NoMatch offline={Boolean(state.offline)} onStepByStep={onStepByStep} onRetake={onRetake} />
-      ) : null}
-      {state.kind === "ready" ? (
-        <Ready
-          key={matchesKey(state.matches)}
-          matches={state.matches}
-          solds={state.solds}
+      {state.kind === "matching" || state.kind === "ready" ? (
+        <ScanSteps
+          state={state}
+          steps={steps}
           photo={photo}
+          backPhoto={backPhoto}
+          lookup={lookup}
+          onAdd={onConfirm}
+          onScanAnother={onRetake}
+          onSearch={onStepByStep}
           onSapphire={onSapphire}
-          onConfirm={onConfirm}
-          onStepByStep={onStepByStep}
-          onRetake={onRetake}
+          onVersion={onVersion}
         />
+      ) : null}
+      {state.kind === "back" || state.kind === "none" ? <RevealCard photo={photo} /> : null}
+      {state.kind === "back" ? <FlipStep match={state.matches[0]} onScanBack={onScanBack ?? onRetake} onSkip={onSkipBack ?? onClose} /> : null}
+      {state.kind === "none" ? (
+        state.closest?.cards.length && onPickClosest ? (
+          <div className="space-y-6">
+            <PickCard
+              matches={state.closest.cards}
+              onPick={onPickClosest}
+              choices
+              body={`We read ${state.closest.player}, ${CONFIRM_COPY.closestBody}`}
+              label={CONFIRM_COPY.closestList}
+              notes={state.closest.confirmed.map((yes) => (yes ? CONFIRM_COPY.closestConfirmed : null))}
+            />
+            <PrimaryButton onClick={onStepByStep}>{CONFIRM_COPY.stepByStep}</PrimaryButton>
+            <div className="flex justify-center">
+              <QuietButton onClick={onRetake}>{CONFIRM_COPY.retake}</QuietButton>
+            </div>
+          </div>
+        ) : (
+          <NoMatch offline={Boolean(state.offline)} unpinned={Boolean(state.unpinned)} onStepByStep={onStepByStep} onRetake={onRetake} />
+        )
       ) : null}
     </SheetFrame>
   );
 }
 
-function Ready({
-  matches,
-  solds,
-  photo = null,
-  onSapphire,
-  onConfirm,
-  onStepByStep,
-  onRetake,
-}: {
-  matches: ScanMatch[];
-  solds?: SoldsState;
-  /** The scan, shown beside a sold listing's photo when one is enlarged. */
-  photo?: string | null;
-  onSapphire?: () => void;
-  onConfirm: (match: ScanMatch, options: { save: boolean }) => void;
-  onStepByStep: () => void;
-  onRetake: () => void;
-}) {
-  const [rows, setRows] = useState(matches);
-  const top = rows[0];
-  const [pick, setPick] = useState<ParallelPick>(() => (top ? initialChoice(top) : null));
-  // "Something else": leave the parallel for Add card to ask.
-  const [deferred, setDeferred] = useState(false);
-  const [serialNo, setSerialNo] = useState(top?.serialNo ?? "");
-  const [error, setError] = useState<string | null>(null);
-  const serialId = useId();
-  const errorId = useId();
-
-  if (!top) return null;
-
-  function promote(index: number) {
-    const next = promoteMatch(rows, index);
-    setRows(next);
-    setPick(initialChoice(next[0]));
-    setDeferred(false);
-    setSerialNo(next[0].serialNo);
-    setError(null);
-  }
-
-  function choose(next: ParallelPick) {
-    setPick(next);
-    setDeferred(next === null);
-    setError(null);
-  }
-
-  const canSave = readyToSave({ ...top, parallel: pick?.name ?? "" });
-
-  function confirm(save: boolean) {
-    const result = confirmMatch(top, pick, serialNo);
-    if ("error" in result) {
-      setError(result.error);
-      return;
-    }
-    onConfirm(result.match, { save });
-  }
-
-  return (
-    <div className="space-y-6">
-      <RevealName match={top} parallel={pick?.name ?? null} photo={photo} />
-      {/* The last solds are for the card as read; picking another row hides them. */}
-      <SetNotes match={top} onSapphire={top === matches[0] ? onSapphire : undefined} center />
-      {solds && top === matches[0] ? (
-        // A parallel the sales name is one tap, from the sales row or from its chip below.
-        <LastSold solds={solds} pick={pick?.name ?? null} onPick={(label) => choose({ name: label, serialRun: top.serialRun })} />
-      ) : null}
-
-      <div>
-        <ParallelStrip
-          options={withYearAgoParallels(
-            withSoldGroups(parallelOptionsFor(top), top === matches[0] ? solds : undefined, top.serialRun, false),
-            top,
-            top === matches[0] ? solds : undefined,
-          )}
-          pick={pick}
-          deferred={deferred}
-          hint={
-            !pick && !deferred
-              ? CONFIRM_COPY.pickParallel
-              : top.parallelSource === "sales" && pick?.name === top.parallel
-                ? COMP_COPY.matchedFromSales
-                : null
-          }
-          onChoose={choose}
-        />
-        {pick?.serialRun ? (
-          <div className="mt-4">
-            <label htmlFor={serialId} className="text-[13px] font-medium text-zinc-500 dark:text-zinc-400">
-              {CONFIRM_COPY.serialLabel}
-            </label>
-            <div className="mt-2 flex items-center gap-3">
-              <input
-                id={serialId}
-                inputMode="numeric"
-                pattern="[0-9]*"
-                autoComplete="off"
-                value={serialNo}
-                onChange={(event) => {
-                  setSerialNo(event.target.value.replace(/[^0-9]/g, "").slice(0, 5));
-                  setError(null);
-                }}
-                aria-describedby={error ? errorId : undefined}
-                aria-invalid={error ? true : undefined}
-                aria-label={`Your number, out of ${pick.serialRun}`}
-                className={`h-11 w-24 rounded-xl border border-zinc-300 bg-transparent px-3 font-mono text-base tabular-nums dark:border-white/15 ${focusRing}`}
-              />
-              <span className="font-mono text-sm text-zinc-500 dark:text-zinc-400 tabular-nums">/{pick.serialRun}</span>
-            </div>
-            {error ? (
-              <p id={errorId} role="alert" className="mt-2 text-sm text-rose-600 dark:text-rose-400">
-                {error}
-              </p>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
-
-      <div className="space-y-2">
-        <PrimaryButton onClick={() => confirm(canSave)}>{canSave ? CONFIRM_COPY.add : CONFIRM_COPY.yes}</PrimaryButton>
-        {canSave ? (
-          <div className="flex justify-center">
-            <QuietButton onClick={() => confirm(false)}>{CONFIRM_COPY.editDetails}</QuietButton>
-          </div>
-        ) : null}
-      </div>
-
-      <OtherMatches rows={rows} onPromote={promote} photo={photo} />
-
-      <div className="flex items-center justify-center gap-2">
-        <QuietButton onClick={onStepByStep}>{CONFIRM_COPY.noneOfThese}</QuietButton>
-        <span aria-hidden className="text-zinc-300 dark:text-white/20">
-          ·
-        </span>
-        <QuietButton onClick={onRetake}>{CONFIRM_COPY.retake}</QuietButton>
-      </div>
-    </div>
-  );
-}
-
 function NoMatch({
   offline,
+  unpinned,
   onStepByStep,
   onRetake,
 }: {
   offline: boolean;
+  unpinned: boolean;
   onStepByStep: () => void;
   onRetake: () => void;
 }) {
   return (
     <div className="space-y-6">
       <p className="text-center text-sm leading-5 text-zinc-600 dark:text-zinc-400">
-        {offline ? CONFIRM_COPY.offlineBody : CONFIRM_COPY.noMatchBody}
+        {offline ? CONFIRM_COPY.offlineBody : unpinned ? CONFIRM_COPY.unpinnedBody : CONFIRM_COPY.noMatchBody}
       </p>
-      <PrimaryButton onClick={onStepByStep}>{CONFIRM_COPY.stepByStep}</PrimaryButton>
+      <PrimaryButton onClick={onStepByStep}>{unpinned ? CONFIRM_COPY.search : CONFIRM_COPY.stepByStep}</PrimaryButton>
       <div className="flex justify-center">
         <QuietButton onClick={onRetake}>{CONFIRM_COPY.retake}</QuietButton>
       </div>
     </div>
   );
-}
-
-/** No sales yet on a numbered card with no parallel named: last year's parallels at this print run join the chips. */
-function withYearAgoParallels(options: ProductParallel[], match: ScanMatch, solds: SoldsState | undefined): ProductParallel[] {
-  const names = solds?.status === "done" ? (solds.similar?.parallels ?? []) : [];
-  const out = [...options];
-  for (const name of names) {
-    if (!out.some((option) => option.name.toLowerCase() === name.toLowerCase())) out.push({ name, serialRun: match.serialRun });
-  }
-  return out;
 }

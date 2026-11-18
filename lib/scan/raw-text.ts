@@ -1,5 +1,6 @@
 import { SETS, parseYearLabel } from "@/lib/card-options";
 import { POPULAR_INSERTS, insertKey } from "@/lib/cards/data/popular-inserts";
+import { CODED_TEAM_NAMES, isCodedTeamName, teamsForCode } from "./team-codes";
 import type { IndexedDirectoryPlayer } from "@/lib/players/types";
 import { compactNorm, normInterest } from "@/lib/social/follow-rank";
 import { schoolOnLine } from "./schools";
@@ -22,6 +23,11 @@ export type RawPlayerHit = {
   line: string;
   /** The line is the name and nothing else: the card's nameplate, not a word in the background or the bio. */
   nameplate?: boolean;
+  /**
+   * The name is from the wider list (retired, college, prospects). It is only ever an exact name on a
+   * line of its own, and the matcher uses it only to confirm the name the card printed.
+   */
+  more?: true;
 };
 
 export type RawCardRead = {
@@ -54,6 +60,8 @@ export type RawCardRead = {
   yearLabel: string;
   /** The © year on a back. Often the release year, not the card year. */
   copyrightYear: string;
+  /** The newest season in the back's stat table ("2024 16 207 1009 ..."). "" when none. */
+  statSeason?: string;
   /** Without the leading # or NO. Also a printed code such as BP-27 or INS-13. */
   cardNumber: string;
   /**
@@ -61,8 +69,21 @@ export type RawCardRead = {
    * its last letters are the player's initials: the matcher checks, since the name may be on the other side.
    */
   letterCodes: string[];
+  /**
+   * Checklist codes read in a shape too loose to trust alone: "RC 3" or "RC3" (OCR lost the hyphen),
+   * "RC" and "3" on lines of their own, or a code inside a bio or legal line. Each as "RC-3". Only a
+   * checklist that has this player at the code makes one the card # (the matcher checks).
+   */
+  codeHints: string[];
   /** The card says it is signed: "CERTIFIED AUTOGRAPH ISSUE", "AUTOGRAPH", or an autograph checklist code. */
   isAuto: boolean;
+  /** The card says it holds a piece of memorabilia (a patch, a jersey swatch, a relic): the back's notice, or a relic line. */
+  isRelic?: boolean;
+  /**
+   * The product the back's own product line names in full, when it isn't a set on our list:
+   * "Panini Illusions" from "2023 PANINI - ILLUSIONS FOOTBALL". "" when the line names a listed set, or there is none.
+   */
+  productText?: string;
   /** The insert or variation the back names ("Rookie Autograph Variations"). "" when none. */
   subset: string;
   /** A stamped serial such as 12/99. */
@@ -102,6 +123,8 @@ const PARALLEL_WORDS = [
   "RED WHITE BLUE",
   "TIGER STRIPE",
   "CRACKED ICE",
+  // Bowman's Sky Blue Border: its own parallel, not Blue.
+  "SKY BLUE",
   "MAGENTA",
   "FUCHSIA",
   "AQUA",
@@ -132,6 +155,7 @@ const PARALLEL_WORDS = [
   "ATOMIC",
   "SAPPHIRE",
   "SPECKLE",
+  "PATTERN",
   "DISCO",
   "TIGER",
   "SNAKESKIN",
@@ -153,9 +177,10 @@ const CARD_NUMBER = /(?:#|\bNO\.)\s*([A-Z0-9]+(?:-[A-Z0-9]+)*)/gi;
 /**
  * A card # printed as a code with no # in front: BP-27 (Bowman prospects),
  * INS-13, BCP-50, TC-7. Letters, a hyphen, then digits. Heights (6-7) and
- * seasons (2024-25) have no letters in front, so they never match.
+ * seasons (2024-25) have no letters in front, so they never match. OCR can glue the code to the
+ * next word ("RC-3CAMERON"): the digits before a run of capitals are the code's.
  */
-const CODE_NUMBER = /\b([A-Z]{1,5}\d?)\s?[-–—‐]\s?(\d{1,4}[A-Z]?)\b/g;
+const CODE_NUMBER = /\b([A-Z]{1,5}\d?)\s?[-–—‐]\s?(\d{1,4}(?=[A-Z]{3,})|\d{1,4}[A-Z]?\b)/g;
 /**
  * Letters that look like a code prefix but are words from a bio or a stat
  * line: "average for-4 power", "a .414", "born June-4", "round-1". Never a
@@ -208,6 +233,10 @@ const NOT_NAME_WORDS = new Set([
 const SERIAL = /(?<![\d/])(\d{1,4})\s*\/\s*(\d{1,4})(?![\d/])/;
 const COPYRIGHT = /(?:©|\(c\)|copyright)\s*(\d{4})/i;
 const MAKER_YEAR = /\b(\d{4})\b/;
+/** A © line whose year comes after the maker: "© O-PEE-CHEE CO. LTD. 1979". */
+const COPYRIGHT_LATE = /(?:©|\(c\)|copyright)\D*?\b(19[0-9]{2}|20[0-3][0-9])\b/i;
+/** Topps Chewing Gum, the way 1950s and 1960s Topps backs sign: "T.C.G. PRINTED IN U.S.A." */
+const TOPPS_CHEWING_GUM = /(?:^|[^a-z])t\.\s?c\.\s?g\.(?:$|[^a-z])/i;
 
 /**
  * A catalog code that can't be a printed card #: a long run of digits or a
@@ -221,6 +250,39 @@ export function looksLikeCatalogSku(value: string): boolean {
 }
 const YEAR_TOKEN = /\b(\d{4}(?:\s*-\s*\d{2})?)\s+(\S+)/g;
 
+/** The memorabilia notice a relic card's back carries, or the words for a worn or used piece. Legal text, so it counts inside a sentence. */
+const RELIC_NOTICE = /\bmemorabilia\b|\b(?:game|player|event|photo\s*shoot)[-\s]?(?:worn|used)\b/i;
+/** A relic's own title line: "ROOKIE PATCH AUTOGRAPH", "JUMBO SWATCHES", "DUAL RELICS". Short lines only. */
+const RELIC_TITLE = /\b(?:relics?|patch(?:es)?|swatch(?:es)?|materials?|jerseys?|memorabilia)\b/i;
+
+function saysRelic(line: string): boolean {
+  return RELIC_NOTICE.test(line) || (RELIC_TITLE.test(line) && !proseLine(line));
+}
+
+/** The back's product line: the year, the maker, the product and the sport, in that order. */
+const PRODUCT_LINE =
+  /^(?:\d{4}(?:\s*-\s*\d{2,4})?)\s+(panini|topps|upper\s+deck|leaf|donruss|bowman|fleer|skybox|score|sage)\b\s*[-–—~:]*\s*(.*?)\s*\b(?:football|basketball|baseball|hockey|soccer)\b\s*$/i;
+
+/**
+ * The product a back's product line names in full ("2023 PANINI - ILLUSIONS FOOTBALL" is Panini
+ * Illusions). The card printed it, so it is the set even when our list has never heard of it.
+ * "" when there is no such line, or the name is bare (just the maker) or reads like a sentence.
+ */
+export function printedProduct(lines: readonly string[]): string {
+  for (const line of lines) {
+    const found = PRODUCT_LINE.exec(line.replace(/\s+/g, " ").trim());
+    if (!found) continue;
+    const maker = found[1].replace(/\s+/g, " ");
+    const name = found[2].replace(/[^A-Za-z0-9'& ]+/g, " ").replace(/\s+/g, " ").trim();
+    const count = name ? name.split(" ").length : 0;
+    if (count === 0 || count > 4 || !/[a-z]/i.test(name)) continue;
+    return `${maker} ${name}`
+      .toLowerCase()
+      .replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
+  }
+  return "";
+}
+
 function emptyRead(): RawCardRead {
   return {
     players: [],
@@ -232,6 +294,7 @@ function emptyRead(): RawCardRead {
     baseballSign: false,
     sportHint: "",
     letterCodes: [],
+    codeHints: [],
     isAuto: false,
     subset: "",
     firstBowman: false,
@@ -249,6 +312,16 @@ function emptyRead(): RawCardRead {
   };
 }
 
+/** How many raw lines are looked at before the noise is sorted out. */
+const MAX_RAW_LINES = 240;
+/** A scrap with no word in it ("0 1", "04", "1,3", "\\"): a pattern in the art, like falling binary digits. */
+const NOISE_LINE = /^[^A-Za-z]{0,6}$|^(?:[^A-Za-z]*[A-Za-z](?![A-Za-z]))+[^A-Za-z]*$/;
+
+/**
+ * At most MAX_LINES lines. A busy design (falling binary digits behind a Rookie Code card) can read as
+ * dozens of scraps; then the scraps go first, and the legal line at the bottom ("© 2026 THE TOPPS
+ * COMPANY") is always kept, since it carries the year and the maker.
+ */
 function cleanLines(lines: readonly string[]): string[] {
   const out: string[] = [];
   for (const raw of lines) {
@@ -256,9 +329,15 @@ function cleanLines(lines: readonly string[]): string[] {
     const line = raw.slice(0, MAX_LINE_LENGTH).replace(/\s+/g, " ").trim();
     if (!line) continue;
     out.push(line);
-    if (out.length >= MAX_LINES) break;
+    if (out.length >= MAX_RAW_LINES) break;
   }
-  return out;
+  if (out.length <= MAX_LINES) return out;
+  const kept = out.filter((line) => !NOISE_LINE.test(line) || LONE_NUMBER_LINE.test(line) && Number(line) > 1);
+  if (kept.length <= MAX_LINES) return kept;
+  const legal = kept.filter((line) => MAKER_LINE.test(line));
+  const room = Math.max(0, MAX_LINES - legal.length);
+  const head = new Set(kept.filter((line) => !MAKER_LINE.test(line)).slice(0, room));
+  return kept.filter((line) => head.has(line) || MAKER_LINE.test(line)).slice(0, MAX_LINES);
 }
 
 /** In a word that mixes letters and digits, 0, 1 and 5 are usually O, L and S. */
@@ -297,6 +376,8 @@ type DirectoryIndex = {
   /** Near-match candidates by the first 2 and the last 3 letters, so one slip anywhere still finds them. */
   byHead: Map<string, IndexedDirectoryPlayer[]>;
   byTail: Map<string, IndexedDirectoryPlayer[]>;
+  /** The wider list, exact names only. Never in byHead or byTail: a wider-list name is never a near match. */
+  moreByCompact: Map<string, IndexedDirectoryPlayer[]>;
 };
 
 function push<K, V>(map: Map<K, V[]>, key: K, value: V) {
@@ -313,13 +394,18 @@ function directoryIndex(directory: readonly IndexedDirectoryPlayer[]): Directory
   const byCompact = new Map<string, IndexedDirectoryPlayer[]>();
   const byHead = new Map<string, IndexedDirectoryPlayer[]>();
   const byTail = new Map<string, IndexedDirectoryPlayer[]>();
+  const moreByCompact = new Map<string, IndexedDirectoryPlayer[]>();
   for (const player of directory) {
     if (!player.compact) continue;
+    if (player.more) {
+      push(moreByCompact, player.compact, player);
+      continue;
+    }
     push(byCompact, player.compact, player);
     push(byHead, player.compact.slice(0, 2), player);
     push(byTail, player.compact.slice(-3), player);
   }
-  const index = { byCompact, byHead, byTail };
+  const index = { byCompact, byHead, byTail, moreByCompact };
   indexCache.set(directory, index);
   return index;
 }
@@ -352,6 +438,23 @@ function nameGrams(lines: string[]): Gram[] {
 }
 
 /** Directory players named in these lines, best first. Also used for a slab label's player line. */
+/** The most letters OCR gets wrong in one word: one in a short word (five letters or fewer), two in a longer one. */
+const slipLimit = (word: string) => (word.length <= 5 ? 1 : 2);
+
+/**
+ * A near name is a slip of the printed one, word for word: RONDON for Rodon, BROWM for Brown.
+ * Half of a short word changed is another word: COOK is not Wood, however alike the first names.
+ * When the words don't line up (a lost space), the whole-name distance already decided.
+ */
+function slipOf(printed: readonly string[], name: string): boolean {
+  const listed = normInterest(name).split(" ").filter(Boolean);
+  if (listed.length !== printed.length) return true;
+  return printed.every((word, index) => {
+    const limit = slipLimit(word.length <= listed[index].length ? word : listed[index]);
+    return boundedDistance(word, listed[index], limit) <= limit;
+  });
+}
+
 export function findPlayers(lines: string[], directory: readonly IndexedDirectoryPlayer[]): RawPlayerHit[] {
   const index = directoryIndex(directory);
   const best = new Map<string, RawPlayerHit & { order: number }>();
@@ -364,7 +467,19 @@ export function findPlayers(lines: string[], directory: readonly IndexedDirector
     const hit: RawPlayerHit & { order: number } = { name: player.name, sport: player.sport, score, line, order };
     if (player.team) hit.team = player.team;
     if (nameplate) hit.nameplate = true;
+    if (player.more) hit.more = true;
     best.set(key, hit);
+  };
+  /**
+   * The wider list (retired, college, prospects) is asked last and counts for less: only an exact name,
+   * only on a line that is that name and nothing else, only a line that reads as a name (no set, color,
+   * team or rookie word), and only when the roster file has nobody for those words, exact or near.
+   */
+  const offerMore = (gram: Gram, order: number, compact: string) => {
+    if (!lineCompacts.has(compact)) return;
+    const more = index.moreByCompact.get(compact);
+    if (!more || !readsAsNameLine(gram.line, directory)) return;
+    for (const player of more) offer(player, 1, gram.line, order, compact);
   };
 
   nameGrams(lines).forEach((gram, order) => {
@@ -374,40 +489,54 @@ export function findPlayers(lines: string[], directory: readonly IndexedDirector
       for (const player of exact) offer(player, 1, gram.line, order, compact);
       return;
     }
-    if (gram.words.length > FUZZY_MAX_WORDS) return;
-    if (compact.length < FUZZY_MIN_LENGTH || compact.length > FUZZY_MAX_LENGTH) return;
-    const max = compact.length <= 8 ? 1 : 2;
-    const candidates = new Set([
-      ...(index.byHead.get(compact.slice(0, 2)) ?? []),
-      ...(index.byTail.get(compact.slice(-3)) ?? []),
-    ]);
-    for (const player of candidates) {
-      if (Math.abs(player.compact.length - compact.length) > max) continue;
-      const distance = boundedDistance(compact, player.compact, max);
-      if (distance > max) continue;
-      offer(player, 1 - distance / Math.max(compact.length, player.compact.length), gram.line, order, compact);
+    let near = false;
+    if (gram.words.length <= FUZZY_MAX_WORDS && compact.length >= FUZZY_MIN_LENGTH && compact.length <= FUZZY_MAX_LENGTH) {
+      const max = compact.length <= 8 ? 1 : 2;
+      const candidates = new Set([
+        ...(index.byHead.get(compact.slice(0, 2)) ?? []),
+        ...(index.byTail.get(compact.slice(-3)) ?? []),
+      ]);
+      for (const player of candidates) {
+        if (Math.abs(player.compact.length - compact.length) > max) continue;
+        const distance = boundedDistance(compact, player.compact, max);
+        if (distance > max || !slipOf(gram.words, player.name)) continue;
+        near = true;
+        offer(player, 1 - distance / Math.max(compact.length, player.compact.length), gram.line, order, compact);
+      }
     }
+    if (!near) offerMore(gram, order, compact);
   });
 
-  return [...best.values()]
-    // An exact nameplate beats a name found inside other text (a bio, the background).
-    .sort((a, b) => b.score - a.score || Number(Boolean(b.nameplate)) - Number(Boolean(a.nameplate)) || a.order - b.order)
-    .slice(0, MAX_PLAYERS)
-    .map((hit) => {
-      const out: RawPlayerHit = { name: hit.name, sport: hit.sport, score: hit.score, line: hit.line };
-      if (hit.team) out.team = hit.team;
-      if (hit.nameplate) out.nameplate = true;
-      return out;
-    });
+  const plain = (hit: RawPlayerHit & { order: number }): RawPlayerHit => {
+    const out: RawPlayerHit = { name: hit.name, sport: hit.sport, score: hit.score, line: hit.line };
+    if (hit.team) out.team = hit.team;
+    if (hit.nameplate) out.nameplate = true;
+    if (hit.more) out.more = true;
+    return out;
+  };
+  const found = [...best.values()];
+  return [
+    ...found
+      .filter((hit) => !hit.more)
+      // An exact nameplate beats a name found inside other text (a bio, the background).
+      .sort((a, b) => b.score - a.score || Number(Boolean(b.nameplate)) - Number(Boolean(a.nameplate)) || a.order - b.order)
+      .slice(0, MAX_PLAYERS),
+    // Wider-list names ride after the roster-file ones, which are picked exactly as before.
+    ...found.filter((hit) => hit.more).sort((a, b) => a.order - b.order).slice(0, MAX_PLAYERS),
+  ].map(plain);
 }
 
 /** First word of every SETS name, so "2017 TOPPS" is a card year and "2019 NYY" is not. */
 const BRAND_WORDS = new Set(SETS.map((name) => normInterest(name).split(" ")[0]));
 
+/** Words a product line prints between the year and the brand: "2024-25 NBA HOOPS". */
+const BEFORE_BRAND = new Set(["nba"]);
+
 function readYear(lines: string[]): string {
   for (const line of lines) {
     for (const match of line.matchAll(YEAR_TOKEN)) {
-      const next = normInterest(match[2]).split(" ")[0] ?? "";
+      const after = normInterest(line.slice((match.index ?? 0) + match[1].length)).split(" ").filter(Boolean);
+      const next = (BEFORE_BRAND.has(after[0] ?? "") ? after[1] : after[0]) ?? "";
       if (!BRAND_WORDS.has(next)) continue;
       const parsed = parseYearLabel(match[1].replace(/\s+/g, ""));
       if (parsed) return parsed.yearLabel;
@@ -427,13 +556,32 @@ function readSerial(lines: string[], scanned = false): RawCardRead["serial"] {
     const run = Number(match[2]);
     if (number >= 1 && run >= 1 && number <= run) return { number: String(number), run: String(run) };
   }
+  // Foil and glare often drop the stamped number and leave the run: a line that is only "/175"
+  // is the card's print run. Nothing else on a card is a slash and a number alone on a line.
+  for (const line of lines) {
+    const bare = BARE_RUN.exec(line);
+    if (bare && Number(bare[1]) >= 1) return { number: "", run: String(Number(bare[1])) };
+  }
   return null;
 }
+
+/** "/175", "/ 25": a print run alone on its line, its stamped number unread. */
+const BARE_RUN = /^\s*\/\s*(\d{1,4})\s*$/;
 
 /** A line with three or more numbers besides the ratio: a row of a stat table. */
 function statRow(line: string): boolean {
   const rest = line.replace(SERIAL, " ");
   return (rest.match(/(?<![\w.])\d[\d,.]*(?![\w])/g) ?? []).length >= 3;
+}
+
+/** The newest season a stat table's rows start with: "2024 16 207 1009 16 4.9 32". "" when none. */
+function readStatSeason(lines: string[]): string {
+  const seasons = lines
+    .filter((line) => !MAKER_LINE.test(line) && statRow(line))
+    .map((line) => /^\s*((?:19|20)\d{2})(?:\s*-\s*\d{2})?\s/.exec(line)?.[1] ?? "")
+    .filter(Boolean)
+    .map(Number);
+  return seasons.length > 0 ? String(Math.max(...seasons)) : "";
 }
 
 function hasPhrase(lineWords: string[][], phrase: string[]): boolean {
@@ -471,8 +619,35 @@ function printedMakers(lineWords: string[][]): Set<string> {
   return makers;
 }
 
+/** Bowman U's other products, printed in full: never Bowman's Best, Bowman or Bowman Chrome. */
+const BOWMAN_U_OTHER = /\bbowman\s+u(?:niversity)?\s+(?:best|now)\b|\bbowman(?:'?s)?\s+(?:best|now)\s+u(?:niversity)?\b/i;
+/** Bowman U Best printed in full: "BOWMAN UNIVERSITY BEST", "BOWMAN U BEST", "BOWMAN'S BEST UNIVERSITY". */
+export const BOWMAN_U_BEST = /\bbowman\s+u(?:niversity)?\s+best\b|\bbowman(?:'?s)?\s+best\s+u(?:niversity)?\b/i;
+
+/**
+ * Products our set list doesn't have, named in full on a card or in a sold title. The set stays
+ * open instead of reading as the nearest set we do have:
+ *   - "BOWMAN U NOW" is not Bowman (Bowman U Best, printed in full, is its own set);
+ *   - "TOPPS CHROME UPDATE SAPPHIRE" is not Topps Chrome Update: Sapphire right after a Topps or
+ *     Bowman set whose Sapphire Edition isn't on the list is that edition, another product.
+ */
+function withoutUnlistedProducts(names: string[], lines: readonly string[]): string[] {
+  const text = lines.join(" \n ");
+  // Bowman U Best has its own checklist: printed in full, it is that set. Bowman U Now stays open.
+  if (BOWMAN_U_BEST.test(text)) return ["Bowman U Best", ...names.filter((name) => !/^bowman/i.test(name))];
+  if (BOWMAN_U_OTHER.test(text)) return names.filter((name) => !/^bowman/i.test(name));
+  const top = names[0];
+  if (!top || !/^(?:topps|bowman)\b/i.test(top) || /sapphire/i.test(top)) return names;
+  if ((SETS as readonly string[]).includes(`${top} Sapphire`)) return names;
+  const phrase = top.split(/\s+/).map((word) => word.replace(/[^a-z0-9]/gi, "")).join("[^a-z0-9\\n]+");
+  return new RegExp(`\\b${phrase}[^a-z0-9\\n]+(?:series[^a-z0-9\\n]+)?sapphire\\b`, "i").test(text) ? [] : names;
+}
+
 function readSets(lineWords: string[][], options: { back?: boolean } = {}): { names: string[]; printed: string[] } {
-  const present = new Set(lineWords.flat());
+  // A back's bio is sentences: "the best back in football", "quarterback Josh Allen says". One word
+  // of a set's name inside a sentence is not the set. A set printed in full still counts anywhere.
+  const sentence = (words: string[]) => words.filter((word) => /[a-z]/.test(word)).length >= 5;
+  const present = new Set((options.back ? lineWords.filter((words) => !sentence(words)) : lineWords).flat());
   const makers = printedMakers(lineWords);
   const scored: { name: string; score: number; order: number; phrase: boolean }[] = [];
   const printed: string[][] = [];
@@ -491,7 +666,8 @@ function readSets(lineWords: string[][], options: { back?: boolean } = {}): { na
     }
     // Named only in full or by the college rule (lib/scan/match.ts): "CHROME" alone never guesses it.
     if (RULE_ONLY_SETS.has(name)) return;
-    const distinct = words.filter((word) => !GENERIC_SET_WORDS.has(word));
+    // A one-letter word ("O" of O-Pee-Chee) is never a guess on its own: "o 0" is a scrap of the art.
+    const distinct = words.filter((word) => !GENERIC_SET_WORDS.has(word) && word.length > 1);
     const matched = distinct.filter((word) => present.has(word)).length;
     if (matched === 0) return;
     // "TOPPS CERTIFIED" is legal text, not Panini Certified: a one-word guess at another maker's set doesn't count.
@@ -561,8 +737,10 @@ function colorLineWords(lines: string[], directory: readonly IndexedDirectoryPla
     });
 }
 
-function readInsert(lines: string[]): string {
-  const text = ` ${insertKey(lines.join(" "))} `;
+function readInsert(lines: string[], scanned: boolean): string {
+  // On a scanned card an insert's name is a title, never a word in the bio ("a natural instinct"
+  // is not Instinct). A sold title is one long line, and is read whole.
+  const text = ` ${insertKey((scanned ? lines.filter((line) => !proseLine(line)) : lines).join(" "))} `;
   for (const item of POPULAR_INSERTS) {
     for (const name of [item.name, ...item.aliases]) {
       if (text.includes(` ${insertKey(name)} `)) return item.name;
@@ -620,27 +798,105 @@ export function cardWord(word: string): boolean {
 }
 
 /**
+ * A line that can be a person's name: two or three words of letters, no digits, and nothing a card
+ * prints that isn't a name (a position, a school, a team, or a set, color, rookie, maker or back word).
+ */
+export function readsAsNameLine(line: string, directory: readonly IndexedDirectoryPlayer[]): boolean {
+  if (/\d/.test(line) || line.length > 32) return false;
+  // "RUNNING BACK", "WIDE RECEIVER", "SS / 3B": where he plays, never who he is. Nor is a school.
+  if (positionLine(line) || schoolOnLine(line)) return false;
+  const words = normInterest(line).split(" ").filter(Boolean);
+  if (words.length < 2 || words.length > 3) return false;
+  if (!words.every((word) => /^[a-z]+$/.test(word) && word.length >= 2)) return false;
+  const { teams, nicknames } = teamIndex(directory);
+  if (teams.has(words.join(" ")) || nicknames.has(words[words.length - 1])) return false;
+  return !words.some((word) => NOT_NAME_WORDS.has(word) || SET_WORDS.has(word) || PARALLEL_WORD_SET.has(word) || BACK_WORDS.has(word));
+}
+
+const sameTeam = (a: string, b: string) => normInterest(a) === normInterest(b);
+
+const cityCache = new WeakMap<readonly IndexedDirectoryPlayer[], Set<string>>();
+
+/** Every team's name without its last word or two: "los angeles", "new york", "san antonio", "golden state", "portland". */
+function teamCities(directory: readonly IndexedDirectoryPlayer[]): Set<string> {
+  let cities = cityCache.get(directory);
+  if (!cities) {
+    cities = new Set<string>();
+    for (const name of [...teamIndex(directory).teams.keys(), ...CODED_TEAM_NAMES.map((team) => normInterest(team))]) {
+      const words = name.split(" ").filter(Boolean);
+      for (let size = 1; size < words.length; size += 1) cities.add(words.slice(0, size).join(" "));
+    }
+    cityCache.set(directory, cities);
+  }
+  return cities;
+}
+
+/**
+ * A nameplate with its team glued on: "DARRYN PETERSON UTA", "UTA DARRYN PETERSON", "CAMERON
+ * BOOZER GRIZZLIES". A team code, a nickname or a team's full name is never part of a person's name,
+ * so it comes off the front or the end, and says which team (and sport) the card is. Only when:
+ *   - what is left still reads as a name of two or three words;
+ *   - the whole line is not itself a player we list (a real name that ends in a code-looking word stays whole);
+ *   - and something backs the team: the card prints that team elsewhere (`hintTeams`), or what is
+ *     left is exactly a player on our roster, in a sport that code or team belongs to. His own team
+ *     first; a traded player's old team on our list still counts, the code being one of his sport's.
+ * Null for any other line: nothing is taken off a name on a hunch.
+ */
+export function nameBesideTeam(
+  line: string,
+  directory: readonly IndexedDirectoryPlayer[],
+  hintTeams: readonly string[] = [],
+): { name: string; team: { name: string; sport: string } } | null {
+  const tokens = line.trim().split(/\s+/).filter(Boolean);
+  if (tokens.length < 3 || tokens.length > 6 || /\d/.test(line)) return null;
+  // The whole line is someone we list: it is their name, whatever its last word looks like.
+  if (findPlayers([line], directory).some((hit) => hit.score === 1 && hit.nameplate)) return null;
+  const { teams, nicknames } = teamIndex(directory);
+  // The line is a team and nothing else ("LOS ANGELES DODGERS"): there is no name on it.
+  if (teams.has(normInterest(line)) || isCodedTeamName(line)) return null;
+  const teamsNamed = (words: readonly string[]): { name: string; sport: string }[] => {
+    if (words.length === 1) {
+      const coded = teamsForCode(words[0]);
+      if (coded.length > 0) return [...coded];
+      const nickname = normInterest(words[0]);
+      return nicknames.has(nickname) ? [...teams.entries()].filter(([key]) => key.split(" ").pop() === nickname).map(([, team]) => team) : [];
+    }
+    const team = teams.get(normInterest(words.join(" ")));
+    return team ? [team] : [];
+  };
+  for (const size of [1, 2, 3]) {
+    for (const lead of [false, true]) {
+      const teamWords = lead ? tokens.slice(0, size) : tokens.slice(tokens.length - size);
+      const rest = lead ? tokens.slice(size) : tokens.slice(0, tokens.length - size);
+      if (rest.length < 2 || rest.length > 3) continue;
+      const named = teamsNamed(teamWords);
+      const name = rest.join(" ");
+      if (named.length === 0 || !readsAsNameLine(name, directory)) continue;
+      // What is left is never a team's city: "LOS ANGELES" off "LOS ANGELES DODGERS", "NEW YORK" off
+      // "NEW YORK YANKEES" and "SAN ANTONIO" off "SAN ANTONIO SPURS" are where a team plays, not a person.
+      if (teamCities(directory).has(normInterest(name))) continue;
+      const hinted = named.find((team) => hintTeams.some((hint) => sameTeam(hint, team.name)));
+      if (hinted) return { name, team: hinted };
+      const listed = findPlayers([name], directory).find((hit) => hit.score === 1 && hit.nameplate && !hit.more);
+      if (!listed) continue;
+      const own = named.find((team) => listed.team && sameTeam(listed.team, team.name)) ?? named.find((team) => team.sport === listed.sport);
+      if (own) return { name, team: own };
+    }
+  }
+  return null;
+}
+
+/**
  * A nameplate: a short line that is only a person's name. Two or three words
  * of letters, no digits, and nothing a card prints that isn't a name (team,
  * set, color, rookie and maker words). Kept even when the directory doesn't
  * know the player, so a new prospect still reads as themselves.
  */
 function readPrintedName(lines: string[], directory: readonly IndexedDirectoryPlayer[]): { name: string; anchored: boolean } {
-  const { teams, nicknames } = teamIndex(directory);
   const isTeam = (line: string) => Boolean(readTeam([normInterest(line).split(" ").filter(Boolean)], directory)) || Boolean(schoolOnLine(line));
   const names: { line: string; index: number }[] = [];
   lines.forEach((line, index) => {
-    if (/\d/.test(line) || line.length > 32) return;
-    // "RUNNING BACK", "WIDE RECEIVER", "SS / 3B": where he plays, never who he is. Nor is a school.
-    if (positionLine(line) || schoolOnLine(line)) return;
-    const words = normInterest(line).split(" ").filter(Boolean);
-    if (words.length < 2 || words.length > 3) return;
-    if (!words.every((word) => /^[a-z]+$/.test(word) && word.length >= 2)) return;
-    if (teams.has(words.join(" ")) || nicknames.has(words[words.length - 1])) return;
-    if (words.some((word) => NOT_NAME_WORDS.has(word) || SET_WORDS.has(word) || PARALLEL_WORD_SET.has(word) || BACK_WORDS.has(word))) {
-      return;
-    }
-    names.push({ line, index });
+    if (readsAsNameLine(line, directory)) names.push({ line, index });
   });
   // The header prints the name beside the position or the team: that line wins over any other.
   const beside = names.find(({ index }) =>
@@ -689,7 +945,34 @@ function wordCode(number: string): boolean {
 }
 
 /** "#1 OVERALL PICK", "NO. 1 PROSPECT", "#3 SEED": a rank, never the card #. */
-const RANK_AFTER = /^\s*(?:overall|pick|draft|prospect|seed|ranked|rank|in\b|on\b|among|all[\s-]time)/i;
+const RANK_AFTER =
+  /^\s*(?:overall|pick|draft|prospect|seed|ranked|rank|recruit|player|scorer|choice|selection|seller|team|in\b|on\b|among|all[\s-]time)/i;
+/**
+ * "the No. 1 recruit", "wore #12 at Duke", "his No. 3 jersey": a # inside a bio sentence. On a scanned
+ * card, a word like these just before it, or a lowercase word right after it, makes it bio text.
+ */
+const SENTENCE_BEFORE = /\b(?:the|a|an|his|her|their|its|was|is|as|at|of|and|wore|wears|wearing|became|named|ranked|finished|no)\s*$/i;
+const SENTENCE_AFTER = /^\s+[a-z]{2,}/;
+
+/**
+ * A draft line on a scanned card: "DRAFTED: JAZZ #1, 2026", "ROUND 1, PICK #4", "#1 OVERALL",
+ * "DRAFTED: BUFFALO (2) 2022". Its # is where he was picked, on either side of the word, never the
+ * card #. "DRAFT PICKS" is a set's name, not a draft line.
+ */
+const DRAFT_PICKS_SET = /\bdraft\s+picks\b/i;
+/** A draft word before the #, with no other # in between: "DRAFTED: JAZZ #1", "ROUND 1, PICK #4", "1ST ROUND (#1)". */
+const DRAFT_WORD_BEFORE = /\b(?:drafted|draft\s*:|draft|pick|round|overall)\b[^#]*$/i;
+/** A draft word right after the #: "#32 OVERALL", "#4 PICK". */
+const DRAFT_WORD_AFTER = /^\s*[,)]?\s*(?:overall|pick|round|in\s+the\s+draft)\b/i;
+
+/**
+ * This # is where he was picked: the # beside a draft word, on either side of it. Only that #:
+ * "NO. 27 AARON JUDGE #32 OVERALL" still reads card # 27.
+ */
+function draftNumber(line: string, before: string, after: string): boolean {
+  if (DRAFT_PICKS_SET.test(line)) return false;
+  return DRAFT_WORD_BEFORE.test(before) || DRAFT_WORD_AFTER.test(after);
+}
 
 /** "#17 | QB", "QB #17", "#23 G-F": a jersey number beside a position, never the card #. */
 function jerseyLine(line: string, matched: string): boolean {
@@ -703,6 +986,11 @@ const LETTER_CODE = /\b(CPA|BCPA|BPA|CDA|BDA|CRA|RPA|RA|FSA)\s?[-–—‐]\s?([
 const BARE_CODE_LINE = /^(US|USC|BCP|BP|BDC|BD|HMT|T)(\d{1,4})$/;
 /** A card # printed alone on a line with no # in front, the way Topps backs print it. */
 const LONE_NUMBER_LINE = /^\d{1,4}$/;
+/**
+ * Falling binary digits behind a card's art (2026-27 Topps Rookie Code) read as "0110", "010": only
+ * 0s and 1s with a leading 0. A printed card # never starts with 0, so these are never one.
+ */
+const BINARY_ART = /^0[01]{2,}$/;
 
 /**
  * The printed card #: "#280" or "NO. 280" first, then a code like BP-27. A
@@ -722,10 +1010,15 @@ function readCardNumber(
   for (const line of lines) {
     if (!usable(line)) continue;
     for (const match of line.matchAll(CARD_NUMBER)) {
+      // Where he was drafted ("DRAFTED: JAZZ #1, 2026") is never the card #.
+      if (scanned && draftNumber(line, line.slice(0, match.index ?? 0), line.slice((match.index ?? 0) + match[0].length))) continue;
       const number = match[1].toUpperCase();
       if (looksLikeCatalogSku(number) || wordCode(number)) continue;
       // A rank ("#1 OVERALL PICK") is not the card #, on a card or in a sold title.
-      if (RANK_AFTER.test(line.slice((match.index ?? 0) + match[0].length))) continue;
+      const after = line.slice((match.index ?? 0) + match[0].length);
+      if (RANK_AFTER.test(after)) continue;
+      // On a scanned card, a # inside a sentence is the bio's ("the No. 1 recruit"), never the card #.
+      if (scanned && (SENTENCE_BEFORE.test(line.slice(0, match.index ?? 0)) || SENTENCE_AFTER.test(after))) continue;
       // On a scanned card, neither is a jersey number beside a position ("#17 | QB").
       if (scanned && jerseyLine(line, match[0])) continue;
       return number;
@@ -737,6 +1030,17 @@ function readCardNumber(
     // OCR often reads the hyphen as an en or em dash, or puts a space beside it: BP–27, BP - 27.
     for (const match of line.toUpperCase().matchAll(CODE_NUMBER)) {
       const number = `${match[1]}-${match[2]}`;
+      if (!looksLikeCatalogSku(number) && !wordCode(number)) codes.push(number);
+    }
+  }
+  // OCR can run the code into the bio's first line or the legal line: "RC-3 Cameron Boozer came…",
+  // "RC-3 © 2026 THE TOPPS COMPANY". Only at the edge of such a line, and printed in capitals.
+  if (codes.length === 0 && scanned) {
+    for (const line of lines) {
+      if (!MAKER_LINE.test(line) && usable(line)) continue;
+      const edge = EDGE_CODE_START.exec(line.trim()) ?? (MAKER_LINE.test(line) ? EDGE_CODE_END.exec(line.trim()) : null);
+      if (!edge) continue;
+      const number = `${edge[1]}-${edge[2]}`;
       if (!looksLikeCatalogSku(number) && !wordCode(number)) codes.push(number);
     }
   }
@@ -758,7 +1062,9 @@ function readCardNumber(
   // number there is a jersey. And never beside a position or team line, where it is a jersey or an age.
   const toppsMade = lines.some((item) => TOPPS_MADE.test(item)) && !lines.some((item) => OTHER_MAKER.test(item));
   if (!toppsMade) return "";
-  const lone = lines.map((line, index) => ({ line: line.trim(), index })).filter((item) => LONE_NUMBER_LINE.test(item.line));
+  const lone = lines
+    .map((line, index) => ({ line: line.trim(), index }))
+    .filter((item) => LONE_NUMBER_LINE.test(item.line) && !BINARY_ART.test(item.line));
   if (lone.length !== 1) return "";
   const { line, index } = lone[0];
   const edge = index <= 1 || index >= lines.length - 2;
@@ -766,6 +1072,43 @@ function readCardNumber(
   const beside = [lines[index - 1], lines[index + 1]].filter((item): item is string => Boolean(item));
   if (beside.some((item) => positionLine(item) || teamLine(item))) return "";
   return edge && !year && Number(line) > 0 ? String(Number(line)) : "";
+}
+
+/** A capitals code at the start of a line ("RC-3 Cameron…"), or at its end ("… TOPPS COMPANY RC-3"). */
+const EDGE_CODE_START = /^([A-Z]{1,5}\d?)\s?[-–—‐]\s?(\d{1,4})(?![\dA-Za-z])/;
+const EDGE_CODE_END = /(?<![A-Za-z])([A-Z]{1,5}\d?)\s?[-–—‐]\s?(\d{1,4})\s*$/;
+
+/** "RC 3", "RC3", "HS 22": letters and a number, the hyphen lost. The whole line, printed in capitals. */
+const LOOSE_CODE_LINE = /^([A-Z]{2,4})\s?(\d{1,3})$/;
+const LETTERS_LINE = /^[A-Z]{2,4}$/;
+
+/**
+ * Codes too loosely read to be the card # on their own (see RawCardRead.codeHints): the hyphen lost,
+ * the letters and the number on lines of their own, or any hyphen code anywhere on the side.
+ * Never a word, a position or a league mark.
+ */
+function readCodeHints(lines: readonly string[]): string[] {
+  const hints: string[] = [];
+  const add = (letters: string, digits: string) => {
+    const code = `${letters}-${Number(digits)}`;
+    if (NOT_CODE_PREFIX.has(letters) || JERSEY_POSITIONS.has(letters) || /^(?:NBA|NFL|MLB|NHL|USA|INC|LLC|LTD)$/.test(letters)) return;
+    if (looksLikeCatalogSku(code) || wordCode(code) || Number(digits) === 0) return;
+    if (!hints.includes(code)) hints.push(code);
+  };
+  const trimmed = lines.map((line) => line.trim());
+  trimmed.forEach((line, index) => {
+    const loose = LOOSE_CODE_LINE.exec(line);
+    if (loose) add(loose[1], loose[2]);
+    if (LETTERS_LINE.test(line)) {
+      for (const beside of [trimmed[index + 1], trimmed[index - 1]]) {
+        if (beside && /^\d{1,3}$/.test(beside)) add(line, beside);
+      }
+    }
+    for (const match of line.matchAll(CODE_NUMBER)) {
+      if (match[1] === match[1].toUpperCase()) add(match[1], /^\d+/.exec(match[2])?.[0] ?? "");
+    }
+  });
+  return hints;
 }
 
 const TOPPS_MADE = /\b(?:topps|bowman)\b/i;
@@ -784,6 +1127,24 @@ function positionLine(line: string): boolean {
   return words.length > 0 && words.length <= 4 && words.every((word) => POSITION_WORDS.has(word) || JERSEY_POSITIONS.has(word));
 }
 
+/** "BILLS - RB", "COWBOYS | QB": a team's nickname, then where he plays. Returns the position part, or "". */
+function nicknamePosition(line: string, directory: readonly IndexedDirectoryPlayer[]): string {
+  const words = line.toUpperCase().split(/[\s|/,·•-]+/).filter(Boolean);
+  if (words.length < 2 || words.length > 4) return "";
+  const { nicknames } = teamIndex(directory);
+  if (!nicknames.has(words[0].toLowerCase())) return "";
+  const rest = words.slice(1).join(" ");
+  return positionLine(rest) ? rest : "";
+}
+
+/** League and players' union marks, read off the logos: the sport, whatever else is on the card. */
+const LEAGUE_SPORT: [RegExp, string][] = [
+  [/\b(?:NFL|NFLPA)\b/, "Football"],
+  [/\b(?:MLB|MLBPA)\b/, "Baseball"],
+  [/\b(?:NBA|NBPA|WNBA|WNBPA)\b/, "Basketball"],
+  [/\b(?:NHL|NHLPA)\b/, "Hockey"],
+];
+
 /** The sport a position names. Only positions one sport uses: "CENTER" and "GUARD" say nothing. */
 const POSITION_SPORT: [RegExp, string][] = [
   [/\b(?:QUARTERBACK|RUNNING\s+BACK|WIDE\s+RECEIVER|TIGHT\s+END|LINEBACKER|CORNERBACK|DEFENSIVE\s+(?:END|BACK|TACKLE|LINEMAN)|OFFENSIVE\s+(?:TACKLE|LINEMAN)|QB|RB|WR|TE|LB|CB|EDGE)\b/i, "Football"],
@@ -794,11 +1155,19 @@ const POSITION_SPORT: [RegExp, string][] = [
 const SPORT_WORD = /\b(FOOTBALL|BASEBALL|BASKETBALL|HOCKEY)\b/i;
 
 /** The sport a position line gives, else the sport the product line names ("... INCEPTION FOOTBALL"). */
-function readSportHint(lines: string[]): string {
+function readSportHint(lines: string[], directory: readonly IndexedDirectoryPlayer[], scanned: boolean): string {
   for (const line of lines) {
-    if (!positionLine(line)) continue;
-    for (const [pattern, sport] of POSITION_SPORT) if (pattern.test(line)) return sport;
+    const position = positionLine(line) ? line : nicknamePosition(line, directory);
+    if (!position) continue;
+    for (const [pattern, sport] of POSITION_SPORT) if (pattern.test(position)) return sport;
   }
+  // A league mark: on a card, a short line of its own (the logo), never a word in the bio.
+  const marks = new Set<string>();
+  for (const line of lines) {
+    if (scanned && proseLine(line)) continue;
+    for (const [pattern, sport] of LEAGUE_SPORT) if (pattern.test(line.toUpperCase())) marks.add(sport);
+  }
+  if (marks.size === 1) return [...marks][0];
   for (const line of lines) {
     // A product line, not a bio ("played football and baseball in high school").
     if (!/\b(?:topps|panini|bowman|upper\s+deck|leaf)\b/i.test(line)) continue;
@@ -860,10 +1229,12 @@ function readBaseballSign(lines: string[], read: RawCardRead, directory: readonl
 /** Letters, a hyphen, letters, on a short line: an autograph or relic checklist code (RAV-ML). */
 const ANY_LETTER_CODE = /\b([A-Z]{2,5})\s?[-–—‐]\s?([A-Z]{2,4})\b/g;
 
-function readLetterCodes(lines: string[], scanned: boolean): string[] {
+function readLetterCodes(lines: string[], scanned: boolean, directory: readonly IndexedDirectoryPlayer[]): string[] {
   const codes: string[] = [];
   for (const line of lines) {
     if (MAKER_LINE.test(line) || (scanned && proseLine(line)) || line.split(/\s+/).length > 3 || positionLine(line)) continue;
+    // "BILLS - RB" is the team and the position, never a checklist code.
+    if (nicknamePosition(line, directory)) continue;
     for (const match of line.toUpperCase().matchAll(ANY_LETTER_CODE)) {
       if (NOT_CODE_PREFIX.has(match[1]) || NOT_CODE_PREFIX.has(match[2])) continue;
       const code = `${match[1]}-${match[2]}`;
@@ -879,6 +1250,9 @@ export const AUTO_CODE_PREFIX = /^(?:CPA|BCPA|BPA|CDA|BDA|CRA|RPA|RA|RAV|FSA|BSA
 const AUTOGRAPH_WORDS = /\bAUTOGRAPH(?:S|ED)?\b/i;
 /** "AUTO" as its own word, never part of a hyphenated one ("auto-pilot"). */
 const AUTO_WORD = /(?<![\w-])AUTO(?![\w-])/i;
+
+/** The signed-card notices: legal text, never the set. */
+const AUTOGRAPH_NOTICE = /\bcertified\s+autograph\s+issue\b|\bguarantees?\s+the\s+authenticity\b/i;
 
 /** AUTOGRAPH in any form, or "AUTO" alone on a short line that isn't a bio sentence. */
 function saysAuto(line: string): boolean {
@@ -917,14 +1291,25 @@ export function readRawCardText(
 
   const lineWords = clean.map((line) => normInterest(line).split(" ").filter(Boolean));
   // The back's maker lines name the company, not the set, and their year is the © year.
-  const maker = (line: string) => MAKER_LINE.test(line) || (options.side === "back" && MAKER_ONLY_LINE.test(line));
+  // "TOPPS CERTIFIED AUTOGRAPH ISSUE" and "Topps guarantees the authenticity of the autograph(s)" say
+  // the card is signed and who vouches for it: every signed Topps or Bowman card prints them.
+  const maker = (line: string) => MAKER_LINE.test(line) || AUTOGRAPH_NOTICE.test(line) || (options.side === "back" && MAKER_ONLY_LINE.test(line));
   const printed = clean.filter((line) => !maker(line));
 
-  read.players = findPlayers(clean, directory);
-  const printedName = readPrintedName(clean, directory);
+  // A scanned nameplate with its team glued on ("DARRYN PETERSON UTA") is read as the name alone.
+  const sideTeam = readTeam(lineWords, directory);
+  const glued = options.side ? clean.map((line) => nameBesideTeam(line, directory, sideTeam ? [sideTeam.name] : [])) : [];
+  const nameLinesRead = glued.some(Boolean) ? clean.map((line, index) => glued[index]?.name ?? line) : clean;
+  read.players = findPlayers(nameLinesRead, directory);
+  const printedName = readPrintedName(nameLinesRead, directory);
   read.printedName = printedName.name;
   read.printedNameAnchored = printedName.anchored;
-  read.team = readTeam(lineWords, directory);
+  // A wider-list name only confirms the name this side printed: the same line the card would have
+  // been read by without it. Any other line that happens to be a listed name is not the player.
+  const printedKey = compactNorm(normInterest(read.printedName));
+  read.players = read.players.filter((hit) => !hit.more || (Boolean(printedKey) && compactNorm(normInterest(hit.name)) === printedKey));
+  // The team line the side prints, else the team taken off the nameplate: either gives the sport.
+  read.team = sideTeam ?? glued.find(Boolean)?.team ?? null;
   read.yearLabel = readYear(printed);
   read.copyrightYear =
     clean.map((line) => COPYRIGHT.exec(line)?.[1] ?? "").find(Boolean) ??
@@ -932,6 +1317,7 @@ export function readRawCardText(
   if (!read.copyrightYear && options.side === "back") {
     read.copyrightYear = clean.filter((line) => MAKER_ONLY_LINE.test(line)).map((line) => MAKER_YEAR.exec(line)?.[1] ?? "").find(Boolean) ?? "";
   }
+  if (!read.copyrightYear) read.copyrightYear = clean.map((line) => COPYRIGHT_LATE.exec(line)?.[1] ?? "").find(Boolean) ?? "";
   read.cardNumber = readCardNumber(clean, Boolean(options.side), options.side, (line) =>
     Boolean(readTeam([normInterest(line).split(" ").filter(Boolean)], directory)),
   );
@@ -939,12 +1325,15 @@ export function readRawCardText(
   const school = readSchool(clean, directory, nameLines);
   read.school = school.school;
   read.schoolInHeader = school.inHeader;
-  read.sportHint = readSportHint(clean);
+  read.sportHint = readSportHint(clean, directory, Boolean(options.side));
   read.baseballSign = readBaseballSign(clean, read, directory);
-  read.letterCodes = readLetterCodes(clean, Boolean(options.side));
+  read.letterCodes = readLetterCodes(clean, Boolean(options.side), directory);
+  read.codeHints = options.side ? readCodeHints(clean).filter((code) => code !== read.cardNumber) : [];
   read.isAuto =
     clean.some(saysAuto) ||
     [read.cardNumber, ...read.letterCodes].some((code) => AUTO_CODE_PREFIX.test(/^([A-Z]+)-/.exec(code)?.[1] ?? ""));
+  if (options.side && clean.some(saysRelic)) read.isRelic = true;
+  read.statSeason = options.side === "back" ? readStatSeason(clean) : "";
   read.subset = readSubset(clean);
   read.serial = readSerial(clean, Boolean(options.side));
   read.isRookie = clean.some((line) => /\b(RC|ROOKIE)\b/i.test(line));
@@ -955,10 +1344,18 @@ export function readRawCardText(
     lineWords.filter((_words, i) => !maker(clean[i])),
     { back: options.side === "back" },
   );
-  read.setNames = sets.names;
-  read.printedSets = sets.printed;
+  let kept = withoutUnlistedProducts(sets.names, clean);
+  // Nothing else names the set, and the back signs T.C.G.: a vintage Topps card.
+  if (kept.length === 0 && options.side === "back" && clean.some((line) => TOPPS_CHEWING_GUM.test(line))) kept = ["Topps"];
+  read.setNames = kept;
+  // No set on our list was named: the back's own product line still names the product.
+  if (kept.length === 0 && options.side === "back") {
+    const product = printedProduct(clean);
+    if (product) read.productText = product;
+  }
+  read.printedSets = sets.printed.filter((name) => kept.includes(name));
   read.parallelWords = readParallelWords(colorLineWords(clean, directory, Boolean(options.side)));
-  read.insert = readInsert(clean);
+  read.insert = readInsert(clean, Boolean(options.side));
   read.side = readSide(clean, lineWords, read.copyrightYear);
   return read;
 }

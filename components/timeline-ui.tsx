@@ -104,7 +104,7 @@ export function LaneTabs({ lane, onChange }: { lane: HomeLane; onChange: (lane: 
               aria-controls="home-lane-panel"
               tabIndex={active ? 0 : -1}
               onClick={() => onChange(item.id)}
-              className={`tap-fade min-h-12 text-[15px] tracking-tight transition-colors duration-200 hover:bg-zinc-900/[0.03] dark:hover:bg-white/[0.03] ${
+              className={`tap-fade min-h-12 text-15 tracking-tight transition-colors duration-200 hover:bg-zinc-900/[0.03] dark:hover:bg-white/[0.03] ${
                 active ? "font-semibold text-[var(--foreground)]" : "font-medium text-zinc-500 dark:text-zinc-400"
               }`}
             >
@@ -237,7 +237,7 @@ export function NewPostsPill({ onClick }: { onClick: () => void }) {
  */
 export function PostBody({
   text,
-  className = "text-[15px] leading-[1.4]",
+  className = "text-15 leading-[1.4]",
   collapsible = true,
 }: {
   text: string;
@@ -281,7 +281,7 @@ export function PostBody({
           type="button"
           aria-expanded={false}
           onClick={() => setExpanded(true)}
-          className="hit-44 mt-1 text-[15px] font-semibold text-violet-600 hover:underline dark:text-[#A78BFA]"
+          className="hit-44 mt-1 text-15 font-semibold text-violet-600 hover:underline dark:text-[#A78BFA]"
         >
           Show more
         </button>
@@ -296,7 +296,7 @@ export function PostPill({ label, solid = false }: { label: string; solid?: bool
     <span
       data-post-pill=""
       data-grade-badge={solid ? "" : undefined}
-      className={`inline-flex h-6 items-center rounded-full px-2.5 font-mono text-[11px] font-medium ${
+      className={`inline-flex h-6 items-center rounded-full px-2.5 font-mono text-11 font-medium ${
         solid
           ? "bg-violet-600 text-white ring-1 ring-white/15 ring-inset"
           : "bg-violet-600/10 text-violet-700 ring-1 ring-violet-600/20 ring-inset dark:bg-violet-500/15 dark:text-[#A78BFA] dark:ring-violet-400/25"

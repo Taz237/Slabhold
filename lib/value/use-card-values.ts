@@ -78,6 +78,12 @@ async function loadCardValues(
   return next;
 }
 
+/** True when every card in `key` (ids joined by commas) already has a value in hand. */
+export function valuesCover(key: string, values: Map<string, CardValueResult>): boolean {
+  if (!key || values.size === 0) return false;
+  return key.split(",").every((id) => values.has(id));
+}
+
 export type CardValuesSessionResult = {
   loading: boolean;
   error: boolean;
@@ -171,7 +177,8 @@ export function useCardValues(
     };
   }, [attempt, key]);
 
-  const loading = Boolean(key) && (settledKey !== key || pending);
+  // A refresh of cards that all have a value keeps those on screen: no skeleton over known prices.
+  const loading = Boolean(key) && (settledKey !== key || pending) && !(valuesCover(key, values) && !error);
 
   return { values, loading, error, errorMessage, retry };
 }

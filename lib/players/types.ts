@@ -13,4 +13,9 @@ export type IndexedDirectoryPlayer = DirectoryPlayer & {
   compact: string;
   /** Single-letter runs joined, only when that differs from `words` ("c j" → "cj"). */
   joined?: readonly string[];
+  /**
+   * From the wider list (directory-more.json: retired, college, prospects). The scanner uses such a
+   * row only to confirm a name the card printed on a line of its own, exactly. Never a near match.
+   */
+  more?: true;
 };

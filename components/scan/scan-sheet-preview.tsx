@@ -7,14 +7,18 @@ import { SearchDoor } from "@/components/add-card/search-door";
 import { CompSheet } from "@/components/scan/comp-sheet";
 import { ScanHub } from "@/components/scan/scan-hub";
 import { ConfirmSheet, type ConfirmSheetState } from "@/components/scan/confirm-sheet";
+import { closestMatch } from "@/lib/scan/closest";
 import { saveScan, saveScanMatch } from "@/lib/capture";
 import { newScanId, scanAddPath, scanHandoffFrom } from "@/lib/scan/handoff";
 import type { ScanMatch } from "@/lib/scan/match";
 import {
   PREVIEW_NUMBERED,
+  PREVIEW_BACK_PHOTO,
   PREVIEW_PHOTO,
   PREVIEW_RAW,
   PREVIEW_SLAB,
+  PREVIEW_SLAB_VERSION,
+  PREVIEW_SLAB_VERSION_PICKED,
   PREVIEW_FROM_SALES,
   PREVIEW_SOLDS,
   PREVIEW_SOLDS_PARALLEL,
@@ -22,6 +26,8 @@ import {
   PREVIEW_UNNUMBERED,
   PREVIEW_SOLDS_BASE_OFFERS,
   PREVIEW_SOLDS_NO_BASE,
+  PREVIEW_ROOKIE_CODE,
+  PREVIEW_SOLDS_ROOKIE_CODE,
   PREVIEW_SOLDS_UNCLEAN,
   PREVIEW_SOLDS_RUN_ONLY,
   PREVIEW_SOLDS_LIMITED,
@@ -41,7 +47,10 @@ export type PreviewKind =
   | "raw"
   | "numbered"
   | "matching"
+  | "reading"
   | "none"
+  | "closest"
+  | "unpinned"
   | "offline"
   | "comp"
   | "comp-raw"
@@ -55,12 +64,17 @@ export type PreviewKind =
   | "sapphire"
   | "comp-sapphire-ask"
   | "slab-looking"
+  | "slab-version"
+  | "slab-version-unavailable"
   | "from-sales"
   | "comp-from-sales"
   | "comp-run-only"
   | "comp-unnumbered"
   | "comp-no-base"
+  | "comp-rookie-code"
   | "unclean"
+  | "flip"
+  | "comp-flip"
   | "hub"
   | "hub-comp"
   | "door";
@@ -70,17 +84,40 @@ const SCREENS = new Set<PreviewKind>(["hub", "hub-comp", "door"]);
 const STATES: Record<Exclude<PreviewKind, "hub" | "hub-comp" | "door">, ConfirmSheetState> = {
   slab: { kind: "ready", matches: [PREVIEW_SLAB], solds: PREVIEW_SOLDS },
   "slab-looking": { kind: "ready", matches: [PREVIEW_SLAB], solds: PREVIEW_SOLDS_LOOKING },
+  "slab-version": { kind: "ready", matches: [PREVIEW_SLAB_VERSION], solds: { status: "done", comp: { status: "version" }, query: null } },
+  "slab-version-unavailable": { kind: "ready", matches: [PREVIEW_SLAB_VERSION_PICKED], solds: { status: "done", comp: { status: "unavailable" }, query: null } },
   "from-sales": { kind: "ready", matches: [PREVIEW_FROM_SALES], solds: PREVIEW_SOLDS_PARALLEL },
   "comp-from-sales": { kind: "ready", matches: [PREVIEW_FROM_SALES], solds: PREVIEW_SOLDS_PARALLEL },
   "comp-run-only": { kind: "ready", matches: [PREVIEW_RUN_ONLY], solds: PREVIEW_SOLDS_RUN_ONLY },
   "comp-unnumbered": { kind: "ready", matches: [PREVIEW_UNNUMBERED], solds: PREVIEW_SOLDS_BASE_OFFERS },
   "comp-no-base": { kind: "ready", matches: [PREVIEW_UNNUMBERED], solds: PREVIEW_SOLDS_NO_BASE },
+  "comp-rookie-code": { kind: "ready", matches: PREVIEW_ROOKIE_CODE, solds: PREVIEW_SOLDS_ROOKIE_CODE },
   unclean: { kind: "ready", matches: [PREVIEW_UNNUMBERED], solds: PREVIEW_SOLDS_UNCLEAN },
   raw: { kind: "ready", matches: PREVIEW_RAW, solds: PREVIEW_SOLDS_NONE },
   numbered: { kind: "ready", matches: [PREVIEW_NUMBERED, ...PREVIEW_RAW.slice(1)] },
   matching: { kind: "matching" },
+  reading: { kind: "matching" },
+  flip: { kind: "back", matches: [{ ...PREVIEW_RAW[0], yearLabel: "", cardNumber: "", sureness: { ...PREVIEW_RAW[0].sureness, year: "unsure", number: "unsure" } }] },
+  "comp-flip": { kind: "back", matches: [{ ...PREVIEW_RAW[0], cardNumber: "", sureness: { ...PREVIEW_RAW[0].sureness, number: "unsure" } }] },
   none: { kind: "none" },
+  closest: {
+    kind: "none",
+    closest: {
+      player: "Mario Lemieux",
+      cards: (
+        [
+          ["1985-86", "Topps", "9"],
+          ["1985-86", "O-Pee-Chee", "9"],
+          ["1986-87", "Topps", "122"],
+          ["1986-87", "O-Pee-Chee", "122"],
+          ["1987-88", "O-Pee-Chee", "15"],
+        ] as const
+      ).map(([yearLabel, setBrand, cardNumber]) => closestMatch({ playerName: "Mario Lemieux", sport: "Hockey", yearLabel, setBrand, cardNumber })),
+      confirmed: [true, false, false, false, false],
+    },
+  },
   offline: { kind: "none", offline: true },
+  unpinned: { kind: "none", unpinned: true },
   comp: { kind: "ready", matches: [PREVIEW_SLAB], solds: PREVIEW_SOLDS },
   "comp-raw": { kind: "ready", matches: PREVIEW_RAW },
   "comp-none": {
@@ -103,7 +140,10 @@ const LABELS: Record<PreviewKind, string> = {
   raw: "Raw, parallel open",
   numbered: "Numbered",
   matching: "Matching",
+  reading: "Reading, front and back",
   none: "No match",
+  closest: "Only the player read: closest cards",
+  unpinned: "Conflicts with the back",
   offline: "Offline",
   comp: "Comp a slab",
   "comp-raw": "Comp a raw card",
@@ -117,12 +157,17 @@ const LABELS: Record<PreviewKind, string> = {
   sapphire: "Sapphire from recent sales",
   "comp-sapphire-ask": "Comp, is this Sapphire?",
   "slab-looking": "Slab, looking up",
+  "slab-version": "Slab, which version",
+  "slab-version-unavailable": "Slab, version picked, read failed",
   "from-sales": "Parallel from sales",
   "comp-from-sales": "Comp, parallel from sales",
   "comp-run-only": "Comp, numbered, no color named",
   "comp-unnumbered": "Comp, unnumbered base",
   "comp-no-base": "Comp, no Base sales",
+  "comp-rookie-code": "Comp, Rookie Code insert, version open",
   unclean: "Sales too far apart",
+  flip: "Flip it over",
+  "comp-flip": "Comp, flip it over",
   hub: "Hub, no reader",
   "hub-comp": "Hub comp, no reader",
   door: "Add card door",
@@ -178,7 +223,7 @@ export function ScanSheetPreview({ kind }: { kind: PreviewKind }) {
       ) : null}
       {kind === "hub" || kind === "hub-comp" ? (
         <div className="rounded-3xl border border-zinc-200 p-4 dark:border-white/10">
-          <ScanHub key={kind} purpose={kind === "hub" ? "add" : "comp"} deps={PREVIEW_HUB_DEPS} />
+          <ScanHub key={kind} deps={PREVIEW_HUB_DEPS} />
         </div>
       ) : null}
       {kind === "door" ? (
@@ -214,6 +259,8 @@ export function ScanSheetPreview({ kind }: { kind: PreviewKind }) {
         <ConfirmSheet
           key={`${kind}-${sapphire}`}
           photo={PREVIEW_PHOTO}
+          backPhoto={kind === "reading" ? PREVIEW_BACK_PHOTO : null}
+          lookup={previewCompLookup}
           state={sapphire ? STATES.sapphire : STATES[kind as keyof typeof STATES]}
           onSapphire={() => setSapphire(true)}
           onConfirm={confirm}
@@ -222,6 +269,7 @@ export function ScanSheetPreview({ kind }: { kind: PreviewKind }) {
             router.push("/cards/new");
           }}
           onRetake={() => setOpen(false)}
+          onPickClosest={noop}
           onClose={() => setOpen(false)}
         />
       ) : null}

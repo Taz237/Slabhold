@@ -16,7 +16,7 @@ export function CategoryPicker({
   onChange: (value: CardCategory) => void;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Card category">
+    <div className="grid grid-cols-2 big:grid-cols-1 gap-2" role="radiogroup" aria-label="Card category">
       {OPTIONS.map((option) => {
         const selected = value === option.id;
         return (

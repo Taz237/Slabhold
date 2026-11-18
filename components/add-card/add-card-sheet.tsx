@@ -1,5 +1,6 @@
 "use client";
 
+import { useSheetDrag } from "@/lib/ui/use-sheet-drag";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { Camera, ImagePlus } from "lucide-react";
@@ -36,6 +37,9 @@ export function AddCardSheet({ deps: overrides, onClose }: { deps?: Partial<AddC
   const router = useRouter();
   const titleId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  /** Swipe down to close; the backdrop slides it away first. */
+  const dismiss = useSheetDrag(dialogRef, rootRef, onClose);
   const cameraRef = useRef<HTMLInputElement>(null);
   const libraryRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -82,12 +86,12 @@ export function AddCardSheet({ deps: overrides, onClose }: { deps?: Partial<AddC
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center md:items-center" data-slot="add-sheet">
+    <div ref={rootRef} className="fixed inset-0 z-[60] flex items-end justify-center md:items-center" data-slot="add-sheet">
       <button
         type="button"
         aria-label={ADD_SHEET_COPY.close}
         tabIndex={-1}
-        onClick={onClose}
+        onClick={dismiss}
         className="glass-scrim absolute inset-0 bg-zinc-950/55 backdrop-blur-md motion-safe:animate-[backdrop-in_220ms_ease-out_both]"
       />
       <div
@@ -96,14 +100,14 @@ export function AddCardSheet({ deps: overrides, onClose }: { deps?: Partial<AddC
         aria-modal="true"
         aria-labelledby={titleId}
         aria-busy={busy}
-        className="relative w-full max-w-md rounded-t-[28px] border border-b-0 border-zinc-200 bg-[var(--background)] md:border-b dark:border-white/10 px-4 pt-2 pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgba(9,9,11,0.35)] motion-safe:animate-[sheet-up_320ms_cubic-bezier(0.22,1,0.36,1)_both] motion-reduce:animate-[backdrop-in_160ms_ease-out_both] md:rounded-[28px] md:pb-5"
+        className="relative w-full max-w-md rounded-t-[28px] border border-b-0 border-zinc-200 bg-[var(--background)] md:border-b dark:border-white/10 px-4 pt-2 pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgba(9,9,11,0.35)] sheet-slide motion-reduce:animate-[backdrop-in_160ms_ease-out_both] md:rounded-[28px] md:pb-5"
       >
         <div aria-hidden className="mx-auto mb-4 h-1 w-9 rounded-full bg-zinc-300 dark:bg-white/20" />
         <h2 id={titleId} className="sr-only">
           {ADD_SHEET_COPY.title}
         </h2>
         <PhotoFileInputs cameraRef={cameraRef} libraryRef={libraryRef} onPick={(file) => void onPick(file)} />
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 big:grid-cols-1 gap-3">
           <button
             type="button"
             data-add-tile="scan"
@@ -114,7 +118,7 @@ export function AddCardSheet({ deps: overrides, onClose }: { deps?: Partial<AddC
             <span className="grid size-12 place-items-center rounded-2xl bg-white/15">
               <Camera className="size-6" strokeWidth={1.75} aria-hidden />
             </span>
-            <span className="text-[17px] font-semibold tracking-tight">{ADD_SHEET_COPY.scan}</span>
+            <span className="text-17 font-semibold tracking-tight">{ADD_SHEET_COPY.scan}</span>
           </button>
           <button
             type="button"
@@ -126,7 +130,7 @@ export function AddCardSheet({ deps: overrides, onClose }: { deps?: Partial<AddC
             <span className="grid size-12 place-items-center rounded-2xl bg-zinc-900/[0.06] dark:bg-white/10">
               <ImagePlus className="size-6" strokeWidth={1.75} aria-hidden />
             </span>
-            <span className="text-[17px] font-semibold tracking-tight">{ADD_SHEET_COPY.upload}</span>
+            <span className="text-17 font-semibold tracking-tight">{ADD_SHEET_COPY.upload}</span>
           </button>
         </div>
         {error ? (

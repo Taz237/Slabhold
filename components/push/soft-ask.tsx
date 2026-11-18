@@ -80,17 +80,17 @@ export function SoftAsk({
             <Bell className="h-6 w-6" strokeWidth={2.25} />
           </span>
           <div className="min-w-0 flex-1 pt-0.5">
-            <h2 id={titleId} className="text-[20px] leading-6 font-semibold tracking-tight">
+            <h2 id={titleId} className="text-[1.25rem] leading-6 font-semibold tracking-tight">
               {title}
             </h2>
-            <p id={bodyId} className="mt-1.5 text-[15px] leading-[1.35rem] text-zinc-600 dark:text-zinc-400">
+            <p id={bodyId} className="mt-1.5 text-15 leading-[1.35rem] text-zinc-600 dark:text-zinc-400">
               {body}
             </p>
           </div>
         </div>
 
         {home ? (
-          <p className="mt-4 flex items-center gap-2 rounded-xl bg-zinc-100 px-3 py-2.5 text-[13px] text-zinc-600 dark:bg-white/[0.06] dark:text-zinc-400">
+          <p className="mt-4 flex items-center gap-2 rounded-xl bg-zinc-100 px-3 py-2.5 text-13 text-zinc-600 dark:bg-white/[0.06] dark:text-zinc-400">
             <Share aria-hidden className="h-4 w-4 shrink-0 text-[#7C3AED] dark:text-[#A78BFA]" />
             <span>
               Tap <span className="font-semibold text-zinc-900 dark:text-zinc-100">Share</span>, then{" "}
@@ -105,7 +105,7 @@ export function SoftAsk({
                 className="flex flex-col items-center gap-1 rounded-xl bg-zinc-100 px-1 py-2.5 dark:bg-white/[0.06]"
               >
                 <Icon aria-hidden className="h-4 w-4 text-[#7C3AED] dark:text-[#A78BFA]" />
-                <span className="text-[13px] font-medium text-zinc-500 dark:text-zinc-400">
+                <span className="text-13 font-medium text-zinc-500 dark:text-zinc-400">
                   {label}
                 </span>
               </li>
@@ -118,14 +118,14 @@ export function SoftAsk({
             ref={primaryRef}
             type="button"
             onClick={onPrimary}
-            className="tap h-12 rounded-full bg-violet-600 text-[15px] font-semibold text-white transition-colors hover:bg-violet-700 focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:ring-offset-2 focus-visible:outline-none dark:focus-visible:ring-offset-[#18181B]"
+            className="tap h-12 rounded-full bg-violet-600 text-15 font-semibold text-white transition-colors hover:bg-violet-700 focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:ring-offset-2 focus-visible:outline-none dark:focus-visible:ring-offset-[#18181B]"
           >
             {home ? "Show me how" : "Turn on"}
           </button>
           <button
             type="button"
             onClick={onDismiss}
-            className="tap h-11 rounded-full text-[15px] font-semibold text-zinc-600 hover:bg-zinc-100 focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:outline-none dark:text-zinc-400 dark:hover:bg-white/[0.06]"
+            className="tap h-11 rounded-full text-15 font-semibold text-zinc-600 hover:bg-zinc-100 focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:outline-none dark:text-zinc-400 dark:hover:bg-white/[0.06]"
           >
             Not now
           </button>

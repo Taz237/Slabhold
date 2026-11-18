@@ -1,0 +1,1160 @@
+{
+ "sport": "Football",
+ "yearLabel": "2025",
+ "product": "Topps Resurgence",
+ "manufacturer": "Topps",
+ "source": "https://www.checklistinsider.com/2025-topps-resurgence-football",
+ "official": false,
+ "parallels": [
+  {
+   "subset": "Base",
+   "name": "Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Blue & Orange Spark",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Sky Blue & Pink Shock",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Prism",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "High Voltage",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Surge",
+   "serialRun": 425
+  },
+  {
+   "subset": "Base",
+   "name": "Black & White Surge",
+   "serialRun": 399
+  },
+  {
+   "subset": "Base",
+   "name": "Bronze Surge",
+   "serialRun": 375
+  },
+  {
+   "subset": "Base",
+   "name": "Magenta Surge",
+   "serialRun": 299
+  },
+  {
+   "subset": "Base",
+   "name": "Navy Surge",
+   "serialRun": 275
+  },
+  {
+   "subset": "Base",
+   "name": "Aqua Surge",
+   "serialRun": 250
+  },
+  {
+   "subset": "Base",
+   "name": "Yellow Surge",
+   "serialRun": 225
+  },
+  {
+   "subset": "Base",
+   "name": "Crimson Surge",
+   "serialRun": 199
+  },
+  {
+   "subset": "Base",
+   "name": "Green Surge",
+   "serialRun": 175
+  },
+  {
+   "subset": "Base",
+   "name": "Teal Surge",
+   "serialRun": 149
+  },
+  {
+   "subset": "Base",
+   "name": "White Surge",
+   "serialRun": 125
+  },
+  {
+   "subset": "Base",
+   "name": "Digital Surge",
+   "serialRun": 100
+  },
+  {
+   "subset": "Base",
+   "name": "Blue Surge",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base",
+   "name": "Purple Surge",
+   "serialRun": 75
+  },
+  {
+   "subset": "Base",
+   "name": "Gold Power Surge",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base",
+   "name": "Orange Power Surge",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base",
+   "name": "Lime Green Power Surge",
+   "serialRun": 15
+  },
+  {
+   "subset": "Base",
+   "name": "Pink Power Surge",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base",
+   "name": "Red Power Surge",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base",
+   "name": "Silver Static",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Orange Static",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base",
+   "name": "Lime Green Static",
+   "serialRun": 15
+  },
+  {
+   "subset": "Base",
+   "name": "Pink Static",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base",
+   "name": "Red Static",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base",
+   "name": "Black Static",
+   "serialRun": 2
+  },
+  {
+   "subset": "Base Rookies",
+   "name": "Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Rookies",
+   "name": "Blue & Orange Spark",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Rookies",
+   "name": "Sky Blue & Pink Shock",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Rookies",
+   "name": "Prism",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Rookies",
+   "name": "High Voltage",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Rookies",
+   "name": "Surge",
+   "serialRun": 425
+  },
+  {
+   "subset": "Base Rookies",
+   "name": "Black & White Surge",
+   "serialRun": 399
+  },
+  {
+   "subset": "Base Rookies",
+   "name": "Bronze Surge",
+   "serialRun": 375
+  },
+  {
+   "subset": "Base Rookies",
+   "name": "Magenta Surge",
+   "serialRun": 299
+  },
+  {
+   "subset": "Base Rookies",
+   "name": "Navy Surge",
+   "serialRun": 275
+  },
+  {
+   "subset": "Base Rookies",
+   "name": "Aqua Surge",
+   "serialRun": 250
+  },
+  {
+   "subset": "Base Rookies",
+   "name": "Yellow Surge",
+   "serialRun": 225
+  },
+  {
+   "subset": "Base Rookies",
+   "name": "Crimson Surge",
+   "serialRun": 199
+  },
+  {
+   "subset": "Base Rookies",
+   "name": "Green Surge",
+   "serialRun": 175
+  },
+  {
+   "subset": "Base Rookies",
+   "name": "Teal Surge",
+   "serialRun": 149
+  },
+  {
+   "subset": "Base Rookies",
+   "name": "White Surge",
+   "serialRun": 125
+  },
+  {
+   "subset": "Base Rookies",
+   "name": "Digital Surge",
+   "serialRun": 100
+  },
+  {
+   "subset": "Base Rookies",
+   "name": "Blue Surge",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base Rookies",
+   "name": "Purple Surge",
+   "serialRun": 75
+  },
+  {
+   "subset": "Base Rookies",
+   "name": "Gold Power Surge",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base Rookies",
+   "name": "Orange Power Surge",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Rookies",
+   "name": "Lime Green Power Surge",
+   "serialRun": 15
+  },
+  {
+   "subset": "Base Rookies",
+   "name": "Pink Power Surge",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Rookies",
+   "name": "Red Power Surge",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Rookies",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Rookies",
+   "name": "Silver Static",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Rookies",
+   "name": "Orange Static",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Rookies",
+   "name": "Lime Green Static",
+   "serialRun": 15
+  },
+  {
+   "subset": "Base Rookies",
+   "name": "Pink Static",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Rookies",
+   "name": "Red Static",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Rookies",
+   "name": "Black Static",
+   "serialRun": 2
+  },
+  {
+   "subset": "Base Signatures",
+   "name": "Blue Surge",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base Signatures",
+   "name": "Gold Power Surge",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base Signatures",
+   "name": "Orange Power Surge",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Signatures",
+   "name": "Lime Green Power Surge",
+   "serialRun": 15
+  },
+  {
+   "subset": "Base Signatures",
+   "name": "Pink Power Surge",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Signatures",
+   "name": "Red Power Surge",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Signatures",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Signatures",
+   "name": "Silver Static",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Signatures",
+   "name": "Gold Static",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base Signatures",
+   "name": "Orange Static",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Signatures",
+   "name": "Lime Green Static",
+   "serialRun": 15
+  },
+  {
+   "subset": "Base Signatures",
+   "name": "Pink Static",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Signatures",
+   "name": "Red Static",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Signatures",
+   "name": "Black Static",
+   "serialRun": 2
+  },
+  {
+   "subset": "Base Rookie Signatures",
+   "name": "Black & White",
+   "serialRun": 375
+  },
+  {
+   "subset": "Base Rookie Signatures",
+   "name": "Magenta Surge",
+   "serialRun": 299
+  },
+  {
+   "subset": "Base Rookie Signatures",
+   "name": "Aqua Surge",
+   "serialRun": 250
+  },
+  {
+   "subset": "Base Rookie Signatures",
+   "name": "White Surge",
+   "serialRun": 125
+  },
+  {
+   "subset": "Base Rookie Signatures",
+   "name": "Blue Surge",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base Rookie Signatures",
+   "name": "Purple Surge",
+   "serialRun": 75
+  },
+  {
+   "subset": "Base Rookie Signatures",
+   "name": "Gold Power Surge",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base Rookie Signatures",
+   "name": "Orange Power Surge",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Rookie Signatures",
+   "name": "Lime Green Power Surge",
+   "serialRun": 15
+  },
+  {
+   "subset": "Base Rookie Signatures",
+   "name": "Pink Power Surge",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Rookie Signatures",
+   "name": "Red Power Surge",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Rookie Signatures",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Rookie Signatures",
+   "name": "Silver Static",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Rookie Signatures",
+   "name": "Gold Static",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base Rookie Signatures",
+   "name": "Orange Static",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Rookie Signatures",
+   "name": "Lime Green Static",
+   "serialRun": 15
+  },
+  {
+   "subset": "Base Rookie Signatures",
+   "name": "Pink Static",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Rookie Signatures",
+   "name": "Red Static",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Rookie Signatures",
+   "name": "Black Static",
+   "serialRun": 2
+  },
+  {
+   "subset": "Arc Flash Autographs",
+   "name": "Blue Surge",
+   "serialRun": 99
+  },
+  {
+   "subset": "Arc Flash Autographs",
+   "name": "Gold Power Surge",
+   "serialRun": 50
+  },
+  {
+   "subset": "Arc Flash Autographs",
+   "name": "Orange Power Surge",
+   "serialRun": 25
+  },
+  {
+   "subset": "Arc Flash Autographs",
+   "name": "Lime Green Power Surge",
+   "serialRun": 15
+  },
+  {
+   "subset": "Arc Flash Autographs",
+   "name": "Pink Power Surge",
+   "serialRun": 10
+  },
+  {
+   "subset": "Arc Flash Autographs",
+   "name": "Red Power Surge",
+   "serialRun": 5
+  },
+  {
+   "subset": "Arc Flash Autographs",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Molecular Marks",
+   "name": "Blue Surge",
+   "serialRun": 99
+  },
+  {
+   "subset": "Molecular Marks",
+   "name": "Gold Power Surge",
+   "serialRun": 50
+  },
+  {
+   "subset": "Molecular Marks",
+   "name": "Orange Power Surge",
+   "serialRun": 25
+  },
+  {
+   "subset": "Molecular Marks",
+   "name": "Lime Green Power Surge",
+   "serialRun": 15
+  },
+  {
+   "subset": "Molecular Marks",
+   "name": "Pink Power Surge",
+   "serialRun": 10
+  },
+  {
+   "subset": "Molecular Marks",
+   "name": "Red Power Surge",
+   "serialRun": 5
+  },
+  {
+   "subset": "Molecular Marks",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Neon Initiates Autographs",
+   "name": "Blue Surge",
+   "serialRun": 99
+  },
+  {
+   "subset": "Neon Initiates Autographs",
+   "name": "Gold Power Surge",
+   "serialRun": 50
+  },
+  {
+   "subset": "Neon Initiates Autographs",
+   "name": "Orange Power Surge",
+   "serialRun": 25
+  },
+  {
+   "subset": "Neon Initiates Autographs",
+   "name": "Lime Green Power Surge",
+   "serialRun": 15
+  },
+  {
+   "subset": "Neon Initiates Autographs",
+   "name": "Pink Power Surge",
+   "serialRun": 10
+  },
+  {
+   "subset": "Neon Initiates Autographs",
+   "name": "Red Power Surge",
+   "serialRun": 5
+  },
+  {
+   "subset": "Neon Initiates Autographs",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Thermal Red Ink Autographs",
+   "name": "Red Power Surge",
+   "serialRun": 5
+  },
+  {
+   "subset": "Thermal Red Ink Autographs",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Amped Up Rookie Relic Autographs",
+   "name": "Teal Surge",
+   "serialRun": 149
+  },
+  {
+   "subset": "Amped Up Rookie Relic Autographs",
+   "name": "White Surge",
+   "serialRun": 125
+  },
+  {
+   "subset": "Amped Up Rookie Relic Autographs",
+   "name": "Blue Surge",
+   "serialRun": 99
+  },
+  {
+   "subset": "Amped Up Rookie Relic Autographs",
+   "name": "Purple Surge",
+   "serialRun": 75
+  },
+  {
+   "subset": "Amped Up Rookie Relic Autographs",
+   "name": "Gold Power Surge",
+   "serialRun": 50
+  },
+  {
+   "subset": "Amped Up Rookie Relic Autographs",
+   "name": "Orange Power Surge",
+   "serialRun": 25
+  },
+  {
+   "subset": "Amped Up Rookie Relic Autographs",
+   "name": "Lime Green Power Surge",
+   "serialRun": 15
+  },
+  {
+   "subset": "Amped Up Rookie Relic Autographs",
+   "name": "Pink Power Surge",
+   "serialRun": 10
+  },
+  {
+   "subset": "Amped Up Rookie Relic Autographs",
+   "name": "Red Power Surge",
+   "serialRun": 5
+  },
+  {
+   "subset": "Amped Up Rookie Relic Autographs",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Amped Up Rookie Relic Autographs",
+   "name": "Electron",
+   "serialRun": 14
+  },
+  {
+   "subset": "Amped Up Rookie Relic Autographs",
+   "name": "Proton",
+   "serialRun": 14
+  },
+  {
+   "subset": "Radial Rookie Auto Relics",
+   "name": "Teal Surge",
+   "serialRun": 149
+  },
+  {
+   "subset": "Radial Rookie Auto Relics",
+   "name": "White Surge",
+   "serialRun": 125
+  },
+  {
+   "subset": "Radial Rookie Auto Relics",
+   "name": "Blue Surge",
+   "serialRun": 99
+  },
+  {
+   "subset": "Radial Rookie Auto Relics",
+   "name": "Purple Surge",
+   "serialRun": 75
+  },
+  {
+   "subset": "Radial Rookie Auto Relics",
+   "name": "Gold Power Surge",
+   "serialRun": 50
+  },
+  {
+   "subset": "Radial Rookie Auto Relics",
+   "name": "Orange Power Surge",
+   "serialRun": 25
+  },
+  {
+   "subset": "Radial Rookie Auto Relics",
+   "name": "Lime Green Power Surge",
+   "serialRun": 15
+  },
+  {
+   "subset": "Radial Rookie Auto Relics",
+   "name": "Pink Power Surge",
+   "serialRun": 10
+  },
+  {
+   "subset": "Radial Rookie Auto Relics",
+   "name": "Red Power Surge",
+   "serialRun": 5
+  },
+  {
+   "subset": "Radial Rookie Auto Relics",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Radial Rookie Auto Relics",
+   "name": "Electron",
+   "serialRun": 14
+  },
+  {
+   "subset": "Radial Rookie Auto Relics",
+   "name": "Proton",
+   "serialRun": 14
+  },
+  {
+   "subset": "Resurgence Rookie Relic Signatures",
+   "name": "Teal Surge",
+   "serialRun": 149
+  },
+  {
+   "subset": "Resurgence Rookie Relic Signatures",
+   "name": "White Surge",
+   "serialRun": 125
+  },
+  {
+   "subset": "Resurgence Rookie Relic Signatures",
+   "name": "Blue Surge",
+   "serialRun": 99
+  },
+  {
+   "subset": "Resurgence Rookie Relic Signatures",
+   "name": "Purple Surge",
+   "serialRun": 75
+  },
+  {
+   "subset": "Resurgence Rookie Relic Signatures",
+   "name": "Gold Power Surge",
+   "serialRun": 50
+  },
+  {
+   "subset": "Resurgence Rookie Relic Signatures",
+   "name": "Orange Power Surge",
+   "serialRun": 25
+  },
+  {
+   "subset": "Resurgence Rookie Relic Signatures",
+   "name": "Lime Green Power Surge",
+   "serialRun": 15
+  },
+  {
+   "subset": "Resurgence Rookie Relic Signatures",
+   "name": "Pink Power Surge",
+   "serialRun": 10
+  },
+  {
+   "subset": "Resurgence Rookie Relic Signatures",
+   "name": "Red Power Surge",
+   "serialRun": 5
+  },
+  {
+   "subset": "Resurgence Rookie Relic Signatures",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Resurgence Rookie Relic Signatures",
+   "name": "Electron",
+   "serialRun": 14
+  },
+  {
+   "subset": "Resurgence Rookie Relic Signatures",
+   "name": "Proton",
+   "serialRun": 14
+  },
+  {
+   "subset": "Circuit Breakers",
+   "name": "Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Circuit Breakers",
+   "name": "Surge",
+   "serialRun": 425
+  },
+  {
+   "subset": "Circuit Breakers",
+   "name": "Bronze Surge",
+   "serialRun": 350
+  },
+  {
+   "subset": "Circuit Breakers",
+   "name": "Magenta Surge",
+   "serialRun": 299
+  },
+  {
+   "subset": "Circuit Breakers",
+   "name": "Navy Surge",
+   "serialRun": 275
+  },
+  {
+   "subset": "Circuit Breakers",
+   "name": "Aqua Surge",
+   "serialRun": 250
+  },
+  {
+   "subset": "Circuit Breakers",
+   "name": "Yellow Surge",
+   "serialRun": 225
+  },
+  {
+   "subset": "Circuit Breakers",
+   "name": "Crimson Surge",
+   "serialRun": 199
+  },
+  {
+   "subset": "Circuit Breakers",
+   "name": "Green Surge",
+   "serialRun": 175
+  },
+  {
+   "subset": "Circuit Breakers",
+   "name": "Teal Surge",
+   "serialRun": 149
+  },
+  {
+   "subset": "Circuit Breakers",
+   "name": "White Surge",
+   "serialRun": 125
+  },
+  {
+   "subset": "Circuit Breakers",
+   "name": "Blue Surge",
+   "serialRun": 99
+  },
+  {
+   "subset": "Circuit Breakers",
+   "name": "Purple Surge",
+   "serialRun": 75
+  },
+  {
+   "subset": "Circuit Breakers",
+   "name": "Gold Power Surge",
+   "serialRun": 50
+  },
+  {
+   "subset": "Circuit Breakers",
+   "name": "Orange Power Surge",
+   "serialRun": 25
+  },
+  {
+   "subset": "Circuit Breakers",
+   "name": "Lime Green Power Surge",
+   "serialRun": 15
+  },
+  {
+   "subset": "Circuit Breakers",
+   "name": "Pink Power Surge",
+   "serialRun": 10
+  },
+  {
+   "subset": "Circuit Breakers",
+   "name": "Red Power Surge",
+   "serialRun": 5
+  },
+  {
+   "subset": "Circuit Breakers",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Conductors",
+   "name": "Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Conductors",
+   "name": "Surge",
+   "serialRun": 425
+  },
+  {
+   "subset": "Conductors",
+   "name": "Bronze Surge",
+   "serialRun": 350
+  },
+  {
+   "subset": "Conductors",
+   "name": "Magenta Surge",
+   "serialRun": 299
+  },
+  {
+   "subset": "Conductors",
+   "name": "Navy Surge",
+   "serialRun": 275
+  },
+  {
+   "subset": "Conductors",
+   "name": "Aqua Surge",
+   "serialRun": 250
+  },
+  {
+   "subset": "Conductors",
+   "name": "Yellow Surge",
+   "serialRun": 225
+  },
+  {
+   "subset": "Conductors",
+   "name": "Crimson Surge",
+   "serialRun": 199
+  },
+  {
+   "subset": "Conductors",
+   "name": "Green Surge",
+   "serialRun": 175
+  },
+  {
+   "subset": "Conductors",
+   "name": "Teal Surge",
+   "serialRun": 149
+  },
+  {
+   "subset": "Conductors",
+   "name": "White Surge",
+   "serialRun": 125
+  },
+  {
+   "subset": "Conductors",
+   "name": "Blue Surge",
+   "serialRun": 99
+  },
+  {
+   "subset": "Conductors",
+   "name": "Purple Surge",
+   "serialRun": 75
+  },
+  {
+   "subset": "Conductors",
+   "name": "Gold Power Surge",
+   "serialRun": 50
+  },
+  {
+   "subset": "Conductors",
+   "name": "Orange Power Surge",
+   "serialRun": 25
+  },
+  {
+   "subset": "Conductors",
+   "name": "Lime Green Power Surge",
+   "serialRun": 15
+  },
+  {
+   "subset": "Conductors",
+   "name": "Pink Power Surge",
+   "serialRun": 10
+  },
+  {
+   "subset": "Conductors",
+   "name": "Red Power Surge",
+   "serialRun": 5
+  },
+  {
+   "subset": "Conductors",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Protonyx",
+   "name": "Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Protonyx",
+   "name": "Surge",
+   "serialRun": 425
+  },
+  {
+   "subset": "Protonyx",
+   "name": "Bronze Surge",
+   "serialRun": 350
+  },
+  {
+   "subset": "Protonyx",
+   "name": "Magenta Surge",
+   "serialRun": 299
+  },
+  {
+   "subset": "Protonyx",
+   "name": "Navy Surge",
+   "serialRun": 275
+  },
+  {
+   "subset": "Protonyx",
+   "name": "Aqua Surge",
+   "serialRun": 250
+  },
+  {
+   "subset": "Protonyx",
+   "name": "Yellow Surge",
+   "serialRun": 225
+  },
+  {
+   "subset": "Protonyx",
+   "name": "Crimson Surge",
+   "serialRun": 199
+  },
+  {
+   "subset": "Protonyx",
+   "name": "Green Surge",
+   "serialRun": 175
+  },
+  {
+   "subset": "Protonyx",
+   "name": "Teal Surge",
+   "serialRun": 149
+  },
+  {
+   "subset": "Protonyx",
+   "name": "White Surge",
+   "serialRun": 125
+  },
+  {
+   "subset": "Protonyx",
+   "name": "Blue Surge",
+   "serialRun": 99
+  },
+  {
+   "subset": "Protonyx",
+   "name": "Purple Surge",
+   "serialRun": 75
+  },
+  {
+   "subset": "Protonyx",
+   "name": "Gold Power Surge",
+   "serialRun": 50
+  },
+  {
+   "subset": "Protonyx",
+   "name": "Orange Power Surge",
+   "serialRun": 25
+  },
+  {
+   "subset": "Protonyx",
+   "name": "Lime Green Power Surge",
+   "serialRun": 15
+  },
+  {
+   "subset": "Protonyx",
+   "name": "Pink Power Surge",
+   "serialRun": 10
+  },
+  {
+   "subset": "Protonyx",
+   "name": "Red Power Surge",
+   "serialRun": 5
+  },
+  {
+   "subset": "Protonyx",
+   "name": "SuperFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Voltaic",
+   "name": "Refractor",
+   "serialRun": null
+  },
+  {
+   "subset": "Voltaic",
+   "name": "Surge",
+   "serialRun": 425
+  },
+  {
+   "subset": "Voltaic",
+   "name": "Bronze Surge",
+   "serialRun": 350
+  },
+  {
+   "subset": "Voltaic",
+   "name": "Magenta Surge",
+   "serialRun": 299
+  },
+  {
+   "subset": "Voltaic",
+   "name": "Navy Surge",
+   "serialRun": 275
+  },
+  {
+   "subset": "Voltaic",
+   "name": "Aqua Surge",
+   "serialRun": 250
+  },
+  {
+   "subset": "Voltaic",
+   "name": "Yellow Surge",
+   "serialRun": 225
+  },
+  {
+   "subset": "Voltaic",
+   "name": "Crimson Surge",
+   "serialRun": 199
+  },
+  {
+   "subset": "Voltaic",
+   "name": "Green Surge",
+   "serialRun": 175
+  },
+  {
+   "subset": "Voltaic",
+   "name": "Teal Surge",
+   "serialRun": 149
+  },
+  {
+   "subset": "Voltaic",
+   "name": "White Surge",
+   "serialRun": 125
+  },
+  {
+   "subset": "Voltaic",
+   "name": "Blue Surge",
+   "serialRun": 99
+  },
+  {
+   "subset": "Voltaic",
+   "name": "Purple Surge",
+   "serialRun": 75
+  },
+  {
+   "subset": "Voltaic",
+   "name": "Gold Power Surge",
+   "serialRun": 50
+  },
+  {
+   "subset": "Voltaic",
+   "name": "Orange Power Surge",
+   "serialRun": 25
+  },
+  {
+   "subset": "Voltaic",
+   "name": "Lime Green Power Surge",
+   "serialRun": 15
+  },
+  {
+   "subset": "Voltaic",
+   "name": "Pink Power Surge",
+   "serialRun": 10
+  },
+  {
+   "subset": "Voltaic",
+   "name": "Red Power Surge",
+   "serialRun": 5
+  },
+  {
+   "subset": "Voltaic",
+   "name": "SuperFractor",
+   "serialRun": 1
+  }
+ ]
+}

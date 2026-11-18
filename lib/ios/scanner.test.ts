@@ -31,3 +31,24 @@ describe("scanCaptureFrom", () => {
     assert.equal(result.backLines, null);
   });
 });
+
+describe("front then back: the back's photo and the ask", () => {
+  const front = { lines: ["CAMERON BOOZER"], image: "data:image/jpeg;base64,QUJD" };
+
+  it("keeps the back's photo beside its read, for the reveal, and that the camera asked", () => {
+    const capture = scanCaptureFrom({ ...front, backLines: ["RC-3"], backImage: "data:image/jpeg;base64,REVG", backAsked: true });
+    assert.equal(capture?.backImage, "data:image/jpeg;base64,REVG");
+    assert.equal(capture?.backAsked, true);
+  });
+
+  it("drops a back photo with no back read, one that isn't a photo, and an ask that isn't true", () => {
+    assert.equal(scanCaptureFrom({ ...front, backImage: "data:image/jpeg;base64,REVG" })?.backImage, undefined);
+    assert.equal(scanCaptureFrom({ ...front, backLines: ["RC-3"], backImage: "javascript:alert(1)" })?.backImage, undefined);
+    assert.equal(scanCaptureFrom({ ...front, backAsked: "yes" })?.backAsked, undefined);
+  });
+
+  it("an older app build's result is unchanged", () => {
+    const capture = scanCaptureFrom({ ...front, backLines: ["RC-3"] });
+    assert.ok(capture && !("backImage" in capture) && !("backAsked" in capture));
+  });
+});

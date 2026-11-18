@@ -5,27 +5,22 @@ export const BOTTOM_NAV_VIEWPORT_PX = 390;
 export const BOTTOM_NAV_MAX_ITEMS = 5;
 
 /**
- * Tabs on the bar, left to right. Add card stays in the center.
- * A Value board is not a tab here. It will be a tab on /leaderboard later.
+ * Tabs on the bar, left to right. Scan stays in the center: one button for adding a card and for
+ * seeing what it's worth (Quick Comp's search lives on the Scan screen). Catalog has the slot
+ * Quick Comp had. Leaderboard is in the side menu.
  */
 export const BOTTOM_NAV = [
   { href: "/", label: "Home" },
-  { href: "/leaderboard", label: "Leaderboard" },
-  { href: "/cards/new", label: "Add card" },
+  { href: "/catalog", label: "Catalog" },
+  { href: "/scan", label: "Scan" },
   { href: "/collection", label: "Collection" },
   { href: "/messages", label: "Messages" },
 ] as const;
 
-/** With Quick Comp on, this tab takes Leaderboard's slot. Leaderboard stays in the side menu. */
-export const QUICK_COMP_TAB = { href: "/comp", label: "Quick Comp" } as const;
+export type BottomNavTab = (typeof BOTTOM_NAV)[number];
 
-export type BottomNavTab = (typeof BOTTOM_NAV)[number] | typeof QUICK_COMP_TAB;
-
-/** The bar for this build: today's five, or Quick Comp in slot 2 instead of Leaderboard. */
-export function bottomNavTabs(quickComp: boolean): readonly BottomNavTab[] {
-  if (!quickComp) return BOTTOM_NAV;
-  return BOTTOM_NAV.map((tab) => (tab.href === "/leaderboard" ? QUICK_COMP_TAB : tab));
-}
+/** The center tab: Scan, the one way in to add a card or see its price. */
+export const SCAN_TAB_HREF = "/scan";
 
 /**
  * Taken off the bar so five labels fit at 390px. The side menu opens them

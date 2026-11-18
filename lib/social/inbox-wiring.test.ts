@@ -46,8 +46,8 @@ describe("paged notifications and messages, wired in", () => {
     assert.match(thread, /threadMore\(partnerId\)/);
     assert.match(thread, /Load older messages/);
     // Scrolling to the newest message follows the newest id, not the length.
-    assert.match(thread, /\}, \[newestId, partner\?\.id, reduceMotion\]\);/);
-    assert.doesNotMatch(thread, /\[shownThread\.length, partner\?\.id, reduceMotion\]/);
+    assert.match(thread, /\}, \[newestId, newestOwn, partner\?\.id\]\);/);
+    assert.doesNotMatch(thread, /\[shownThread\.length, /);
     assert.match(thread, /node\.scrollTop = node\.scrollHeight - hold;/);
   });
 });

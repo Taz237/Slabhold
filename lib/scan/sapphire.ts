@@ -5,7 +5,7 @@
  */
 
 /** The sets that have a Sapphire Edition. */
-export const SAPPHIRE_BASES = ["Bowman Chrome", "Bowman U Chrome", "Bowman Draft", "Topps Chrome"] as const;
+export const SAPPHIRE_BASES = ["Bowman Chrome", "Bowman U Chrome", "Bowman Draft", "Topps Chrome", "Topps Chrome Update"] as const;
 
 /**
  * The first card year each set had a Sapphire Edition. A card from before it can't be one, so it
@@ -15,12 +15,15 @@ export const SAPPHIRE_BASES = ["Bowman Chrome", "Bowman U Chrome", "Bowman Draft
  * - Bowman Chrome: 2020. Bowman Sapphire Edition (the flagship's, with the BCP Chrome prospects
  *   sellers list as Bowman Chrome Sapphire) began in 2020; Bowman Chrome's own began in 2021.
  * - Bowman U Chrome: 2023 football, 2023-24 basketball.
+ * - Topps Chrome Update: 2020, "the first time that Update Series MLB is granted the exclusive
+ *   Sapphire Edition treatment" (Cardboard Connection's 2020 page).
  */
 export const SAPPHIRE_FIRST_YEAR: Record<(typeof SAPPHIRE_BASES)[number], number> = {
   "Topps Chrome": 2016,
   "Bowman Draft": 2019,
   "Bowman Chrome": 2020,
   "Bowman U Chrome": 2023,
+  "Topps Chrome Update": 2020,
 };
 
 /**

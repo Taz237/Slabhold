@@ -10,4 +10,4 @@ export const feedback =
 /** A neutral control: 44px, 10px radius, hairline. */
 export const control = `flex min-h-11 items-center rounded-[10px] bg-white ring-1 ring-zinc-950/10 dark:bg-white/[0.04] dark:ring-white/10 ${focusRing}`;
 /** Section label above a group. */
-export const sectionLabel = `text-[13px] leading-5 font-medium ${textMuted}`;
+export const sectionLabel = `text-13 leading-5 font-medium ${textMuted}`;

@@ -6,6 +6,7 @@ import { NativeBoot } from "@/components/native/native-boot";
 import { WebAnalytics } from "@/components/web-analytics-lazy";
 import { SITE_URL } from "@/lib/site-url";
 import { SESSION_HINT_SCRIPT } from "@/lib/auth/session-hint";
+import { TEXT_SCALE_SCRIPT } from "@/lib/ui/text-scale";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -65,11 +66,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-      // The session hint below tags <html> before React hydrates.
+      // The session hint and the text size below change <html> before React hydrates.
       suppressHydrationWarning
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: SESSION_HINT_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: TEXT_SCALE_SCRIPT }} />
       </head>
       <body className="min-h-full font-sans">
         {/* The app's providers and shell live in app/(app)/layout.tsx, so the

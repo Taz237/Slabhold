@@ -207,7 +207,8 @@ describe("skeletons, not spinners", () => {
       createElement(CollectionContext.Provider, { value: { ready: false, cards: [], getCard: () => undefined } as never }, createElement(EditCardPage, { id: "x" })),
     );
     assert.match(html, /data-edit-skeleton/);
-    assert.match(html, /bg-zinc-200\/80 [^"]*dark:bg-white\/5/);
+    // The shared shimmer has its own light and dark gray (globals.css).
+    assert.match(html, /skeleton-shimmer/);
   });
 });
 

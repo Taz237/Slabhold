@@ -87,11 +87,12 @@ describe("composers never cut text", () => {
 
   it("disables Post and Reply over the limit, and the submit handlers refuse too", () => {
     const compose = read("components/compose-view.tsx");
-    assert.match(compose, /const overLimit = isOverLimit\(body, POST_LIMIT\)/);
+    // Every post of a thread is checked, not just the one being written.
+    assert.match(compose, /const overLimit = thread\.some\(\(segment\) => isOverLimit\(segment\.body, POST_LIMIT\)\)/);
     assert.match(compose, /const canPost = !overLimit &&/);
-    assert.match(compose, /if \(isOverLimit\(body, POST_LIMIT\)\) return;/);
+    assert.match(compose, /if \(thread\.some\(\(segment\) => isOverLimit\(segment\.body, POST_LIMIT\)\)\) return;/);
     const feed = read("components/feed-view.tsx");
-    assert.match(feed, /disabled=\{sending \|\| readingPhoto \|\| overLimit\}/);
+    assert.match(feed, /disabled=\{sending \|\| readingPhoto \|\| overLimit(?: \|\| video\.busy)?\}/);
     assert.match(feed, /if \(overLimit\) return;/);
     const post = read("components/post-view.tsx");
     assert.match(post, /isOverLimit\(draft, COMMENT_LIMIT\) \|\|/);

@@ -1,5 +1,6 @@
 "use client";
 
+import { backLinkClick } from "@/components/nav-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -189,6 +190,7 @@ export function CardPostsList({ cardId }: { cardId: string }) {
           <Link
             href={backHref}
             data-nav-back=""
+            onClick={(event) => backLinkClick(event, backHref)}
             aria-label="Back to card"
             className="hit-44 grid h-9 w-9 place-items-center rounded-full text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/10"
           >
@@ -204,7 +206,7 @@ export function CardPostsList({ cardId }: { cardId: string }) {
         {user ? (
           <Link
             href={`/compose?card=${encodeURIComponent(cardId)}`}
-            className="hit-44 shrink-0 rounded-full bg-zinc-900 px-3 py-1.5 text-xs font-semibold whitespace-nowrap text-white dark:bg-zinc-100 dark:text-zinc-950"
+            className="hit-44 shrink-0 rounded-full bg-zinc-900 px-3 py-1.5 text-xs font-semibold whitespace-nowrap text-white big:whitespace-normal dark:bg-zinc-100 dark:text-zinc-950"
           >
             Post about this card
           </Link>
@@ -223,7 +225,7 @@ export function CardPostsList({ cardId }: { cardId: string }) {
           {Array.from({ length: 4 }, (_, i) => (
             <div
               key={i}
-              className="h-16 animate-pulse rounded-xl bg-zinc-100 dark:bg-white/5"
+              className="h-16 skeleton-shimmer rounded-xl"
             />
           ))}
         </div>

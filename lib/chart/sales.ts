@@ -26,6 +26,27 @@ export function salesFromComps(
     }));
 }
 
+/** The newest sale by date. Ties keep the first one listed. Null when there are none. */
+export function latestSale<T extends { date: string }>(sales: readonly T[]): T | null {
+  let newest: T | null = null;
+  for (const sale of sales) if (!newest || sale.date > newest.date) newest = sale;
+  return newest;
+}
+
+/**
+ * The estimate headline and its Low/High bar. Both come from the same sales,
+ * so the median already sits inside p25 to p75; the bar also widens to hold
+ * the headline when a caller passes numbers that disagree.
+ */
+export function headlineRange(
+  value: number | null | undefined,
+  p25: number | null | undefined,
+  p75: number | null | undefined,
+): { value: number; low: number; high: number } | null {
+  if (value == null || p25 == null || p75 == null) return null;
+  return { value, low: Math.min(p25, value), high: Math.max(p75, value) };
+}
+
 /** Linear-interpolated quantile of prices sorted low to high. */
 export function quantile(sorted: number[], q: number): number | null {
   if (!sorted.length) return null;

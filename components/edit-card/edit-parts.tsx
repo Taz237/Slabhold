@@ -18,7 +18,7 @@ export function EditGroup({ title, children }: { title?: string; children: React
   return (
     <section aria-labelledby={title ? titleId : undefined}>
       {title ? (
-        <h2 id={titleId} className="mb-2 px-4 text-[13px] font-medium text-zinc-500">
+        <h2 id={titleId} className="mb-2 px-4 text-13 font-medium text-zinc-500">
           {title}
         </h2>
       ) : null}
@@ -29,7 +29,7 @@ export function EditGroup({ title, children }: { title?: string; children: React
   );
 }
 
-const rowBase = `flex min-h-12 w-full items-center gap-3 px-4 py-3 text-left text-[15px] transition-colors duration-150 ease-out hover:bg-zinc-50 active:bg-zinc-100 motion-reduce:transition-none dark:hover:bg-white/[0.03] dark:active:bg-white/[0.06] ${focusRing} focus-visible:ring-inset focus-visible:ring-offset-0`;
+const rowBase = `flex min-h-12 w-full items-center gap-3 px-4 py-3 text-left text-15 transition-colors duration-150 ease-out hover:bg-zinc-50 active:bg-zinc-100 motion-reduce:transition-none dark:hover:bg-white/[0.03] dark:active:bg-white/[0.06] ${focusRing} focus-visible:ring-inset focus-visible:ring-offset-0`;
 
 /**
  * One row: label on the left, value on the right, chevron. `value` empty shows
@@ -69,7 +69,7 @@ export function EditRow({
   );
   if (!onClick) {
     return (
-      <div className="flex min-h-12 w-full items-center gap-3 px-4 py-3 text-[15px]" data-field={dataField}>
+      <div className="flex min-h-12 w-full items-center gap-3 px-4 py-3 text-15" data-field={dataField}>
         {body}
       </div>
     );

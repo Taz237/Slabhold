@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, ViewTransition, useEffect, useState, useSyncExternalStore } from "react";
-import { Bell, Camera, Compass, Mail, Search, Tag, Trophy, WalletCards, type LucideIcon } from "lucide-react";
+import { Bell, Camera, Compass, LayoutGrid, Mail, Search, WalletCards, type LucideIcon } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { useSocial } from "@/components/social-provider";
 import { AccountDeletedToast } from "@/components/account-deleted-toast";
@@ -21,6 +21,7 @@ import { lazyPart } from "@/lib/ui/lazy-part";
 import {
   isAuthPage,
   isChromelessPath,
+  isFullScreenPath,
   isInvitePage,
   isJoinBarPage,
   loadingShellFor,
@@ -37,17 +38,21 @@ import type { Profile } from "@/lib/social/types";
 import {
   addCardSheetOpen,
   closeAddCardSheet,
-  openAddCardSheet,
-  opensAddSheet,
   subscribeAddCardSheet,
 } from "@/lib/cards/add-card-sheet";
-import { BOTTOM_NAV, bottomNavTabs, type BottomNavTab } from "@/lib/ui/bottom-nav";
+import { BOTTOM_NAV, SCAN_TAB_HREF, type BottomNavTab } from "@/lib/ui/bottom-nav";
 import {
   activeTabAction,
   isCurrentTabScreen,
   keepsBrowserTabGesture,
   requestPageRefresh,
 } from "@/lib/ui/pull-refresh";
+
+/** The skeleton for an account page before the session loads. Its own chunk: no page waits on it. */
+const PendingRouteSkeleton = lazyPart<{ pathname: string }>(() =>
+  import("@/components/pending-route-skeleton").then((mod) => mod.PendingRouteSkeleton),
+);
+
 
 /*
  * The signed-in chrome loads in its own chunks. Signed-out Home renders none
@@ -90,6 +95,10 @@ function NativePushAfterIdle({ user }: { user: Profile }) {
   return idle ? <NativePushManager user={user} /> : null;
 }
 
+function reducedMotion() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
 /** The avatar's room while the menu's chunk loads. */
 function AccountSlot() {
   return <span aria-hidden className="h-11 w-11" />;
@@ -116,23 +125,18 @@ if (sessionHinted()) {
 
 const TAB_ICONS = {
   "/": Compass,
-  "/leaderboard": Trophy,
-  "/cards/new": Camera,
+  "/catalog": LayoutGrid,
+  "/scan": Camera,
   "/collection": WalletCards,
   "/messages": Mail,
 } as Record<BottomNavTab["href"], LucideIcon>;
 
-// Quick Comp's price tag, only in a build with its flag on. The flag's
-// inlined check, not quickCompEnabled(), so an off build has no Tag at all.
-if (process.env.NEXT_PUBLIC_QUICK_COMP === "1") TAB_ICONS["/comp"] = Tag;
-
 /** Coach-mark anchors for the quick tour. Home has none. */
 const TAB_TOUR: Partial<Record<BottomNavTab["href"], TourTarget>> = {
-  "/leaderboard": "leaderboard",
-  "/cards/new": "add-card",
+  "/catalog": "catalog",
+  "/scan": "add-card",
   "/collection": "collection",
   "/messages": "messages",
-  "/comp": "quick-comp",
 };
 
 function withIcons(tabs: readonly BottomNavTab[]) {
@@ -248,14 +252,13 @@ function Shell({
   const router = useRouter();
   const { mode } = useSocial();
   const onboardingBusy = useOnboardingBusy();
-  // Quick Comp takes Leaderboard's slot. Next inlines the flag, so with it off
-  // this is a constant false and the Quick Comp branch is not in the bundle.
-  const quickComp = process.env.NEXT_PUBLIC_QUICK_COMP === "1";
-  const tabs = quickComp ? withIcons(bottomNavTabs(true)) : TABS;
+  const tabs = TABS;
   /** Collection needs a wider desktop column; feed/timeline stay max-w-lg. */
   const wideMain =
     pathname.startsWith("/collection") || pathname.startsWith("/portfolio");
   const mainMax = wideMain ? "max-w-5xl" : "max-w-lg";
+  /** The Catalog feed fills the screen: nothing of the app's own sits over it. */
+  const fullScreen = isFullScreenPath(pathname);
   const mainPad = chromeless
     ? ""
     : showNav
@@ -263,6 +266,28 @@ function Shell({
       : showJoin || reserveJoin
         ? "pb-[calc(5.25rem+env(safe-area-inset-bottom))]"
         : "pb-[max(1.5rem,env(safe-area-inset-bottom))]";
+
+  /** A tap on the tab (or the logo) for the screen you are on: scroll to the top, or refresh when already there. */
+  const onTabClick = (event: React.MouseEvent<HTMLAnchorElement>, href: BottomNavTab["href"]) => {
+    if (
+      keepsBrowserTabGesture({
+        metaKey: event.metaKey,
+        ctrlKey: event.ctrlKey,
+        shiftKey: event.shiftKey,
+      })
+    ) {
+      return;
+    }
+    if (!isCurrentTabScreen(pathname, href, user?.username ?? null)) return;
+    event.preventDefault();
+    const top = window.scrollY || document.documentElement.scrollTop || 0;
+    const action = activeTabAction({ onThisScreen: true, scrollTop: top });
+    if (action === "scroll-top") {
+      window.scrollTo({ top: 0, behavior: reducedMotion() ? "auto" : "smooth" });
+      return;
+    }
+    if (!requestPageRefresh()) router.refresh();
+  };
 
   return (
     <div
@@ -272,6 +297,7 @@ function Shell({
       {!chromeless ? (
         <header
           style={{ viewTransitionName: "app-header" }}
+          data-app-chrome=""
           data-attached-tabs={attachedTabs ? "" : undefined}
           className={`glass sticky top-0 z-20 bg-[var(--chrome-bg)] pt-[env(safe-area-inset-top)] backdrop-blur-xl backdrop-saturate-150 ${
             attachedTabs ? "" : HEADER_HAIRLINE
@@ -283,6 +309,7 @@ function Shell({
             <Link
               href="/"
               aria-label="Slabhold home"
+              onClick={(event) => onTabClick(event, "/")}
               className="grid h-11 w-11 place-items-center rounded-full focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:outline-none"
             >
               <Logo className="h-8 w-8" />
@@ -301,7 +328,7 @@ function Shell({
                 >
                   <Bell className="h-5 w-5" />
                   {unreadCount > 0 ? (
-                    <span className="absolute top-0 right-0 grid h-4 min-w-4 place-items-center rounded-full bg-violet-600 px-1 text-[11px] font-semibold leading-none text-white">
+                    <span className="absolute top-0 right-0 grid h-4 min-w-4 place-items-center rounded-full bg-violet-600 px-1 text-11 font-semibold leading-none text-white">
                       {unreadCount > 9 ? "9+" : unreadCount}
                     </span>
                   ) : null}
@@ -337,54 +364,30 @@ function Shell({
       </PageFrame>
       <NavMotion ownUsername={user?.username ?? null} />
       <NavPendingSkeleton />
-      {showNav && !chromeless ? (
+      {showNav && !chromeless && !fullScreen ? (
         <nav
           style={{ viewTransitionName: "app-nav" }}
+          data-app-chrome=""
           className="glass fixed inset-x-0 bottom-0 z-30 border-t border-zinc-200 bg-[color-mix(in_oklab,var(--background)_92%,transparent)] backdrop-blur-xl dark:border-white/10">
           <div className="mx-auto flex max-w-lg items-end justify-between px-1 pt-1 pb-[max(0.45rem,env(safe-area-inset-bottom))]">
             {tabs.map((tab) => {
               const active = isActive(pathname, tab.href, user);
               const Icon = tab.icon;
-              const onTabClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
-                if (
-                  keepsBrowserTabGesture({
-                    metaKey: event.metaKey,
-                    ctrlKey: event.ctrlKey,
-                    shiftKey: event.shiftKey,
-                  })
-                ) {
-                  return;
-                }
-                if (!isCurrentTabScreen(pathname, tab.href, user?.username ?? null)) return;
-                event.preventDefault();
-                const top = window.scrollY || document.documentElement.scrollTop || 0;
-                const action = activeTabAction({ onThisScreen: true, scrollTop: top });
-                if (action === "scroll-top") {
-                  window.scrollTo({ top: 0, behavior: "smooth" });
-                  return;
-                }
-                if (!requestPageRefresh()) router.refresh();
-              };
-              if (tab.href === "/cards/new") {
+              if (tab.href === SCAN_TAB_HREF) {
                 return (
                   <Link
                     key={tab.href}
                     href={tab.href}
-                    onClick={(event) => {
-                      // A plain tap opens the Add card sheet; a new-tab click still goes to /cards/new.
-                      if (!opensAddSheet(event)) return;
-                      event.preventDefault();
-                      openAddCardSheet();
-                    }}
+                    onClick={(event) => onTabClick(event, tab.href)}
                     data-tour={tab.tour}
-                    aria-label="Add card"
+                    aria-label="Scan"
                     aria-current={active ? "page" : undefined}
-                    className="hit-44 tap flex min-w-0 flex-1 flex-col items-center gap-0.5 px-0.5 py-1 text-[11px] font-medium leading-none text-violet-700 dark:text-violet-200"
+                    className="hit-44 tap flex min-w-0 flex-1 flex-col items-center gap-0.5 px-0.5 py-1 text-[min(0.6875rem,13px)] font-medium leading-none text-violet-700 dark:text-violet-200"
                   >
                     <span className="grid h-11 w-11 -translate-y-3 place-items-center rounded-full bg-violet-600 text-white shadow-lg ring-4 ring-[var(--background)]">
                       <Camera className="h-5 w-5" />
                     </span>
-                    Add card
+                    Scan
                   </Link>
                 );
               }
@@ -393,26 +396,20 @@ function Shell({
                 <Link
                   key={tab.href}
                   href={tab.href}
-                  onClick={onTabClick}
+                  onClick={(event) => onTabClick(event, tab.href)}
                   data-tour={tab.tour}
                   aria-label={
                     messageBadge > 0 ? `Messages, ${messageBadge} unread` : tab.label
                   }
                   aria-current={active ? "page" : undefined}
-                  className={`hit-44 tap relative flex min-w-0 flex-1 flex-col items-center gap-0.5 px-0.5 py-1 text-[11px] font-medium leading-none ${
+                  className={`hit-44 tap relative flex min-w-0 flex-1 flex-col items-center gap-0.5 px-0.5 py-1 text-[min(0.6875rem,13px)] font-medium leading-none ${
                     active ? "text-zinc-900 dark:text-white" : "text-zinc-500 dark:text-zinc-400"
                   }`}
                 >
                   <span className="relative">
-                    <Icon
-                      className={`h-5 w-5 ${
-                        active && tab.href === "/leaderboard"
-                          ? "text-[#7C3AED] dark:text-[#A78BFA]"
-                          : ""
-                      }`}
-                    />
+                    <Icon className="h-5 w-5" />
                     {messageBadge > 0 ? (
-                      <span className="absolute -top-1.5 -right-2.5 grid h-4 min-w-4 place-items-center rounded-full bg-[#7C3AED] px-1 text-[11px] font-semibold leading-none text-white ring-2 ring-[var(--background)]">
+                      <span className="absolute -top-1.5 -right-2.5 grid h-4 min-w-4 place-items-center rounded-full bg-[#7C3AED] px-1 text-11 font-semibold leading-none text-white ring-2 ring-[var(--background)]">
                         {messageBadge > 9 ? "9+" : messageBadge}
                       </span>
                     ) : null}
@@ -424,8 +421,8 @@ function Shell({
           </div>
         </nav>
       ) : null}
-      {showJoin && !chromeless ? <JoinBar /> : null}
-      {showNav && !chromeless ? <CreateMenu key={pathname} /> : null}
+      {showJoin && !chromeless && !fullScreen ? <JoinBar /> : null}
+      {showNav && !chromeless && !fullScreen ? <CreateMenu key={pathname} /> : null}
       <AddCardSheetSlot />
       {user ? <FirstRunSetup /> : null}
       {user ? <YoureIn userId={user.id} username={user.username} /> : null}
@@ -592,7 +589,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return (
       <>
         <AccountDeletedToast />
-        <div className="min-h-dvh bg-[var(--background)]" />
+        {requiresAccount(pathname) ? <PendingRouteSkeleton pathname={pathname} /> : null}
+        <div data-pending-blank="" className="min-h-dvh bg-[var(--background)]" />
       </>
     );
   }

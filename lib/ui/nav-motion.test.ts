@@ -4,6 +4,8 @@ import {
   EDGE_COMMIT_RATIO,
   EDGE_START_PX,
   RESTORE_TIMEOUT_MS,
+  arrivalScroll,
+  backPops,
   canGoBack,
   edgeBackdrop,
   edgeReleaseGoesBack,
@@ -177,5 +179,43 @@ describe("query-only replace", () => {
       entries: ["/moving-today"],
       index: 0,
     });
+  });
+});
+
+describe("where a screen opens", () => {
+  it("puts Back where you left it", () => {
+    assert.equal(arrivalScroll({ pop: true, tab: false, toRoot: false, saved: 840 }), 840);
+    assert.equal(arrivalScroll({ pop: true, tab: false, toRoot: true, saved: undefined }), 0);
+  });
+
+  it("keeps each tab's spot when you tap back to it from the bar", () => {
+    assert.equal(arrivalScroll({ pop: false, tab: true, toRoot: true, saved: 1200 }), 1200);
+    assert.equal(arrivalScroll({ pop: false, tab: true, toRoot: true, saved: undefined }), null);
+  });
+
+  it("opens every other push at the top", () => {
+    assert.equal(arrivalScroll({ pop: false, tab: false, toRoot: true, saved: 1200 }), null);
+    assert.equal(arrivalScroll({ pop: false, tab: true, toRoot: false, saved: 1200 }), null);
+    assert.equal(arrivalScroll({ pop: false, tab: false, toRoot: false, saved: 300 }), null);
+  });
+});
+
+describe("a back arrow", () => {
+  const stack = pushEntry(pushEntry(startStack("/"), "/messages"), "/messages/maya");
+
+  it("goes back in history when the page it names is the one behind", () => {
+    assert.equal(backPops(stack, "/messages"), true);
+    assert.equal(backPops(pushEntry(startStack("/u/sam?tab=cards"), "/u/sam/cards/1"), "/u/sam?tab=collection"), true);
+    assert.equal(backPops(pushEntry(startStack("/collection/"), "/cards/1"), "/collection"), true);
+  });
+
+  it("opens the page it names when you came from somewhere else, or cold", () => {
+    assert.equal(backPops(pushEntry(startStack("/search?q=wemby"), "/cards/1"), "/collection"), false);
+    assert.equal(backPops(startStack("/messages/maya"), "/messages"), false);
+  });
+
+  it("with no named page, goes back whenever there is a page behind", () => {
+    assert.equal(backPops(stack), true);
+    assert.equal(backPops(startStack("/posts/1")), false);
   });
 });

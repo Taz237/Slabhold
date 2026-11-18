@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useSheetDrag } from "@/lib/ui/use-sheet-drag";
+import { useMemo, useRef, useState } from "react";
 import { outlineButton, solidButton } from "@/components/button-styles";
 import { useCollection } from "@/components/collection-provider";
 import { useSocial } from "@/components/social-provider";
@@ -26,6 +27,10 @@ export function DealSheet({
   /** Only the starting pick, and only when it's a card you still hold. */
   initialCardId?: string | null;
 }) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  /** Swipe down to close; the backdrop slides it away first. */
+  const dismiss = useSheetDrag(panelRef, rootRef, onClose);
   const { user, messages, profiles } = useSocial();
   const { cards, reload } = useCollection();
   const [cardId, setCardId] = useState(
@@ -82,13 +87,18 @@ export function DealSheet({
   }
 
   return (
-    <div className="backdrop-in fixed inset-0 z-50 grid place-items-end bg-black/50 sm:place-items-center" onClick={onClose}>
+    <div
+      ref={rootRef}
+      className="backdrop-in fixed inset-0 z-50 grid place-items-end bg-black/50 sm:place-items-center"
+      onClick={dismiss}
+    >
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="deal-sheet-title"
         onClick={(event) => event.stopPropagation()}
-        className="sheet-up w-full max-w-md rounded-t-3xl bg-[var(--background)] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:rounded-3xl"
+        className="sheet-slide w-full max-w-md rounded-t-3xl bg-[var(--background)] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:rounded-3xl"
       >
         <h2 id="deal-sheet-title" className="text-lg font-semibold">
           {MARK_SOLD_LABEL}

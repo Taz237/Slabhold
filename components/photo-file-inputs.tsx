@@ -19,6 +19,7 @@ export function PhotoFileInputs({
   onPick,
   onPickMany,
   libraryMultiple = false,
+  libraryAccept = PHOTO_ACCEPT,
 }: {
   cameraRef?: Ref<HTMLInputElement>;
   libraryRef: Ref<HTMLInputElement>;
@@ -26,6 +27,8 @@ export function PhotoFileInputs({
   /** Library only. The camera input stays a single shot and is the only one with capture. */
   onPickMany?: (files: File[]) => void;
   libraryMultiple?: boolean;
+  /** The library picker's types. Photos only unless a composer takes video too. */
+  libraryAccept?: string;
 }) {
   return (
     <>
@@ -45,7 +48,7 @@ export function PhotoFileInputs({
       <input
         ref={libraryRef}
         type="file"
-        accept={PHOTO_ACCEPT}
+        accept={libraryAccept}
         multiple={libraryMultiple ? true : undefined}
         className="hidden"
         tabIndex={-1}

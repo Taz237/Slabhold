@@ -2,7 +2,7 @@ import type { TrawlSoldResult } from "@/lib/comps/types";
 import type { IndexedDirectoryPlayer } from "@/lib/players/types";
 import type { QuickCompIdentity } from "@/lib/quick-comp/identity";
 import { summarizeSales, type ScanCompResult, type ScanCompSource } from "./comp";
-import { groupByParallel, groupFor, guardOutliers, scanSalesFor, unnamedRunLabel, type ParallelGroup, type ScanSale } from "./scan-sales";
+import { groupByParallel, groupForPick, guardOutliers, scanSalesFor, unnamedRunLabel, type ParallelGroup, type ScanSale } from "./scan-sales";
 
 /**
  * One way to turn sold listings into a card's price, whichever source they came from (the live
@@ -34,10 +34,14 @@ export function cleanGroups(
   results: readonly TrawlSoldResult[],
   directory: readonly IndexedDirectoryPlayer[],
   serialRun: number | null | undefined,
+  /** The card is never a plain version (a patch card). */
+  neverPlain = false,
+  /** The parallels on the card's own product list, so a title naming one is never counted as Base. */
+  listedParallels?: readonly string[],
 ): ParallelGroup[] {
   const { kept } = scanSalesFor(
-    { playerName: identity.playerName, cardNumber: identity.cardNumber, serialRun: serialRun ?? null, yearLabel: identity.yearLabel },
-    { grade: identity.grade, setBrand: identity.setBrand, parallel: identity.parallel },
+    { playerName: identity.playerName, cardNumber: identity.cardNumber, serialRun: serialRun ?? null, yearLabel: identity.yearLabel, neverPlain },
+    { grade: identity.grade, setBrand: identity.setBrand, parallel: identity.parallel, insertName: identity.insertName, listedParallels },
     results,
     directory,
   );
@@ -49,9 +53,18 @@ export function cleanCompFor(
   identity: QuickCompIdentity,
   results: readonly TrawlSoldResult[],
   directory: readonly IndexedDirectoryPlayer[],
-  options: { serialRun?: number | null; asOf: string | null; source: ScanCompSource },
+  options: {
+    serialRun?: number | null;
+    asOf: string | null;
+    source: ScanCompSource;
+    /** The print run alone picked the parallel off the checklist: the run's clear majority of sales is this card. */
+    runPicked?: boolean;
+    /** The parallels on the card's own product list (lib/comps/known-run.ts listedParallelNames). */
+    listedParallels?: readonly string[];
+  },
 ): ScanCompResult {
-  const group = groupFor(cleanGroups(identity, results, directory, options.serialRun), wantedGroup(identity.parallel, options.serialRun));
+  const groups = cleanGroups(identity, results, directory, options.serialRun, false, options.listedParallels);
+  const group = groupForPick(groups, wantedGroup(identity.parallel, options.serialRun), Boolean(options.runPicked && options.serialRun));
   if (!group) return { status: "none" };
   return priceScanGroup(group.sales, { asOf: options.asOf, source: options.source });
 }

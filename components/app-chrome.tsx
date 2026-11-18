@@ -10,12 +10,13 @@ import { SocialProvider } from "@/components/social-provider";
  */
 export function AppChrome({ children }: { children: React.ReactNode }) {
   return (
-    <ImageLightboxProvider>
-      <SocialProvider>
+    <SocialProvider>
+      {/* Inside SocialProvider: the photo viewer shows the post's like, reply and repost bar. */}
+      <ImageLightboxProvider>
         <CollectionProvider>
           <AppShell>{children}</AppShell>
         </CollectionProvider>
-      </SocialProvider>
-    </ImageLightboxProvider>
+      </ImageLightboxProvider>
+    </SocialProvider>
   );
 }

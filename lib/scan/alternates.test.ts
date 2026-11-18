@@ -118,9 +118,18 @@ describe("alternates never make a wrong answer", () => {
       assert.equal(match.setBrand, "", alternate);
       assert.equal(match.cardNumber, "", alternate);
       // Read as the line itself it would name both, so it's the merge that holds it back.
-      const plain = top({ ...scan, backLines: ["ETHAN SALAS", alternate, TOPPS], backAlternates: null });
-      assert.notEqual(plain.setBrand, "", alternate);
-      assert.notEqual(plain.cardNumber, "", alternate);
+      const plain = rankScanMatches(scanReadFrom(withAlternates({ ...scan, backLines: ["ETHAN SALAS", alternate, TOPPS], backAlternates: null }, INDEXED_DIRECTORY), INDEXED_DIRECTORY), [], {
+        directory: INDEXED_DIRECTORY,
+        products: null,
+        soldTitles: [],
+      });
+      if (/PRIZM/.test(alternate)) {
+        // Prizm is Panini's, and this back signs Topps: the hard guard shows nothing rather than a guess.
+        assert.equal(plain.unpinned, true, alternate);
+        continue;
+      }
+      assert.notEqual(plain.matches[0].setBrand, "", alternate);
+      assert.notEqual(plain.matches[0].cardNumber, "", alternate);
     }
     // The same on a one-sided scan, where the set was plainly open.
     const oneSide = top(capture({ lines: ["ETHAN SALAS", "8P-1O3", TOPPS], alternates: [[], ["BOWMAN CHROME BCP-103"], []] }));

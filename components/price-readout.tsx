@@ -8,7 +8,7 @@ export function PriceFallbackText({ text }: { text: string }) {
   return (
     <span className="inline-flex max-w-full flex-wrap items-baseline gap-x-1">
       {parts.map((part) => (
-        <span key={part} className="whitespace-nowrap">
+        <span key={part} className="whitespace-nowrap big:whitespace-normal">
           {part}
         </span>
       ))}
@@ -24,7 +24,7 @@ export function SimilarCardsLine({
 }) {
   return (
     <div className="min-w-0">
-      <p className="text-[13px] text-zinc-500">{SIMILAR_CARDS_LABEL}</p>
+      <p className="text-13 text-zinc-500">{SIMILAR_CARDS_LABEL}</p>
       <Link
         href={read.href}
         className="mt-1 block text-lg font-semibold tracking-tight text-violet-700 underline-offset-2 hover:underline dark:text-violet-300"

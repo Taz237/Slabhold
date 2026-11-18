@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ReadRetry } from "@/components/read-retry";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { AtSign, Bell, Handshake, Heart, MessageCircle, Quote, Repeat2, Star, UserPlus } from "lucide-react";
+import { AtSign, Bell, Handshake, Heart, MessageCircle, Quote, Repeat2, SmilePlus, Star, UserPlus } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { DealConfirmActions, useMyDeals } from "@/components/deal-response";
 import { WantAlertOfferLink } from "@/components/open-to-offers";
@@ -127,7 +127,7 @@ export function NotificationsView() {
             const names = group.actorIds.map(
               (id) => authors.get(id)?.displayName?.trim() || "Someone",
             );
-            const headline = groupHeadlineParts(group.kind, names);
+            const headline = groupHeadlineParts(group.kind, names, group.notes[0]?.metadata);
             const lead = authors.get(group.actorIds[0] ?? "");
             const faces = group.actorIds.slice(0, 2);
             const highlighted = groupStaysHighlighted(group, savedUnreadIds);
@@ -136,7 +136,7 @@ export function NotificationsView() {
               <li key={group.key} className={highlighted ? "bg-violet-500/10 dark:bg-violet-400/15" : undefined}>
                 <Link
                   href={href}
-                  className="relative flex w-full min-w-0 items-start gap-3 px-4 py-3"
+                  className="tap-row relative flex w-full min-w-0 items-start gap-3 px-4 py-3"
                 >
                   {highlighted ? (
                     <span
@@ -154,7 +154,7 @@ export function NotificationsView() {
                             name={person?.displayName ?? "Collector"}
                             image={person?.avatarDataUrl}
                             accent={person?.accent}
-                            className="h-8 w-8 text-[10px] ring-2 ring-[var(--background)]"
+                            className="h-8 w-8 text-10 ring-2 ring-[var(--background)]"
                             expandable={false}
                           />
                         );
@@ -170,7 +170,7 @@ export function NotificationsView() {
                   )}
                   <span className="min-w-0 flex-1">
                     {highlighted ? <span className="sr-only">Unread. </span> : null}
-                    <span className="block text-[15px] leading-5">
+                    <span className="block text-15 leading-5">
                       {group.kind === "want_alert" || group.kind === "deal_confirm" ? (
                         <span>{group.preview}</span>
                       ) : (
@@ -245,5 +245,6 @@ function groupIcon(kind: NotificationKind) {
   if (kind === "mention") return AtSign;
   if (kind === "want_alert") return Star;
   if (kind === "deal_confirm") return Handshake;
+  if (kind === "dm_reaction") return SmilePlus;
   return UserPlus;
 }

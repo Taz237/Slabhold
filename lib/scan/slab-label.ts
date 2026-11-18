@@ -122,6 +122,8 @@ const SUBGRADE_LINE = /^(CENTERING|CORNERS|EDGES|SURFACE)\b/i;
 const AUTO_GRADE_LINE = /^AUTO(?:GRAPH)?(?:\s+GRADE)?\s*:?\s*(\S+)$/i;
 const BOILERPLATE = /^(CARDS?|GRADING|SERVICES?|AUTHENTICATION|COLLECTIBLES|DNA|INC\.?|LLC)$/i;
 const CARD_NUMBER = /(?:#|\bNO\.)\s*([A-Z0-9]+(?:-[A-Z0-9]+)*)/i;
+/** A bare number (1 to 4 digits) ending the year-and-set line: the card # whose "#" didn't read. */
+const BARE_LABEL_NUMBER = /^(.*?)(?:^|\s)(\d{1,4})$/;
 const YEAR_START = /^(\d{4}(?:\s*-\s*\d{2})?)\b\s*(.*)$/;
 const GRADE_NUMBER = "(?:10|[1-9](?:\\.5)?)";
 /** Four grade numbers in a row: BGS subgrades printed without their words. */
@@ -317,6 +319,11 @@ function certFromLine(line: string): string {
 
 type SetMatch = { setName: string; setText: string; rest: string };
 
+/** Other ways a label prints a set's name. The longest match still wins. */
+const LABEL_SPELLINGS: Readonly<Record<string, readonly string[]>> = {
+  "Bowman U Best": ["BOWMAN UNIVERSITY BEST", "BOWMAN'S BEST UNIVERSITY", "BOWMANS BEST UNIVERSITY", "BOWMAN BEST UNIVERSITY", "BOWMAN'S BEST U", "BOWMANS BEST U", "BOWMAN BEST U"],
+};
+
 /** Longest SETS name at the start of `text`, counting a leading "Panini" it skipped. */
 function matchSet(text: string): SetMatch {
   const words = text.split(" ").filter(Boolean);
@@ -324,7 +331,7 @@ function matchSet(text: string): SetMatch {
   let best: { name: string; used: number } | null = null;
   for (const name of SETS) {
     const nameWords = name.toUpperCase().split(" ");
-    const variants = [nameWords];
+    const variants = [nameWords, ...(LABEL_SPELLINGS[name] ?? []).map((spelling) => spelling.split(" "))];
     if (nameWords[0] === "PANINI" && nameWords.length > 1) variants.push(nameWords.slice(1));
     for (const variant of variants) {
       for (const skip of upper[0] === "PANINI" && variant[0] !== "PANINI" ? [0, 1] : [0]) {
@@ -496,7 +503,25 @@ function readCardLines(read: SlabLabelRead, lines: string[], options: SlabLabelO
     if (yearRest || set.setName) {
       read.setName = set.setName;
       read.setText = set.setText;
-      if (set.rest) variety.push(set.rest);
+      let setRest = set.rest;
+      // The label prints "YEAR SET #NUM" on one line. When the phone drops the "#" ("2020 PANINI
+      // SELECT 47"), a bare number ending that line right after a known set is still the card #.
+      const bare = !read.cardNumber && set.setName ? BARE_LABEL_NUMBER.exec(setRest) : null;
+      if (bare) {
+        read.cardNumber = bare[2];
+        setRest = bare[1].trim();
+      }
+      // The label read as one line ("1952 TOPPS MICKEY MANTLE #311"): with no player line of its
+      // own, a name after the set is the player.
+      const namedHere = Boolean(setRest) && (score ? score(setRest) > 0 : looksLikeName(setRest));
+      const nobodyElse = !read.playerText || (score ? score(read.playerText) === 0 : false);
+      if (namedHere && nobodyElse) {
+        // A line taken for the player only because nothing else was ("SILVER PRIZM") goes back to the variety.
+        if (read.playerText) variety.push(read.playerText);
+        read.playerText = setRest.replace(ROOKIE_TAIL, "").trim() || setRest;
+        setRest = "";
+      }
+      if (setRest) variety.push(setRest);
     }
   }
   variety.push(...others.filter(Boolean));

@@ -1,3 +1,4 @@
+import { isReactionEmoji } from "./message-reactions";
 import type { Notification, NotificationKind } from "./types";
 
 export type NotificationGroup = {
@@ -23,7 +24,11 @@ const GROUPED_KINDS = new Set<NotificationKind>([
   "follow",
 ]);
 
-export function notificationAction(kind: NotificationKind): string {
+export function notificationAction(kind: NotificationKind, metadata?: Record<string, unknown> | null): string {
+  if (kind === "dm_reaction") {
+    const emoji = metadata?.emoji;
+    return isReactionEmoji(emoji) ? `reacted ${emoji} to your message` : "reacted to your message";
+  }
   if (kind === "like") return "liked your post";
   if (kind === "comment") return "commented on your post";
   if (kind === "repost") return "reposted your post";
@@ -44,8 +49,9 @@ export function notificationGroupKey(note: Notification): string {
 export function groupHeadlineParts(
   kind: NotificationKind,
   names: string[],
+  metadata?: Record<string, unknown> | null,
 ): { lead: string; rest: string } {
-  const action = notificationAction(kind);
+  const action = notificationAction(kind, metadata);
   const lead = names[0]?.trim() || "Someone";
   if (names.length <= 1) return { lead, rest: ` ${action}` };
   if (names.length === 2) {
@@ -55,8 +61,12 @@ export function groupHeadlineParts(
   return { lead, rest: ` and ${names.length - 1} others ${action}` };
 }
 
-export function groupHeadline(kind: NotificationKind, names: string[]): string {
-  const parts = groupHeadlineParts(kind, names);
+export function groupHeadline(
+  kind: NotificationKind,
+  names: string[],
+  metadata?: Record<string, unknown> | null,
+): string {
+  const parts = groupHeadlineParts(kind, names, metadata);
   return `${parts.lead}${parts.rest}`;
 }
 

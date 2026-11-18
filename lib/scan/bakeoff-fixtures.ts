@@ -1,4 +1,6 @@
 import type { CatalogCard } from "@/lib/card-catalog";
+import { checklistProductFrom } from "@/lib/cards/checklist-import";
+import type { ChecklistProduct } from "@/lib/cards/checklists";
 import type { SoldTitle } from "./match";
 
 /**
@@ -17,8 +19,12 @@ export type BakeoffTruth = {
   number: string;
   /** The parallel's words, any order: "Pink/Red" matches "Pink Red". "" or "Base" for a base card. */
   parallel: string;
+  /** Other names for the same parallel that also count as right: the checklist's "Fuchsia Border" for the sold titles' "Pink/Red". */
+  parallelAlso?: string[];
   /** The card's year or season: "2024", "2025-26". */
   year?: string;
+  /** The card's sport, to check the truth against the store's checklist for it (the era set). */
+  sport?: string;
   /** The card's print run (/299). Null or missing: the card isn't numbered. */
   run?: number | null;
   /** A slab's grade ("PSA 10"). Checked, not scored. */
@@ -36,6 +42,8 @@ export type BakeoffTruth = {
   sapphirePick?: boolean;
   /** The set was named by most of the card's sold titles, not by its print. */
   setFromSales?: boolean;
+  /** Checked, not scored: the player was looked up from the checklist or the card's sold titles. */
+  playerSource?: "checklist" | "sales";
 };
 
 /** A mocked Trawl answer: eBay sold titles, served only at this rung of the search ladder (0 = the first). */
@@ -44,8 +52,12 @@ export type BakeoffLive = {
   sold: { title: string; price: number; soldAt: string; graded?: { grader: string; grade: string } }[];
   /** Rungs where Trawl fails (throttled or down) instead of answering. */
   failAt?: number[];
-  /** What the sheet should say, when it isn't a price: "none" (searched, no sales) for a card that truly has none. */
-  solds?: "none";
+  /**
+   * What the sheet should say, when it isn't a price: "none" (searched, no sales) for a card that
+   * truly has none; "split" for a card whose version is open, so its sales show by version to pick
+   * and nothing is priced as Base.
+   */
+  solds?: "none" | "split";
   /** The group the price must come from, when the case checks it ("/299, parallel not named"). */
   pricedFrom?: string;
 };
@@ -74,10 +86,63 @@ export type BakeoffCase = {
   knownWrong?: ("player" | "year" | "set" | "number" | "run" | "parallel")[];
   /** What a live eBay search returns, junk included. None: Trawl finds nothing on any rung. */
   live?: BakeoffLive;
+  /** The checklist rows for this card's year and set (lib/cards/checklists.ts). None: no checklist for it. */
+  checklist?: ChecklistProduct[];
+  /**
+   * With live solds, when it differs from the phone's first read: the player the sold titles
+   * name (or "" when they must name nobody), where that came from, and the most searches spent.
+   */
+  liveTruth?: { player: string; playerSource?: "checklist" | "sales"; calls?: number };
+  /**
+   * A case set up with no checklist, for a card the store's real files do list: the player those
+   * files name. Only the "as production loads them" run reads it.
+   */
+  storeTruth?: { player: string };
   truth: BakeoffTruth;
 };
 
-const MILLER: BakeoffTruth = { player: "Aidan Miller", year: "2024", set: "Bowman", number: "BP-27", parallel: "Pink/Red", run: 299 };
+const PETERSON: BakeoffTruth = { player: "Darryn Peterson", year: "2026-27", set: "Topps", number: "257", parallel: "", run: null, sport: "Basketball", rookie: true };
+const PETERSON_FRONT_GLUED = ["DARRYN PETERSON UTA", "RC"];
+const PETERSON_FRONT_LINES = ["UTA", "DARRYN PETERSON", "UTAH JAZZ", "RC"];
+const PETERSON_LEGAL = "©, TM & © 2026 The Topps Company, Inc. All rights reserved.";
+const PETERSON_BACK = ["257", "DARRYN PETERSON", "UTAH JAZZ", "GUARD", "DRAFTED: JAZZ #1, 2026", "KANSAS", PETERSON_LEGAL];
+const PETERSON_BACK_SIDEWAYS = ["257", PETERSON_LEGAL];
+
+/**
+ * The Nov 18 live scan of the same card as a Shimmer (scan_misses row 4): the real Vision lines off
+ * the device, the back held sideways, so its stat table reads cell by cell and "257" is one bare
+ * number among six. "Shimmer" is what sellers call it; our 2026-27 Topps list doesn't have it, so the
+ * parallel is right when open or Shimmer and never anything else.
+ */
+// No rookie flag here: the device's lines read no RC logo, and nothing invents one.
+const PETERSON_SHIMMER: BakeoffTruth = { player: "Darryn Peterson", year: "2026-27", set: "Topps", number: "257", parallel: "", parallelAlso: ["Shimmer"], run: null, sport: "Basketball" };
+const PETERSON_DEVICE_FRONT = ["PJU", "UTA", "I TAH", "22", "DARRYN PETERSON", "UTAH JAZZ"];
+const PETERSON_DEVICE_BACK = ["670", "Career", "25-26", "YEAR", "L COLLEGE RECORD", "257", "KANSAS", "Team", "24", "24", "Austin Ainge says. \"I appreciated his drive and desire.\"", ".438", "438", "FG%", "BORN: 1-17-07, CANTON, OH HOME: CANTON, OH", "DRAFTED: JAZZ #1, 2026 ACQUIRED: VIA DRAFT", "HT: 6'ỊẠịWT: 205", "UTAH JAZZ", "DARRYN PETERSUN", ".382", "382", "3Р%", "the National Basketball Players Association, and others. For complete licensing legal language, visit www.topps.com/page", "®, TM, & © 2026 The Topps Company, Inc. All rights reserved. Officially licensed products and intellectual property of t", "OPPs", "attention of Utah's decision-makers. \"I appreciated his maturity,' Jazz president", "Darryn is a versatile playmaker with an advanced feel for the game that caught the", "4.2", "4.2", "REB/G", "1.4", "STL/G", "0.6", "0.6", "BLK/G", "1.6", "1.6", "AST/G", "X Li @TOPPS", "20.2"];
+/** 2026-27 Topps basketball, the rows a Darryn Peterson scan can land on (the real checklist's numbers, and who else has #17). */
+const TOPPS_2026_27_PETERSON = checklistProductFrom(
+  { sport: "Basketball", yearLabel: "2026-27", product: "Topps", source: "bake-off fixture", read: "2026-11-18" },
+  [
+    { name: "Base", cards: [{ number: "17", player: "Giannis Antetokounmpo", team: "Milwaukee Bucks" }, { number: "257", player: "Darryn Peterson", team: "Utah Jazz" }] },
+    { name: "Base Break Point", cards: [{ number: "192", player: "Darryn Peterson", team: "Utah Jazz" }] },
+    { name: "Base Project Rookie", cards: [{ number: "92", player: "Darryn Peterson", team: "Utah Jazz" }] },
+    { name: "The Flagship Collection", cards: [{ number: "17", player: "Cade Cunningham", team: "Detroit Pistons" }, { number: "62", player: "Darryn Peterson", team: "Utah Jazz" }] },
+    { name: "All Kings", cards: [{ number: "AK-17", player: "Darryn Peterson", team: "Utah Jazz" }] },
+    { name: "Bounce", cards: [{ number: "TB-17", player: "Darryn Peterson", team: "Utah Jazz" }] },
+    { name: "Hardwood Stars", cards: [{ number: "HS-17", player: "Darryn Peterson", team: "Utah Jazz" }] },
+    { name: "Levitation", cards: [{ number: "LV-12", player: "Darryn Peterson", team: "Utah Jazz" }] },
+  ],
+);
+
+/** What a search for him returns: the Hardwood Stars insert sellers title "#17" (HS-17 on the checklist), another insert, and the card. Modeled. */
+const PETERSON_DEVICE_TITLES: SoldTitle[] = [
+  { title: "2026-27 Topps Darryn Peterson Hardwood Stars #17 Rookie RC Jazz", price: 6, soldAt: "2026-11-13" },
+  { title: "2026-27 Topps Darryn Peterson Hardwood Stars #17 Rookie RC Jazz", price: 6, soldAt: "2026-11-12" },
+  { title: "2026-27 Topps Darryn Peterson Hardwood Stars #17 Rookie RC Jazz", price: 7, soldAt: "2026-11-11" },
+  { title: "2026-27 Topps Darryn Peterson Levitation #LV-12 RC", price: 9, soldAt: "2026-11-12" },
+  { title: "2026-27 Topps Darryn Peterson #257 Shimmer RC", price: 7, soldAt: "2026-11-13" },
+];
+
+const MILLER: BakeoffTruth = { player: "Aidan Miller", year: "2024", set: "Bowman", number: "BP-27", parallel: "Pink/Red", parallelAlso: ["Fuchsia Border"], run: 299 };
 const MILLER_FRONT = ["3B", "1ST BOWMAN", "PHILADELPHIA PHILLIES", "137/299", "AIDAN MILLER"];
 /** The stylized 1ST BOWMAN logo often doesn't read. */
 const MILLER_FRONT_NO_LOGO = ["3B", "PHILADELPHIA PHILLIES", "137/299", "AIDAN MILLER"];
@@ -102,6 +167,39 @@ const MILLER_TITLES: SoldTitle[] = [
   { title: "Aidan Miller Bowman 1st Paper Pink/Red #'d 232/299 Phillies BP-27", price: 34.99, soldAt: "2026-10-30" },
   { title: "2024 Bowman 1st Aidan Miller Pink Red /299 BP-27 Phillies Prospect", price: 38, soldAt: "2026-10-12" },
 ];
+
+/** 2026-27 Topps basketball, the rows a Cameron Boozer scan can land on (the real checklist's numbers). */
+const TOPPS_2026_27_BOOZER = checklistProductFrom(
+  { sport: "Basketball", yearLabel: "2026-27", product: "Topps", source: "bake-off fixture", read: "2026-11-17" },
+  [
+    { name: "Base", cards: [{ number: "258", player: "Cameron Boozer", team: "Memphis Grizzlies" }] },
+    { name: "Bounce", cards: [{ number: "TB-18", player: "Cameron Boozer", team: "Memphis Grizzlies" }] },
+    { name: "No Limit", cards: [{ number: "NL-3", player: "Cameron Boozer", team: "Memphis Grizzlies" }] },
+    { name: "Rookie Code", cards: [{ number: "RC-1", player: "AJ Dybantsa", team: "Utah Jazz" }, { number: "RC-3", player: "Cameron Boozer", team: "Memphis Grizzlies" }] },
+  ],
+);
+
+const BOOZER_RC3: BakeoffTruth = { player: "Cameron Boozer", year: "2026-27", set: "Topps", number: "RC-3", parallel: "", run: null, sport: "Basketball" };
+const BOOZER_LEGAL = "©, TM & © 2026 The Topps Company, Inc. All rights reserved.";
+
+/**
+ * What a search for his Rookie Code returns: the plain insert (~$7), its Refractor and Holo
+ * ($15-20, never the plain one's price), and his other 2026-27 Topps cards: base #258, Bounce TB-18.
+ */
+const BOOZER_RC3_LIVE: BakeoffLive = {
+  atRung: 0,
+  solds: "split",
+  sold: [
+    { title: "2026-27 Topps Rookie Code Cameron Boozer #RC-3 Grizzlies RC", price: 7, soldAt: "2026-11-14" },
+    { title: "Cameron Boozer 2026-27 Topps Basketball Rookie Code RC-3", price: 6.5, soldAt: "2026-11-12" },
+    { title: "2026-27 Topps Cameron Boozer Rookie Code Insert RC-3", price: 7.5, soldAt: "2026-11-10" },
+    { title: "2026-27 Topps Cameron Boozer Rookie Code Refractor RC-3", price: 17, soldAt: "2026-11-13" },
+    { title: "2026-27 Topps Rookie Code Insert Holo Cameron Boozer RC-3", price: 18, soldAt: "2026-11-11" },
+    { title: "2026-27 Topps Cameron Boozer #258 RC Grizzlies", price: 1.79, soldAt: "2026-11-14" },
+    { title: "2026-27 Topps Bounce Cameron Boozer TB-18", price: 3, soldAt: "2026-11-09" },
+    { title: "2026-27 Topps Cameron Boozer Rookie Code RC-3 PSA 10", price: 60, soldAt: "2026-11-08", graded: { grader: "PSA", grade: "10" } },
+  ],
+};
 
 export const BAKEOFF_CASES: BakeoffCase[] = [
   {
@@ -405,4 +503,43 @@ export const BAKEOFF_CASES: BakeoffCase[] = [
     ],
     truth: { player: "J.J. McCarthy", year: "2024", set: "Panini Donruss", number: "303", parallel: "Optic Preview Pink" },
   },
+  {
+    // TestFlight 1.1.1 (7): the front prints ROOKIE CODE in big letters; the back's RC-3 is lost in
+    // the falling binary digits ("0110" is art, never card #110). The scan showed 2026-27 Topps with
+    // no #, "#MEM" and "#TB-18", and priced it as Base from 31 sales of his other cards.
+    name: "Boozer, Rookie Code RC-3: ROOKIE CODE on the front, RC-3 lost in the binary art",
+    front: ["01", "ROOKIE CODE", "10", "o 3", "CAMERON BOOZER"],
+    back: ["0110", "0 0", "04", "CAMERON BOOZER", "MEMPHIS", "MEM", "FORWARD", "Cameron, who scores through contact", BOOZER_LEGAL],
+    checklist: [TOPPS_2026_27_BOOZER],
+    live: BOOZER_RC3_LIVE,
+    truth: BOOZER_RC3,
+  },
+  {
+    name: "Boozer, Rookie Code RC-3: ROOKIE and CODE on lines of their own, no code on the back",
+    front: ["ROOKIE", "CODE", "CAMERON BOOZER"],
+    back: ["CAMERON BOOZER", "MEMPHIS GRIZZLIES", BOOZER_LEGAL],
+    checklist: [TOPPS_2026_27_BOOZER],
+    live: BOOZER_RC3_LIVE,
+    truth: BOOZER_RC3,
+  },
+  {
+    name: "Boozer, Rookie Code RC-3: the code read off the back amid the digits",
+    front: ["CODE", "CAMERON BOOZER"],
+    back: ["0", "1 RC-3 0", "0110", "CAMERON BOOZER", "MEMPHIS", BOOZER_LEGAL],
+    checklist: [TOPPS_2026_27_BOOZER],
+    live: BOOZER_RC3_LIVE,
+    truth: BOOZER_RC3,
+  },
+  // The Nov 18 device miss: 2026-27 Topps #257 Darryn Peterson RC (docs: the PR for this fix). The
+  // front prints the team code beside the nameplate, so Vision gives one line, "DARRYN PETERSON
+  // UTA", and the back's draft line prints "#1". Lines modeled on the collector's photos.
+  { name: "Peterson, 2026-27 Topps #257: UTA glued to the nameplate, the whole back", front: PETERSON_FRONT_GLUED, back: PETERSON_BACK, truth: PETERSON },
+  { name: "Peterson, 2026-27 Topps #257: UTA glued to the nameplate, a sideways back (only the # and the ©)", front: PETERSON_FRONT_GLUED, back: PETERSON_BACK_SIDEWAYS, truth: PETERSON },
+  { name: "Peterson, 2026-27 Topps #257: UTA glued to the nameplate, front only", front: PETERSON_FRONT_GLUED, back: null, truth: PETERSON },
+  { name: "Peterson, 2026-27 Topps #257: UTA on a line of its own, the whole back", front: PETERSON_FRONT_LINES, back: PETERSON_BACK, truth: PETERSON },
+  { name: "Peterson, 2026-27 Topps #257: UTA on a line of its own, a sideways back (only the # and the ©)", front: PETERSON_FRONT_LINES, back: PETERSON_BACK_SIDEWAYS, truth: PETERSON },
+  { name: "Peterson, 2026-27 Topps #257: UTA on a line of its own, front only", front: PETERSON_FRONT_LINES, back: null, truth: PETERSON },
+  { name: "Peterson Shimmer, the device's lines: a sideways back read cell by cell (six bare numbers)", front: PETERSON_DEVICE_FRONT, back: PETERSON_DEVICE_BACK, truth: PETERSON_SHIMMER },
+  { name: "Peterson Shimmer, the device's lines: the same back without the 670", front: PETERSON_DEVICE_FRONT, back: PETERSON_DEVICE_BACK.filter((line) => line !== "670"), truth: PETERSON_SHIMMER },
+  { name: "Peterson Shimmer, the device's lines: saved titles for Hardwood Stars \"#17\", Levitation and the card", front: PETERSON_DEVICE_FRONT, back: PETERSON_DEVICE_BACK, titles: PETERSON_DEVICE_TITLES, checklist: [TOPPS_2026_27_PETERSON], truth: PETERSON_SHIMMER },
 ];

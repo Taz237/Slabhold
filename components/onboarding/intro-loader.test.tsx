@@ -39,7 +39,9 @@ describe("intro loading", () => {
     assert.match(markup, /data-intro-loading/);
     // Progress dots, the art frame, two text lines and the button shape.
     assert.ok((markup.match(/data-skeleton/g) ?? []).length >= 4);
-    assert.match(markup, /motion-reduce:animate-none/);
+    // The shared shimmer holds still for Reduce Motion (globals.css).
+    assert.match(markup, /skeleton-shimmer/);
+    assert.doesNotMatch(markup, /animate-pulse/);
   });
 
   it("shows the skeleton while the intro's code loads, then the intro", async () => {

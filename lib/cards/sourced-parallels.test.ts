@@ -71,6 +71,29 @@ describe("checklists: sourced Topps rows", () => {
     assert.ok(!names.some((name) => /autograph/i.test(name)));
   });
 
+  it("lists 2024 Bowman from the Cardboard Connection checklist, with a print run on every numbered row", () => {
+    const row = (topps as Row[]).find((item) => item.yearLabel === "2024" && item.product === "Bowman");
+    assert.ok(row);
+    assert.equal(row.source, "https://www.cardboardconnection.com/2024-bowman-baseball-cards");
+    assert.equal(row.official, false);
+    const run = (subset: string, name: string) => row.parallels.find((item) => item.subset === subset && item.name === name)?.serialRun;
+    assert.equal(run("Base and Paper Prospects", "Sky Blue Border"), 499);
+    assert.equal(run("Base and Paper Prospects", "Fuchsia Border"), 299);
+    assert.equal(run("Base and Paper Prospects", "Red Border"), 5);
+    assert.equal(run("Chrome Prospects", "Refractor"), 499);
+    assert.equal(run("Chrome Prospects", "Fuchsia Refractor"), 199);
+    assert.equal(run("Chrome Prospects", "Lunar Glow"), null);
+    // Not on the source's list, so not on ours.
+    for (const name of ["Orange Border", "Orange Refractor", "Black Refractor", "Superfractor"]) {
+      assert.ok(!row.parallels.some((item) => item.name === name), name);
+    }
+    const keys = row.parallels.map((item) => `${item.subset}|${item.name.toLowerCase()}`);
+    assert.equal(new Set(keys).size, keys.length);
+    for (const item of row.parallels) {
+      assert.ok(item.serialRun === null || (Number.isInteger(item.serialRun) && item.serialRun > 0), item.name);
+    }
+  });
+
   it("offers the 2025 Topps Update foil parallels", async () => {
     const data = await loadProductData();
     const names = parallelsIn(data, "Baseball", "2025", "Topps Update").map((item) => item.name);

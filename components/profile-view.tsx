@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { MessageCircle, WalletCards } from "lucide-react";
+import { ArrowLeft, MessageCircle, WalletCards } from "lucide-react";
+import { goBack } from "@/components/nav-motion";
 import { Avatar } from "@/components/avatar";
 import { outlineButton, solidButton } from "@/components/button-styles";
 import { OpenToOffersFilter } from "@/components/open-to-offers";
@@ -13,6 +14,7 @@ import { ProfileBadgeStrip } from "@/components/badges/profile-badge-strip";
 import { LoadMore } from "@/components/load-more";
 import { MentionText } from "@/components/mention-text";
 import { PullToRefresh } from "@/components/pull-to-refresh";
+import { FeedItem } from "@/components/timeline-ui";
 import { usePagedTimeline } from "@/components/use-paged-timeline";
 import { EmptyState, LoadingRows, ProfileSkeleton } from "@/components/status";
 import { FollowButton } from "@/components/follow-button";
@@ -400,7 +402,19 @@ export function ProfileView({
       className="-mx-4 -mt-5"
     >
     <div inert={editing ? true : undefined} className="min-w-0 overflow-x-hidden">
-      <div className="h-40 overflow-hidden bg-zinc-200 dark:bg-zinc-800">
+      <div className="relative h-40 overflow-hidden bg-zinc-200 dark:bg-zinc-800">
+        {!isOwn ? (
+          <button
+            type="button"
+            onClick={() => goBack({ push: () => router.push("/") })}
+            aria-label="Back"
+            className="tap absolute top-1 left-1 z-[1] grid h-11 w-11 place-items-center rounded-full focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none"
+          >
+            <span className="grid h-9 w-9 place-items-center rounded-full bg-zinc-950/60 text-white">
+              <ArrowLeft className="h-5 w-5" />
+            </span>
+          </button>
+        ) : null}
         {profile.coverDataUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={profile.coverDataUrl} alt="" className="h-full w-full object-cover" />
@@ -414,14 +428,14 @@ export function ProfileView({
         )}
       </div>
       <div className="px-4">
-        <div className="flex items-end justify-between">
+        <div className="flex items-end justify-between big:flex-col big:items-start big:gap-3">
           <Avatar
             name={profile.displayName}
             image={profile.avatarDataUrl}
             accent={profile.accent}
-            className="-mt-14 h-24 w-24 text-xl ring-4 ring-[var(--background)]"
+            className="-mt-14 h-24 w-24 shrink-0 text-xl ring-4 ring-[var(--background)]"
           />
-          <div className="mb-1 flex max-w-[17rem] flex-wrap items-center justify-end gap-2">
+          <div className="mb-1 flex max-w-[17rem] flex-wrap items-center justify-end gap-2 big:max-w-full big:justify-start">
             <ShareIconButton
               path={userHref(profile.username)}
               title={`${profile.displayName} (@${profile.username})`}
@@ -453,13 +467,13 @@ export function ProfileView({
             )}
           </div>
         </div>
-        <h1 className="mt-3 text-[22px] leading-7 font-semibold tracking-tight break-words">
+        <h1 className="mt-3 text-[1.375rem] leading-7 font-semibold tracking-tight break-words">
           {profile.displayName}
           <TeamBadge username={profile.username} size="md" className="ml-1.5 align-[-3px]" />
         </h1>
-        <p className="text-[15px] leading-5 font-medium text-zinc-500">@{profile.username}</p>
+        <p className="text-15 leading-5 font-medium text-zinc-500">@{profile.username}</p>
         {profile.bio ? (
-          <p className="mt-2.5 text-[15px] leading-[1.4] break-words text-zinc-800 dark:text-zinc-200">
+          <p className="mt-2.5 text-15 leading-[1.4] break-words text-zinc-800 dark:text-zinc-200">
             {profile.bio}
           </p>
         ) : null}
@@ -471,7 +485,7 @@ export function ProfileView({
           >
             {cardCount == null ? (
               <span
-                className="inline-block h-4 w-5 animate-pulse rounded bg-zinc-200/80 motion-reduce:animate-none dark:bg-white/10"
+                className="inline-block h-4 w-5 skeleton-shimmer rounded"
                 aria-hidden
               />
             ) : (
@@ -509,7 +523,7 @@ export function ProfileView({
       <div
         role="tablist"
         aria-label="Profile"
-        className="relative mt-3 grid min-w-0 grid-cols-4 overflow-x-hidden border-b border-zinc-200 text-[13px] min-[400px]:text-[15px] dark:border-white/10"
+        className="relative mt-3 grid min-w-0 grid-cols-4 overflow-x-hidden border-b border-zinc-200 text-13 min-[400px]:text-15 big:text-[19px] dark:border-white/10"
       >
         {PROFILE_TAB_LABELS.map((item) => (
           <ProfileTab
@@ -553,16 +567,16 @@ export function ProfileView({
                 key={reply.id}
                 className="min-w-0 border-b border-zinc-200 px-4 py-3 dark:border-white/10"
               >
-                <p className="text-[13px] font-medium text-zinc-500">Reply</p>
+                <p className="text-13 font-medium text-zinc-500">Reply</p>
                 {reply.body.trim() ? (
-                  <p className="mt-1 text-[15px] leading-5 break-words whitespace-pre-wrap">
+                  <p className="mt-1 text-15 leading-5 break-words whitespace-pre-wrap">
                     <MentionText text={reply.body} />
                   </p>
                 ) : null}
                 <ReplyPhotos images={reply.images} />
                 <Link
                   href={`/posts/${reply.postId}`}
-                  className="mt-1 inline-block text-[13px] font-medium text-violet-700 decoration-violet-700/70 dark:text-violet-300 dark:decoration-violet-300/80 hover:underline"
+                  className="mt-1 inline-block text-13 font-medium text-violet-700 decoration-violet-700/70 dark:text-violet-300 dark:decoration-violet-300/80 hover:underline"
                 >
                   View post
                 </Link>
@@ -655,15 +669,16 @@ export function ProfileView({
             const author = authors.get(item.post.authorId);
             if (!author) return null;
             return (
-              <Tweet
-                key={item.key}
-                post={item.post}
-                author={author}
-                pinned={item.key.startsWith("pinned:")}
-                repostedBy={item.repostedBy}
-                extraPosts={pagedPosts.relatedPosts}
-                extraProfiles={pagedPosts.profiles}
-              />
+              <FeedItem key={item.key} itemKey={`profile:${item.key}`} delay={null}>
+                <Tweet
+                  post={item.post}
+                  author={author}
+                  pinned={item.key.startsWith("pinned:")}
+                  repostedBy={item.repostedBy}
+                  extraPosts={pagedPosts.relatedPosts}
+                  extraProfiles={pagedPosts.profiles}
+                />
+              </FeedItem>
             );
           })}
           {mode === "supabase" ? (
@@ -705,7 +720,7 @@ function CountLink({ href, count, label }: { href: string; count: number | null;
     <Link href={href} className="inline-flex min-h-11 items-center gap-1 rounded-md px-1 hover:underline">
       {count == null ? (
         <span
-          className="inline-block h-4 w-5 animate-pulse rounded bg-zinc-200/80 motion-reduce:animate-none dark:bg-white/10"
+          className="inline-block h-4 w-5 skeleton-shimmer rounded"
           aria-hidden
         />
       ) : (

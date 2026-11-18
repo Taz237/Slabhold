@@ -33,7 +33,7 @@ export function ReadRetry({
 
   return (
     <div data-read-retry="" className={compact ? "px-4 py-10 text-center" : "py-16 text-center"}>
-      <p className={`font-semibold tracking-tight ${compact ? "text-[17px]" : "text-lg"}`}>{title}</p>
+      <p className={`font-semibold tracking-tight ${compact ? "text-17" : "text-lg"}`}>{title}</p>
       <p className="mx-auto mt-2 max-w-xs text-sm text-zinc-500">{detail}</p>
       <button
         type="button"

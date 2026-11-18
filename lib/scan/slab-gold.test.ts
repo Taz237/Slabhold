@@ -26,11 +26,17 @@ describe("slab labels are gold", () => {
   });
 
   it("subset words are never the parallel: Prospects, Rookie Ticket, Young Guns", () => {
-    assert.equal(scan(["PSA", "2022 BOWMAN CHR.", "PROSPECTS", "#BCP-153", "JACKSON CHOURIO", "GEM MT 10", "71234567"]).parallel, "Base");
+    // The label named no parallel, so it is open with Base first ("Which version?"): never the subset word.
+    const open = (match: ReturnType<typeof scan>) => {
+      assert.equal(match.parallel, "");
+      assert.equal(match.parallelOptions[0]?.name, "Base");
+      assert.ok(!match.parallelOptions.some((option) => /prospect|ticket|young guns|rookie|auto/i.test(option.name)));
+    };
+    open(scan(["PSA", "2022 BOWMAN CHR.", "PROSPECTS", "#BCP-153", "JACKSON CHOURIO", "GEM MT 10", "71234567"]));
     const burrow = scan(["PSA", "2020 PANINI CONTENDERS", "#103", "JOE BURROW", "ROOKIE TICKET AUTO", "NM-MT 8", "AUTO 10", "55443322"]);
-    assert.equal(burrow.parallel, "Base");
+    open(burrow);
     assert.equal(burrow.isAuto, true);
-    assert.equal(scan(["CGC", "Connor Bedard", "2023 Upper Deck Series 2", "#451 Young Guns", "MINT 9", "4098765432"]).parallel, "Base");
+    open(scan(["CGC", "Connor Bedard", "2023 Upper Deck Series 2", "#451 Young Guns", "MINT 9", "4098765432"]));
   });
 
   it("a parallel our lists don't know keeps the label's words, without 'Prizm' or the run", () => {

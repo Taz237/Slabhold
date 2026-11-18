@@ -319,7 +319,7 @@ export const MentionTextarea = forwardRef<
               expandable={false}
             />
             <span className="min-w-0">
-              <span className="block truncate text-[15px] leading-5 font-semibold">
+              <span className="block truncate text-15 leading-5 font-semibold">
                 {person.displayName}
               </span>
               <span className="block truncate text-sm text-zinc-500">@{person.username}</span>

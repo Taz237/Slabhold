@@ -1,6 +1,6 @@
 import { isNativeApp, loadNative } from "@/lib/ios/platform";
 
-export type HapticMoment = "like" | "post" | "save" | "follow" | "send" | "refresh" | "tick";
+export type HapticMoment = "like" | "post" | "save" | "follow" | "send" | "refresh" | "tick" | "add";
 
 /**
  * A light tap on Like, follow, send, refresh and a chart tick; a success buzz

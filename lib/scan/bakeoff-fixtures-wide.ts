@@ -205,7 +205,7 @@ export const WIDE_BAKEOFF_CASES: BakeoffCase[] = [
     name: "Prizm numbered: Maye 045/149, spaced serial",
     front: ["PRIZM", "DRAKE MAYE", "PATRIOTS", "RC", "045 / 149"],
     back: ["No. 329", "DRAKE MAYE", "QUARTERBACK", "2024 PANINI - PRIZM FOOTBALL", PANINI_2024],
-    truth: { player: "Drake Maye", year: "2024", set: "Panini Prizm", number: "329", parallel: "Orange", run: 149 },
+    truth: { player: "Drake Maye", year: "2024", set: "Panini Prizm", number: "329", parallel: "Red Wave", run: 149 },
   },
   {
     name: "Prizm: Jeanty, card read upside down (both sides reversed)",
@@ -347,7 +347,7 @@ export const WIDE_BAKEOFF_CASES: BakeoffCase[] = [
       { title: "Cooper Flagg 2025-26 Topps Chrome Orange Refractor 11/25 #201 Rookie", price: 950, soldAt: "2026-10-20" },
       { title: "2025-26 Topps Chrome Cooper Flagg #201 Orange Refractor /25", price: 880, soldAt: "2026-10-11" },
     ],
-    truth: { player: "Cooper Flagg", year: "2025-26", set: "Topps Chrome", number: "201", parallel: "Orange Refractor", run: 25 },
+    truth: { player: "Cooper Flagg", year: "2025-26", set: "Topps Chrome", number: "201", parallel: "Orange Refractor", parallelAlso: ["Orange"], run: 25 },
   },
   {
     name: "Topps Chrome: Acuña, accent in the name, card #1",
@@ -431,7 +431,7 @@ export const WIDE_BAKEOFF_CASES: BakeoffCase[] = [
     front: ["PRIZM", "DRAKE MAYE", "PATRIOTS", "RC", "O45/l49"],
     alternates: [[], [], [], [], ["045/149"]],
     back: ["No. 329", "DRAKE MAYE", "QUARTERBACK", "2024 PANINI - PRIZM FOOTBALL", PANINI_2024],
-    truth: { player: "Drake Maye", year: "2024", set: "Panini Prizm", number: "329", parallel: "Orange", run: 149 },
+    truth: { player: "Drake Maye", year: "2024", set: "Panini Prizm", number: "329", parallel: "Red Wave", run: 149 },
   },
   {
     name: "Alternates: Salas, the code read as '8P-1O3', the next readings agree on BP-103",
@@ -445,7 +445,7 @@ export const WIDE_BAKEOFF_CASES: BakeoffCase[] = [
     front: ["PRIZM", "DRAKE MAYE", "PATRIOTS", "RC", "O45/l49"],
     alternates: [[], [], [], [], ["045/149", "045/199"]],
     back: ["No. 329", "DRAKE MAYE", "QUARTERBACK", "2024 PANINI - PRIZM FOOTBALL", PANINI_2024],
-    truth: { player: "Drake Maye", year: "2024", set: "Panini Prizm", number: "329", parallel: "Orange", run: 149 },
+    truth: { player: "Drake Maye", year: "2024", set: "Panini Prizm", number: "329", parallel: "Red Wave", run: 149 },
   },
   {
     name: "Alternates trap: Maye, a next reading would change a card # that read clearly",
@@ -453,7 +453,7 @@ export const WIDE_BAKEOFF_CASES: BakeoffCase[] = [
     alternates: [[], ["DRAKE MAYS"], [], [], ["045/199"]],
     back: ["No. 329", "DRAKE MAYE", "QUARTERBACK", "2024 PANINI - PRIZM FOOTBALL", PANINI_2024],
     backAlternates: [["No. 829"], [], [], [], []],
-    truth: { player: "Drake Maye", year: "2024", set: "Panini Prizm", number: "329", parallel: "Orange", run: 149 },
+    truth: { player: "Drake Maye", year: "2024", set: "Panini Prizm", number: "329", parallel: "Red Wave", run: 149 },
   },
   {
     name: "Alternates trap: Allen, the only next reading with a number is a jersey line",
@@ -474,6 +474,8 @@ export const WIDE_BAKEOFF_CASES: BakeoffCase[] = [
 
   // ── Brand-new products, no sales yet (Donnie's device tests) ───────────────
   {
+    // Knight is on the wider player list now (college rosters), so he is no longer "new to us".
+    // The same card with a name on no list is in bakeoff-fixtures-players.ts.
     name: "New product: Knight, 2026 Bowman U Chrome 1st Bowman /10, not in our list, SKU on the back",
     front: ["BOWMAN", "1ST", "WAYNE KNIGHT", "RB", "03/10"],
     back: [
@@ -488,13 +490,13 @@ export const WIDE_BAKEOFF_CASES: BakeoffCase[] = [
       "WWW.TOPPS.COM",
       "CMP#148134",
     ],
-    truth: { player: "Wayne Knight", year: "2026", set: "Bowman U Chrome", number: "BCP-68", parallel: "", run: 10, firstBowman: true, auto: false, playerNew: true },
+    truth: { player: "Wayne Knight", year: "2026", set: "Bowman U Chrome", number: "BCP-68", parallel: "", run: 10, firstBowman: true, auto: false, playerNew: false },
   },
   {
     name: "New product: Knight, the front name unread, the position line above the name on the back",
     front: ["1ST BOWMAN", "03/10"],
     back: ["RUNNING BACK", "WAYNE KNIGHT", "UCLA", "BCP-68", "© 2026 THE TOPPS COMPANY", "TOPPS AND BOWMAN CHROME ARE REGISTERED TRADEMARKS", "WWW.TOPPS.COM", "CMP#148134"],
-    truth: { player: "Wayne Knight", year: "2026", set: "Bowman U Chrome", number: "BCP-68", parallel: "", run: 10, firstBowman: true, auto: false, playerNew: true },
+    truth: { player: "Wayne Knight", year: "2026", set: "Bowman U Chrome", number: "BCP-68", parallel: "", run: 10, firstBowman: true, auto: false, playerNew: false },
   },
   {
     name: "New product: Lemon, 2026 Topps Inception rookie auto variation, no sales yet",

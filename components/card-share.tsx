@@ -21,7 +21,7 @@ const buttonStyles = {
   icon: "inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-700 dark:border-white/10 dark:bg-white/5 dark:text-zinc-100",
   row: "inline-flex min-h-11 w-full max-w-sm items-center justify-center gap-2 rounded-full border border-zinc-300 px-5 text-sm font-semibold text-zinc-900 dark:border-white/20 dark:text-zinc-100",
   /** The Added screen: the second of its two buttons, same height as Add another. */
-  pill: "inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full border border-zinc-300 px-5 text-[15px] font-semibold text-zinc-900 transition-transform duration-150 motion-safe:active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:outline-none dark:border-white/20 dark:text-zinc-100",
+  pill: "inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full border border-zinc-300 px-5 text-15 font-semibold text-zinc-900 transition-transform duration-150 motion-safe:active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:outline-none dark:border-white/20 dark:text-zinc-100",
 };
 
 /**
@@ -144,7 +144,7 @@ export function PrivateShareSheet({
             <h2 id={titleId} className="text-base font-semibold tracking-tight">
               {isPublic ? (copy?.publicTitle ?? "Ready to share") : (copy?.title ?? "Make this card public to share")}
             </h2>
-            <p className="mt-0.5 text-[13px] leading-5 text-zinc-500">
+            <p className="mt-0.5 text-13 leading-5 text-zinc-500">
               {isPublic
                 ? (copy?.publicText ?? "It shows on your profile now, so the link works for anyone.")
                 : (copy?.privateText ?? "Private cards stay off share links. Turn on Public to show it on your profile.")}
@@ -169,7 +169,7 @@ export function PrivateShareSheet({
           <button
             type="button"
             onClick={onShare}
-            className="mt-3 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-violet-600 px-5 text-[15px] font-semibold text-white hover:bg-violet-500"
+            className="mt-3 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-violet-600 px-5 text-15 font-semibold text-white hover:bg-violet-500"
           >
             <Share aria-hidden className="h-4 w-4" />
             Share

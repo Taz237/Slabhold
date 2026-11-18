@@ -102,7 +102,7 @@ export function NewMessageSheet({ onClose }: { onClose: () => void }) {
           >
             <X className="h-5 w-5" />
           </button>
-          <h2 id={titleId} className="text-[17px] font-semibold tracking-tight">
+          <h2 id={titleId} className="text-17 font-semibold tracking-tight">
             New message
           </h2>
         </div>
@@ -115,12 +115,12 @@ export function NewMessageSheet({ onClose }: { onClose: () => void }) {
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search collectors"
             aria-label="Search collectors"
-            className="min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-zinc-500"
+            className="min-w-0 flex-1 bg-transparent text-15 outline-none placeholder:text-zinc-500"
           />
         </label>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-3">
           {!query.trim() && people.length > 0 ? (
-            <p className="px-4 pt-2 pb-1 text-[13px] font-medium text-zinc-500">
+            <p className="px-4 pt-2 pb-1 text-13 font-medium text-zinc-500">
               Suggested
             </p>
           ) : null}
@@ -150,12 +150,12 @@ export function NewMessageSheet({ onClose }: { onClose: () => void }) {
                     />
                     <span className="min-w-0">
                       <span className="flex min-w-0 items-center gap-1">
-                        <span className="truncate text-[15px] leading-5 font-semibold tracking-tight">
+                        <span className="truncate text-15 leading-5 font-semibold tracking-tight">
                           {person.displayName}
                         </span>
                         <TeamBadge username={person.username} inLink />
                       </span>
-                      <span className="block truncate text-[13px] leading-5 text-zinc-500">@{person.username}</span>
+                      <span className="block truncate text-13 leading-5 text-zinc-500">@{person.username}</span>
                     </span>
                   </Link>
                 </li>

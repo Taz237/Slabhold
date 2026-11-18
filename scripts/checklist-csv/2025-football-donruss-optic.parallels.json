@@ -1,0 +1,950 @@
+{
+ "sport": "Football",
+ "yearLabel": "2025",
+ "product": "Donruss Optic",
+ "manufacturer": "Panini",
+ "source": "https://www.checklistinsider.com/2025-donruss-optic-football",
+ "official": false,
+ "parallels": [
+  {
+   "subset": "Base",
+   "name": "Fire",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Freedom",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Holo",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Jazz",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "One Hundred",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Red Stars",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Rocket",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Stars",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "White Sparkle",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Neon Blue",
+   "serialRun": 399
+  },
+  {
+   "subset": "Base",
+   "name": "Aqua",
+   "serialRun": 349
+  },
+  {
+   "subset": "Base",
+   "name": "Wave",
+   "serialRun": 300
+  },
+  {
+   "subset": "Base",
+   "name": "Orange",
+   "serialRun": 299
+  },
+  {
+   "subset": "Base",
+   "name": "Blue",
+   "serialRun": 249
+  },
+  {
+   "subset": "Base",
+   "name": "Flex",
+   "serialRun": 199
+  },
+  {
+   "subset": "Base",
+   "name": "Neon Green",
+   "serialRun": 199
+  },
+  {
+   "subset": "Base",
+   "name": "Red",
+   "serialRun": 149
+  },
+  {
+   "subset": "Base",
+   "name": "Pink Velocity",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base",
+   "name": "Orange Scope",
+   "serialRun": 79
+  },
+  {
+   "subset": "Base",
+   "name": "Electricity",
+   "serialRun": 75
+  },
+  {
+   "subset": "Base",
+   "name": "Purple",
+   "serialRun": 60
+  },
+  {
+   "subset": "Base",
+   "name": "Blue Mojo",
+   "serialRun": 55
+  },
+  {
+   "subset": "Base",
+   "name": "Lime Green",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base",
+   "name": "Team Logo",
+   "serialRun": 32
+  },
+  {
+   "subset": "Base",
+   "name": "Black Pandora",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base",
+   "name": "Dragon",
+   "serialRun": 24
+  },
+  {
+   "subset": "Base",
+   "name": "Footballs",
+   "serialRun": 16
+  },
+  {
+   "subset": "Base",
+   "name": "Ice",
+   "serialRun": 15
+  },
+  {
+   "subset": "Base",
+   "name": "Neon Yellow",
+   "serialRun": 15
+  },
+  {
+   "subset": "Base",
+   "name": "Purple Stars",
+   "serialRun": 15
+  },
+  {
+   "subset": "Base",
+   "name": "Gold",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base",
+   "name": "Green",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base",
+   "name": "Black",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base",
+   "name": "Gold Vinyl",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base",
+   "name": "Nebula",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Blue Glitter",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Blue Hyper",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Blue Scope",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Fire",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Freedom",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Green Hyper",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Green Velocity",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Holo",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Jazz",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "One Hundred",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Pink",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Purple Scope",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Purple Shock",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Red Hyper",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Red Mojo",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Red Scope",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Red Stars",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Rocket",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Stars",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Teal Velocity",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "White Sparkle",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Neon Blue",
+   "serialRun": 399
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Aqua",
+   "serialRun": 349
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Wave",
+   "serialRun": 300
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Orange",
+   "serialRun": 299
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Blue",
+   "serialRun": 249
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Flex",
+   "serialRun": 199
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Neon Green",
+   "serialRun": 199
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Red",
+   "serialRun": 149
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Pink Velocity",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Orange Scope",
+   "serialRun": 79
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Electricity",
+   "serialRun": 75
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Purple",
+   "serialRun": 60
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Blue Mojo",
+   "serialRun": 55
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Lime Green",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Team Logo",
+   "serialRun": 32
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Black Pandora",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Dragon",
+   "serialRun": 24
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Footballs",
+   "serialRun": 16
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Ice",
+   "serialRun": 15
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Neon Yellow",
+   "serialRun": 15
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Purple Stars",
+   "serialRun": 15
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Gold",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Green",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Black",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Gold Vinyl",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Rated Rookie",
+   "name": "Nebula",
+   "serialRun": 1
+  },
+  {
+   "subset": "Dynamic Patch Autographs",
+   "name": "Base",
+   "serialRun": 35
+  },
+  {
+   "subset": "Dynamic Patch Autographs",
+   "name": "Gold Vinyl 11",
+   "serialRun": null
+  },
+  {
+   "subset": "Legendary Patch Autographs",
+   "name": "Gold Vinyl",
+   "serialRun": 1
+  },
+  {
+   "subset": "Rookie Dual Autographs",
+   "name": "Base",
+   "serialRun": 35
+  },
+  {
+   "subset": "Rookie Dual Autographs",
+   "name": "Gold Vinyl",
+   "serialRun": 1
+  },
+  {
+   "subset": "Rookie Patch Autographs",
+   "name": "Base",
+   "serialRun": 35
+  },
+  {
+   "subset": "Rookie Patch Autographs",
+   "name": "Gold Vinyl",
+   "serialRun": 1
+  },
+  {
+   "subset": "Rookie Triple Autographs",
+   "name": "Gold Vinyl",
+   "serialRun": 1
+  },
+  {
+   "subset": "2015 Retro",
+   "name": "Black Pandora",
+   "serialRun": 149
+  },
+  {
+   "subset": "2015 Retro",
+   "name": "Ice",
+   "serialRun": 55
+  },
+  {
+   "subset": "2015 Retro",
+   "name": "Purple Stars",
+   "serialRun": 25
+  },
+  {
+   "subset": "2015 Retro",
+   "name": "Dragon",
+   "serialRun": 24
+  },
+  {
+   "subset": "2015 Retro",
+   "name": "Gold",
+   "serialRun": 10
+  },
+  {
+   "subset": "2015 Retro",
+   "name": "Gold Vinyl",
+   "serialRun": 1
+  },
+  {
+   "subset": "Best Tuddys",
+   "name": "Black Pandora",
+   "serialRun": 149
+  },
+  {
+   "subset": "Best Tuddys",
+   "name": "Ice",
+   "serialRun": 55
+  },
+  {
+   "subset": "Best Tuddys",
+   "name": "Purple Stars",
+   "serialRun": 25
+  },
+  {
+   "subset": "Best Tuddys",
+   "name": "Dragon",
+   "serialRun": 24
+  },
+  {
+   "subset": "Best Tuddys",
+   "name": "Gold",
+   "serialRun": 10
+  },
+  {
+   "subset": "Best Tuddys",
+   "name": "Gold Vinyl",
+   "serialRun": 1
+  },
+  {
+   "subset": "Captain in Charge",
+   "name": "Black Pandora",
+   "serialRun": 149
+  },
+  {
+   "subset": "Captain in Charge",
+   "name": "Ice",
+   "serialRun": 55
+  },
+  {
+   "subset": "Captain in Charge",
+   "name": "Purple Stars",
+   "serialRun": 25
+  },
+  {
+   "subset": "Captain in Charge",
+   "name": "Dragon",
+   "serialRun": 24
+  },
+  {
+   "subset": "Captain in Charge",
+   "name": "Gold",
+   "serialRun": 10
+  },
+  {
+   "subset": "Captain in Charge",
+   "name": "Gold Vinyl",
+   "serialRun": 1
+  },
+  {
+   "subset": "Chain Reaction",
+   "name": "Black Pandora",
+   "serialRun": 149
+  },
+  {
+   "subset": "Chain Reaction",
+   "name": "Ice",
+   "serialRun": 55
+  },
+  {
+   "subset": "Chain Reaction",
+   "name": "Purple Stars",
+   "serialRun": 25
+  },
+  {
+   "subset": "Chain Reaction",
+   "name": "Dragon",
+   "serialRun": 24
+  },
+  {
+   "subset": "Chain Reaction",
+   "name": "Gold",
+   "serialRun": 10
+  },
+  {
+   "subset": "Chain Reaction",
+   "name": "Gold Vinyl",
+   "serialRun": 1
+  },
+  {
+   "subset": "Diamond Hands",
+   "name": "Black Pandora",
+   "serialRun": 149
+  },
+  {
+   "subset": "Diamond Hands",
+   "name": "Ice",
+   "serialRun": 55
+  },
+  {
+   "subset": "Diamond Hands",
+   "name": "Purple Stars",
+   "serialRun": 25
+  },
+  {
+   "subset": "Diamond Hands",
+   "name": "Dragon",
+   "serialRun": 24
+  },
+  {
+   "subset": "Diamond Hands",
+   "name": "Gold",
+   "serialRun": 10
+  },
+  {
+   "subset": "Diamond Hands",
+   "name": "Gold Vinyl",
+   "serialRun": 1
+  },
+  {
+   "subset": "Downtown",
+   "name": "Black Pandora",
+   "serialRun": 25
+  },
+  {
+   "subset": "Downtown",
+   "name": "Gold",
+   "serialRun": 10
+  },
+  {
+   "subset": "Downtown",
+   "name": "Gold Vinyl",
+   "serialRun": 1
+  },
+  {
+   "subset": "Downtown",
+   "name": "White Sparkle",
+   "serialRun": 1
+  },
+  {
+   "subset": "Downtown Duos",
+   "name": "Black Pandora",
+   "serialRun": 25
+  },
+  {
+   "subset": "Downtown Duos",
+   "name": "Gold",
+   "serialRun": 10
+  },
+  {
+   "subset": "Downtown Duos",
+   "name": "Gold Vinyl",
+   "serialRun": 1
+  },
+  {
+   "subset": "Downtown Duos",
+   "name": "White Sparkle",
+   "serialRun": 1
+  },
+  {
+   "subset": "Downtown Legends",
+   "name": "Black Pandora",
+   "serialRun": 25
+  },
+  {
+   "subset": "Downtown Legends",
+   "name": "Gold",
+   "serialRun": 10
+  },
+  {
+   "subset": "Downtown Legends",
+   "name": "Gold Vinyl",
+   "serialRun": 1
+  },
+  {
+   "subset": "Downtown Legends",
+   "name": "White Sparkle",
+   "serialRun": 1
+  },
+  {
+   "subset": "Hidden Potential",
+   "name": "Black Pandora",
+   "serialRun": 149
+  },
+  {
+   "subset": "Hidden Potential",
+   "name": "Ice",
+   "serialRun": 55
+  },
+  {
+   "subset": "Hidden Potential",
+   "name": "Purple Stars",
+   "serialRun": 25
+  },
+  {
+   "subset": "Hidden Potential",
+   "name": "Dragon",
+   "serialRun": 24
+  },
+  {
+   "subset": "Hidden Potential",
+   "name": "Gold",
+   "serialRun": 10
+  },
+  {
+   "subset": "Hidden Potential",
+   "name": "Gold Vinyl",
+   "serialRun": 1
+  },
+  {
+   "subset": "Light it Up",
+   "name": "Black Pandora",
+   "serialRun": 149
+  },
+  {
+   "subset": "Light it Up",
+   "name": "Ice",
+   "serialRun": 55
+  },
+  {
+   "subset": "Light it Up",
+   "name": "Purple Stars",
+   "serialRun": 25
+  },
+  {
+   "subset": "Light it Up",
+   "name": "Dragon",
+   "serialRun": 24
+  },
+  {
+   "subset": "Light it Up",
+   "name": "Gold",
+   "serialRun": 10
+  },
+  {
+   "subset": "Light it Up",
+   "name": "Gold Vinyl",
+   "serialRun": 1
+  },
+  {
+   "subset": "My House!",
+   "name": "Black Pandora",
+   "serialRun": 149
+  },
+  {
+   "subset": "My House!",
+   "name": "Ice",
+   "serialRun": 55
+  },
+  {
+   "subset": "My House!",
+   "name": "Purple Stars",
+   "serialRun": 25
+  },
+  {
+   "subset": "My House!",
+   "name": "Dragon",
+   "serialRun": 24
+  },
+  {
+   "subset": "My House!",
+   "name": "Gold",
+   "serialRun": 10
+  },
+  {
+   "subset": "My House!",
+   "name": "Gold Vinyl",
+   "serialRun": 1
+  },
+  {
+   "subset": "Passing Grade",
+   "name": "Black Pandora",
+   "serialRun": 149
+  },
+  {
+   "subset": "Passing Grade",
+   "name": "Ice",
+   "serialRun": 55
+  },
+  {
+   "subset": "Passing Grade",
+   "name": "Purple Stars",
+   "serialRun": 25
+  },
+  {
+   "subset": "Passing Grade",
+   "name": "Dragon",
+   "serialRun": 24
+  },
+  {
+   "subset": "Passing Grade",
+   "name": "Gold",
+   "serialRun": 10
+  },
+  {
+   "subset": "Passing Grade",
+   "name": "Gold Vinyl",
+   "serialRun": 1
+  },
+  {
+   "subset": "Play Action",
+   "name": "Black Pandora",
+   "serialRun": 149
+  },
+  {
+   "subset": "Play Action",
+   "name": "Ice",
+   "serialRun": 55
+  },
+  {
+   "subset": "Play Action",
+   "name": "Purple Stars",
+   "serialRun": 25
+  },
+  {
+   "subset": "Play Action",
+   "name": "Dragon",
+   "serialRun": 24
+  },
+  {
+   "subset": "Play Action",
+   "name": "Gold",
+   "serialRun": 10
+  },
+  {
+   "subset": "Play Action",
+   "name": "Gold Vinyl",
+   "serialRun": 1
+  },
+  {
+   "subset": "Rookie Kings",
+   "name": "Black Pandora",
+   "serialRun": 149
+  },
+  {
+   "subset": "Rookie Kings",
+   "name": "Ice",
+   "serialRun": 55
+  },
+  {
+   "subset": "Rookie Kings",
+   "name": "Purple Stars",
+   "serialRun": 25
+  },
+  {
+   "subset": "Rookie Kings",
+   "name": "Dragon",
+   "serialRun": 24
+  },
+  {
+   "subset": "Rookie Kings",
+   "name": "Gold",
+   "serialRun": 10
+  },
+  {
+   "subset": "Rookie Kings",
+   "name": "Gold Vinyl",
+   "serialRun": 1
+  },
+  {
+   "subset": "Rookie Primary Colors",
+   "name": "Black Pandora",
+   "serialRun": 149
+  },
+  {
+   "subset": "Rookie Primary Colors",
+   "name": "Ice",
+   "serialRun": 55
+  },
+  {
+   "subset": "Rookie Primary Colors",
+   "name": "Purple Stars",
+   "serialRun": 25
+  },
+  {
+   "subset": "Rookie Primary Colors",
+   "name": "Dragon",
+   "serialRun": 24
+  },
+  {
+   "subset": "Rookie Primary Colors",
+   "name": "Gold",
+   "serialRun": 10
+  },
+  {
+   "subset": "Rookie Primary Colors",
+   "name": "Gold Vinyl",
+   "serialRun": 1
+  },
+  {
+   "subset": "Rookie Recruits",
+   "name": "Black Pandora",
+   "serialRun": 149
+  },
+  {
+   "subset": "Rookie Recruits",
+   "name": "Ice",
+   "serialRun": 55
+  },
+  {
+   "subset": "Rookie Recruits",
+   "name": "Purple Stars",
+   "serialRun": 25
+  },
+  {
+   "subset": "Rookie Recruits",
+   "name": "Dragon",
+   "serialRun": 24
+  },
+  {
+   "subset": "Rookie Recruits",
+   "name": "Gold",
+   "serialRun": 10
+  },
+  {
+   "subset": "Rookie Recruits",
+   "name": "Gold Vinyl",
+   "serialRun": 1
+  },
+  {
+   "subset": "Sunday Kings",
+   "name": "Black Pandora",
+   "serialRun": 25
+  },
+  {
+   "subset": "Sunday Kings",
+   "name": "Gold",
+   "serialRun": 10
+  },
+  {
+   "subset": "Sunday Kings",
+   "name": "Gold Vinyl",
+   "serialRun": 1
+  },
+  {
+   "subset": "Sunday Kings",
+   "name": "White Sparkle",
+   "serialRun": 1
+  },
+  {
+   "subset": "Uptown",
+   "name": "Black Pandora",
+   "serialRun": 25
+  },
+  {
+   "subset": "Uptown",
+   "name": "Gold",
+   "serialRun": 10
+  },
+  {
+   "subset": "Uptown",
+   "name": "Gold Vinyl",
+   "serialRun": 1
+  },
+  {
+   "subset": "Uptown",
+   "name": "White Sparkle",
+   "serialRun": 1
+  }
+ ]
+}

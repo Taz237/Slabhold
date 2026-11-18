@@ -8,7 +8,7 @@
  * layout pixel (1/64 px) until the handle is down to its minimum.
  */
 export const QUOTE_HEADER = {
-  row: "flex min-w-0 flex-nowrap items-baseline gap-x-1 overflow-hidden whitespace-nowrap text-[13px]",
+  row: "flex min-w-0 flex-nowrap items-baseline gap-x-1 overflow-hidden whitespace-nowrap text-13",
   name: "min-w-[5ch] shrink truncate font-bold",
   handle: "min-w-[4ch] shrink-[10000] truncate text-zinc-500",
   time: "shrink-0 whitespace-nowrap text-zinc-500",

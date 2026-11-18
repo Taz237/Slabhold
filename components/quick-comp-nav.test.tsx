@@ -31,8 +31,8 @@ const sam = {
   createdAt: "2026-01-01T00:00:00Z",
 } as Profile;
 
-const TODAY_BAR = ["Home", "Leaderboard", "Add card", "Collection", "Messages"];
-const TODAY_DRAWER = ["Profile", "Collection", "Messages", "Add card", "Leaderboard", "Moving today", "Invite a collector"];
+const TODAY_BAR = ["Home", "Catalog", "Scan", "Collection", "Messages"];
+const TODAY_DRAWER = ["Profile", "Collection", "Messages", "Add card", "Leaderboard", "Invite a collector"];
 
 type Mods = {
   AppShell: ComponentType<{ children: ReactNode }>;
@@ -145,80 +145,45 @@ afterEach(() => {
   document.documentElement.style.overflow = "";
 });
 
-describe("Quick Comp nav with the flag on", () => {
-  before(() => {
-    process.env.NEXT_PUBLIC_QUICK_COMP = "1";
-  });
+/** One Scan flow: Quick Comp's search is on the Scan screen, so the bar and drawer are the same with its flag on or off. */
+for (const flag of ["1", undefined]) {
+  describe(`the nav with Quick Comp's flag ${flag ? "on" : "unset"}`, () => {
+    before(() => {
+      if (flag) process.env.NEXT_PUBLIC_QUICK_COMP = flag;
+      else delete process.env.NEXT_PUBLIC_QUICK_COMP;
+    });
 
-  it("puts Quick Comp in Leaderboard's slot on the bar", () => {
-    const links = bar("/");
-    assert.deepEqual(links.map(tabLabel), ["Home", "Quick Comp", "Add card", "Collection", "Messages"]);
-    assert.equal(links[1]?.getAttribute("href"), "/comp");
-    assert.equal(links.some((link) => link.getAttribute("href") === "/leaderboard"), false);
-    assert.equal(links[1]?.getAttribute("aria-current"), null);
-  });
+    it("the bar is Home, Catalog, Scan, Collection, Messages, with no /comp or /leaderboard tab", () => {
+      for (const path of ["/", "/comp", "/leaderboard"]) {
+        const links = bar(path);
+        assert.deepEqual(links.map(tabLabel), TODAY_BAR, path);
+        assert.equal(links.some((link) => ["/comp", "/leaderboard"].includes(link.getAttribute("href") ?? "")), false, path);
+      }
+      assert.equal(bar("/")[1]?.getAttribute("href"), "/catalog");
+      // The Catalog feed is full screen, like TikTok: no tab bar over it.
+      const catalog = renderToStaticMarkup(providers("/catalog", createElement(mods.AppShell, null, createElement("p", null, "page"))));
+      assert.doesNotMatch(catalog, /app-nav/);
+      assert.equal(bar("/leaderboard").some((link) => link.getAttribute("aria-current") === "page"), false);
+    });
 
-  it("lights Quick Comp on /comp with the plain tab colours", () => {
-    const links = bar("/comp");
-    const quick = links.find((link) => link.getAttribute("href") === "/comp");
-    assert.ok(quick);
-    assert.equal(quick.getAttribute("aria-current"), "page");
-    assert.match(quick.className, /text-zinc-900 dark:text-white/);
-    assert.doesNotMatch(quick.innerHTML, /7C3AED|A78BFA|violet/);
-    assert.equal(links.filter((link) => link.getAttribute("aria-current") === "page").length, 1);
-  });
+    it("the centre button is Scan: purple, straight to the Scan screen", () => {
+      const scan = bar("/").find((link) => link.getAttribute("href") === "/scan");
+      assert.ok(scan);
+      assert.equal(scan.getAttribute("aria-label"), "Scan");
+      assert.match(scan.innerHTML, /bg-violet-600/);
+    });
 
-  it("keeps the centre Add card button as it is", () => {
-    const add = bar("/").find((link) => link.getAttribute("href") === "/cards/new");
-    assert.ok(add);
-    assert.equal(add.getAttribute("aria-label"), "Add card");
-    assert.match(add.innerHTML, /bg-violet-600/);
+    it("the drawer has no Catalog and no Quick Comp", async () => {
+      const drawer = await drawerLabels();
+      try {
+        assert.deepEqual(drawer.labels, TODAY_DRAWER);
+        assert.equal(document.querySelector('a[href="/comp"]'), null);
+      } finally {
+        drawer.done();
+      }
+    });
   });
-
-  it("lights no tab on /leaderboard", () => {
-    const links = bar("/leaderboard");
-    assert.equal(links.some((link) => link.getAttribute("aria-current") === "page"), false);
-  });
-
-  it("puts Quick Comp right above Add card in the drawer and keeps Leaderboard", async () => {
-    const drawer = await drawerLabels("/comp");
-    try {
-      const quick = drawer.labels.indexOf("Quick Comp");
-      assert.ok(quick >= 0, drawer.labels.join(", "));
-      assert.equal(drawer.labels[quick + 1], "Add card");
-      assert.ok(drawer.labels.includes("Leaderboard"));
-      const link = drawer.links.find((node) => node.getAttribute("href") === "/comp");
-      assert.equal(link?.getAttribute("aria-current"), "page");
-    } finally {
-      drawer.done();
-    }
-  });
-});
-
-describe("Quick Comp nav with the flag unset", () => {
-  before(() => {
-    delete process.env.NEXT_PUBLIC_QUICK_COMP;
-  });
-
-  it("draws today's bar with no /comp link", () => {
-    for (const path of ["/", "/comp", "/leaderboard"]) {
-      const links = bar(path);
-      assert.deepEqual(links.map(tabLabel), TODAY_BAR, path);
-      assert.equal(links.some((link) => link.getAttribute("href") === "/comp"), false, path);
-    }
-    assert.equal(bar("/leaderboard")[1]?.getAttribute("aria-current"), "page");
-  });
-
-  it("draws today's drawer with no /comp link", async () => {
-    const drawer = await drawerLabels();
-    try {
-      assert.deepEqual(drawer.labels, TODAY_DRAWER);
-      assert.equal(document.querySelector('a[href="/comp"]'), null);
-    } finally {
-      drawer.done();
-    }
-  });
-});
+}
 
 /** Signed-in Home with nothing in the feed. Anything Home asks for that isn't listed is empty. */
 function homeSocial() {

@@ -1,4 +1,6 @@
+import { listedParallelNames } from "@/lib/comps/known-run";
 import type { CatalogCard } from "@/lib/card-catalog";
+import type { ChecklistProduct } from "@/lib/cards/checklists";
 import type { ProductRecord } from "@/lib/cards/product-data";
 import { sharedCompValue } from "@/lib/comps/shared-value";
 import type { CleanedSale, TrawlSoldResult } from "@/lib/comps/types";
@@ -7,18 +9,25 @@ import { toMatchCard, type QuickCompIdentity } from "@/lib/quick-comp/identity";
 import type { QuickCompLimitReason } from "@/lib/quick-comp/limits";
 import { compIdentityFromMatch, scanCompGrade, type ScanCompResult } from "./comp";
 import { type QuickCompCachedSale } from "./comp-lookup";
-import { cleanCompFor, priceScanGroup } from "./clean-sales";
+import { cleanCompFor, cleanGroups, priceScanGroup } from "./clean-sales";
+import { keepPinned, matchFromPin, pinOf, samePinnedCard, type ScanPin } from "./pin";
+import { namesAgree } from "./player-lookup";
 import {
+  MAX_LADDER_RUNGS,
+  cardSearchQuery,
   liveSearchLadder,
   rankScanMatches,
+  scanChecklistKey,
   scanPlayerName,
+  type ScanChecklistKey,
   type ScanMatch,
   type SoldTitle,
+  versionOptionsFor,
 } from "./match";
 import { comparableSales, ESTIMATE_MAX_CALLS, ESTIMATE_MIN_SALES, estimateFrom, estimateQueries, yearAgoParallels, type ScanEstimateResult } from "./estimate";
 import { withListingPhotos } from "./listing-photo";
 import { newLookupBudget, type LookupBudget } from "./live-search";
-import { asTrawlResults, groupByParallel, groupFor, isUnnamedRunLabel, scanSalesFor, type ParallelGroup, type ScanSale, type ScanSalesResult } from "./scan-sales";
+import { asTrawlResults, groupByParallel, groupFor, groupForPick, isUnnamedLabel, scanSalesFor, type ParallelGroup, type ScanSale, type ScanSalesResult } from "./scan-sales";
 import { scanReadFrom, type ScanCapture } from "./session";
 
 /** One rung of the search ladder, for the dev log. Queries carry card names only, never user data. */
@@ -43,6 +52,13 @@ export type LadderLog =
  *    run, and raw vs graded (a raw card never shows graded sales, a PSA 9 only
  *    PSA 9). They're stored in Quick Comp's shared cache for the next scan.
  *
+ * The player is a lookup once the card's year, set and # are read: the checklist
+ * (no search at all), then the sold titles for that year, set and # when most of
+ * them name one player. With the player still open, that one search by the card
+ * itself ("2025-26 Panini Prizm 103 /175") runs on the same caps and the same
+ * shared 6-hour cache as any other, keyed by set and card #, so the next scan of
+ * that card by anyone spends nothing. Its results are the card's sales too.
+ *
  * Never a made-up price: no matching sale is an honest "none", a cap is the
  * cap message, a Trawl failure is "unavailable". The identity shows either way.
  */
@@ -55,6 +71,8 @@ export type LiveSearchResult =
 export type LiveSoldsDeps = {
   directory: readonly IndexedDirectoryPlayer[];
   products: () => Promise<readonly ProductRecord[]>;
+  /** The checklists for the year and set the scan read. Bundled files: never a search. */
+  checklists?: (card: ScanChecklistKey) => Promise<readonly ChecklistProduct[]>;
   /** Saved sold listings (sold_comps_cache) naming this player. */
   cachedTitles: (player: string) => Promise<SoldTitle[]>;
   /** Quick Comp's shared cache for this exact card and grade. Null on a miss; never fetches. */
@@ -70,9 +88,14 @@ export type LiveSoldsDeps = {
 };
 
 export type LiveSoldsInput = {
-  capture: Pick<ScanCapture, "lines" | "backLines" | "kind" | "border">;
+  capture: Pick<ScanCapture, "lines" | "backLines" | "kind" | "border" | "look">;
   /** The rows the phone already ranked (catalog cards), so the re-rank keeps them. */
   rows: CatalogCard[];
+  /**
+   * The card the phone's own read pinned (an insert and its card #). Used when this side's read
+   * comes out weaker; never over a pin of its own, and only for the same player.
+   */
+  pin?: ScanPin | null;
 };
 
 export type LiveSoldsResult = {
@@ -81,13 +104,29 @@ export type LiveSoldsResult = {
   /** The live search that ran, so another parallel or grade on the sheet can reuse it. */
   query: string | null;
   /**
+   * Every search that answered on this lookup, in order. The sales shown (and the split by parallel)
+   * are counted from all of them together, so a re-filter for another parallel reads them all.
+   */
+  queries?: string[];
+  /**
    * Only with "No sales yet" (the search worked and found none): an estimate from last year's
    * similar cards, and last year's parallels at this print run. Never this card's price, never saved.
    */
   similar?: ScanEstimateResult;
 };
 
+/** A slab with its parallel open and versions to choose from ("Which version?"), even if Base is the only one. */
+export function awaitsVersion(match: ScanMatch | undefined): boolean {
+  return Boolean(match?.grade) && !match!.parallel && match!.serialRun == null && match!.parallelOptions.length > 0;
+}
+
 /** Pinned down enough to trust a cached price: the card backed the set and the number (or a slab label did). */
+/** The phone's pin, for the player this side read (or, with none read, as sent). */
+function phonePin(pin: ScanPin | null | undefined, player: string): ScanPin | null {
+  if (!pin) return null;
+  return !player || namesAgree(player, pin.playerName) ? pin : null;
+}
+
 function confident(match: ScanMatch | undefined): match is ScanMatch {
   if (!match) return false;
   return match.sureness.player !== "unsure" && match.sureness.set !== "unsure" && match.sureness.number === "sure";
@@ -97,26 +136,44 @@ function identityOf(match: ScanMatch): QuickCompIdentity | null {
   return compIdentityFromMatch(match, scanCompGrade(match))?.identity ?? null;
 }
 
+/** The parallels on this card's own product list, so a sale that names one is filed under it and never under Base. */
+function listedFor(products: readonly ProductRecord[] | null, match: Pick<ScanMatch, "yearLabel" | "setBrand" | "cardNumber" | "sport">): string[] {
+  return listedParallelNames(products, { yearLabel: match.yearLabel, year: 0, setBrand: match.setBrand, cardNumber: match.cardNumber, sport: match.sport });
+}
+
 async function cachedComp(
   top: ScanMatch,
   identity: QuickCompIdentity,
   titles: readonly SoldTitle[],
   deps: LiveSoldsDeps,
+  products: readonly ProductRecord[] | null = null,
 ): Promise<ScanCompResult | null> {
+  const listed = listedFor(products, top);
+  // An insert with its version open (plain, Refractor, Holo) is never priced as Base: its cached
+  // sales show by version, to pick, like the live search's.
+  // A patch card with its run unread is the same: which version it is isn't known yet.
+  const versionOpen = !top.parallel && top.serialRun == null && (Boolean(top.insertName) || Boolean(top.isRelic));
+  const answer = (results: readonly TrawlSoldResult[], asOf: string | null, source: "quick-comp" | "sold-cache"): ScanCompResult | null => {
+    if (versionOpen) {
+      const groups = cleanGroups(identity, results, deps.directory, top.serialRun, Boolean(top.isRelic), listed);
+      return groups.length > 0 ? { status: "split", groups: groups.map(groupSummary) } : null;
+    }
+    const result = cleanCompFor(identity, results, deps.directory, { serialRun: top.serialRun, asOf, source, runPicked: top.parallelSource === "run", listedParallels: listed });
+    return result.status === "ok" ? result : null;
+  };
   // Every cached sale goes through the same filter as a live one: titles only, junk and grades out.
   try {
     const cached = await deps.quickCompCache(identity);
     if (cached && !cached.sample && cached.comps.length > 0) {
       const results = asTrawlResults(cached.comps.filter((comp) => comp.title).map((comp) => ({ title: comp.title!, price: comp.soldPrice, soldAt: comp.soldDate })));
-      const result = cleanCompFor(identity, results, deps.directory, { serialRun: top.serialRun, asOf: cached.fetchedAt, source: "quick-comp" });
-      if (result.status === "ok") return result;
+      const result = answer(results, cached.fetchedAt, "quick-comp");
+      if (result) return result;
     }
   } catch {
     // A failed cache read falls through to the saved listings, then a live search.
   }
   const saved = asTrawlResults(titles.map((item) => ({ title: item.title, price: Number(item.price), soldAt: item.soldAt ?? null })));
-  const result = cleanCompFor(identity, saved, deps.directory, { serialRun: top.serialRun, asOf: newest(titles), source: "sold-cache" });
-  return result.status === "ok" ? result : null;
+  return answer(saved, newest(titles), "sold-cache");
 }
 
 function newest(sales: readonly { soldAt?: string | null }[]): string | null {
@@ -161,71 +218,131 @@ async function lookupSolds(
   } catch {
     products = null;
   }
-  const rank = (soldTitles: readonly SoldTitle[]) =>
-    rankScanMatches(read, input.rows, { directory: deps.directory, products, soldTitles }).matches;
+  let checklists: readonly ChecklistProduct[] | null = null;
+  const card = scanChecklistKey(read, deps.directory);
+  if (card && deps.checklists) {
+    try {
+      checklists = await deps.checklists(card);
+    } catch {
+      checklists = null;
+    }
+  }
+  const rankRaw = (soldTitles: readonly SoldTitle[]) =>
+    rankScanMatches(read, input.rows, { directory: deps.directory, products, soldTitles, checklists }).matches;
+  // The card alone. When it pins an insert and its # (or the phone's read did), nothing later
+  // replaces or drops that card: sold titles and caches only add to it (parallel, price, photo).
+  const readTop = rankRaw([])[0] ?? null;
+  const pin = pinOf(readTop) ?? phonePin(input.pin, player || readTop?.playerName || "");
+  let fallback: ScanMatch | null = readTop && pin && samePinnedCard(pin, readTop) ? readTop : null;
+  if (pin && !fallback) {
+    let pinLists = checklists;
+    if (deps.checklists) {
+      try {
+        pinLists = [...(checklists ?? []), ...(await deps.checklists({ years: [pin.yearLabel], setBrand: pin.setBrand, sport: pin.sport }))];
+      } catch {
+        pinLists = checklists;
+      }
+    }
+    fallback = matchFromPin(pin, versionOptionsFor(products, pin, pinLists));
+  }
+  const rank = (soldTitles: readonly SoldTitle[]) => keepPinned(pin, rankRaw(soldTitles), fallback);
 
-  // No player read: no search, ever.
-  if (!player) return { matches: rank([]), comp: { status: "none" }, query: null };
-
+  // The name the card printed, or the one the checklist puts on this card #.
+  const named = player || rank([])[0]?.playerName || "";
   let saved: SoldTitle[] = [];
-  try {
-    saved = await deps.cachedTitles(player);
-  } catch {
-    saved = [];
+  if (named) {
+    try {
+      saved = await deps.cachedTitles(named);
+    } catch {
+      saved = [];
+    }
   }
   const first = rank(saved);
   const top = first[0];
+  // The search by the card itself (year, set, #): only while the player is open.
+  const byCard = top && !top.playerName ? cardSearchQuery(read, top, deps.directory) : "";
+
+  // No player read and no card to look one up by: no search, ever.
+  if (!named && !byCard) return { matches: first, comp: { status: "none" }, query: null };
+
+  // A slab whose label named no parallel, in a set with versions that look like Base: the sheet
+  // asks "Which version?" first. No cache read, no search, no price until the collector picks.
+  if (awaitsVersion(top)) return { matches: first, comp: { status: "version" }, query: null };
 
   // 1. Cache first, only for a card the scan pinned down.
   if (confident(top)) {
     const identity = identityOf(top);
     if (identity) {
-      const cached = await cachedComp(top, identity, saved, deps);
+      const cached = await cachedComp(top, identity, saved, deps, products);
       if (cached) return { matches: first, comp: cached, query: null };
     }
   }
 
   // 2. The search ladder, built from what we know: stop at the first rung that finds this card's sales.
-  const ladder = liveSearchLadder(read, top, deps.directory);
-  if (ladder.length === 0) return { matches: first, comp: { status: "none" }, query: null };
+  // With the player open, the search by the card goes first: one precise search whose titles can
+  // name the player and are this card's sales. A name nothing backs yet keeps its ladder after it.
+  const ladder = named ? liveSearchLadder(read, top, deps.directory) : [];
+  let queue = byCard ? [byCard, ...ladder] : ladder;
+  if (queue.length === 0) return { matches: first, comp: { status: "none" }, query: null };
   const budget = newLookupBudget();
   let fetchedAt = "";
   let usedQuery: string | null = null;
+  // Every rung that answered: their results are grouped together, so a later re-filter needs them all.
+  const answered: string[] = [];
   let matches = first;
   let found: ScanSalesResult = { kept: [], dropped: emptyDropped() };
-  for (const [index, query] of ladder.entries()) {
+  const tried = new Set<string>();
+  let searchedAs = top?.playerName || named;
+  while (queue.length > 0 && tried.size < MAX_LADDER_RUNGS) {
+    const query = queue.shift()!;
+    if (tried.has(query)) continue;
+    const index = tried.size;
+    tried.add(query);
     const live = await deps.liveSearch(query, userId, budget).catch((): LiveSearchResult => ({ ok: false, reason: "unavailable" }));
     if (!live.ok) {
       deps.log?.({ rung: index, query, ok: false, reason: live.reason });
       // A cap: say so, never "no sales".
       if (live.reason === "daily" || live.reason === "hourly" || live.reason === "safety") {
-        return { matches, comp: { status: "limited", reason: live.reason, resetAt: live.resetAt }, query: usedQuery };
+        return { matches, comp: { status: "limited", reason: live.reason, resetAt: live.resetAt }, query: usedQuery, queries: answered };
       }
       // Out of credits: no more Trawl calls this lookup, and nothing to show but that.
-      if (budget.outOfCredits) return { matches, comp: { status: "unavailable" }, query: usedQuery };
+      if (budget.outOfCredits) return { matches, comp: { status: "unavailable" }, query: usedQuery, queries: answered };
       // One failed search never wipes out the others: try the next rung. "Unavailable" only when none answered.
       continue;
     }
     usedQuery = query;
+    answered.push(query);
     fetchedAt = live.fetchedAt;
     results.push(...live.results);
     // 3. The sold titles help finish the identity (set, #, parallel).
     matches = rank([...saved, ...liveTitles(results)]);
     const best = matches[0];
-    found = best?.playerName ? scanSalesFor(best, { grade: scanCompGrade(best), setBrand: best.setBrand, parallel: best.parallel }, results, deps.directory) : found;
+    found = best?.playerName
+      ? scanSalesFor(
+          { ...best, neverPlain: Boolean(best.isRelic) },
+          { grade: scanCompGrade(best), setBrand: best.setBrand, parallel: best.parallel, insertName: best.insertName, listedParallels: listedFor(products, best) },
+          results,
+          deps.directory,
+        )
+      : found;
     deps.log?.({ rung: index, query, ok: true, results: live.results.length, kept: found.kept.length, dropped: found.dropped });
     if (found.kept.length > 0) break;
+    // The titles just named the player: the rest of the ladder searches by that name.
+    if (best?.playerName && best.playerName !== searchedAs) {
+      searchedAs = best.playerName;
+      queue = liveSearchLadder(read, best, deps.directory);
+    }
   }
 
   if (!usedQuery) return { matches, comp: { status: "unavailable" }, query: null };
   const best = matches[0];
-  if (!best) return { matches: first, comp: { status: "none", searched: true }, query: usedQuery };
+  if (!best) return { matches: first, comp: { status: "none", searched: true }, query: usedQuery, queries: answered };
   // The player is still open (an unverified name no title carried): nothing is priced for nobody.
-  if (!best.playerName) return { matches, comp: { status: "none", searched: true }, query: usedQuery };
+  if (!best.playerName) return { matches, comp: { status: "none", searched: true }, query: usedQuery, queries: answered };
   if (found.kept.length === 0) {
     // "No sales yet": the search worked and found none. Only then, last year's similar cards.
     const similar = await similarCards(best, userId, budget, deps);
-    return { matches, comp: { status: "none", searched: true }, query: usedQuery, ...(similar ? { similar } : {}) };
+    return { matches, comp: { status: "none", searched: true }, query: usedQuery, queries: answered, ...(similar ? { similar } : {}) };
   }
 
   // 4. Sales by parallel: the picked parallel's group, labelled. With the parallel open, only a group
@@ -237,25 +354,38 @@ async function lookupSolds(
   // An autograph or a named variation is never Base: its parallel stays open until its sales name it.
   if (!best.parallel && best.serialRun == null && !best.isAuto && !best.subset) {
     const base = groupFor(groups, "Base");
-    if (!base) return { matches, comp: { status: "split", groups: groups.map(groupSummary), missing: "Base" }, query: usedQuery };
+    // Never a silent Base on a card that isn't pinned down: with its card # open, "Base" is every
+    // plain card of his (the device's Rookie Code RC-3 priced from 31 of them), and an insert's
+    // plain version is the insert, not the base card. Its sales show by version, to pick.
+    if (!base || !best.cardNumber || best.insertName) {
+      return { matches, comp: { status: "split", groups: groups.map(groupSummary), ...(base ? {} : { missing: "Base" }) }, query: usedQuery, queries: answered };
+    }
     const priced = priceScanGroup(base.sales, { asOf: fetchedAt || null, source: "live" });
-    if (priced.status !== "ok") return { matches, comp: { status: "none", searched: true }, query: usedQuery };
+    if (priced.status !== "ok") return { matches, comp: { status: "none", searched: true }, query: usedQuery, queries: answered };
     return {
       matches,
       comp: { ...priced, parallel: base.label, groups: groups.map((item) => ({ label: item.label, nSales: item.sales.length })) },
       query: usedQuery,
+      queries: answered,
     };
   }
+  // A patch card whose serial wasn't read (foil, glare, printed sideways): nothing says which version
+  // it is, so no group is its price. The sales show by version and run, to pick. Never a guess.
+  if (!best.parallel && best.serialRun == null && best.isRelic) {
+    return { matches, comp: { status: "split", groups: groups.map(groupSummary) }, query: usedQuery, queries: answered };
+  }
   if (!best.parallel && !isMajority(leader, found.kept.length)) {
-    return { matches, comp: { status: "split", groups: groups.map(groupSummary) }, query: usedQuery };
+    return { matches, comp: { status: "split", groups: groups.map(groupSummary) }, query: usedQuery, queries: answered };
   }
   // A colored group takes the card's parallel chip. A Base majority, or a numbered card's sales that
   // name no color ("/299, parallel not named"), leave it open.
-  if (!best.parallel && leader.label !== "Base" && !isUnnamedRunLabel(leader.label)) matches = [withSalesParallel(best, leader.label), ...matches.slice(1)];
-  const group = best.parallel ? groupFor(groups, best.parallel) : leader;
-  if (!group) return { matches, comp: { status: "split", groups: groups.map(groupSummary) }, query: usedQuery };
+  if (!best.parallel && leader.label !== "Base" && !isUnnamedLabel(leader.label)) matches = [withSalesParallel(best, leader.label), ...matches.slice(1)];
+  // A parallel the print run alone picked off the checklist prices from the run's clear majority,
+  // whatever those titles call it: "Pink/Red" sales are the Fuchsia Border /299.
+  const group = best.parallel ? groupForPick(groups, best.parallel, best.parallelSource === "run" && best.serialRun != null) : leader;
+  if (!group) return { matches, comp: { status: "split", groups: groups.map(groupSummary) }, query: usedQuery, queries: answered };
   const comp = priceScanGroup(group.sales, { asOf: fetchedAt || null, source: "live" });
-  if (comp.status !== "ok") return { matches, comp: { status: "none", searched: true }, query: usedQuery };
+  if (comp.status !== "ok") return { matches, comp: { status: "none", searched: true }, query: usedQuery, queries: answered };
 
   // Stored for the next scan or Quick Comp only when the parallel was known: an open one would file under Base.
   const identity = identityOf(best);
@@ -270,6 +400,7 @@ async function lookupSolds(
     matches,
     comp: { ...comp, parallel: group.label, groups: groups.map((item) => ({ label: item.label, nSales: item.sales.length })) },
     query: usedQuery,
+      queries: answered,
   };
 }
 

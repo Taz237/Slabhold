@@ -1,5 +1,6 @@
 "use client";
 
+import { backLinkClick } from "@/components/nav-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ComponentType } from "react";
@@ -63,8 +64,51 @@ import { usePublicCards } from "@/lib/social/use-public-cards";
 import { useProfiles } from "@/lib/social/use-profiles";
 import { ReadRetry } from "@/components/read-retry";
 import { TeamBadge } from "@/components/team-badge";
+import { Avatar } from "@/components/avatar";
+import { FollowButton } from "@/components/follow-button";
 
 export { PublicCardSkeleton };
+
+type CardOwnerRef = {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+  accent?: string;
+};
+
+/** Who owns this card: avatar and @handle to their profile, then Follow. */
+export function CardOwnerRow({ owner, followReady }: { owner: CardOwnerRef; followReady: boolean }) {
+  return (
+    <div data-card-owner="" className="mt-4 flex items-center gap-3">
+      <Link
+        href={userHref(owner.username)}
+        aria-label={`${owner.displayName}, @${owner.username}`}
+        className="flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-violet-600"
+      >
+        <Avatar
+          name={owner.displayName}
+          image={owner.avatarUrl}
+          accent={owner.accent}
+          className="h-10 w-10"
+          expandable={false}
+        />
+        <span className="min-w-0">
+          <span className="flex items-center gap-1 truncate text-15 leading-5 font-semibold">
+            <span className="truncate">{owner.displayName}</span>
+            <TeamBadge username={owner.username} inLink />
+          </span>
+          <span className="block truncate text-13 leading-5 text-zinc-500">@{owner.username}</span>
+        </span>
+      </Link>
+      {followReady ? (
+        <FollowButton userId={owner.id} />
+      ) : (
+        <span aria-hidden="true" className="inline-block h-8 min-w-[6.5rem] shrink-0" />
+      )}
+    </div>
+  );
+}
 
 type SalesChartView = ComponentType<{
   card: { id: string; estimatedSellPrice: number; purchasePrice: number };
@@ -132,6 +176,8 @@ export function PublicCardView({
         card={early}
         displayName={initialOwner.displayName}
         ownerUsername={initialOwner.username}
+        owner={initialOwner}
+        followReady={false}
         backHref={backHref}
         userId={null}
         canFlag={false}
@@ -189,6 +235,14 @@ export function PublicCardView({
       card={card}
       displayName={profile.displayName}
       ownerUsername={profile.username}
+      owner={{
+        id: profile.id,
+        username: profile.username,
+        displayName: profile.displayName,
+        avatarUrl: profile.avatarDataUrl,
+        accent: profile.accent,
+      }}
+      followReady
       backHref={backHref}
       userId={social.user?.id ?? null}
       canFlag={isCardOwner(profile.id, social.user?.id ?? null)}
@@ -203,6 +257,8 @@ function PublicCardAnalytics({
   card,
   displayName,
   ownerUsername,
+  owner,
+  followReady,
   backHref,
   userId,
   canFlag,
@@ -215,6 +271,10 @@ function PublicCardAnalytics({
   displayName: string;
   /** For the Slabhold team badge beside the owner's name. */
   ownerUsername?: string | null;
+  /** Avatar, @handle and Follow under the card. */
+  owner: CardOwnerRef;
+  /** False until the snapshot says who is viewing: Follow's room is held, not drawn. */
+  followReady: boolean;
   backHref: string;
   userId: string | null;
   canFlag: boolean;
@@ -344,6 +404,7 @@ function PublicCardAnalytics({
       <Link
         href={backHref}
         data-nav-back=""
+        onClick={(event) => backLinkClick(event, backHref)}
         className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-zinc-600 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-white"
       >
         <ArrowLeft className="h-4 w-4" />
@@ -380,12 +441,13 @@ function PublicCardAnalytics({
                 key={spec.label}
                 className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 dark:border-white/10 dark:bg-white/5"
               >
-                <dt className="text-[13px] text-zinc-500">{spec.label}</dt>
+                <dt className="text-13 text-zinc-500">{spec.label}</dt>
                 <dd className="text-sm font-semibold">{spec.value}</dd>
               </div>
             ))}
           </dl>
         ) : null}
+        <CardOwnerRow owner={owner} followReady={followReady} />
         {messageHref ? (
           <Link href={messageHref} className={`${outlineButton} mt-4`}>
             Message owner
@@ -421,7 +483,7 @@ function PublicCardAnalytics({
             <SimilarCardsLine read={priceRead} />
           ) : (
             <>
-              <p className={`flex h-5 items-center ${compLabel}`}>{compEyebrow(priceRead?.kind ?? "estimate")}</p>
+              <p className={`flex min-h-5 items-center ${compLabel}`}>{compEyebrow(priceRead?.kind ?? "estimate")}</p>
               <p className={`mt-1 min-h-10 min-w-0 ${priceRead?.kind === "estimate" || !priceRead ? `${compHeroValue} whitespace-nowrap` : `max-w-full py-1.5 ${compSectionValue}`}`}>
                 {valueLoading && !flags.priced ? (
                   <span data-skeleton="hero" className="skeleton-shimmer inline-block h-8 w-32 rounded-lg bg-zinc-100 align-middle dark:bg-white/5" />
@@ -442,7 +504,7 @@ function PublicCardAnalytics({
                 <span>{basedOnSalesLabel(shownValue?.nSales ?? 0)}</span>
               ) : null}
               {priceRead?.kind === "estimate" && isLowConfidenceValue(shownValue) ? (
-                <span className="rounded-md bg-amber-500/15 px-1.5 text-[11px] leading-4 font-semibold text-amber-800 dark:text-amber-200">
+                <span className="rounded-md bg-amber-500/15 px-1.5 text-11 leading-4 font-semibold text-amber-800 dark:text-amber-200">
                   Low confidence
                 </span>
               ) : null}
@@ -572,7 +634,7 @@ function PublicCardAnalytics({
         ) : null}
         {/* With the comp card up, the attribution sits in its footer. */}
         {usingLive && !compsLoading && !authRequired && !chartShowsAttribution ? (
-          <p className="mt-3 text-[11px] text-zinc-400">
+          <p className="mt-3 text-11 text-zinc-400">
             Sold data via Trawl (third-party, not affiliated with eBay)
           </p>
         ) : null}
@@ -631,7 +693,7 @@ function SalesChartPlaceholder({
 }) {
   return (
     <section className={compCard}>
-      <p className={`flex h-5 items-center ${compLabel}`}>{eyebrow}</p>
+      <p className={`flex min-h-5 items-center ${compLabel}`}>{eyebrow}</p>
       <div className="mt-1 flex min-h-10 items-baseline">
         {value && /^\$[\d,]+\.\d{2}$/.test(value) ? (
           <p className={compHeroValue}>{value}</p>
@@ -641,21 +703,23 @@ function SalesChartPlaceholder({
           </p>
         ) : null}
       </div>
-      <div className={`mt-4 flex h-44 flex-col items-center justify-center gap-1 px-4 text-center ${compTile}`}>
-        <p className="text-sm font-semibold">{failed ? "Sales are taking a break" : "Loading sold prices…"}</p>
-        {failed ? (
-          <>
-            <p className="text-sm text-zinc-500">{"Couldn't load the sales graph."}</p>
-            <button
-              type="button"
-              onClick={onRetry}
-              className="mt-2 inline-flex h-11 items-center rounded-full px-5 text-sm font-semibold text-violet-700 hover:bg-violet-500/10 focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:outline-none dark:text-violet-300"
-            >
-              Try again
-            </button>
-          </>
-        ) : null}
-      </div>
+      {failed ? (
+        <div className={`mt-4 flex min-h-44 flex-col items-center justify-center gap-1 px-4 py-4 text-center ${compTile}`}>
+          <p className="text-sm font-semibold">Sales are taking a break</p>
+          <p className="text-sm text-zinc-500">{"Couldn't load the sales graph."}</p>
+          <button
+            type="button"
+            onClick={onRetry}
+            className="mt-2 inline-flex min-h-11 items-center rounded-full px-5 text-sm font-semibold text-violet-700 hover:bg-violet-500/10 focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:outline-none dark:text-violet-300"
+          >
+            Try again
+          </button>
+        </div>
+      ) : (
+        <div className="skeleton-shimmer mt-4 h-44 rounded-xl" aria-busy="true">
+          <span className="sr-only">Loading sold prices</span>
+        </div>
+      )}
     </section>
   );
 }

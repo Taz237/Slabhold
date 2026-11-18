@@ -116,6 +116,7 @@ export const PAGE_PATTERNS = [
   "/cards/[id]/edit",
   "/cards/[id]/posts",
   "/cards/new",
+  "/catalog",
   "/collection",
   "/comp",
   "/compose",

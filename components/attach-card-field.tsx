@@ -68,14 +68,14 @@ export function AttachCardField({
                 ) : (
                   <span
                     aria-hidden
-                    className="grid h-11 w-8 shrink-0 place-items-center rounded-md text-[10px] font-semibold text-white"
+                    className="grid h-11 w-8 shrink-0 place-items-center rounded-md text-10 font-semibold text-white"
                     style={{ background: `linear-gradient(160deg, ${card.accent ?? "#7C3AED"}, #18181b)` }}
                   >
                     {initials(card.playerName)}
                   </span>
                 )}
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[15px] font-semibold">{card.playerName}</span>
+                  <span className="block truncate text-15 font-semibold">{card.playerName}</span>
                   <span className="block truncate text-xs text-zinc-500">
                     {card.year}
                     {card.setBrand ? ` ${card.setBrand}` : ""}

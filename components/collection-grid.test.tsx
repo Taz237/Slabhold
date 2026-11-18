@@ -94,7 +94,7 @@ describe("CollectionGrid", () => {
 
   it("lays out 2, 3 and 4 columns", () => {
     const html = render([card()]);
-    assert.match(html, /class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4/);
+    assert.match(html, /class="grid grid-cols-2 gap-3 big:grid-cols-1 sm:grid-cols-3 lg:grid-cols-4/);
   });
 
   it("links each tile to its card page with a full accessible name", () => {
@@ -193,7 +193,7 @@ describe("CollectionGrid", () => {
   it("never shows $0 while values load", () => {
     const html = render([card()], new Map(), { valuesLoading: true });
     assert.doesNotMatch(html, /\$0\.00/);
-    assert.match(html, /animate-pulse/);
+    assert.match(html, /skeleton-shimmer/);
   });
 
   it("adds a ghost Add a card tile for 1 to 3 cards", () => {

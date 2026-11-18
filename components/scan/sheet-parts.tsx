@@ -1,15 +1,16 @@
 "use client";
 
 import { useEffect, useId, useRef, type ReactNode } from "react";
-import { ChevronRight, X } from "lucide-react";
-import { Chip, RunBadge, SectionLabel, SwatchDot, focusRing } from "@/components/add-card/flow-ui";
+import { ChevronRight, ScanLine, X } from "lucide-react";
+import { Chip, PrimaryButton, QuietButton, RunBadge, SectionLabel, SwatchDot, focusRing } from "@/components/add-card/flow-ui";
+import { BACK_COPY, missingFields } from "@/lib/scan/back-step";
 import { money } from "@/lib/format";
 import { quickCompLimitMessage } from "@/lib/quick-comp/respond";
-import { COMP_COPY, lastSale, type SoldsState } from "@/lib/scan/comp";
-import { CONFIRM_COPY, gradeLabel, maskCert, matchLine, type ParallelPick } from "@/lib/scan/confirm";
+import { COMP_COPY, lastSale, soldCount, type SoldsState } from "@/lib/scan/comp";
+import { CONFIRM_COPY, gradeLabel, maskCert, matchLine, setWithInsert, versionLabel, type ParallelPick } from "@/lib/scan/confirm";
 import type { FieldSureness, ScanMatch } from "@/lib/scan/match";
 import type { ProductParallel } from "@/lib/cards/product-data";
-import { isUnnamedRunLabel } from "@/lib/scan/scan-sales";
+import { isUnnamedLabel } from "@/lib/scan/scan-sales";
 import { ListingThumb } from "@/components/scan/listing-photo";
 
 /** The scanner's bottom sheet: a labelled modal dialog with a grabber, a title and Close. */
@@ -69,7 +70,7 @@ export function SheetFrame({
         <div className="flex items-center justify-between gap-2 pr-2 pl-5 pt-2">
           <h2
             id={titleId}
-            className={scene ? "text-[13px] font-medium text-zinc-500 dark:text-zinc-400" : "text-[17px] font-semibold tracking-tight"}
+            className={scene ? "text-13 font-medium text-zinc-500 dark:text-zinc-400" : "text-17 font-semibold tracking-tight"}
           >
             {title}
           </h2>
@@ -140,17 +141,17 @@ export function MatchSummary({ photo, match }: { photo: string | null; match: Sc
     <div className="grid grid-cols-[80px_1fr] items-start gap-4">
       <CardPhoto photo={photo} name={match.playerName} />
       <div className="min-w-0 pt-1">
-        <p className="text-[17px] leading-6 font-semibold">
+        <p className="text-17 leading-6 font-semibold">
           <Field sureness={match.sureness.player}>{match.playerName || CONFIRM_COPY.playerOpen}</Field>
         </p>
         <p className="mt-1 text-sm leading-5">
           <Field sureness={match.sureness.year}>{match.yearLabel}</Field>{" "}
-          <Field sureness={match.sureness.set}>{match.setBrand}</Field>{" "}
+          <Field sureness={match.sureness.set}>{setWithInsert(match)}</Field>{" "}
           {match.cardNumber ? <Field sureness={match.sureness.number}>{`#${match.cardNumber}`}</Field> : null}
         </p>
         {match.subset ? <p className="mt-1 text-sm leading-5 text-zinc-600 dark:text-zinc-400">{match.subset}</p> : null}
         {match.playerNew ? <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">{CONFIRM_COPY.playerNew}</p> : null}
-        {grade || match.isRookie || match.isAuto || match.firstBowman || match.serialRun ? (
+        {grade || match.isRookie || match.isAuto || match.isRelic || match.firstBowman || match.serialRun ? (
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {grade ? (
               <span className="rounded-md border border-zinc-300 px-2 py-0.5 font-mono text-xs leading-5 font-medium tabular-nums dark:border-white/20">
@@ -174,6 +175,7 @@ export function MatchSummary({ photo, match }: { photo: string | null; match: Sc
             {match.isRookie ? <span className="font-mono text-xs leading-5 text-zinc-500 dark:text-zinc-400">RC</span> : null}
             {match.firstBowman ? <span className="font-mono text-xs leading-5 text-zinc-500 dark:text-zinc-400">1st Bowman</span> : null}
             {match.isAuto ? <span className="font-mono text-xs leading-5 text-zinc-500 dark:text-zinc-400">Auto</span> : null}
+            {match.isRelic ? <span className="font-mono text-xs leading-5 text-zinc-500 dark:text-zinc-400">Patch</span> : null}
           </div>
         ) : null}
         <div className="mt-2 empty:hidden">
@@ -260,10 +262,10 @@ export function RevealName({ match, parallel, photo = null }: { match: ScanMatch
   const tags = stageMotion("tags");
   return (
     <div className="flex flex-col items-center text-center" data-reveal="name">
-      <p data-stage="player" className={`text-[22px] leading-7 font-semibold tracking-tight ${player.className}`} style={player.style}>
+      <p data-stage="player" className={`text-[1.375rem] leading-7 font-semibold tracking-tight ${player.className}`} style={player.style}>
         <Field sureness={match.sureness.player}>{match.playerName || CONFIRM_COPY.playerOpen}</Field>
       </p>
-      <p className="mt-1 text-[15px] leading-5 text-zinc-600 dark:text-zinc-300">
+      <p className="mt-1 text-15 leading-5 text-zinc-600 dark:text-zinc-300">
         <span data-stage="set" className={`inline-block ${set.className}`} style={set.style}>
           <Field sureness={match.sureness.year}>{match.yearLabel}</Field>{" "}
           <Field sureness={match.sureness.set}>{match.setBrand}</Field>
@@ -297,7 +299,7 @@ export function RevealName({ match, parallel, photo = null }: { match: ScanMatch
           {CONFIRM_COPY.playerNew}
         </p>
       ) : null}
-      {grade || cert || match.isRookie || match.isAuto || match.firstBowman || match.serialRun ? (
+      {grade || cert || match.isRookie || match.isAuto || match.isRelic || match.firstBowman || match.serialRun ? (
         <div data-stage="tags" className={`mt-3 flex flex-wrap items-center justify-center gap-2 ${tags.className}`} style={tags.style}>
           {grade ? (
             <span className="rounded-md border border-zinc-300 px-2 py-0.5 font-mono text-xs leading-5 font-medium tabular-nums dark:border-white/20">
@@ -320,6 +322,7 @@ export function RevealName({ match, parallel, photo = null }: { match: ScanMatch
           {match.isRookie ? <span className="font-mono text-xs leading-5 text-zinc-500 dark:text-zinc-400">RC</span> : null}
           {match.firstBowman ? <span className="font-mono text-xs leading-5 text-zinc-500 dark:text-zinc-400">1st Bowman</span> : null}
           {match.isAuto ? <span className="font-mono text-xs leading-5 text-zinc-500 dark:text-zinc-400">Auto</span> : null}
+            {match.isRelic ? <span className="font-mono text-xs leading-5 text-zinc-500 dark:text-zinc-400">Patch</span> : null}
         </div>
       ) : null}
       <div className={`mt-2 empty:hidden ${tags.className}`} style={tags.style}>
@@ -342,10 +345,13 @@ export function ParallelStrip({
   deferred = false,
   hint,
   somethingElse = true,
+  insertName,
   onChoose,
 }: {
   options: ProductParallel[];
   pick: ParallelPick;
+  /** The card is this insert: its plain version reads as the insert, never "Base". */
+  insertName?: string;
   /** "Something else" is selected. */
   deferred?: boolean;
   /** Shown beside the label, e.g. "Pick the parallel". */
@@ -357,7 +363,7 @@ export function ParallelStrip({
     <div>
       <div className="flex items-baseline justify-between gap-3">
         <SectionLabel>{CONFIRM_COPY.parallel}</SectionLabel>
-        {hint ? <p className="mb-2 text-right text-[13px] text-zinc-500 dark:text-zinc-400">{hint}</p> : null}
+        {hint ? <p className="mb-2 text-right text-13 text-zinc-500 dark:text-zinc-400">{hint}</p> : null}
       </div>
       <div
         role="group"
@@ -369,11 +375,11 @@ export function ParallelStrip({
             key={option.name}
             selected={pick?.name === option.name}
             onClick={() => onChoose({ name: option.name, serialRun: option.serialRun })}
-            aria-label={option.serialRun ? `${option.name}, numbered to ${option.serialRun}` : option.name}
+            aria-label={option.serialRun ? `${versionLabel(option.name, insertName)}, numbered to ${option.serialRun}` : versionLabel(option.name, insertName)}
             className="shrink-0 snap-start pl-3"
           >
             <SwatchDot name={option.name} size="sm" />
-            {option.name}
+            {versionLabel(option.name, insertName)}
             {option.serialRun ? <RunBadge run={option.serialRun} /> : null}
           </Chip>
         ))}
@@ -404,17 +410,17 @@ export function OtherMatches({
       <SectionLabel>{CONFIRM_COPY.others}</SectionLabel>
       <ul className="divide-y divide-zinc-200 rounded-2xl border border-zinc-200 dark:divide-white/10 dark:border-white/10">
         {rows.slice(1).map((match, index) => (
-          <li key={`${match.catalogId ?? "read"}-${index}`} className="flex items-center gap-2 py-1 pl-2">
+          <li key={`${match.catalogId ?? "read"}-${index}`} className="flex items-center gap-2 py-1 pl-2 big:flex-col big:items-start">
             {/* That exact card's photo from a sold listing, or an empty card. Its own tap target: it enlarges. */}
             <ListingThumb match={match} scan={photo} />
             <button
               type="button"
               onClick={() => onPromote(index + 1)}
-              className={`flex min-h-14 min-w-0 flex-1 items-center justify-between gap-3 rounded-r-2xl py-2 pr-4 text-left hover:bg-zinc-900/[0.03] dark:hover:bg-white/[0.04] ${focusRing}`}
+              className={`flex min-h-14 min-w-0 flex-1 items-center justify-between gap-3 rounded-r-2xl py-2 pr-4 text-left big:w-full hover:bg-zinc-900/[0.03] dark:hover:bg-white/[0.04] ${focusRing}`}
             >
               <span className="min-w-0">
                 <span className="block truncate text-sm font-medium">{match.playerName}</span>
-                <span className="block truncate text-[13px] text-zinc-500 dark:text-zinc-400">{matchLine(match)}</span>
+                <span className="block truncate text-13 text-zinc-500 dark:text-zinc-400">{matchLine(match)}</span>
               </span>
               <ChevronRight className="size-4 shrink-0 text-zinc-400" aria-hidden />
             </button>
@@ -425,32 +431,7 @@ export function OtherMatches({
   );
 }
 
-const skeletonBar = "rounded-md bg-zinc-200 motion-safe:animate-pulse dark:bg-white/10";
-
-/** Skeletons while the scan is matched. Never a spinner. */
-export function MatchingSkeleton({ photo, label }: { photo: string | null; label: string }) {
-  return (
-    <div className="space-y-6">
-      <p className="sr-only" role="status">
-        {label}
-      </p>
-      <div className="grid grid-cols-[80px_1fr] items-start gap-4">
-        {photo ? <CardPhoto photo={photo} name="this card" /> : <div className={`aspect-[5/7] w-20 ${skeletonBar}`} />}
-        <div className="space-y-2 pt-2">
-          <div className={`h-5 w-40 ${skeletonBar}`} />
-          <div className={`h-4 w-48 ${skeletonBar}`} />
-          <div className={`h-4 w-20 ${skeletonBar}`} />
-        </div>
-      </div>
-      <div className="flex gap-2">
-        <div className={`h-11 w-24 rounded-full ${skeletonBar}`} />
-        <div className={`h-11 w-24 rounded-full ${skeletonBar}`} />
-        <div className={`h-11 w-24 rounded-full ${skeletonBar}`} />
-      </div>
-      <div className={`h-12 rounded-full ${skeletonBar}`} />
-    </div>
-  );
-}
+const skeletonBar = "skeleton-shimmer rounded-md";
 
 export { skeletonBar };
 
@@ -469,17 +450,17 @@ type GroupRow = { label: string; nSales: number; lastPriceCents?: number | null 
 
 /** A sold group the collector can tap to price their card as that parallel. A run-only group isn't a parallel. */
 function tappable(label: string): boolean {
-  return !isUnnamedRunLabel(label);
+  return !isUnnamedLabel(label);
 }
 
-function GroupRows({ groups, onPick }: { groups: readonly GroupRow[]; onPick?: (label: string) => void }) {
+function GroupRows({ groups, onPick, insertName }: { groups: readonly GroupRow[]; onPick?: (label: string) => void; insertName?: string }) {
   return (
     <ul className="mt-2 divide-y divide-zinc-200 dark:divide-white/10">
       {groups.map((group) => {
         const body = (
           <>
             <span>
-              {group.label}
+              {versionLabel(group.label, insertName)}
               <span className="text-zinc-500 dark:text-zinc-400">
                 {" · "}
                 <span className="font-mono tabular-nums">{group.nSales}</span> {group.nSales === 1 ? "sale" : "sales"}
@@ -499,7 +480,7 @@ function GroupRows({ groups, onPick }: { groups: readonly GroupRow[]; onPick?: (
               <button
                 type="button"
                 onClick={() => onPick(group.label)}
-                aria-label={`Show ${group.label} sales, ${group.nSales} ${group.nSales === 1 ? "sale" : "sales"}`}
+                aria-label={`Show ${versionLabel(group.label, insertName)} sales, ${group.nSales} ${group.nSales === 1 ? "sale" : "sales"}`}
                 className={`-mx-2 flex min-h-11 w-[calc(100%+1rem)] items-center justify-between gap-3 rounded-lg px-2 text-left text-sm hover:bg-zinc-900/[0.03] dark:hover:bg-white/[0.04] ${focusRing}`}
               >
                 {body}
@@ -518,12 +499,15 @@ export function SplitGroups({
   groups,
   missing,
   onPick,
+  insertName,
 }: {
   groups: { label: string; nSales: number; lastPriceCents: number | null; lastSoldAt: string | null }[];
   /** "Base": an unnumbered card had no Base sales, only other parallels. */
   missing?: "Base";
   /** Tap a group to price the card as that parallel. */
   onPick?: (label: string) => void;
+  /** The card is this insert: its plain sales read as the insert, never "Base". */
+  insertName?: string;
 }) {
   return (
     <div role="status">
@@ -531,7 +515,7 @@ export function SplitGroups({
       <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
         {missing ? COMP_COPY.noBaseBody : groups.length === 1 ? COMP_COPY.splitOneBody : COMP_COPY.splitBody}
       </p>
-      <GroupRows groups={groups} onPick={onPick} />
+      <GroupRows groups={groups} onPick={onPick} insertName={insertName} />
     </div>
   );
 }
@@ -541,10 +525,17 @@ export function OtherGroups({ groups, onPick }: { groups: readonly { label: stri
   if (groups.length === 0) return null;
   return (
     <div className="mt-4">
-      <p className="text-[13px] font-medium text-zinc-500 dark:text-zinc-400">{COMP_COPY.otherGroups}</p>
+      <p className="text-13 font-medium text-zinc-500 dark:text-zinc-400">{COMP_COPY.otherGroups}</p>
       <GroupRows groups={groups} onPick={onPick} />
     </div>
   );
+}
+
+/** Under the price: the day it sold and how many sales the line stands on ("Nov 10 · 3 sold"). */
+function SaleMeta({ day, nSales }: { day: string; nSales: number }) {
+  const parts = [day, nSales > 0 ? soldCount(nSales) : ""].filter(Boolean);
+  if (parts.length === 0) return null;
+  return <span className="block font-mono text-xs text-zinc-500 dark:text-zinc-400 tabular-nums">{parts.join(" · ")}</span>;
 }
 
 /**
@@ -563,7 +554,7 @@ export function LastSold({
   /** Tap a parallel the sales name to pick it. */
   onPick?: (label: string) => void;
 }) {
-  const box = "flex min-h-11 items-center justify-between gap-3 rounded-2xl border border-zinc-200 px-4 py-2.5 dark:border-white/10";
+  const box = "flex min-h-11 items-center justify-between gap-3 rounded-2xl border border-zinc-200 px-4 py-2.5 big:flex-wrap dark:border-white/10";
   if (solds.status === "looking") {
     return (
       <div className={box} aria-busy="true">
@@ -583,14 +574,14 @@ export function LastSold({
       return (
         <div className={box} data-slot="last-sold-picked">
           <div className="min-w-0">
-            <p className="text-[13px] font-medium text-zinc-500 dark:text-zinc-400">
+            <p className="text-13 font-medium text-zinc-500 dark:text-zinc-400">
               {COMP_COPY.lastSold} · {picked.label}
             </p>
             <p className="text-xs text-zinc-500 dark:text-zinc-400">{COMP_COPY.credit}</p>
           </div>
           <p className="shrink-0 text-right">
-            <span className="font-mono text-[17px] font-semibold tabular-nums">{money(picked.lastPriceCents / 100)}</span>
-            {day ? <span className="block font-mono text-xs text-zinc-500 dark:text-zinc-400 tabular-nums">{day}</span> : null}
+            <span className="font-mono text-17 font-semibold tabular-nums">{money(picked.lastPriceCents / 100)}</span>
+            <SaleMeta day={day} nSales={picked.nSales} />
           </p>
         </div>
       );
@@ -607,15 +598,15 @@ export function LastSold({
     return (
       <div className={box}>
         <div className="min-w-0">
-          <p className="text-[13px] font-medium text-zinc-500 dark:text-zinc-400">
+          <p className="text-13 font-medium text-zinc-500 dark:text-zinc-400">
             {COMP_COPY.lastSold}
             {comp.status === "ok" && comp.parallel ? ` · ${comp.parallel}` : ""}
           </p>
           <p className="text-xs text-zinc-500 dark:text-zinc-400">{COMP_COPY.credit}</p>
         </div>
         <p className="shrink-0 text-right">
-          <span className="font-mono text-[17px] font-semibold tabular-nums">{money(sale.priceCents / 100)}</span>
-          {day ? <span className="block font-mono text-xs text-zinc-500 dark:text-zinc-400 tabular-nums">{day}</span> : null}
+          <span className="font-mono text-17 font-semibold tabular-nums">{money(sale.priceCents / 100)}</span>
+          <SaleMeta day={day} nSales={comp.status === "ok" ? comp.nSales : 0} />
         </p>
       </div>
     );
@@ -627,7 +618,9 @@ export function LastSold({
         ? quickCompLimitMessage(comp.reason)
         : comp.status === "unavailable"
           ? COMP_COPY.unavailable
-          : comp.status === "none" && comp.searched
+          : comp.status === "version"
+            ? COMP_COPY.pickVersion
+            : comp.status === "none" && comp.searched
             ? COMP_COPY.noneSearched
             : COMP_COPY.none;
   return (
@@ -654,7 +647,7 @@ export function withSoldGroups(
   // The Base the sheet is showing reads first and selected.
   if (assumedBase && groups.length > 0 && !has("Base")) out.unshift({ name: "Base", serialRun: null });
   for (const group of groups) {
-    if (isUnnamedRunLabel(group.label) || has(group.label)) continue;
+    if (isUnnamedLabel(group.label) || has(group.label)) continue;
     out.push({ name: group.label, serialRun });
   }
   // No sales yet on a numbered card with no parallel named: last year's parallels at this print run, to tap.
@@ -673,7 +666,7 @@ export function SetNotes({ match, onSapphire, center = false }: { match: ScanMat
   if (!fromSales && !ask) return null;
   return (
     <div className={center ? "flex justify-center" : ""} data-slot="set-notes">
-      {fromSales ? <p className="text-[13px] leading-5 text-zinc-500 dark:text-zinc-400">{CONFIRM_COPY.sapphireFromSales}</p> : null}
+      {fromSales ? <p className="text-13 leading-5 text-zinc-500 dark:text-zinc-400">{CONFIRM_COPY.sapphireFromSales}</p> : null}
       {ask ? (
         <button
           type="button"
@@ -684,6 +677,72 @@ export function SetNotes({ match, onSapphire, center = false }: { match: ScanMat
           {CONFIRM_COPY.sapphireAsk}
         </button>
       ) : null}
+    </div>
+  );
+}
+
+/** A card back drawn small: a few stat lines, and the card # slot the scan still needs in purple. */
+function CardBackSketch() {
+  return (
+    <div
+      aria-hidden
+      className="flex aspect-[5/7] w-14 flex-col gap-1 rounded-md border border-zinc-900/10 bg-zinc-100 p-1.5 dark:border-white/10 dark:bg-white/[0.06]"
+    >
+      <div className="flex items-center justify-between gap-1">
+        <span className="h-1 w-3 rounded-sm bg-zinc-900/20 dark:bg-white/20" />
+        <span className="h-1.5 w-4 rounded-sm bg-violet-600/80" />
+      </div>
+      <span className="h-1 w-8 rounded-sm bg-zinc-900/15 dark:bg-white/15" />
+      <span className="mt-1 h-px w-full bg-zinc-900/10 dark:bg-white/10" />
+      <span className="h-1 w-full rounded-sm bg-zinc-900/10 dark:bg-white/10" />
+      <span className="h-1 w-full rounded-sm bg-zinc-900/10 dark:bg-white/10" />
+      <span className="h-1 w-3/4 rounded-sm bg-zinc-900/10 dark:bg-white/10" />
+      <span className="mt-auto h-1 w-6 rounded-sm bg-zinc-900/15 dark:bg-white/15" />
+    </div>
+  );
+}
+
+const FIELD_LABEL = { year: BACK_COPY.year, set: BACK_COPY.set, number: BACK_COPY.number } as const;
+
+/**
+ * "Flip it over": the front alone couldn't pin the year, set or card #. One tap opens the camera
+ * for the back; Skip goes on with the front as read. What's still missing reads as quiet tags.
+ */
+export function FlipStep({ match, onScanBack, onSkip }: { match: ScanMatch | undefined; onScanBack: () => void; onSkip: () => void }) {
+  const missing = missingFields(match);
+  return (
+    <div className="space-y-6" data-step="flip">
+      <div className="text-center">
+        <h3 className="text-xl font-semibold tracking-tight">{BACK_COPY.title}</h3>
+        {match?.playerName ? <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{match.playerName}</p> : null}
+      </div>
+      <div className="grid grid-cols-[56px_1fr] items-center gap-4 rounded-2xl border border-zinc-900/10 p-4 dark:border-white/10">
+        <CardBackSketch />
+        <div className="min-w-0">
+          <p className="text-sm leading-5 text-zinc-600 dark:text-zinc-300">{BACK_COPY.body}</p>
+          {missing.length > 0 ? (
+            <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="text-xs text-zinc-500 dark:text-zinc-400">{BACK_COPY.missing}</span>
+              {missing.map((field) => (
+                <span key={field} className="rounded-md border border-zinc-900/10 px-1.5 font-mono text-xs leading-5 text-zinc-600 dark:border-white/10 dark:text-zinc-300">
+                  {FIELD_LABEL[field]}
+                </span>
+              ))}
+            </p>
+          ) : null}
+        </div>
+      </div>
+      <div className="space-y-2">
+        <PrimaryButton onClick={onScanBack} className="min-h-14 gap-2 text-15">
+          <ScanLine className="size-5" strokeWidth={1.75} aria-hidden />
+          {BACK_COPY.scan}
+        </PrimaryButton>
+        <div className="flex justify-center">
+          <QuietButton onClick={onSkip} aria-label={BACK_COPY.skipLabel}>
+            {BACK_COPY.skip}
+          </QuietButton>
+        </div>
+      </div>
     </div>
   );
 }

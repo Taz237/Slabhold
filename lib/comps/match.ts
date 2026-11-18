@@ -18,6 +18,24 @@ export type MatchCard = {
   conditionType?: "raw" | "graded";
   /** Combined grade text e.g. "PSA 10" or "Raw". */
   grade?: string;
+  /**
+   * A named parallel whose print run we don't know (Quick Comp's Version pick from a list with
+   * no runs): a sale may print a run or not. Never set with a serialRun, and never for Base.
+   */
+  anyRun?: boolean;
+  /**
+   * The other parallels on this card's own product list (its year, set and sport), by name: every
+   * listed parallel that isn't this card's (lib/comps/known-run.ts). A sold title that names one is
+   * that parallel's sale, never this card's: "Sandglitter" and "Rainbow Foilboard" are not on the
+   * general parallel word list, but they are on 2026-27 Topps' own. Missing: no list for the card.
+   */
+  otherParallels?: readonly string[];
+  /**
+   * serialRun came from the checklist, not from the owner (lib/comps/known-run.ts). Sellers often
+   * leave the run out ("Gold Refractor PSA 10"), so a title that prints no run counts; a title
+   * that prints a different run never does. An owner-saved run keeps the strict rule.
+   */
+  runFromChecklist?: boolean;
   gradeQualifier?: string | null;
   isRookie?: boolean;
   /** Used so a WNBA Prizm card can keep WNBA titles. */
@@ -89,6 +107,71 @@ const SET_FAMILIES: { family: string; members: string[] }[] = [
     ],
   },
 ];
+
+/**
+ * Sets that print the same insert. Sellers title a Color Blast from Prizm
+ * Draft Picks as "Prizm" or "Prizm Draft Picks", and people save it under
+ * either name. The two sets count as one only when the saved card is that
+ * insert and the title names it too. Every other rule still has to pass.
+ */
+const INSERT_RELATED_SETS: { sets: readonly string[]; inserts: readonly string[] }[] = [
+  { sets: ["prizm", "prizm draft picks"], inserts: ["color blast"] },
+];
+
+/**
+ * Inserts a card with no card number can still be searched by. Same names as
+ * POPULAR_INSERTS (lib/cards/data/popular-inserts.ts imports this file, so
+ * the list is repeated here and a test keeps the two equal).
+ */
+export const NAMED_INSERTS = ["kaboom", "downtown", "color blast"] as const;
+
+function insertWords(value: string): string[] {
+  return value.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+}
+
+function wordsContainPhrase(words: readonly string[], phrase: string): boolean {
+  return ` ${words.join(" ")} `.includes(` ${phrase} `);
+}
+
+/** The named insert in this card's parallel field, or null. */
+export function namedInsertOf(parallel?: string): string | null {
+  const words = insertWords(parallel ?? "");
+  return NAMED_INSERTS.find((name) => wordsContainPhrase(words, name)) ?? null;
+}
+
+/**
+ * Other set names that count as this card's set for this title: the saved
+ * parallel is a shared insert and the title names that insert.
+ */
+function insertRelatedSets(title: string, setBrand?: string, parallel?: string): string[] {
+  const cardSet = normalizeSetToken(setBrand ?? "");
+  if (!cardSet) return [];
+  const cardWords = insertWords(parallel ?? "");
+  const titleWords = insertWords(title);
+  const out: string[] = [];
+  for (const group of INSERT_RELATED_SETS) {
+    if (!group.sets.includes(cardSet)) continue;
+    const shared = group.inserts.some(
+      (insert) => wordsContainPhrase(cardWords, insert) && wordsContainPhrase(titleWords, insert),
+    );
+    if (!shared) continue;
+    for (const name of group.sets) if (name !== cardSet) out.push(name);
+  }
+  return out;
+}
+
+/** The longest related set name a title prints, for telling two lines apart. */
+function relatedSetLine(title: string, setBrand?: string): string {
+  const cardSet = normalizeSetToken(setBrand ?? "");
+  let line = "";
+  for (const group of INSERT_RELATED_SETS) {
+    if (!group.sets.includes(cardSet)) continue;
+    for (const name of group.sets) {
+      if (name.length > line.length && tokensInOrder(title, setNameTokens(name))) line = name;
+    }
+  }
+  return line;
+}
 
 /**
  * Product names that are not the plain base set.
@@ -229,7 +312,73 @@ const PARALLEL_KEYWORDS = [
   "downtown",
   "ssp",
   "parallel",
+  // Chrome family (Topps Chrome, Bowman Chrome, Finest). "xfractor" and "raywave" are how
+  // joinParallelSpellings writes "X-Fractor" and "Ray Wave".
+  "xfractor",
+  "superfractor",
+  "logofractor",
+  "prism",
+  "sepia",
+  "aqua",
+  "yellow",
+  "teal",
+  "bronze",
+  "magenta",
+  "fuchsia",
+  "atomic",
+  "speckle",
+  "raywave",
+  "lava",
+  "mini diamond",
+  "geometric",
+  "negative",
+  "sapphire",
+  // Panini look-alikes that print no color word.
+  "fast break",
+  "reactive",
+  "stained glass",
+  "shock",
+  "elephant",
+  "tri-color",
+  "genesis",
 ] as const;
+
+/**
+ * One spelling for parallels sellers write three ways: "X-Fractor", "X Fractor" and "XFractor"
+ * are "xfractor" (so "#306 X-Fractor" is not read as a "306 x" lot), "Ray Wave" is "raywave"
+ * (so it is not the Wave parallel), and "Tri Color" is "tri-color".
+ */
+export function joinParallelSpellings(text: string): string {
+  return text
+    .replace(/\bx[\s-]*fractor(s?)\b/gi, "xfractor$1")
+    .replace(/\bray[\s-]*wave\b/gi, "raywave")
+    .replace(/\btri[\s-]*colou?r\b/gi, "tri-color");
+}
+
+/** Team names that carry a color word. "Green Bay" and "Red Sox" are not the Green or Red parallel. */
+const TEAM_COLOR_NAMES = [
+  "green bay",
+  "red sox",
+  "white sox",
+  "blue jays",
+  "red wings",
+  "blue jackets",
+  "blue devils",
+  "red raiders",
+  "yellow jackets",
+  "tulsa shock",
+] as const;
+
+function stripTeamNames(text: string): string {
+  let out = text;
+  for (const name of TEAM_COLOR_NAMES) {
+    out = out.replace(new RegExp(`\\b${phrasePattern(name)}\\b`, "gi"), " ");
+  }
+  return out;
+}
+
+/** "Gold Refractor" sells as "Gold" and "Gold" as "Gold Refractor". Never the bare Refractor. */
+const OPTIONAL_PARALLEL_WORD = "refractor";
 
 /** Counted only as their own word after the card number, and only if the set name did not already use them. */
 const PARALLEL_AFTER_NUMBER = ["sp", "variation"] as const;
@@ -383,6 +532,15 @@ export function titleHasPlayer(title: string, playerName: string): boolean {
   return re.test(title);
 }
 
+/** The whole name, not just the last name. Used when there is no card number to lean on. */
+export function titleHasFullPlayer(title: string, playerName: string): boolean {
+  const name = playerName.trim();
+  if (!name) return false;
+  const pattern = name.split(/\s+/).map((part) => escapeRegExp(part)).join("\\s+");
+  if (new RegExp(`(?<![a-z0-9])${pattern}(?![a-z0-9])`, "i").test(title)) return true;
+  return lettersAlignWithWords(title, name);
+}
+
 export function titleHasYear(title: string, card: MatchCard): boolean {
   const start = startYearOf(card);
   const season = yearLabelOf(card);
@@ -496,9 +654,13 @@ export function titleNamesWrongSet(
 ): boolean {
   const cardSet = normalizeSetToken(setBrand ?? "");
   const lower = title.toLowerCase();
+  // "Prizm Draft Picks" on a Prizm Color Blast is the same insert, not another set.
+  const related = insertRelatedSets(lower, setBrand, parallel);
+  const isRelated = (name: string) => related.includes(normalizeSetToken(name));
 
   for (const keyword of SET_KEYWORDS) {
     if (cardSet.includes(keyword)) continue;
+    if (isRelated(keyword)) continue;
     const re = new RegExp(
       `\\b${escapeRegExp(keyword).replace(/\s+/g, "\\s+")}\\b`,
       "i",
@@ -527,6 +689,7 @@ export function titleNamesWrongSet(
     if (!cardIsBaseFamily) continue;
     for (const member of members) {
       if (cardSet.includes(member)) continue;
+      if (isRelated(member)) continue;
       if (sportIsWnba(sport) && /\bwnba\b/.test(member)) continue;
       const re = new RegExp(
         `\\b${escapeRegExp(member).replace(/\s+/g, "\\s+")}\\b`,
@@ -540,6 +703,7 @@ export function titleNamesWrongSet(
   if (base) {
     for (const sub of SET_SUB_BRANDS[base]) {
       if (sub === "wnba" && sportIsWnba(sport)) continue;
+      if (isRelated(`${base} ${sub}`)) continue;
       if (base === "donruss" && sub === "optic" && opticOnlyInPreview(lower, parallel)) continue;
       if (titleHasSubBrand(lower, sub)) return true;
     }
@@ -549,6 +713,7 @@ export function titleNamesWrongSet(
     for (const name of knownSetNames()) {
       const normalized = normalizeSetToken(name);
       if (!normalized.startsWith(`${cardSet} `)) continue;
+      if (isRelated(normalized)) continue;
       if (sportIsWnba(sport) && /\bwnba\b/.test(normalized)) continue;
       if (
         isPlainDonruss(cardSet) &&
@@ -644,7 +809,7 @@ function stripSetAndPlayer(
   title: string,
   identity?: { setBrand?: string; playerName?: string },
 ): string {
-  let text = title;
+  let text = stripTeamNames(title);
   for (const phrase of setNamePhrases(identity?.setBrand)) {
     const pattern = phrasePattern(phrase);
     if (!pattern) continue;
@@ -747,9 +912,9 @@ export function titleHasDisallowedParallel(
   parallel?: string,
   identity?: { setBrand?: string; playerName?: string; cardNumber?: string },
 ): boolean {
-  const lower = title.toLowerCase();
+  const lower = joinParallelSpellings(title.toLowerCase());
   const scan = stripSetAndPlayer(lower, identity);
-  const allowed = (parallel ?? "").trim().toLowerCase();
+  const allowed = joinParallelSpellings((parallel ?? "").trim().toLowerCase());
   const allowedWords = new Set(parallelNameWords(allowed));
   const cardSet = setMatchPhrase(identity?.setBrand);
   const pinkSameAsPinkPrizm =
@@ -773,6 +938,8 @@ export function titleHasDisallowedParallel(
     // "Parallel" names the category. A Silver card can still say "Silver Parallel".
     if (keyword === "parallel") continue;
     if (allowedWords.has(canonicalParallelWord(keyword))) continue;
+    // A named parallel may add "Refractor" ("Gold" sells as "Gold Refractor").
+    if (keyword === OPTIONAL_PARALLEL_WORD && allowedWords.size > 0) continue;
     const keywordWords = parallelNameWords(keyword);
     if (keywordWords.length > 0 && keywordWords.every((word) => allowedWords.has(word))) {
       continue;
@@ -794,7 +961,10 @@ export function titleHasDisallowedParallel(
   if (!base && allowed) {
     let words = parallelNameWords(allowed);
     if (pinkSameAsPinkPrizm) words = words.filter((word) => word !== "prizm");
-    if (words.length > 0 && words.some((word) => !titleHasParallelWord(lower, word))) {
+    if (words.length > 1) words = words.filter((word) => word !== OPTIONAL_PARALLEL_WORD);
+    // The team name is not the parallel: "Red Sox" alone does not make it the Red.
+    const named = stripTeamNames(lower);
+    if (words.length > 0 && words.some((word) => !titleHasParallelWord(named, word))) {
       return true;
     }
   }
@@ -832,10 +1002,13 @@ function isSeasonPair(left: string, right: string): boolean {
 export function titleSerialOk(
   title: string,
   serialRun?: number | null,
+  /** The run came from the checklist: a title that prints no run is allowed. */
+  allowNoRun = false,
 ): boolean {
   const runs = titleSerialRuns(title);
   if (serialRun != null && serialRun > 0) {
-    return runs.length > 0 && runs.every((run) => run === serialRun);
+    if (runs.length === 0) return allowNoRun;
+    return runs.every((run) => run === serialRun);
   }
   // Card has no serial run → exclude any numbered listing
   return runs.length === 0;
@@ -857,7 +1030,7 @@ export function expectedSerialRun(
 }
 
 export function titleLooksExcluded(title: string): boolean {
-  return TITLE_JUNK.test(title);
+  return TITLE_JUNK.test(joinParallelSpellings(title));
 }
 
 export function parseGradeFromTitle(
@@ -962,6 +1135,83 @@ export function gradesMatch(
   );
 }
 
+/**
+ * A card saved with no card number that can still be searched: it has a
+ * player, a year, a set and a named insert ("Color Blast"). The search is
+ * player + year + brand + insert, and matchComps keeps the titles only when
+ * they all point at one card.
+ */
+export function isWideInsertCard(
+  card: Pick<MatchCard, "playerName" | "year" | "yearLabel" | "setBrand" | "cardNumber" | "parallel">,
+): boolean {
+  if (normalizeCardNumber(card.cardNumber)) return false;
+  if ((card.playerName ?? "").trim().length < 2) return false;
+  if (!(card.setBrand ?? "").trim()) return false;
+  if (!(card.yearLabel ?? "").trim() && !(Number(card.year) > 0)) return false;
+  return namedInsertOf(card.parallel) != null;
+}
+
+/**
+ * Open beats wrong. With no card number to check, the kept titles have to
+ * agree: one card number between them, and one product line. Two numbers, or
+ * "Prizm" beside "Prizm Draft Picks", is two cards, so nothing is kept.
+ */
+function agreeOnOneCard(card: MatchCard, sales: CleanedSale[]): CleanedSale[] {
+  const numbers = new Set<string>();
+  const lines = new Set<string>();
+  for (const sale of sales) {
+    const tokens = titleHashCardNumbers(sale.title);
+    if (tokens.length) numbers.add(tokens.join(" "));
+    lines.add(relatedSetLine(sale.title, card.setBrand));
+  }
+  if (numbers.size > 1 || lines.size > 1) return [];
+  return sales;
+}
+
+/** The family words sellers add to a named parallel: a Gold is a "Gold Refractor", a Silver a "Silver Prizm". Never a parallel of their own on a named card. */
+const LISTED_SUFFIX_WORDS = ["refractor", "refractors", "prizm", "prizms", "border", "parallel"];
+
+/** A listed parallel's name as a pattern: hyphens and spaces alike ("Tie-Dye", "Tie Dye", "TieDye"). */
+function listedNamePattern(name: string): RegExp {
+  const body = name
+    .trim()
+    .toLowerCase()
+    .split(/[\s-]+/)
+    .map((part) => escapeRegExp(part))
+    .join("[\\s-]*");
+  return new RegExp(`\\b${body}\\b`, "i");
+}
+
+/**
+ * The title names a parallel from the card's own product list that isn't the card's. The set's
+ * name, the player's and team names are taken out first, so "Red Sox" is not the Red and "James
+ * Wood" is not the Wood. A listed name whose words are all in the card's own parallel ("Gold" for a
+ * Gold Refractor) is the card's.
+ */
+export function titleNamesOtherParallel(title: string, card: Pick<MatchCard, "otherParallels" | "parallel" | "setBrand" | "playerName">): boolean {
+  if (!card.otherParallels?.length) return false;
+  const text = stripTeamNames(stripSetAndPlayer(joinParallelSpellings(title.toLowerCase()), { setBrand: card.setBrand, playerName: card.playerName }));
+  const ownName = joinParallelSpellings((card.parallel ?? "").toLowerCase());
+  const own = new Set(parallelNameWords(ownName));
+  const named = !parallelIsBase(card.parallel);
+  // The card's own parallel as the title writes it comes out first, with the word sellers add to
+  // it: a Gold sells as "Gold Refractor", and that "Refractor" is not the plain Refractor.
+  const rest = named
+    ? text
+        .replace(new RegExp(`${listedNamePattern(ownName).source}(?:[\\s-]+(?:${LISTED_SUFFIX_WORDS.join("|")}))?`, "gi"), " ")
+        .replace(new RegExp(`\\b(?:${LISTED_SUFFIX_WORDS.join("|")})[\\s-]+${listedNamePattern(ownName).source}`, "gi"), " ")
+    : text;
+  for (const name of card.otherParallels) {
+    const words = parallelNameWords(joinParallelSpellings(name.toLowerCase()));
+    if (words.length === 0 || words.every((word) => own.has(word))) continue;
+    // A named card may carry the family's own word anywhere in the title ("Gold /50 Refractor").
+    if (named && words.every((word) => LISTED_SUFFIX_WORDS.includes(word))) continue;
+    // A longer name built on the card's own word ("Gold Wave Refractor" for a Gold) is read off the whole title.
+    if (listedNamePattern(joinParallelSpellings(name)).test(words.some((word) => own.has(word)) ? text : rest)) return true;
+  }
+  return false;
+}
+
 export function titleMatchesCard(title: string, card: MatchCard): boolean {
   if (titleLooksExcluded(title)) return false;
   if (card.playerName.trim() && !titleHasPlayer(title, card.playerName)) {
@@ -973,16 +1223,25 @@ export function titleMatchesCard(title: string, card: MatchCard): boolean {
   ) {
     return false;
   }
-  if (!titleHasSetName(title, card.setBrand)) return false;
   const parallelName =
     canonicalParallelName(card.setBrand, card.parallel ?? "") || card.parallel;
+  if (
+    !titleHasSetName(title, card.setBrand) &&
+    !insertRelatedSets(title, card.setBrand, parallelName).some((name) => titleHasSetName(title, name))
+  ) {
+    return false;
+  }
   // Optic Preview and a color sitting in front of Prizm are parallels, not other sets.
   if (titleNamesWrongSet(title, card.setBrand, card.sport, parallelName)) {
     return false;
   }
 
   const num = normalizeCardNumber(card.cardNumber);
-  if (!card.noNumber) {
+  if (isWideInsertCard(card)) {
+    // No number to check: the full name has to be there, and matchComps then
+    // keeps the titles only if they agree on one card.
+    if (!titleHasFullPlayer(title, card.playerName)) return false;
+  } else if (!card.noNumber) {
     if (!num) return false;
     if (!titleHasCardNumber(title, num)) return false;
   }
@@ -996,7 +1255,10 @@ export function titleMatchesCard(title: string, card: MatchCard): boolean {
   ) {
     return false;
   }
-  if (!titleSerialOk(title, card.serialRun)) return false;
+  // A title naming another parallel on the card's own product list is that parallel's sale.
+  if (titleNamesOtherParallel(title, card)) return false;
+  const runOpen = card.anyRun === true && !card.serialRun && !parallelIsBase(card.parallel);
+  if (!runOpen && !titleSerialOk(title, card.serialRun, card.runFromChecklist === true)) return false;
 
   if (card.isAuto) {
     if (!AUTO_RE.test(title)) return false;
@@ -1160,7 +1422,8 @@ export function matchComps(
     });
   }
 
-  return dedupeSales(sales);
+  const kept = dedupeSales(sales);
+  return isWideInsertCard(card) ? agreeOnOneCard(card, kept) : kept;
 }
 
 /**

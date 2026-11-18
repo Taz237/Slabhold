@@ -1,0 +1,1270 @@
+{
+ "sport": "Baseball",
+ "yearLabel": "2026",
+ "product": "Topps",
+ "manufacturer": "Topps",
+ "source": "https://www.checklistinsider.com/2026-topps-series-1-baseball",
+ "official": false,
+ "parallels": [
+  {
+   "subset": "Base",
+   "name": "Diamante Foil",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Holo Foil",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Pink Diamante Foil",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Sandglitter",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Silver Crackle Foil",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Spring Training",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Topps Logo Foil Pattern",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Purple Tinsel",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Yellow Tinsel",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Rainbow Foil",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Aqua Holo Foil )",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Aqua Rainbow Foil",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Gold Border /2,026",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Pink Holo Foil",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Yellow Holo Foil",
+   "serialRun": 399
+  },
+  {
+   "subset": "Base",
+   "name": "Yellow Rainbow Foil",
+   "serialRun": 399
+  },
+  {
+   "subset": "Base",
+   "name": "Purple Holo Foil",
+   "serialRun": 250
+  },
+  {
+   "subset": "Base",
+   "name": "Purple Rainbow Foil",
+   "serialRun": 250
+  },
+  {
+   "subset": "Base",
+   "name": "Blue Holo Foil",
+   "serialRun": 150
+  },
+  {
+   "subset": "Base",
+   "name": "Blue Rainbow Foil",
+   "serialRun": 150
+  },
+  {
+   "subset": "Base",
+   "name": "Cherry Blossom Foil",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base",
+   "name": "Green Diamante Foil",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base",
+   "name": "Green Holo Foil",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base",
+   "name": "Green Rainbow Foil",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base",
+   "name": "Spring Training Green",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base",
+   "name": "Independence Day",
+   "serialRun": 76
+  },
+  {
+   "subset": "Base",
+   "name": "75 Years of Topps",
+   "serialRun": 75
+  },
+  {
+   "subset": "Base",
+   "name": "Black Border",
+   "serialRun": 75
+  },
+  {
+   "subset": "Base",
+   "name": "Canadian Independence Day",
+   "serialRun": 67
+  },
+  {
+   "subset": "Base",
+   "name": "Canvas",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base",
+   "name": "Gold Diamante Foil",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base",
+   "name": "Gold Holo Foil",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base",
+   "name": "Gold Rainbow Foil",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base",
+   "name": "Sandglitter Gold",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base",
+   "name": "Spring Training Gold",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base",
+   "name": "Memorial Day Camo",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base",
+   "name": "Orange Diamante Foil",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base",
+   "name": "Orange Holo Foil",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base",
+   "name": "Orange Rainbow Foil",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base",
+   "name": "Sandglitter Orange",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base",
+   "name": "Spring Training Orange",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base",
+   "name": "Wood",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base",
+   "name": "Black Diamante Foil",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base",
+   "name": "Black Holo Foil",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base",
+   "name": "Black Rainbow Foil",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base",
+   "name": "Sandglitter Black",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base",
+   "name": "Spring Training Black",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base",
+   "name": "Red Diamante Foil",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base",
+   "name": "Red Holo Foil",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base",
+   "name": "Red Rainbow Foil",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base",
+   "name": "Sandglitter Red",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base",
+   "name": "Spring Training Red",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base",
+   "name": "First Card",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base",
+   "name": "Printing Plates",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base",
+   "name": "Rose Gold Holo Foil",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base",
+   "name": "Spring Training Rose Gold",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base",
+   "name": "Celebration Exclusives",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Base Confetti",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Opening Day",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Pink Confetti",
+   "serialRun": null
+  },
+  {
+   "subset": "Base",
+   "name": "Lime Green Confetti",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Dugout Peeks",
+   "name": "Gold",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base Dugout Peeks",
+   "name": "Orange",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Dugout Peeks",
+   "name": "Black",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Dugout Peeks",
+   "name": "Red",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Dugout Peeks",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Hidden Mascots",
+   "name": "Gold",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base Hidden Mascots",
+   "name": "Orange",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Hidden Mascots",
+   "name": "Black",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Hidden Mascots",
+   "name": "Red",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Hidden Mascots",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Holiday Variations (Green Leaf)",
+   "name": "Green/Pink Polka Dots",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Holiday Variations (Green Leaf)",
+   "name": "Purple/Blue Polka Dots",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Holiday Variations (Green Leaf)",
+   "name": "Chicks",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Holiday Variations (Green Leaf)",
+   "name": "Eggs",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Holiday Variations (Green Leaf)",
+   "name": "Rabbits",
+   "serialRun": null
+  },
+  {
+   "subset": "Base Holiday Variations (Green Leaf)",
+   "name": "Flowers",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base Holiday Variations (Green Leaf)",
+   "name": "Umbrellas",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Holiday Variations (Green Leaf)",
+   "name": "Watering Cans",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Holiday Variations (Green Leaf)",
+   "name": "Birds",
+   "serialRun": 1
+  },
+  {
+   "subset": "Walk This Way",
+   "name": "Gold",
+   "serialRun": 50
+  },
+  {
+   "subset": "Walk This Way",
+   "name": "Orange",
+   "serialRun": 25
+  },
+  {
+   "subset": "Walk This Way",
+   "name": "Black",
+   "serialRun": 10
+  },
+  {
+   "subset": "Walk This Way",
+   "name": "Red",
+   "serialRun": 5
+  },
+  {
+   "subset": "Walk This Way",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base 1952 Variation Autographs",
+   "name": "Red",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base 1952 Variation Autographs",
+   "name": "Black",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Flagship Real One Autographs",
+   "name": "Green Foil",
+   "serialRun": 99
+  },
+  {
+   "subset": "Base Flagship Real One Autographs",
+   "name": "75th Anniversary",
+   "serialRun": 75
+  },
+  {
+   "subset": "Base Flagship Real One Autographs",
+   "name": "Gold Foil",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base Flagship Real One Autographs",
+   "name": "Orange Foil",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Flagship Real One Autographs",
+   "name": "Black Foil",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Flagship Real One Autographs",
+   "name": "Red Foil",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Flagship Real One Autographs",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Base Real One Relics",
+   "name": "Gold",
+   "serialRun": 50
+  },
+  {
+   "subset": "Base Real One Relics",
+   "name": "Orange",
+   "serialRun": 25
+  },
+  {
+   "subset": "Base Real One Relics",
+   "name": "Black",
+   "serialRun": 10
+  },
+  {
+   "subset": "Base Real One Relics",
+   "name": "Red",
+   "serialRun": 5
+  },
+  {
+   "subset": "Base Real One Relics",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Autographs",
+   "name": "TBA",
+   "serialRun": null
+  },
+  {
+   "subset": "75 Years of Topps Baseball Autographs",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "75 Years of Topps Baseball Autographs",
+   "name": "75YTA-AN Alysha Newman",
+   "serialRun": null
+  },
+  {
+   "subset": "75 Years of Topps Baseball Autographs",
+   "name": "75YTA-AO Alexis Ohanian",
+   "serialRun": null
+  },
+  {
+   "subset": "75 Years of Topps Baseball Autographs",
+   "name": "75YTA-CMS Cara Maria Sorbello",
+   "serialRun": null
+  },
+  {
+   "subset": "75 Years of Topps Baseball Autographs",
+   "name": "75YTA-JCH Jamie Chung",
+   "serialRun": null
+  },
+  {
+   "subset": "75 Years of Topps Baseball Autographs",
+   "name": "75YTA-JHO Jackie Hornung",
+   "serialRun": null
+  },
+  {
+   "subset": "75 Years of Topps Baseball Autographs",
+   "name": "75YTA-MFI Michele Fitzgerald",
+   "serialRun": null
+  },
+  {
+   "subset": "75 Years of Topps Baseball Autographs",
+   "name": "75YTA-MLO Mark Long",
+   "serialRun": null
+  },
+  {
+   "subset": "75 Years of Topps Baseball Autographs",
+   "name": "75YTA-PR Paul Rust",
+   "serialRun": null
+  },
+  {
+   "subset": "75 Years of Topps Baseball Autographs",
+   "name": "75YTA-RK Richard Kind",
+   "serialRun": null
+  },
+  {
+   "subset": "75 Years of Topps Baseball Autographs",
+   "name": "75YTA-TMA Tom Marshall",
+   "serialRun": null
+  },
+  {
+   "subset": "75 Years of Topps Baseball Autographs",
+   "name": "75YTA-VW Victor Wembanyama",
+   "serialRun": null
+  },
+  {
+   "subset": "75 Years of Topps Baseball Autographs",
+   "name": "75YTA-WB Wes Bergmann",
+   "serialRun": null
+  },
+  {
+   "subset": "75 Years of Topps Baseball Autographs",
+   "name": "75YTA-WF William Fichtner",
+   "serialRun": null
+  },
+  {
+   "subset": "75 Years of Topps Die-Cut Autographs",
+   "name": "Gold Foil",
+   "serialRun": 50
+  },
+  {
+   "subset": "75 Years of Topps Die-Cut Autographs",
+   "name": "Orange Foil",
+   "serialRun": 25
+  },
+  {
+   "subset": "75 Years of Topps Die-Cut Autographs",
+   "name": "Black Foil",
+   "serialRun": 10
+  },
+  {
+   "subset": "75 Years of Topps Die-Cut Autographs",
+   "name": "Red Foil",
+   "serialRun": 5
+  },
+  {
+   "subset": "75 Years of Topps Die-Cut Autographs",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Baseball Stars Autographs",
+   "name": "Blue",
+   "serialRun": 150
+  },
+  {
+   "subset": "Baseball Stars Autographs",
+   "name": "Green",
+   "serialRun": 99
+  },
+  {
+   "subset": "Baseball Stars Autographs",
+   "name": "Gold",
+   "serialRun": 50
+  },
+  {
+   "subset": "Baseball Stars Autographs",
+   "name": "Orange",
+   "serialRun": 25
+  },
+  {
+   "subset": "Baseball Stars Autographs",
+   "name": "Black",
+   "serialRun": 10
+  },
+  {
+   "subset": "Baseball Stars Autographs",
+   "name": "Red",
+   "serialRun": 5
+  },
+  {
+   "subset": "Baseball Stars Autographs",
+   "name": "Platinum",
+   "serialRun": 1
+  },
+  {
+   "subset": "First Pitch Autographs",
+   "name": "Gold",
+   "serialRun": 50
+  },
+  {
+   "subset": "First Pitch Autographs",
+   "name": "Orange",
+   "serialRun": 25
+  },
+  {
+   "subset": "First Pitch Autographs",
+   "name": "Black",
+   "serialRun": 10
+  },
+  {
+   "subset": "First Pitch Autographs",
+   "name": "Red",
+   "serialRun": 5
+  },
+  {
+   "subset": "First Pitch Autographs",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Mascots Autographs",
+   "name": "Gold",
+   "serialRun": 50
+  },
+  {
+   "subset": "Mascots Autographs",
+   "name": "Orange",
+   "serialRun": 25
+  },
+  {
+   "subset": "Mascots Autographs",
+   "name": "Black",
+   "serialRun": 10
+  },
+  {
+   "subset": "Mascots Autographs",
+   "name": "Red",
+   "serialRun": 5
+  },
+  {
+   "subset": "Mascots Autographs",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "City Connect Swatch Collection Autograph Relics",
+   "name": "Gold",
+   "serialRun": 50
+  },
+  {
+   "subset": "City Connect Swatch Collection Autograph Relics",
+   "name": "Orange",
+   "serialRun": 25
+  },
+  {
+   "subset": "City Connect Swatch Collection Autograph Relics",
+   "name": "Black",
+   "serialRun": 10
+  },
+  {
+   "subset": "City Connect Swatch Collection Autograph Relics",
+   "name": "Red",
+   "serialRun": 5
+  },
+  {
+   "subset": "City Connect Swatch Collection Autograph Relics",
+   "name": "Platinum",
+   "serialRun": 1
+  },
+  {
+   "subset": "Major League Material Autographs",
+   "name": "Green",
+   "serialRun": 99
+  },
+  {
+   "subset": "Major League Material Autographs",
+   "name": "Gold",
+   "serialRun": 50
+  },
+  {
+   "subset": "Major League Material Autographs",
+   "name": "Orange",
+   "serialRun": 25
+  },
+  {
+   "subset": "Major League Material Autographs",
+   "name": "Black",
+   "serialRun": 10
+  },
+  {
+   "subset": "Major League Material Autographs",
+   "name": "Red",
+   "serialRun": 5
+  },
+  {
+   "subset": "Major League Material Dual Autographs",
+   "name": "Orange",
+   "serialRun": 25
+  },
+  {
+   "subset": "Major League Material Dual Autographs",
+   "name": "Black",
+   "serialRun": 10
+  },
+  {
+   "subset": "Major League Material Dual Autographs",
+   "name": "Red",
+   "serialRun": 5
+  },
+  {
+   "subset": "Major League Material Dual Autographs",
+   "name": "Platinum",
+   "serialRun": 1
+  },
+  {
+   "subset": "Mascots Dynasty Autograph Patch",
+   "name": "Silver",
+   "serialRun": null
+  },
+  {
+   "subset": "Mascots Dynasty Autograph Patch",
+   "name": "Gold",
+   "serialRun": null
+  },
+  {
+   "subset": "Topps Flagship Autograph Patch",
+   "name": "Bronze",
+   "serialRun": 25
+  },
+  {
+   "subset": "Topps Flagship Autograph Patch",
+   "name": "Black",
+   "serialRun": 10
+  },
+  {
+   "subset": "Topps Flagship Autograph Patch",
+   "name": "Red",
+   "serialRun": 5
+  },
+  {
+   "subset": "Topps Flagship Autograph Patch",
+   "name": "Platinum",
+   "serialRun": 1
+  },
+  {
+   "subset": "City Connect Swatch Collection",
+   "name": "Blue",
+   "serialRun": 150
+  },
+  {
+   "subset": "City Connect Swatch Collection",
+   "name": "Green",
+   "serialRun": 99
+  },
+  {
+   "subset": "City Connect Swatch Collection",
+   "name": "Gold",
+   "serialRun": 50
+  },
+  {
+   "subset": "City Connect Swatch Collection",
+   "name": "Orange",
+   "serialRun": 25
+  },
+  {
+   "subset": "City Connect Swatch Collection",
+   "name": "Black",
+   "serialRun": 10
+  },
+  {
+   "subset": "City Connect Swatch Collection",
+   "name": "Red",
+   "serialRun": 5
+  },
+  {
+   "subset": "City Connect Swatch Collection",
+   "name": "Platinum",
+   "serialRun": 1
+  },
+  {
+   "subset": "Major League Material Relics",
+   "name": "Blue",
+   "serialRun": 150
+  },
+  {
+   "subset": "Major League Material Relics",
+   "name": "Green",
+   "serialRun": 99
+  },
+  {
+   "subset": "Major League Material Relics",
+   "name": "Gold",
+   "serialRun": 50
+  },
+  {
+   "subset": "Major League Material Relics",
+   "name": "Orange",
+   "serialRun": 25
+  },
+  {
+   "subset": "Major League Material Relics",
+   "name": "Black",
+   "serialRun": 10
+  },
+  {
+   "subset": "Major League Material Relics",
+   "name": "Red",
+   "serialRun": 5
+  },
+  {
+   "subset": "Major League Material Relics",
+   "name": "Platinum",
+   "serialRun": 1
+  },
+  {
+   "subset": "Mascots Relics",
+   "name": "Green",
+   "serialRun": 99
+  },
+  {
+   "subset": "Mascots Relics",
+   "name": "Gold",
+   "serialRun": 50
+  },
+  {
+   "subset": "Mascots Relics",
+   "name": "Orange",
+   "serialRun": 25
+  },
+  {
+   "subset": "Mascots Relics",
+   "name": "Black",
+   "serialRun": 10
+  },
+  {
+   "subset": "Mascots Relics",
+   "name": "Red",
+   "serialRun": 5
+  },
+  {
+   "subset": "Mascots Relics",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "8-Bit Ballers",
+   "name": "Green",
+   "serialRun": 99
+  },
+  {
+   "subset": "8-Bit Ballers",
+   "name": "Gold",
+   "serialRun": 50
+  },
+  {
+   "subset": "8-Bit Ballers",
+   "name": "Orange",
+   "serialRun": 25
+  },
+  {
+   "subset": "8-Bit Ballers",
+   "name": "Black",
+   "serialRun": 10
+  },
+  {
+   "subset": "8-Bit Ballers",
+   "name": "Red",
+   "serialRun": 5
+  },
+  {
+   "subset": "8-Bit Ballers",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "All Kings",
+   "name": "Gold",
+   "serialRun": 1
+  },
+  {
+   "subset": "Big Ticket Players",
+   "name": "Pink Foil",
+   "serialRun": null
+  },
+  {
+   "subset": "Big Ticket Players",
+   "name": "Blue Foil",
+   "serialRun": 150
+  },
+  {
+   "subset": "Big Ticket Players",
+   "name": "Green Foil",
+   "serialRun": 99
+  },
+  {
+   "subset": "Big Ticket Players",
+   "name": "Gold Foil",
+   "serialRun": 50
+  },
+  {
+   "subset": "Big Ticket Players",
+   "name": "Orange Foil",
+   "serialRun": 25
+  },
+  {
+   "subset": "Big Ticket Players",
+   "name": "Black Foil",
+   "serialRun": 10
+  },
+  {
+   "subset": "Big Ticket Players",
+   "name": "Red Foil",
+   "serialRun": 5
+  },
+  {
+   "subset": "Big Ticket Players",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "First Pitch",
+   "name": "Pink Foil",
+   "serialRun": null
+  },
+  {
+   "subset": "First Pitch",
+   "name": "Blue Foil",
+   "serialRun": 150
+  },
+  {
+   "subset": "First Pitch",
+   "name": "Green Foil",
+   "serialRun": 99
+  },
+  {
+   "subset": "First Pitch",
+   "name": "Gold Foil",
+   "serialRun": 50
+  },
+  {
+   "subset": "First Pitch",
+   "name": "Orange Foil",
+   "serialRun": 25
+  },
+  {
+   "subset": "First Pitch",
+   "name": "Black Foil",
+   "serialRun": 10
+  },
+  {
+   "subset": "First Pitch",
+   "name": "Red Foil",
+   "serialRun": 5
+  },
+  {
+   "subset": "First Pitch",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Gameday Drip",
+   "name": "Green",
+   "serialRun": 99
+  },
+  {
+   "subset": "Gameday Drip",
+   "name": "Gold",
+   "serialRun": 50
+  },
+  {
+   "subset": "Gameday Drip",
+   "name": "Orange",
+   "serialRun": 25
+  },
+  {
+   "subset": "Gameday Drip",
+   "name": "Black",
+   "serialRun": 10
+  },
+  {
+   "subset": "Gameday Drip",
+   "name": "Red",
+   "serialRun": 5
+  },
+  {
+   "subset": "Gameday Drip",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Mascots",
+   "name": "Green",
+   "serialRun": 99
+  },
+  {
+   "subset": "Mascots",
+   "name": "Gold",
+   "serialRun": 50
+  },
+  {
+   "subset": "Mascots",
+   "name": "Orange",
+   "serialRun": 25
+  },
+  {
+   "subset": "Mascots",
+   "name": "Black",
+   "serialRun": 10
+  },
+  {
+   "subset": "Mascots",
+   "name": "Red",
+   "serialRun": 5
+  },
+  {
+   "subset": "Mascots",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Perennial All-Stars",
+   "name": "Green",
+   "serialRun": 99
+  },
+  {
+   "subset": "Perennial All-Stars",
+   "name": "Gold",
+   "serialRun": 50
+  },
+  {
+   "subset": "Perennial All-Stars",
+   "name": "Orange",
+   "serialRun": 25
+  },
+  {
+   "subset": "Perennial All-Stars",
+   "name": "Black",
+   "serialRun": 10
+  },
+  {
+   "subset": "Perennial All-Stars",
+   "name": "Red",
+   "serialRun": 5
+  },
+  {
+   "subset": "Perennial All-Stars",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Rip Night",
+   "name": "Blue",
+   "serialRun": null
+  },
+  {
+   "subset": "Rip Night",
+   "name": "Gold",
+   "serialRun": null
+  },
+  {
+   "subset": "Rip Night",
+   "name": "Orange",
+   "serialRun": null
+  },
+  {
+   "subset": "Rip Night",
+   "name": "Red",
+   "serialRun": null
+  },
+  {
+   "subset": "Stars of MLB",
+   "name": "Crackle Foil",
+   "serialRun": null
+  },
+  {
+   "subset": "Stars of MLB",
+   "name": "Green Foil",
+   "serialRun": 99
+  },
+  {
+   "subset": "Stars of MLB",
+   "name": "Gold Crackle Foil",
+   "serialRun": 50
+  },
+  {
+   "subset": "Stars of MLB",
+   "name": "Gold Foil",
+   "serialRun": 50
+  },
+  {
+   "subset": "Stars of MLB",
+   "name": "Orange Crackle Foil",
+   "serialRun": 25
+  },
+  {
+   "subset": "Stars of MLB",
+   "name": "Orange Foil",
+   "serialRun": 25
+  },
+  {
+   "subset": "Stars of MLB",
+   "name": "Black Crackle Foil",
+   "serialRun": 10
+  },
+  {
+   "subset": "Stars of MLB",
+   "name": "Black Foil",
+   "serialRun": 10
+  },
+  {
+   "subset": "Stars of MLB",
+   "name": "Red Crackle Foil",
+   "serialRun": 5
+  },
+  {
+   "subset": "Stars of MLB",
+   "name": "Red Foil",
+   "serialRun": 5
+  },
+  {
+   "subset": "Stars of MLB",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Titans of the Game",
+   "name": "Crackle Foil",
+   "serialRun": null
+  },
+  {
+   "subset": "Titans of the Game",
+   "name": "Green Foil",
+   "serialRun": 99
+  },
+  {
+   "subset": "Titans of the Game",
+   "name": "Gold Crackle Foil",
+   "serialRun": 50
+  },
+  {
+   "subset": "Titans of the Game",
+   "name": "Gold Foil",
+   "serialRun": 50
+  },
+  {
+   "subset": "Titans of the Game",
+   "name": "Orange Crackle Foil",
+   "serialRun": 25
+  },
+  {
+   "subset": "Titans of the Game",
+   "name": "Orange Foil",
+   "serialRun": 25
+  },
+  {
+   "subset": "Titans of the Game",
+   "name": "Black Crackle Foil",
+   "serialRun": 10
+  },
+  {
+   "subset": "Titans of the Game",
+   "name": "Black Foil",
+   "serialRun": 10
+  },
+  {
+   "subset": "Titans of the Game",
+   "name": "Red Crackle Foil",
+   "serialRun": 5
+  },
+  {
+   "subset": "Titans of the Game",
+   "name": "Red Foil",
+   "serialRun": 5
+  },
+  {
+   "subset": "Titans of the Game",
+   "name": "FoilFractor",
+   "serialRun": 1
+  },
+  {
+   "subset": "Topps Profiles",
+   "name": "Pink Foil",
+   "serialRun": null
+  },
+  {
+   "subset": "Topps Profiles",
+   "name": "Blue Foil",
+   "serialRun": 150
+  },
+  {
+   "subset": "Topps Profiles",
+   "name": "Green Foil",
+   "serialRun": 99
+  },
+  {
+   "subset": "Topps Profiles",
+   "name": "Gold Foil",
+   "serialRun": 50
+  },
+  {
+   "subset": "Topps Profiles",
+   "name": "Orange Foil",
+   "serialRun": 25
+  },
+  {
+   "subset": "Topps Profiles",
+   "name": "Black Foil",
+   "serialRun": 10
+  },
+  {
+   "subset": "Topps Profiles",
+   "name": "Red Foil",
+   "serialRun": 5
+  },
+  {
+   "subset": "Topps Profiles",
+   "name": "FoilFractor",
+   "serialRun": 1
+  }
+ ]
+}
