@@ -520,8 +520,10 @@ final class CardScannerViewController: UIViewController {
         show(.reading)
         let frames = voteFrames
         voteFrames = []
+        // The sideways serial pass is for a card's front only.
+        let isFront = front == nil
         DispatchQueue.global(qos: .userInitiated).async {
-            let read = CardTextReader.read(image: image, frames: frames)
+            let read = CardTextReader.read(image: image, frames: frames, edges: isFront)
             DispatchQueue.main.async { self.finishRead(read) }
         }
     }
