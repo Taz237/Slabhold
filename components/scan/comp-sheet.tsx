@@ -523,7 +523,7 @@ export function ScanSteps({
     return (
       <div className="space-y-6">
         <RevealSpinCard photo={photo} backPhoto={backPhoto} motion="rest" size="small" />
-        <PickCard matches={ready.matches} onPick={steps.pick} />
+        <PickCard matches={ready.matches} onPick={steps.pick} photo={photo} />
         <div className="flex justify-center">
           <QuietButton onClick={onSearch}>{CONFIRM_COPY.noneOfThese}</QuietButton>
         </div>

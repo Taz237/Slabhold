@@ -1235,6 +1235,15 @@ function checklistFor(
   return parallelSetFamily(card.setBrand) ? parallelsForSet(card.setBrand).map((name) => ({ name, serialRun: null })) : [];
 }
 
+/** A card's versions to pick ("Which version?"): an insert's own list, else its set's. */
+export function versionOptionsFor(
+  products: readonly ProductRecord[] | null,
+  card: Pick<ScanMatch, "sport" | "yearLabel" | "setBrand" | "cardNumber">,
+  checklists: readonly ChecklistProduct[] | null | undefined,
+): ProductParallel[] {
+  return checklistFor(products, card, checklists);
+}
+
 /** The checklist puts this card # (a letter code) in an insert section only, never the base set. */
 function insertCode(card: Pick<Candidate, "sport" | "yearLabel" | "setBrand" | "cardNumber">, checklists: readonly ChecklistProduct[] | null | undefined): boolean {
   if (!checklists?.length || !/^[a-z]+\d*-?\d/i.test(card.cardNumber.trim())) return false;

@@ -22,6 +22,7 @@ import { compQueryString, type ScanCompResult } from "@/lib/scan/comp";
 import { newScanId, scanAddPath, scanHandoffFrom } from "@/lib/scan/handoff";
 import type { LiveSoldsResult } from "@/lib/scan/live-solds";
 import type { ScanMatch, ScanMatchResult, SoldTitle } from "@/lib/scan/match";
+import { downgradesPin, keepPinned, pinOf } from "@/lib/scan/pin";
 import type { PhotoLook } from "@/lib/scan/photo-look";
 import { versionRereadSheet } from "@/lib/scan/version-reread";
 import { HUB_COPY, scanReadFrom, sheetStateFrom, withVersionLine, type ScanCapture } from "@/lib/scan/session";
@@ -104,6 +105,8 @@ async function defaultSolds(capture: ScanCapture, matches: ScanMatch[], signal: 
       border: capture.border ?? null,
       // Names only (a border color, a sheen): the photo itself never leaves the phone here.
       look: capture.look ?? null,
+      // The card this read pinned (an insert and its #): the server's re-read never drops it.
+      pin: pinOf(matches[0]),
       rows: matches.filter((match) => match.catalogId).map((match) => ({
         catalogId: match.catalogId,
         playerName: match.playerName,
@@ -207,7 +210,11 @@ export function ScanHub({
       if (first.kind === "ready") setSheet({ ...first, solds: { status: "looking" } });
       const solds = await deps.solds(capture, result.matches, controller.signal).catch(() => null);
       if (controller.signal.aborted) return;
-      const matches = solds && solds.matches.length > 0 ? solds.matches : result.matches;
+      // Later steps only add to a pinned card (an insert and its #), never replace or drop it. An
+      // answer that did is about another card: its price is set aside and the version asked.
+      const pin = pinOf(result.matches[0]);
+      const dropped = Boolean(solds && solds.matches.length > 0 && downgradesPin(pin, solds.matches));
+      const matches = solds && solds.matches.length > 0 ? keepPinned(pin, solds.matches, result.matches[0] ?? null) : result.matches;
       if (matches.length === 0) {
         setSheet({ kind: "none", offline: false, ...(result.unpinned ? { unpinned: true } : {}) });
         return;
@@ -215,9 +222,11 @@ export function ScanHub({
       setSheet({
         kind: "ready",
         matches,
-        solds: solds
-          ? { status: "done", comp: solds.comp, query: solds.query, ...(solds.similar ? { similar: solds.similar } : {}) }
-          : { status: "done", comp: { status: "unavailable" }, query: null },
+        solds: dropped
+          ? { status: "done", comp: { status: "version" }, query: null }
+          : solds
+            ? { status: "done", comp: solds.comp, query: solds.query, ...(solds.similar ? { similar: solds.similar } : {}) }
+            : { status: "done", comp: { status: "unavailable" }, query: null },
       });
     },
     [deps],

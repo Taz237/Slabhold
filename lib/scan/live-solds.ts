@@ -9,6 +9,8 @@ import type { QuickCompLimitReason } from "@/lib/quick-comp/limits";
 import { compIdentityFromMatch, scanCompGrade, type ScanCompResult } from "./comp";
 import { type QuickCompCachedSale } from "./comp-lookup";
 import { cleanCompFor, cleanGroups, priceScanGroup } from "./clean-sales";
+import { keepPinned, matchFromPin, pinOf, samePinnedCard, type ScanPin } from "./pin";
+import { namesAgree } from "./player-lookup";
 import {
   MAX_LADDER_RUNGS,
   cardSearchQuery,
@@ -19,6 +21,7 @@ import {
   type ScanChecklistKey,
   type ScanMatch,
   type SoldTitle,
+  versionOptionsFor,
 } from "./match";
 import { comparableSales, ESTIMATE_MAX_CALLS, ESTIMATE_MIN_SALES, estimateFrom, estimateQueries, yearAgoParallels, type ScanEstimateResult } from "./estimate";
 import { withListingPhotos } from "./listing-photo";
@@ -87,6 +90,11 @@ export type LiveSoldsInput = {
   capture: Pick<ScanCapture, "lines" | "backLines" | "kind" | "border" | "look">;
   /** The rows the phone already ranked (catalog cards), so the re-rank keeps them. */
   rows: CatalogCard[];
+  /**
+   * The card the phone's own read pinned (an insert and its card #). Used when this side's read
+   * comes out weaker; never over a pin of its own, and only for the same player.
+   */
+  pin?: ScanPin | null;
 };
 
 export type LiveSoldsResult = {
@@ -107,6 +115,12 @@ export function awaitsVersion(match: ScanMatch | undefined): boolean {
 }
 
 /** Pinned down enough to trust a cached price: the card backed the set and the number (or a slab label did). */
+/** The phone's pin, for the player this side read (or, with none read, as sent). */
+function phonePin(pin: ScanPin | null | undefined, player: string): ScanPin | null {
+  if (!pin) return null;
+  return !player || namesAgree(player, pin.playerName) ? pin : null;
+}
+
 function confident(match: ScanMatch | undefined): match is ScanMatch {
   if (!match) return false;
   return match.sureness.player !== "unsure" && match.sureness.set !== "unsure" && match.sureness.number === "sure";
@@ -199,8 +213,25 @@ async function lookupSolds(
       checklists = null;
     }
   }
-  const rank = (soldTitles: readonly SoldTitle[]) =>
+  const rankRaw = (soldTitles: readonly SoldTitle[]) =>
     rankScanMatches(read, input.rows, { directory: deps.directory, products, soldTitles, checklists }).matches;
+  // The card alone. When it pins an insert and its # (or the phone's read did), nothing later
+  // replaces or drops that card: sold titles and caches only add to it (parallel, price, photo).
+  const readTop = rankRaw([])[0] ?? null;
+  const pin = pinOf(readTop) ?? phonePin(input.pin, player || readTop?.playerName || "");
+  let fallback: ScanMatch | null = readTop && pin && samePinnedCard(pin, readTop) ? readTop : null;
+  if (pin && !fallback) {
+    let pinLists = checklists;
+    if (deps.checklists) {
+      try {
+        pinLists = [...(checklists ?? []), ...(await deps.checklists({ years: [pin.yearLabel], setBrand: pin.setBrand, sport: pin.sport }))];
+      } catch {
+        pinLists = checklists;
+      }
+    }
+    fallback = matchFromPin(pin, versionOptionsFor(products, pin, pinLists));
+  }
+  const rank = (soldTitles: readonly SoldTitle[]) => keepPinned(pin, rankRaw(soldTitles), fallback);
 
   // The name the card printed, or the one the checklist puts on this card #.
   const named = player || rank([])[0]?.playerName || "";
