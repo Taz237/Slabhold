@@ -2,6 +2,7 @@
 
 import { PrimaryButton, QuietButton } from "@/components/add-card/flow-ui";
 import { ScanSteps, useScanSteps, type CompLookup } from "@/components/scan/comp-sheet";
+import { PickCard } from "@/components/scan/pick-card";
 import { RevealCard, SheetFrame, FlipStep } from "@/components/scan/sheet-parts";
 import type { SoldsState } from "@/lib/scan/comp";
 import { CONFIRM_COPY } from "@/lib/scan/confirm";
@@ -15,7 +16,16 @@ export type ConfirmSheetState =
   /** solds: the top card's last eBay solds, looked up after the card is read. */
   | { kind: "ready"; matches: ScanMatch[]; solds?: SoldsState }
   /** unpinned: what we found conflicts with the card's back, so nothing is shown ("We couldn't pin this one down"). */
-  | { kind: "none"; offline?: boolean; unpinned?: boolean };
+  | {
+      kind: "none";
+      offline?: boolean;
+      unpinned?: boolean;
+      /**
+       * Only the player was read: their real cards to pick from (checklists, and what other
+       * collectors picked for the same read). Choices, never an answer: nothing is preselected.
+       */
+      closest?: { player: string; cards: ScanMatch[]; confirmed: boolean[] };
+    };
 
 type Props = {
   /** The cropped scan. Null shows a designed placeholder. */
@@ -41,6 +51,8 @@ type Props = {
   onScanBack?: () => void;
   /** "Skip" on the Flip it over step: go on with the front as read. */
   onSkipBack?: () => void;
+  /** A card picked from the closest choices: the scan is read again as that card. */
+  onPickClosest?: (index: number) => void;
   onClose: () => void;
 };
 
@@ -52,13 +64,15 @@ const NO_LOOKUP: CompLookup = async () => ({ status: "unavailable" });
  * its fields filling in as each is found, then "Pick your card" lists the top matches. One tap
  * opens that card's price screen, Quick Comp style, with a big Add to collection.
  */
-export function ConfirmSheet({ photo, backPhoto = null, lookup = NO_LOOKUP, state, onConfirm, onStepByStep, onRetake, onSapphire, onVersion, onScanBack, onSkipBack, onClose }: Props) {
+export function ConfirmSheet({ photo, backPhoto = null, lookup = NO_LOOKUP, state, onConfirm, onStepByStep, onRetake, onSapphire, onVersion, onScanBack, onSkipBack, onPickClosest, onClose }: Props) {
   const steps = useScanSteps(state);
   const title =
     state.kind === "none"
       ? state.unpinned
         ? CONFIRM_COPY.unpinnedTitle
-        : CONFIRM_COPY.noMatchTitle
+        : state.closest?.cards.length
+          ? CONFIRM_COPY.closestTitle
+          : CONFIRM_COPY.noMatchTitle
       : steps.view === "list"
         ? REVEAL_COPY.pickTitle
         : steps.view === "card"
@@ -83,7 +97,24 @@ export function ConfirmSheet({ photo, backPhoto = null, lookup = NO_LOOKUP, stat
       {state.kind === "back" || state.kind === "none" ? <RevealCard photo={photo} /> : null}
       {state.kind === "back" ? <FlipStep match={state.matches[0]} onScanBack={onScanBack ?? onRetake} onSkip={onSkipBack ?? onClose} /> : null}
       {state.kind === "none" ? (
-        <NoMatch offline={Boolean(state.offline)} unpinned={Boolean(state.unpinned)} onStepByStep={onStepByStep} onRetake={onRetake} />
+        state.closest?.cards.length && onPickClosest ? (
+          <div className="space-y-6">
+            <PickCard
+              matches={state.closest.cards}
+              onPick={onPickClosest}
+              choices
+              body={`We read ${state.closest.player}, ${CONFIRM_COPY.closestBody}`}
+              label={CONFIRM_COPY.closestList}
+              notes={state.closest.confirmed.map((yes) => (yes ? CONFIRM_COPY.closestConfirmed : null))}
+            />
+            <PrimaryButton onClick={onStepByStep}>{CONFIRM_COPY.stepByStep}</PrimaryButton>
+            <div className="flex justify-center">
+              <QuietButton onClick={onRetake}>{CONFIRM_COPY.retake}</QuietButton>
+            </div>
+          </div>
+        ) : (
+          <NoMatch offline={Boolean(state.offline)} unpinned={Boolean(state.unpinned)} onStepByStep={onStepByStep} onRetake={onRetake} />
+        )
       ) : null}
     </SheetFrame>
   );

@@ -44,24 +44,45 @@ function RowThumb({ match, photo }: { match: ScanMatch; photo: string | null }) 
  * "Pick your card": the top matches, most likely first, each one tap from its price. A row shows
  * the card's image, player, year, set and #, and its parallel (or that it's still open).
  */
-export function PickCard({ matches, onPick, photo = null }: { matches: readonly ScanMatch[]; onPick: (index: number) => void; photo?: string | null }) {
+export function PickCard({
+  matches,
+  onPick,
+  photo = null,
+  body = REVEAL_COPY.pickBody,
+  label = REVEAL_COPY.pickTitle,
+  choices = false,
+  notes = [],
+}: {
+  matches: readonly ScanMatch[];
+  onPick: (index: number) => void;
+  photo?: string | null;
+  /** The line above the list. */
+  body?: string;
+  /** The list's accessible name. */
+  label?: string;
+  /** Choices to pick from, not ranked matches: no row is "Most likely" and no version line shows. */
+  choices?: boolean;
+  /** A quiet note over a row ("Picked by other collectors"), by row. */
+  notes?: readonly (string | null | undefined)[];
+}) {
   return (
     <div data-pick="list" className="motion-safe:animate-[comp-row-in_260ms_cubic-bezier(0.22,1,0.36,1)_both]" style={{ animationDelay: "520ms" }}>
-      <p className="mb-3 text-center text-sm leading-5 text-zinc-600 dark:text-zinc-400">{REVEAL_COPY.pickBody}</p>
-      <ul className="divide-y divide-zinc-200 overflow-hidden rounded-2xl border border-zinc-200 dark:divide-white/10 dark:border-white/10" aria-label={REVEAL_COPY.pickTitle}>
+      <p className="mb-3 text-center text-sm leading-5 text-zinc-600 dark:text-zinc-400">{body}</p>
+      <ul className="divide-y divide-zinc-200 overflow-hidden rounded-2xl border border-zinc-200 dark:divide-white/10 dark:border-white/10" aria-label={label}>
         {matches.map((match, index) => (
           <li key={`${match.catalogId ?? "read"}-${match.setBrand}-${match.cardNumber}-${index}`}>
             <button
               type="button"
               onClick={() => onPick(index)}
-              className={`flex min-h-[76px] w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-zinc-900/[0.03] active:bg-zinc-900/[0.05] dark:hover:bg-white/[0.04] dark:active:bg-white/[0.06] ${focusRing}`}
+              className={`flex ${choices ? "min-h-16" : "min-h-[76px]"} w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-zinc-900/[0.03] active:bg-zinc-900/[0.05] dark:hover:bg-white/[0.04] dark:active:bg-white/[0.06] ${focusRing}`}
             >
               <RowThumb match={match} photo={photo} />
               <span className="min-w-0 flex-1">
-                {index === 0 ? <span className="mb-0.5 block text-xs leading-4 font-medium text-violet-700 dark:text-[#A78BFA]">{REVEAL_COPY.likely}</span> : null}
+                {index === 0 && !choices ? <span className="mb-0.5 block text-xs leading-4 font-medium text-violet-700 dark:text-[#A78BFA]">{REVEAL_COPY.likely}</span> : null}
+                {notes[index] ? <span className="mb-0.5 block text-xs leading-4 font-medium text-violet-700 dark:text-[#A78BFA]">{notes[index]}</span> : null}
                 <span className="block truncate text-15 leading-5 font-semibold">{match.playerName || REVEAL_COPY.open}</span>
                 <span className="block break-words text-13 leading-5 text-zinc-600 dark:text-zinc-400">{matchLine(match) || REVEAL_COPY.open}</span>
-                <span className="mt-0.5 flex items-center gap-1.5 text-13 leading-5">
+                <span className={choices ? "hidden" : "mt-0.5 flex items-center gap-1.5 text-13 leading-5"}>
                   {match.parallel ? (
                     <>
                       <SwatchDot name={match.parallel} size="sm" />

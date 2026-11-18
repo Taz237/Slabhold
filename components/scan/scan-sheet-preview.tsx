@@ -7,6 +7,7 @@ import { SearchDoor } from "@/components/add-card/search-door";
 import { CompSheet } from "@/components/scan/comp-sheet";
 import { ScanHub } from "@/components/scan/scan-hub";
 import { ConfirmSheet, type ConfirmSheetState } from "@/components/scan/confirm-sheet";
+import { closestMatch } from "@/lib/scan/closest";
 import { saveScan, saveScanMatch } from "@/lib/capture";
 import { newScanId, scanAddPath, scanHandoffFrom } from "@/lib/scan/handoff";
 import type { ScanMatch } from "@/lib/scan/match";
@@ -48,6 +49,7 @@ export type PreviewKind =
   | "matching"
   | "reading"
   | "none"
+  | "closest"
   | "unpinned"
   | "offline"
   | "comp"
@@ -98,6 +100,22 @@ const STATES: Record<Exclude<PreviewKind, "hub" | "hub-comp" | "door">, ConfirmS
   flip: { kind: "back", matches: [{ ...PREVIEW_RAW[0], yearLabel: "", cardNumber: "", sureness: { ...PREVIEW_RAW[0].sureness, year: "unsure", number: "unsure" } }] },
   "comp-flip": { kind: "back", matches: [{ ...PREVIEW_RAW[0], cardNumber: "", sureness: { ...PREVIEW_RAW[0].sureness, number: "unsure" } }] },
   none: { kind: "none" },
+  closest: {
+    kind: "none",
+    closest: {
+      player: "Mario Lemieux",
+      cards: (
+        [
+          ["1985-86", "Topps", "9"],
+          ["1985-86", "O-Pee-Chee", "9"],
+          ["1986-87", "Topps", "122"],
+          ["1986-87", "O-Pee-Chee", "122"],
+          ["1987-88", "O-Pee-Chee", "15"],
+        ] as const
+      ).map(([yearLabel, setBrand, cardNumber]) => closestMatch({ playerName: "Mario Lemieux", sport: "Hockey", yearLabel, setBrand, cardNumber })),
+      confirmed: [true, false, false, false, false],
+    },
+  },
   offline: { kind: "none", offline: true },
   unpinned: { kind: "none", unpinned: true },
   comp: { kind: "ready", matches: [PREVIEW_SLAB], solds: PREVIEW_SOLDS },
@@ -124,6 +142,7 @@ const LABELS: Record<PreviewKind, string> = {
   matching: "Matching",
   reading: "Reading, front and back",
   none: "No match",
+  closest: "Only the player read: closest cards",
   unpinned: "Conflicts with the back",
   offline: "Offline",
   comp: "Comp a slab",
@@ -250,6 +269,7 @@ export function ScanSheetPreview({ kind }: { kind: PreviewKind }) {
             router.push("/cards/new");
           }}
           onRetake={() => setOpen(false)}
+          onPickClosest={noop}
           onClose={() => setOpen(false)}
         />
       ) : null}

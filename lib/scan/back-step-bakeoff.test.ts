@@ -106,11 +106,12 @@ const BAKEOFF: Subject[] = ALL
   }));
 
 const HARD: Subject[] = (hardCards as { cards: HardCard[] }).cards
-  .filter((card) => card.kind !== "slab")
+  // A card scanned with no back (front_only) has no Flip step to score.
+  .filter((card) => card.kind !== "slab" && !card.front_only)
   .map((card) => ({
     name: `${card.id} ${card.player}`,
     front: { lines: card.typical_ocr_front, backLines: null, image: null, kind: "card" as const },
-    back: hardCardBack(card),
+    back: hardCardBack(card) ?? [],
     known: [],
     rows: [],
     titles: [],
