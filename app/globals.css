@@ -418,6 +418,128 @@ html[data-photo-viewer] [data-app-chrome] {
   }
 }
 
+/*
+ * Collection tab. The hero sits on the leaderboard's purple night: one soft
+ * bloom behind the value and a second, fainter light off to the left, both
+ * fading into the page before the grid starts. Layered, never a flat fill.
+ */
+.collection-hero {
+  isolation: isolate;
+}
+
+.collection-hero::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -1.5rem -1rem auto;
+  height: 26rem;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 60% at 50% 0%, rgb(124 58 237 / 0.16), transparent 62%),
+    radial-gradient(60% 44% at 12% 38%, rgb(167 139 250 / 0.1), transparent 70%);
+}
+
+@media (prefers-color-scheme: dark) {
+  .collection-hero::before {
+    background:
+      radial-gradient(120% 60% at 50% 0%, rgb(124 58 237 / 0.42), transparent 62%),
+      radial-gradient(60% 44% at 12% 38%, rgb(167 139 250 / 0.14), transparent 70%),
+      linear-gradient(180deg, rgb(42 18 96 / 0.55) 0%, rgb(23 11 54 / 0.3) 44%, transparent 100%);
+  }
+}
+
+/* Wider than a phone: the light stays in the middle, so no edge shows at the sides. */
+@media (min-width: 640px) {
+  .collection-hero::before {
+    inset: -1.5rem 0 auto;
+    -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 18%, #000 82%, transparent 100%);
+    mask-image: linear-gradient(90deg, transparent 0%, #000 18%, #000 82%, transparent 100%);
+  }
+}
+
+/* The value line glows in brand purple. A filter on one path, never animated itself. */
+.hero-chart [data-chart-line] {
+  filter: drop-shadow(0 0 5px rgb(139 92 246 / 0.55)) drop-shadow(0 6px 14px rgb(124 58 237 / 0.35));
+}
+
+/* Sheets on Collection carry the same light at their top edge. */
+.collection-sheet {
+  background:
+    radial-gradient(120% 9rem at 50% 0%, rgb(124 58 237 / 0.14), transparent 70%),
+    var(--background);
+}
+
+/* Tile prices in Geist Mono; a press lifts the tile onto a purple light. */
+.collection-grid [data-price] {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  letter-spacing: -0.02em;
+}
+
+.collection-grid [data-tile] > a {
+  -webkit-touch-callout: none;
+  user-select: none;
+  transition:
+    scale 150ms cubic-bezier(0.2, 0.7, 0.2, 1),
+    background-color 150ms ease-out,
+    box-shadow 150ms ease-out;
+}
+
+.collection-grid [data-tile] > a[data-pressed],
+.collection-grid [data-tile] > a:active {
+  background-color: rgb(124 58 237 / 0.1);
+  box-shadow:
+    0 0 0 1px rgb(167 139 250 / 0.28),
+    0 14px 30px -14px rgb(124 58 237 / 0.7);
+}
+
+/* A lane switch fades the grid in again. Two names, so it restarts without remounting a tile. */
+@keyframes lane-in-a {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes lane-in-b {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.lane-in-a {
+  animation: lane-in-a 200ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.lane-in-b {
+  animation: lane-in-b 200ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+/* The lanes fade out under the search and sort icons instead of being cut. */
+.lane-scroll {
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 1.25rem), transparent 100%);
+  mask-image: linear-gradient(90deg, #000 calc(100% - 1.25rem), transparent 100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lane-in-a,
+  .lane-in-b {
+    animation: none;
+  }
+
+  .collection-grid [data-tile] > a {
+    transition: none;
+  }
+}
+
 /* Quick Comp's manual "Check sold prices": the button's busy ring turns while the lookup is out. */
 @keyframes qc-busy-turn {
   to {

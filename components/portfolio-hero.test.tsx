@@ -7,6 +7,7 @@ import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { PortfolioHero, type PortfolioHeroProps } from "@/components/portfolio-hero";
+import type { ChartShare } from "@/components/collection-actions";
 import { addDays } from "@/lib/chart/range";
 import { snapshotDateInNewYork } from "@/lib/collection/totals-shared";
 import type { SportsCard } from "@/lib/types";
@@ -70,6 +71,15 @@ function text(markup: string) {
   return markup.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
 }
 
+/** What a sighted collector reads: the markup's words without anything in an sr-only span. */
+function seen(markup: string) {
+  return text(markup.replace(/<span class="sr-only">[^<]*<\/span>/g, " "));
+}
+
+/** The hero's share slot, as the dashboard fills it: a chart share only when the chart can be shared. */
+const chartButton = (chart: ChartShare | null) =>
+  chart ? createElement("button", { type: "button", "aria-label": "Share your collection chart", onClick: chart.share }) : null;
+
 describe("PortfolioHero hero", () => {
   it("shows a friendly thin state with fewer than two days, not a flat line", () => {
     const out = html({ snapshots: { rows: [], loading: false } });
@@ -114,23 +124,50 @@ describe("PortfolioHero hero", () => {
     assert.match(out, />Retry</);
   });
 
-  it("only offers Share for a collection that is not private", () => {
-    assert.match(html({ shareable: true }), /aria-label="Share your collection chart"/);
-    assert.doesNotMatch(html({ shareable: false }), /Share your collection chart/);
+  it("only hands the chart share to its top-row controls for a collection that is not private", () => {
+    assert.match(html({ shareable: true, actions: chartButton }), /aria-label="Share your collection chart"/);
+    assert.doesNotMatch(html({ shareable: false, actions: chartButton }), /Share your collection chart/);
+    // No share control of its own: the dashboard's one share button fills the slot.
+    assert.doesNotMatch(html({ shareable: true }), /Share your collection chart/);
+  });
+
+  it("is one open block on the page, not a bordered card, titled Collection", () => {
+    const out = html();
+    const section = out.match(/<section class="([^"]*)" aria-label="Collection value"/)?.[1] ?? "";
+    assert.match(section, /collection-hero/);
+    assert.doesNotMatch(section, /\bborder\b|rounded-3xl|bg-white/);
+    assert.match(out, /<h1[^>]*>Collection<\/h1>/);
+  });
+
+  it("lets the layout explain: no caption beside the pill, the toggle or the top card", () => {
+    win.localStorage.clear();
+    const cards = [fixtureCard("a", "Jordan Love", null)];
+    const out = html({ ...market, cards: [...marketCards, ...cards] });
+    const words = seen(out);
+    for (const gone of ["market move", "Price moves only", "Total value", "Card added", "Your most valuable", "All have a value"]) {
+      assert.equal(words.includes(gone), false, gone);
+    }
+    // Screen readers still hear what the pill measures.
+    assert.match(text(out), /\+\$29\.00 \(\+20\.3%\) market move/);
+    assert.doesNotMatch(out, /data-slot="mode-hint"/);
   });
 });
 
 describe("PortfolioHero stat grid", () => {
-  it("is one 2-up row of Cards and Best card, nothing repeated from the hero", () => {
+  it("is one slim strip of chips: the count, then the without-a-value shortcut, nothing repeated from the hero", () => {
     win.localStorage.clear();
     const out = html();
-    const grid = out.slice(out.lastIndexOf("<div", out.indexOf('data-slot="collection-stats"')));
-    const words = text(grid);
-    for (const name of ["Cards", "Best card"]) assert.match(words, new RegExp(name));
+    const strip = out.slice(out.lastIndexOf("<div", out.indexOf('data-slot="collection-stats"')));
+    const words = text(strip);
+    assert.match(words, /3 cards/);
     assert.doesNotMatch(words, /Invested|Profit/);
     assert.match(words, /1 without a value yet/);
     assert.doesNotMatch(words, /\$285\.00/);
-    assert.match(grid, /grid-cols-2/);
+    // One row that scrolls sideways, never a grid of boxes.
+    const classes = strip.match(/^<div[^>]*class="([^"]*)"/)?.[1] ?? "";
+    assert.match(classes, /\bflex\b/);
+    assert.match(classes, /overflow-x-auto/);
+    assert.doesNotMatch(strip, /grid-cols-2|min-h-\[124px\]/);
   });
 
   it("makes the without-a-value hint a button that opens those cards", async () => {
@@ -160,8 +197,11 @@ describe("PortfolioHero stat grid", () => {
   });
 
   it("never asks for a price paid when no card has one", () => {
-    const words = text(html({ pricedCount: 0, paidCount: 0 }));
-    assert.match(words, /Shows once a card has a value/);
+    const out = html({ pricedCount: 0, paidCount: 0 });
+    const words = text(out);
+    // No card with a value: no Top card chip at all, not a box that explains why it is empty.
+    assert.doesNotMatch(out, /data-stat-tile="(Top|Best) card"/);
+    assert.doesNotMatch(words, /Shows once a card has a value/);
     assert.doesNotMatch(words, /price paid|what you paid/i);
   });
 });
@@ -264,34 +304,67 @@ describe("PortfolioHero cost basis is optional", () => {
     win.localStorage.clear();
     const cards = [fixtureCard("a", "Jordan Love", 40), fixtureCard("b", "Cam Ward", null), fixtureCard("c", "Jaxson Dart", 0)];
     const values = new Map([["a", okValue(60)], ["b", okValue(300)], ["c", okValue(20)]]);
-    const hero = await mountHero({ cards, values, cardHistory: new Map(), cardDays: noDays });
+    const cardHistory = new Map([
+      ["b", [{ date: addDays(today, -6), value: 250 }, { date: today, value: 300 }]],
+    ]);
+    const hero = await mountHero({ cards, values, cardHistory, cardDays: noDays });
     const section = () => hero.host.querySelector("section[aria-labelledby='top-movers-title']")!;
     const buttons = [...section().querySelectorAll("button[aria-pressed]")];
     assert.equal(buttons.length, 2);
     assert.equal(buttons[0].getAttribute("aria-pressed"), "true");
+    assert.match(text(section().outerHTML), /Cam Ward/);
     await act(async () => (buttons[1] as HTMLElement).click());
     const words = text(section().outerHTML);
-    assert.match(words, /Jordan Love Paid \$40/);
+    assert.match(words, /Jordan Love ▲ up \+50\.0% Paid \$40/);
     assert.doesNotMatch(words, /Cam Ward|Jaxson Dart|\$0/);
     await hero.unmount();
+
+    // No card moved this week: it opens on Since you paid, with no toggle to an empty Week.
+    const paidOnly = await mountHero({ cards, values, cardHistory: new Map(), cardDays: noDays });
+    const only = paidOnly.host.querySelector("section[aria-labelledby='top-movers-title']")!;
+    assert.equal(only.getAttribute("data-movers"), "paid");
+    assert.equal(only.querySelectorAll("button[aria-pressed]").length, 0);
+    assert.match(text(only.outerHTML), /Since you paid (JL )?Jordan Love ▲ up \+50\.0% Paid \$40/);
+    await paidOnly.unmount();
   });
 
-  it("shows a designed empty state with no history, and never asks for what you paid", () => {
+  it("draws no movers section at all with no moves, and never asks for what you paid", () => {
     win.localStorage.clear();
     const cards = [fixtureCard("a", "Jordan Love", null)];
     const out = html({ cards, values: new Map([["a", okValue(60)]]), cardHistory: new Map() });
-    const words = text(out.slice(out.indexOf(MOVERS)));
-    assert.match(words, /No price moves this week yet/);
+    assert.equal(out.indexOf(MOVERS), -1);
+    assert.doesNotMatch(out, /data-movers|data-slot="movers-empty"/);
+    assert.doesNotMatch(text(out), /No price moves this week yet|Biggest movers|Moves show here/);
     assert.doesNotMatch(text(out), /what you paid|price paid|Paid \$/i);
+  });
+
+  it("is one swipe row of small cards, each a link to its card, with no caption under the heading", () => {
+    win.localStorage.clear();
+    const cards = [fixtureCard("a", "Jordan Love", null), fixtureCard("b", "Cam Ward", null)];
+    const cardHistory = new Map([
+      ["a", [{ date: addDays(today, -6), value: 100 }, { date: today, value: 125 }]],
+      ["b", [{ date: addDays(today, -3), value: 50 }, { date: today, value: 45 }]],
+    ]);
+    const out = html({ cards, values: new Map([["a", okValue(125)], ["b", okValue(45)]]), cardHistory });
+    const movers = out.slice(out.indexOf(MOVERS));
+    const row = movers.match(/<ul[^>]*class="([^"]*)"/)?.[1] ?? "";
+    assert.match(row, /overflow-x-auto/);
+    assert.match(row, /\bflex\b/);
+    assert.match(movers, /<ul[^>]*data-no-pull/);
+    assert.match(movers, /href="\/cards\/a"[\s\S]*href="\/cards\/b"/);
+    assert.doesNotMatch(text(movers), /Market price change, past 7 days|Change vs what you paid/);
   });
 
   it("reads Top card, never Best card or a gain, when no card has a paid value", () => {
     win.localStorage.clear();
     const cards = [fixtureCard("a", "Jordan Love", null)];
     const out = html({ cards, values: new Map([["a", okValue(60)]]), cardHistory: new Map() });
-    const stats = text(out.slice(out.indexOf('data-slot="collection-stats"'), out.indexOf(MOVERS)));
-    assert.match(stats, /Top card (JL )?Jordan Love \$60\.00 Your most valuable/);
-    assert.doesNotMatch(stats, /Best card|Since you paid|\+\$/);
+    const strip = out.slice(out.indexOf('data-slot="collection-stats"'));
+    const stats = text(strip);
+    assert.match(stats, /Top card (JL )?Jordan Love \$60\.00/);
+    assert.doesNotMatch(stats, /Your most valuable|Best card|Since you paid|\+\$/i);
+    // The chip is the way to the card.
+    assert.match(strip, /<a[^>]*data-stat-tile="Top card"[^>]*href="\/cards\/a"|<a[^>]*href="\/cards\/a"[^>]*data-stat-tile="Top card"/);
   });
 
   it("uses the chart's purple style: ▲ purple tint or ▼ gray, never green or red", () => {
@@ -387,7 +460,12 @@ describe("PortfolioHero redesign: line, ATH and chips", () => {
     const track = hero.host.querySelector('[data-slot="range-track"]');
     assert.ok(track);
     assert.equal(track.getAttribute("role"), "group");
-    assert.ok(track.previousElementSibling?.querySelector("svg[role='img']"), "right after the chart");
+    const controls = track.closest('[data-slot="hero-controls"]');
+    assert.ok(controls);
+    assert.ok(controls.previousElementSibling?.querySelector("svg[role='img']"), "right after the chart");
+    // A quiet control: no filled track, and the unit toggle shares its row.
+    assert.doesNotMatch(track.getAttribute("class") ?? "", /\bbg-/);
+    assert.ok(controls.querySelector('[data-slot="mode-toggle"]'));
     const active = track.querySelector("[aria-pressed='true']");
     const dot = active?.querySelector("[data-range-dot]");
     assert.ok(dot);
@@ -474,9 +552,13 @@ describe("PortfolioHero redesign: the count-up", () => {
 });
 
 describe("PortfolioHero redesign: stat cards and movers", () => {
-  it("is exactly two tiles, Cards then Best card, each with an aria-hidden icon", () => {
+  it("is exactly two named chips, Cards then Best card, each with an aria-hidden icon", () => {
     win.localStorage.clear();
-    const out = html();
+    const out = html({
+      cards: [fixtureCard("a", "Jordan Love", 100)],
+      values: new Map([["a", okValue(130)]]),
+      cardHistory: new Map(),
+    });
     const tiles = [...out.matchAll(/data-stat-tile="([^"]+)"/g)].map((match) => match[1]);
     assert.deepEqual(tiles, ["Cards", "Best card"]);
     for (const name of tiles) {
@@ -502,7 +584,8 @@ describe("PortfolioHero redesign: stat cards and movers", () => {
     ]);
     const out = html({ cards, values, cardHistory: new Map() });
     const stats = out.slice(out.lastIndexOf("<div", out.indexOf('data-slot="collection-stats"')), out.indexOf(MOVERS));
-    assert.match(text(stats), /Top card (CW )?Cam Ward \$210\.00 Your most valuable/);
+    assert.match(text(stats), /Top card (CW )?Cam Ward \$210\.00/);
+    assert.doesNotMatch(text(stats), /Your most valuable/);
     assert.doesNotMatch(stats, /Best card/);
     assert.doesNotMatch(stats, /rose/);
   });
@@ -516,7 +599,9 @@ describe("PortfolioHero redesign: stat cards and movers", () => {
     ]);
     const out = html({ cards, values, cardHistory: new Map() });
     const stats = text(out.slice(out.indexOf('data-slot="collection-stats"'), out.indexOf(MOVERS)));
-    assert.match(stats, /Best card (JL )?Jordan Love ▲ up \+\$30\.00 Since you paid/);
+    // "since you paid" is read out, not printed: the ▲ and the dollars already say gain.
+    assert.match(stats, /Best card (JL )?Jordan Love ▲ up \+\$30\.00 since you paid/);
+    assert.doesNotMatch(seen(out.slice(out.indexOf('data-slot="collection-stats"'), out.indexOf(MOVERS))), /since you paid/i);
     assert.doesNotMatch(stats, /Top card/);
   });
 
@@ -540,19 +625,23 @@ describe("PortfolioHero redesign: stat cards and movers", () => {
   it("shows Paid $X under the name, with no spark slot, once Since you paid is picked", async () => {
     win.localStorage.clear();
     const cards = [fixtureCard("a", "Jordan Love", 40), fixtureCard("b", "Cam Ward", 100)];
-    const hero = await mountHero({ cards, values: new Map([["a", okValue(60)], ["b", okValue(80)]]), cardHistory: new Map(), cardDays: noDays });
+    const cardHistory = new Map([
+      ["a", [{ date: addDays(today, -6), value: 50 }, { date: today, value: 60 }]],
+    ]);
+    const hero = await mountHero({ cards, values: new Map([["a", okValue(60)], ["b", okValue(80)]]), cardHistory, cardDays: noDays });
     const section = () => hero.host.querySelector("section[aria-labelledby='top-movers-title']")!;
     assert.equal(section().getAttribute("data-movers"), "week");
     const paidButton = [...section().querySelectorAll("button")].find((b) => /since you paid/.test(b.textContent ?? ""))!;
     await act(async () => paidButton.click());
     const movers = section().outerHTML;
-    assert.match(text(movers), /Since you paid Change vs what you paid/);
+    assert.match(text(movers), /Since you paid/);
+    assert.doesNotMatch(text(movers), /Change vs what you paid/);
     assert.doesNotMatch(movers, /role="img"/);
     assert.match(text(movers), /Paid \$40/);
     assert.match(text(movers), /Paid \$100/);
-    // Under the name, at every width, with no empty spark slot taking the name's room.
+    // Beside the change, at every width, with no empty spark slot taking the name's room.
     assert.doesNotMatch(movers, /data-spark-slot/);
-    assert.match(text(movers), /Jordan Love Paid \$40/);
+    assert.match(text(movers), /Jordan Love ▲ up \+50\.0% Paid \$40/);
     assert.doesNotMatch(movers, /max-\[359px\]:hidden[^"]*"[^>]*>Paid/);
     await hero.unmount();
   });
@@ -724,7 +813,10 @@ describe("PortfolioHero Performance | Value toggle, chips and scrub", () => {
   const ticks = (host: HTMLElement) =>
     [...host.querySelectorAll("svg[role='img'] text")].map((node) => node.textContent ?? "");
   function button(host: HTMLElement, name: string) {
-    const found = [...host.querySelectorAll("button")].find((node) => node.textContent === name);
+    // The mode toggle shows the axis unit (% or $) and is named Performance or Value.
+    const found = [...host.querySelectorAll("button")].find(
+      (node) => node.textContent === name || node.getAttribute("aria-label") === name,
+    );
     assert.ok(found, name);
     return found;
   }
@@ -748,6 +840,8 @@ describe("PortfolioHero Performance | Value toggle, chips and scrub", () => {
     const group = hero.host.querySelector('[role="group"][aria-label="Chart mode"]');
     assert.ok(group);
     assert.equal(button(hero.host, "Performance").getAttribute("aria-pressed"), "true");
+    assert.equal(button(hero.host, "Performance").textContent, "%");
+    assert.equal(button(hero.host, "Value").textContent, "$");
     assert.ok(ticks(hero.host).some((tick) => /%$/.test(tick)), ticks(hero.host).join(","));
     assert.equal(hero.host.querySelectorAll("[data-chart-add]").length, 0);
 

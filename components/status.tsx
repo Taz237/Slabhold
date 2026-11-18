@@ -94,10 +94,19 @@ export function CollectionSkeleton() {
   return (
     <div className="space-y-4" aria-busy="true" aria-live="polite">
       <span className="sr-only">Loading collection</span>
-      <div className="rounded-3xl border border-zinc-200 p-4 dark:border-white/10 sm:p-5">
-        <div className="h-3 w-28 skeleton-shimmer rounded-full" />
-        <div className="mt-3 h-10 w-44 skeleton-shimmer rounded-lg" />
-        <div className="mt-3 h-5 w-32 skeleton-shimmer rounded-full" />
+      {/* The open hero: title row, the value, its change, the chart, then the stat strip. */}
+      <div>
+        <div className="flex h-11 items-center justify-between">
+          <div className="h-3 w-20 skeleton-shimmer rounded-full" />
+          <div className="h-11 w-28 skeleton-shimmer rounded-full" />
+        </div>
+        <div className="mt-1 h-[3.25rem] w-48 skeleton-shimmer rounded-lg" />
+        <div className="mt-1 h-5 w-36 skeleton-shimmer rounded-full" />
+        <div className="mt-3 h-[148px] skeleton-shimmer rounded-xl" />
+      </div>
+      <div className="flex gap-2 overflow-hidden">
+        <div className="h-11 w-24 shrink-0 skeleton-shimmer rounded-full" />
+        <div className="h-11 w-48 shrink-0 skeleton-shimmer rounded-full" />
       </div>
       <div className="flex gap-1.5 overflow-hidden py-1">
         {Array.from({ length: 5 }, (_, index) => (

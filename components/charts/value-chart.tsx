@@ -110,6 +110,8 @@ type Props = {
   lineWidth?: number;
   /** Fainter grid, for the collection hero. */
   faintGrid?: boolean;
+  /** Px to move the first date in from the left edge, for a chart that bleeds off the screen. */
+  tickInset?: number;
   /** Kept for callers; one look for all. */
   minimal?: boolean;
   className?: string;
@@ -238,6 +240,7 @@ function FullChart({
   markerDots = false,
   lineWidth = 2.25,
   faintGrid = false,
+  tickInset = 0,
   className = "",
 }: Props) {
   const id = useId();
@@ -518,7 +521,13 @@ function FullChart({
               </g>
             ))}
             {geom.xTicks.map((item) => (
-              <text key={`${item.label}-${item.x}`} x={item.x} y={height - 6} textAnchor={item.anchor} className={CHART.tick}>
+              <text
+                key={`${item.label}-${item.x}`}
+                x={item.anchor === "start" ? Math.max(item.x, tickInset) : item.x}
+                y={height - 6}
+                textAnchor={item.anchor}
+                className={CHART.tick}
+              >
                 {item.label}
               </text>
             ))}

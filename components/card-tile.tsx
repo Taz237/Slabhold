@@ -223,6 +223,7 @@ export function CardTile({
               <p
                 className={`min-w-0 truncate ${compact ? "text-13" : "text-sm"} font-semibold tracking-tight tabular-nums`}
                 title={price?.text}
+                data-price=""
               >
                 {price?.text}
               </p>

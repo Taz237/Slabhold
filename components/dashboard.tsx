@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { ArrowDownUp, Search, WalletCards, X } from "lucide-react";
+import { Search, SlidersHorizontal, WalletCards, X } from "lucide-react";
 import { outlineButton } from "@/components/button-styles";
 import { CollectionGrid } from "@/components/collection-grid";
 import { CollectionHeader } from "@/components/collection-header";
-import { LeaderboardOptInSwitch, LeaderboardPrompt } from "@/components/leaderboard-opt-in";
+import { CollectionShareButton, LeaderboardSettingsButton } from "@/components/collection-actions";
+import { CollectionSheet } from "@/components/collection-sheet";
+import { CollectionTileActions } from "@/components/collection-tile-actions";
 import { COLLECTION_LOAD_ERROR, useCollection } from "@/components/collection-provider";
 import { ReadRetry } from "@/components/read-retry";
 import { useSocial } from "@/components/social-provider";
@@ -22,7 +24,7 @@ import {
   matchesQuery,
   summarize,
 } from "@/lib/portfolio";
-import { type CardCategory, type PortfolioFilter } from "@/lib/types";
+import { type CardCategory, type PortfolioFilter, type SportsCard } from "@/lib/types";
 import { displayedCollectionTotal } from "@/lib/collection/displayed-value";
 import { sumPaid } from "@/lib/collection/profit-label";
 import { costFilterShown, gridSortsFor, sortGridCards, type GridSort } from "@/lib/collection/grid";
@@ -35,7 +37,7 @@ import { afterFirstIdle } from "@/lib/ui/idle";
 import { PartLoadFailed } from "@/components/part-load-failed";
 import { lazyPart } from "@/lib/ui/lazy-part";
 import { PullToRefresh } from "@/components/pull-to-refresh";
-import { ShareCollectionCard } from "@/components/invite/share-collection-card";
+import { pressTick } from "@/lib/ui/press-tick";
 
 const LANES: { id: "all" | CardCategory | "wants"; label: string }[] = [
   { id: "all", label: "All" },
@@ -87,7 +89,7 @@ export function firstScreenTiles(serverDrawn: boolean): number {
 }
 
 const chip =
-  "hit-44 inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-xs font-semibold transition outline-none focus-visible:ring-2 focus-visible:ring-violet-600";
+  "hit-44 inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-xs font-semibold transition-[background-color,color,scale] duration-150 outline-none focus-visible:ring-2 focus-visible:ring-violet-600 motion-reduce:transition-none";
 const chipOn = "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950";
 const chipOff =
   "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-white/[0.06] dark:text-zinc-300 dark:hover:bg-white/10";
@@ -110,6 +112,10 @@ export function Dashboard({
   const [filter, setFilter] = useState<PortfolioFilter>("all");
   const [sort, setSort] = useState<GridSort>("value");
   const [lane, setLane] = useState<(typeof LANES)[number]["id"]>("all");
+  /** Counts lane switches: the grid fades in again on each one, without remounting a tile. */
+  const [laneTurn, setLaneTurn] = useState(0);
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const [actionsFor, setActionsFor] = useState<SportsCard | null>(null);
   const summaryLane = lane === "wants" ? "all" : lane;
 
   const cardIds = useMemo(() => cards.map((card) => card.id), [cards]);
@@ -204,10 +210,24 @@ export function Dashboard({
     setFilter("all");
   }
 
-  function cycleSort() {
-    const sorts = gridSortsFor(paidCount, sort);
-    const index = sorts.findIndex((item) => item.id === sort);
-    setSort(sorts[(index + 1) % sorts.length].id);
+  function chooseLane(next: (typeof LANES)[number]["id"]) {
+    if (next !== lane) {
+      pressTick();
+      setLaneTurn((turn) => turn + 1);
+    }
+    setLane(next);
+    // All means every card: it also clears a filter or search left on.
+    if (next === "all") clearNarrowing();
+  }
+
+  /** Left and Right move between the lane tabs, as a tab list should. */
+  function onLaneKey(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
+    event.preventDefault();
+    const index = LANES.findIndex((item) => item.id === lane);
+    const next = LANES[(index + (event.key === "ArrowRight" ? 1 : LANES.length - 1)) % LANES.length];
+    chooseLane(next.id);
+    event.currentTarget.querySelector<HTMLElement>(`[data-lane="${next.id}"]`)?.focus();
   }
 
   if (!ready) {
@@ -231,48 +251,61 @@ export function Dashboard({
     );
   }
 
-  const sortLabel = gridSortsFor(paidCount, sort).find((item) => item.id === sort)?.label ?? "Value";
+  const sorts = gridSortsFor(paidCount, sort);
+  const sortLabel = sorts.find((item) => item.id === sort)?.label ?? "Value";
+  const filters = FILTERS.filter(
+    (item) =>
+      (item.id !== "novalue" || filter === "novalue" || totals.withoutValueCount > 0) &&
+      costFilterShown(item.id, paidCount, filter),
+  );
+  const filterLabel = filter !== "all" ? FILTERS.find((item) => item.id === filter)?.label : null;
   const showTools = cards.length > 0 && lane !== "wants";
+  const searching = showTools && (searchOpen || Boolean(query));
+  const laneLabel = LANES.find((item) => item.id === lane)?.label ?? "All";
+  const leaderboard = (
+    <LeaderboardSettingsButton
+      minimums={minimums}
+      valuedCards={publicValued.count}
+      value={publicValued.value}
+      publicCollection={publicCollection}
+      ready={cards.length > 0 && !valuesLoading && !valuesFailed}
+      accountCreatedAt={accountCreatedAt}
+    />
+  );
 
   return (
     <PullToRefresh onRefresh={refreshCollection}>
     <div className="space-y-4">
       {cards.length === 0 ? (
-        <CollectionHeader extra={<LeaderboardOptInSwitch minimums={minimums} />} />
+        <CollectionHeader actions={leaderboard} />
       ) : (
-        <>
-          <PortfolioHero
-            cardCount={cardCount}
-            collectionValue={collectionValue}
-            profitTotal={profitTotal}
-            pricedCount={totals.pricedCount}
-            pricedInvested={totals.pricedInvested}
-            investedAmount={investedAmount}
-            paidCount={paidCount}
-            withoutValueCount={totals.withoutValueCount}
-            valuesLoading={valuesLoading}
-            valuesFailed={valuesFailed}
-            valuesMessage={valuesMessage}
-            onRetry={retryValues}
-            cards={inLane}
-            values={values}
-            onShowWithoutValue={showWithoutValue}
-            shareable={Boolean(user?.username) && cards.some((card) => card.isPublic)}
-            snapshots={seeded?.snapshots}
-            cardHistory={seeded?.cardHistory}
-          />
-          <LeaderboardOptInSwitch minimums={minimums} />
-        </>
+        <PortfolioHero
+          cardCount={cardCount}
+          collectionValue={collectionValue}
+          profitTotal={profitTotal}
+          pricedCount={totals.pricedCount}
+          pricedInvested={totals.pricedInvested}
+          investedAmount={investedAmount}
+          paidCount={paidCount}
+          withoutValueCount={totals.withoutValueCount}
+          valuesLoading={valuesLoading}
+          valuesFailed={valuesFailed}
+          valuesMessage={valuesMessage}
+          onRetry={retryValues}
+          cards={inLane}
+          values={values}
+          onShowWithoutValue={showWithoutValue}
+          shareable={Boolean(user?.username) && cards.some((card) => card.isPublic)}
+          snapshots={seeded?.snapshots}
+          cardHistory={seeded?.cardHistory}
+          actions={(chart) => (
+            <>
+              {leaderboard}
+              <CollectionShareButton chart={chart} />
+            </>
+          )}
+        />
       )}
-      <LeaderboardPrompt
-        valuedCards={publicValued.count}
-        value={publicValued.value}
-        publicCollection={publicCollection}
-        ready={cards.length > 0 && !valuesLoading && !valuesFailed}
-        minimums={minimums}
-        accountCreatedAt={accountCreatedAt}
-      />
-      {cards.length > 0 ? <ShareCollectionCard /> : null}
       {syncError ? (
         <p className="text-sm text-rose-600 dark:text-rose-400">
           {syncError}{" "}
@@ -286,118 +319,152 @@ export function Dashboard({
         data-slot="collection-tools"
         className="sticky top-[var(--app-header-h)] z-20 -mx-4 border-b border-zinc-200/80 bg-[var(--background)] dark:border-white/[0.07]"
       >
+      {/* One row: the lanes, then search and sort as icons. Search opens over the lanes. */}
       <div
         ref={toolsRef}
-        className="flex scroll-mt-[calc(var(--app-header-h)+0.5rem)] items-center gap-1.5 overflow-x-auto overscroll-x-contain px-4 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex scroll-mt-[calc(var(--app-header-h)+0.5rem)] items-center gap-1.5 px-4 py-2"
         data-no-pull
       >
-        {showTools ? (
-          searchOpen || query ? (
-            <label className="relative shrink-0">
-              <span className="sr-only">Search your cards</span>
-              <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-zinc-500" aria-hidden />
-              <input
-                ref={searchRef}
-                type="search"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onBlur={() => {
-                  if (!query) setSearchOpen(false);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key !== "Escape") return;
+        {searching ? (
+          <label className="relative min-w-0 flex-1">
+            <span className="sr-only">Search your cards</span>
+            <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-zinc-500" aria-hidden />
+            <input
+              ref={searchRef}
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onBlur={() => {
+                if (!query) setSearchOpen(false);
+              }}
+              onKeyDown={(e) => {
+                if (e.key !== "Escape") return;
+                setQuery("");
+                setSearchOpen(false);
+              }}
+              placeholder="Player, set, year…"
+              className="h-9 w-full rounded-full border border-zinc-200 bg-white pr-10 pl-9 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-violet-500 dark:border-white/10 dark:bg-white/5 dark:text-zinc-100 dark:placeholder:text-zinc-500"
+            />
+            <button
+              type="button"
+              aria-label={query ? "Clear search" : "Close search"}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                if (query) {
                   setQuery("");
-                  setSearchOpen(false);
-                }}
-                placeholder="Player, set, year…"
-                className="w-48 rounded-full border border-zinc-200 bg-white py-1.5 pr-8 pl-9 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-violet-500 dark:border-white/10 dark:bg-white/5 dark:text-zinc-100 dark:placeholder:text-zinc-500"
-              />
-              {query ? (
-                <button
-                  type="button"
-                  aria-label="Clear search"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => {
-                    setQuery("");
-                    searchRef.current?.focus();
-                  }}
-                  className="absolute top-1/2 right-0 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full text-zinc-500"
-                >
-                  <X className="h-4 w-4" aria-hidden />
-                </button>
-              ) : null}
-            </label>
-          ) : (
-            <button
-              type="button"
-              aria-label="Search your cards"
-              onClick={() => setSearchOpen(true)}
-              className={`${chip} ${chipOff} w-9 justify-center px-0`}
+                  searchRef.current?.focus();
+                } else setSearchOpen(false);
+              }}
+              className="absolute top-1/2 right-0 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full text-zinc-500"
             >
-              <Search className="h-[18px] w-[18px] shrink-0" aria-hidden />
+              <X className="h-4 w-4" aria-hidden />
             </button>
-          )
-        ) : null}
-        <div className="flex shrink-0 items-center gap-1.5" role="tablist" aria-label="Collection">
-          {LANES.map((item) => {
-            const selected = lane === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                role="tab"
-                aria-selected={selected}
-                onClick={() => {
-                  setLane(item.id);
-                  // All means every card: it also clears a filter or search left on.
-                  if (item.id === "all") clearNarrowing();
-                }}
-                className={`${chip} ${selected ? chipOn : chipOff}`}
-              >
-                {item.label}
-              </button>
-            );
-          })}
-        </div>
-        {showTools ? (
-          <>
-            <span className="mx-1 h-5 w-px shrink-0 bg-zinc-200 dark:bg-white/10" aria-hidden />
-            <button
-              type="button"
-              onClick={cycleSort}
-              aria-label={`Sort by ${sortLabel}. Tap to change.`}
-              className={`${chip} ${chipOff}`}
-            >
-              <ArrowDownUp className="h-3.5 w-3.5" aria-hidden />
-              {sortLabel}
-            </button>
-            {activeFirst(
-              FILTERS.filter(
-                (item) =>
-                  (item.id !== "novalue" || filter === "novalue" || totals.withoutValueCount > 0) &&
-                  costFilterShown(item.id, paidCount, filter),
-              ),
-              filter,
-            ).map((item) => {
-              const selected = filter === item.id;
+          </label>
+        ) : (
+          <div
+            className="lane-scroll -ml-4 flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto overscroll-x-contain pl-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            role="tablist"
+            aria-label="Collection"
+            onKeyDown={onLaneKey}
+          >
+            {LANES.map((item) => {
+              const selected = lane === item.id;
               return (
                 <button
                   key={item.id}
                   type="button"
-                  aria-pressed={selected}
-                  onClick={() => setFilter(selected ? "all" : item.id)}
-                  className={`${chip} ${selected ? chipOn : chipOff}`}
+                  role="tab"
+                  data-lane={item.id}
+                  aria-selected={selected}
+                  aria-controls="collection-lane-panel"
+                  tabIndex={selected ? 0 : -1}
+                  onClick={() => chooseLane(item.id)}
+                  className={`${chip} tap ${selected ? chipOn : chipOff}`}
                 >
                   {item.label}
                 </button>
               );
             })}
-          </>
+            {/* Room after the last lane: Safari ignores a scroller's end padding. */}
+            <span className="w-3 shrink-0" aria-hidden />
+          </div>
+        )}
+        {showTools && !searching ? (
+          <button
+            type="button"
+            aria-label="Search your cards"
+            onClick={() => setSearchOpen(true)}
+            className={`${chip} tap ${chipOff} w-9 justify-center px-0`}
+          >
+            <Search className="h-[18px] w-[18px] shrink-0" aria-hidden />
+          </button>
         ) : null}
-        {/* Room after the last chip: Safari ignores a scroller's end padding. */}
-        <span className="w-2 shrink-0" aria-hidden />
+        {showTools ? (
+          <button
+            type="button"
+            aria-haspopup="dialog"
+            aria-label={`Sort and filter. Sorted by ${sortLabel}${filterLabel ? `, showing ${filterLabel}` : ""}.`}
+            onClick={() => setToolsOpen(true)}
+            className={`${chip} tap relative ${chipOff} w-9 justify-center px-0`}
+          >
+            <SlidersHorizontal className="h-[18px] w-[18px] shrink-0" aria-hidden />
+            {filterLabel || sort !== "value" ? (
+              <span aria-hidden data-slot="tools-dot" className="absolute top-1 right-1 h-2 w-2 rounded-full bg-violet-500 ring-2 ring-[var(--background)]" />
+            ) : null}
+          </button>
+        ) : null}
       </div>
       </div>
+      {toolsOpen ? (
+        <CollectionSheet title="Sort and filter" onClose={() => setToolsOpen(false)}>
+          <div role="group" aria-label="Sort" className="flex flex-wrap gap-2">
+            {sorts.map((item) => {
+              const selected = sort === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  data-sort={item.id}
+                  aria-pressed={selected}
+                  onClick={() => {
+                    pressTick();
+                    setSort(item.id);
+                  }}
+                  className={`${chip} tap h-11 px-4 text-sm ${selected ? chipOn : chipOff}`}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
+          <div role="group" aria-label="Filter" className="mt-4 flex flex-wrap gap-2 border-t border-zinc-200 pt-4 pb-1 dark:border-white/10">
+            {filters.map((item) => {
+              const selected = filter === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  data-filter={item.id}
+                  aria-pressed={selected}
+                  onClick={() => {
+                    pressTick();
+                    setFilter(selected ? "all" : item.id);
+                  }}
+                  className={`${chip} tap h-11 px-4 text-sm ${selected ? chipOn : chipOff}`}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
+        </CollectionSheet>
+      ) : null}
+      <div
+        id="collection-lane-panel"
+        role="tabpanel"
+        aria-label={laneLabel}
+        className={`space-y-4 ${laneTurn === 0 ? "" : laneTurn % 2 ? "lane-in-a" : "lane-in-b"}`}
+      >
       {narrowed ? (
         <div
           role="status"
@@ -430,7 +497,7 @@ export function Dashboard({
         <WantList />
       ) : visible.length === 0 ? (
         inLane.length === 0 && (lane === "flipping" || lane === "pc") ? (
-          <CollectionLaneEmpty lane={lane} onShowAll={() => setLane("all")} />
+          <CollectionLaneEmpty lane={lane} onShowAll={() => chooseLane("all")} />
         ) : (
         <EmptyState
           icon={<WalletCards className="h-5 w-5" />}
@@ -457,8 +524,17 @@ export function Dashboard({
           valuesLoading={valuesLoading}
           valuesFailed={valuesFailed}
           onVisibility={(card, isPublic) => updateCard(card.id, publicTogglePatch(card, isPublic))}
+          onActions={setActionsFor}
         />
       )}
+      </div>
+      {actionsFor ? (
+        <CollectionTileActions
+          // The sheet reads the card as it is now, so a move or a public switch shows at once.
+          card={cards.find((card) => card.id === actionsFor.id) ?? actionsFor}
+          onClose={() => setActionsFor(null)}
+        />
+      ) : null}
     </div>
     </PullToRefresh>
   );
