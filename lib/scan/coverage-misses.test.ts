@@ -4,14 +4,15 @@ import { loadChecklistsFor } from "@/lib/cards/checklist-load";
 import { loadProductData } from "@/lib/cards/product-data";
 import { SCAN_DIRECTORY } from "@/lib/players/scan-directory";
 import hardCards from "./hard-cards-v1.json";
-import { closestCards, closestMatch, readKeyOf, withPickedCard, type PlayerCards } from "./closest";
+import { cardKey, closestCards, closestMatch, confirmKeyOf, isKnownCard, readKeyOf, withPickedCard, type ClosestCard, type PlayerCards } from "./closest";
 import { loadPlayerCards } from "./closest-load";
-import { confirmedCardFromBody, respondConfirmCard, respondConfirmedCards, respondScanMiss } from "./coverage-respond";
+import { NOT_KNOWN_MESSAGE, confirmedCardFromBody, respondConfirmCard, respondConfirmedCards, respondScanMiss } from "./coverage-respond";
 import { hardCardBack, type HardCard } from "./hard-cards";
 import { rankScanMatches, scanChecklistKey, scanPlayer, tierParallels, type ScanMatch, type ScanMatchResult } from "./match";
 import { scanMissFromBody, scanMissOf, type ScanMiss } from "./miss";
 import { printedProduct, readRawCardText } from "./raw-text";
 import { scanReadFrom } from "./session";
+import { typedCardAfterMiss } from "./typed-confirm";
 
 /**
  * The three cards a collector scanned on 2026-11-17 that all came back not found
@@ -246,28 +247,106 @@ describe("the coverage routes", () => {
     assert.equal(stored.length, 1);
   });
 
+  const known = async (item: ClosestCard) => isKnownCard(item, await loadPlayerCards(item.sport));
+  const LEMIEUX_KEY = "mariolemieux|hockey||||";
+  const TOPPS: ClosestCard = { playerName: "Mario Lemieux", sport: "Hockey", yearLabel: "1985-86", setBrand: "Topps", cardNumber: "9" };
+
   it("the tables not there yet: the miss is still logged, and the scan is not failed", async () => {
     const logged: ScanMiss[] = [];
     const response = await respondScanMiss(post({ reason: "no_player" }), { ...gate, store: async () => { throw new Error("relation does not exist"); }, log: (miss) => void logged.push(miss) });
     assert.deepEqual(await response.json(), { ok: true, stored: false });
     assert.equal(logged.length, 1);
-    const read = await respondConfirmedCards(new Request("http://localhost/api?key=mariolemieux|hockey||||"), { ...gate, read: async () => { throw new Error("relation does not exist"); } });
+    const read = await respondConfirmedCards(new Request(`http://localhost/api?key=${LEMIEUX_KEY}`), { ...gate, known, read: async () => { throw new Error("relation does not exist"); } });
     assert.deepEqual(await read.json(), { cards: [] });
-    const save = await respondConfirmCard(post({ key: "mariolemieux|hockey||||", card: { playerName: "Mario Lemieux", sport: "Hockey", yearLabel: "1985-86", setBrand: "Topps", cardNumber: "9" } }), { ...gate, save: async () => { throw new Error("no"); } });
+    const save = await respondConfirmCard(post({ key: LEMIEUX_KEY, card: TOPPS }), { ...gate, known, save: async () => { throw new Error("no"); } });
     assert.deepEqual(await save.json(), { ok: true, stored: false });
   });
 
-  it("a confirmed card needs a real key, a player, a year, a set and a card #", async () => {
+  it("a confirmed card is saved with the signed-in user, for one vote per user per card", async () => {
     const saved: string[] = [];
-    const deps = { ...gate, save: async (key: string, item: { setBrand: string }) => void saved.push(`${key} ${item.setBrand}`) };
-    const good = { playerName: "Mario Lemieux", sport: "Hockey", yearLabel: "1985-86", setBrand: "Topps", cardNumber: "9" };
-    assert.equal((await respondConfirmCard(post({ key: "mariolemieux|hockey||||", card: good }), deps)).status, 200);
-    assert.deepEqual(saved, ["mariolemieux|hockey|||| Topps"]);
-    assert.equal((await respondConfirmCard(post({ key: "Mario Lemieux; drop", card: good }), deps)).status, 400);
-    assert.equal((await respondConfirmCard(post({ key: "mariolemieux|hockey||||", card: { ...good, yearLabel: "soon" } }), deps)).status, 400);
-    assert.equal(confirmedCardFromBody({ ...good, cardNumber: "9; x" }), null);
-    assert.equal(confirmedCardFromBody({ ...good, setBrand: "" }), null);
-    assert.equal((await respondConfirmCard(post({ key: "mariolemieux|hockey||||", card: good }), { ...deps, userId: async () => null })).status, 401);
-    assert.equal(saved.length, 1);
+    const deps = { ...gate, known, save: async (key: string, item: ClosestCard, userId: string) => void saved.push(`${userId} ${key} ${item.yearLabel} ${item.setBrand} #${item.cardNumber}`) };
+    assert.equal((await respondConfirmCard(post({ key: LEMIEUX_KEY, card: TOPPS }), deps)).status, 200);
+    // However the phone spells it: "TOPPS", "#9" typed as 9.
+    assert.equal((await respondConfirmCard(post({ key: LEMIEUX_KEY, card: { ...TOPPS, setBrand: "TOPPS" } }), deps)).status, 200);
+    assert.deepEqual(saved, ["user-1 mariolemieux|hockey|||| 1985-86 Topps #9", "user-1 mariolemieux|hockey|||| 1985-86 TOPPS #9"]);
+    assert.equal((await respondConfirmCard(post({ key: LEMIEUX_KEY, card: TOPPS }), { ...deps, userId: async () => null })).status, 401);
+    assert.equal(saved.length, 2);
+  });
+
+  it("a card our checklists don't have for that player is refused: \"Not a card we know\", and nothing is saved", async () => {
+    const saved: string[] = [];
+    const deps = { ...gate, known, save: async (key: string) => void saved.push(key) };
+    const refused = async (body: unknown) => {
+      const response = await respondConfirmCard(post(body), deps);
+      assert.equal(response.status, 400);
+      return ((await response.json()) as { error: string }).error;
+    };
+    // A made-up card, a made-up set, a real card # in the wrong year, another player's card, a made-up player.
+    assert.equal(await refused({ key: LEMIEUX_KEY, card: { ...TOPPS, cardNumber: "999" } }), NOT_KNOWN_MESSAGE);
+    assert.equal(await refused({ key: LEMIEUX_KEY, card: { ...TOPPS, setBrand: "Totally Real Gold" } }), NOT_KNOWN_MESSAGE);
+    assert.equal(await refused({ key: LEMIEUX_KEY, card: { ...TOPPS, yearLabel: "1975-76" } }), NOT_KNOWN_MESSAGE);
+    assert.equal(await refused({ key: "nobodyreal|hockey||||", card: { ...TOPPS, playerName: "Nobody Real" } }), NOT_KNOWN_MESSAGE);
+    // The key must be the card's own player's read: a real Lemieux card filed under Gretzky's read is refused.
+    assert.equal(await refused({ key: "waynegretzky|hockey||||", card: TOPPS }), NOT_KNOWN_MESSAGE);
+    // A sport we have no list for is not a card we know.
+    assert.equal(await refused({ key: "mariolemieux|cricket||||", card: { ...TOPPS, sport: "Cricket" } }), NOT_KNOWN_MESSAGE);
+    // The check itself failing is a no, never a yes.
+    assert.equal((await respondConfirmCard(post({ key: LEMIEUX_KEY, card: TOPPS }), { ...deps, known: async () => { throw new Error("load failed"); } })).status, 400);
+    // Malformed input is still refused first.
+    assert.equal((await respondConfirmCard(post({ key: "Mario Lemieux; drop", card: TOPPS }), deps)).status, 400);
+    assert.equal((await respondConfirmCard(post({ key: LEMIEUX_KEY, card: { ...TOPPS, yearLabel: "soon" } }), deps)).status, 400);
+    assert.equal(confirmedCardFromBody({ ...TOPPS, cardNumber: "9; x" }), null);
+    assert.equal(confirmedCardFromBody({ ...TOPPS, setBrand: "" }), null);
+    assert.deepEqual(saved, []);
+  });
+
+  it("the database's own answers: too many votes is 429, a row it refuses is 400, anything else is not stored", async () => {
+    const failing = (message: string) => respondConfirmCard(post({ key: LEMIEUX_KEY, card: TOPPS }), { ...gate, known, save: async () => { throw new Error(message); } });
+    assert.equal((await failing("scan_confirm_rate_limited")).status, 429);
+    const invalid = await failing("P0001: scan_confirm_invalid");
+    assert.equal(invalid.status, 400);
+    assert.equal(((await invalid.json()) as { error: string }).error, NOT_KNOWN_MESSAGE);
+    const other = await failing("function confirm_scan_card(text, text, text, text, text, text) does not exist");
+    assert.deepEqual(await other.json(), { ok: true, stored: false });
+  });
+
+  it("reading the picks back: a made-up row, or one filed under another player's read, is never shown", async () => {
+    const rows: ClosestCard[] = [
+      { ...TOPPS, confirmed: 3 },
+      { ...TOPPS, setBrand: "Totally Real Gold", confirmed: 50 },
+      { ...TOPPS, cardNumber: "999", confirmed: 9 },
+      { playerName: "Wayne Gretzky", sport: "Hockey", yearLabel: "1979-80", setBrand: "Topps", cardNumber: "18", confirmed: 7 },
+    ];
+    const response = await respondConfirmedCards(new Request(`http://localhost/api?key=${LEMIEUX_KEY}`), { ...gate, known, read: async () => rows });
+    assert.deepEqual(((await response.json()) as { cards: ClosestCard[] }).cards, [{ ...TOPPS, confirmed: 3 }]);
+    assert.equal((await respondConfirmedCards(new Request("http://localhost/api?key=x"), { ...gate, known, read: async () => rows })).status, 400);
+  });
+
+  it("a known card is checked against every card of the player's, not just the 8 the list shows", async () => {
+    const index = await loadPlayerCards("Hockey");
+    const late: ClosestCard = { playerName: "Mario Lemieux", sport: "Hockey", yearLabel: "2005-06", setBrand: "Upper Deck", cardNumber: "150" };
+    assert.ok(!closestCards({ name: "Mario Lemieux", sport: "Hockey" }, index).some((item) => cardKey(item) === cardKey(late)), "past the list's cap");
+    assert.equal(isKnownCard(late, index), true);
+    assert.equal(isKnownCard({ ...late, cardNumber: "151" }, index), false);
+    assert.equal(isKnownCard(late, null), false);
+    assert.equal(confirmKeyOf(late), "mariolemieux|hockey||||");
+  });
+});
+
+describe("a card typed in after a miss", () => {
+  const typed = { playerName: "Mario Lemieux", sport: "Hockey", yearLabel: "1985-86", setBrand: "Topps", cardNumber: "#9" };
+
+  it("is sent for the read that missed, as the card typed", () => {
+    assert.deepEqual(typedCardAfterMiss(typed, "mariolemieux|hockey||||"), {
+      key: "mariolemieux|hockey||||",
+      card: { playerName: "Mario Lemieux", sport: "Hockey", yearLabel: "1985-86", setBrand: "Topps", cardNumber: "9" },
+    });
+  });
+
+  it("is not sent with no miss pending, for another player than the scan read, or with a field missing", () => {
+    assert.equal(typedCardAfterMiss(typed, null), null);
+    assert.equal(typedCardAfterMiss({ ...typed, playerName: "Wayne Gretzky" }, "mariolemieux|hockey||||"), null);
+    assert.equal(typedCardAfterMiss({ ...typed, cardNumber: "" }, "mariolemieux|hockey||||"), null);
+    assert.equal(typedCardAfterMiss({ ...typed, yearLabel: " " }, "mariolemieux|hockey||||"), null);
   });
 });

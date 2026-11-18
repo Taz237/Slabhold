@@ -108,6 +108,6 @@ The target, on real scans: **95% end on the right card within one tap, and under
 ## 7. What this PR does not do
 
 - It doesn't look at the picture. A raw, unnumbered parallel that prints no word still asks "Which version?".
-- It saves a confirmation only for a card picked from the closest choices and then added. Typing a card in by hand after a miss isn't saved yet (step 4).
+- (Changed in the follow-up PR.) A confirmation is saved for a card picked from the closest choices and added, and for a card typed in after a miss. Either way only when our checklists have that card for that player, one vote per collector, and the "Picked by other collectors" note shows from 2 picks.
 - The LaPorta's /10 parallel has no name: no list we have names it, so the version stays open with the run shown. Naming it needs a parallel list for Illusions (step 3).
 - It changes nothing in the iOS app. If the phone doesn't read the sideways "03/10" on the LaPorta, the card is still the right patch auto with the run open.
