@@ -1,6 +1,6 @@
 import { SETS, parseYearLabel } from "@/lib/card-options";
 import { POPULAR_INSERTS, insertKey } from "@/lib/cards/data/popular-inserts";
-import { teamsForCode } from "./team-codes";
+import { CODED_TEAM_NAMES, isCodedTeamName, teamsForCode } from "./team-codes";
 import type { IndexedDirectoryPlayer } from "@/lib/players/types";
 import { compactNorm, normInterest } from "@/lib/social/follow-rank";
 import { schoolOnLine } from "./schools";
@@ -815,6 +815,22 @@ export function readsAsNameLine(line: string, directory: readonly IndexedDirecto
 
 const sameTeam = (a: string, b: string) => normInterest(a) === normInterest(b);
 
+const cityCache = new WeakMap<readonly IndexedDirectoryPlayer[], Set<string>>();
+
+/** Every team's name without its last word or two: "los angeles", "new york", "san antonio", "golden state", "portland". */
+function teamCities(directory: readonly IndexedDirectoryPlayer[]): Set<string> {
+  let cities = cityCache.get(directory);
+  if (!cities) {
+    cities = new Set<string>();
+    for (const name of [...teamIndex(directory).teams.keys(), ...CODED_TEAM_NAMES.map((team) => normInterest(team))]) {
+      const words = name.split(" ").filter(Boolean);
+      for (let size = 1; size < words.length; size += 1) cities.add(words.slice(0, size).join(" "));
+    }
+    cityCache.set(directory, cities);
+  }
+  return cities;
+}
+
 /**
  * A nameplate with its team glued on: "DARRYN PETERSON UTA", "UTA DARRYN PETERSON", "CAMERON
  * BOOZER GRIZZLIES". A team code, a nickname or a team's full name is never part of a person's name,
@@ -836,6 +852,8 @@ export function nameBesideTeam(
   // The whole line is someone we list: it is their name, whatever its last word looks like.
   if (findPlayers([line], directory).some((hit) => hit.score === 1 && hit.nameplate)) return null;
   const { teams, nicknames } = teamIndex(directory);
+  // The line is a team and nothing else ("LOS ANGELES DODGERS"): there is no name on it.
+  if (teams.has(normInterest(line)) || isCodedTeamName(line)) return null;
   const teamsNamed = (words: readonly string[]): { name: string; sport: string }[] => {
     if (words.length === 1) {
       const coded = teamsForCode(words[0]);
@@ -854,6 +872,9 @@ export function nameBesideTeam(
       const named = teamsNamed(teamWords);
       const name = rest.join(" ");
       if (named.length === 0 || !readsAsNameLine(name, directory)) continue;
+      // What is left is never a team's city: "LOS ANGELES" off "LOS ANGELES DODGERS", "NEW YORK" off
+      // "NEW YORK YANKEES" and "SAN ANTONIO" off "SAN ANTONIO SPURS" are where a team plays, not a person.
+      if (teamCities(directory).has(normInterest(name))) continue;
       const hinted = named.find((team) => hintTeams.some((hint) => sameTeam(hint, team.name)));
       if (hinted) return { name, team: hinted };
       const listed = findPlayers([name], directory).find((hit) => hit.score === 1 && hit.nameplate && !hit.more);
@@ -938,11 +959,19 @@ const SENTENCE_AFTER = /^\s+[a-z]{2,}/;
  * "DRAFTED: BUFFALO (2) 2022". Its # is where he was picked, on either side of the word, never the
  * card #. "DRAFT PICKS" is a set's name, not a draft line.
  */
-const DRAFT_LINE = /\bdrafted\b|\bdraft\s*:|\bpick\b|\bround\b|\boverall\b|\(\s*\d{1,3}\s*\)/i;
 const DRAFT_PICKS_SET = /\bdraft\s+picks\b/i;
+/** A draft word before the #, with no other # in between: "DRAFTED: JAZZ #1", "ROUND 1, PICK #4", "1ST ROUND (#1)". */
+const DRAFT_WORD_BEFORE = /\b(?:drafted|draft\s*:|draft|pick|round|overall)\b[^#]*$/i;
+/** A draft word right after the #: "#32 OVERALL", "#4 PICK". */
+const DRAFT_WORD_AFTER = /^\s*[,)]?\s*(?:overall|pick|round|in\s+the\s+draft)\b/i;
 
-function draftLine(line: string): boolean {
-  return DRAFT_LINE.test(line) && !DRAFT_PICKS_SET.test(line);
+/**
+ * This # is where he was picked: the # beside a draft word, on either side of it. Only that #:
+ * "NO. 27 AARON JUDGE #32 OVERALL" still reads card # 27.
+ */
+function draftNumber(line: string, before: string, after: string): boolean {
+  if (DRAFT_PICKS_SET.test(line)) return false;
+  return DRAFT_WORD_BEFORE.test(before) || DRAFT_WORD_AFTER.test(after);
 }
 
 /** "#17 | QB", "QB #17", "#23 G-F": a jersey number beside a position, never the card #. */
@@ -980,9 +1009,9 @@ function readCardNumber(
   const usable = (line: string) => !(scanned && proseLine(line));
   for (const line of lines) {
     if (!usable(line)) continue;
-    // Where he was drafted ("DRAFTED: JAZZ #1, 2026") is never the card #.
-    if (scanned && draftLine(line)) continue;
     for (const match of line.matchAll(CARD_NUMBER)) {
+      // Where he was drafted ("DRAFTED: JAZZ #1, 2026") is never the card #.
+      if (scanned && draftNumber(line, line.slice(0, match.index ?? 0), line.slice((match.index ?? 0) + match[0].length))) continue;
       const number = match[1].toUpperCase();
       if (looksLikeCatalogSku(number) || wordCode(number)) continue;
       // A rank ("#1 OVERALL PICK") is not the card #, on a card or in a sold title.

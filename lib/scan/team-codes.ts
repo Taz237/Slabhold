@@ -24,3 +24,14 @@ for (const [sport, list] of [["Basketball", NBA], ["Football", NFL], ["Baseball"
 export function teamsForCode(word: string): readonly CodedTeam[] {
   return /^[A-Z]{2,3}$/.test(word) ? (BY_CODE.get(word) ?? []) : [];
 }
+
+/** Every team the codes name, once. */
+export const CODED_TEAM_NAMES: readonly string[] = [...new Set([...BY_CODE.values()].flat().map((team) => team.name))];
+
+const teamNameKey = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+const CODED_TEAM_KEYS = new Set(CODED_TEAM_NAMES.map(teamNameKey));
+
+/** The line is one of those teams' full names and nothing else ("LOS ANGELES DODGERS"). */
+export function isCodedTeamName(line: string): boolean {
+  return CODED_TEAM_KEYS.has(teamNameKey(line));
+}

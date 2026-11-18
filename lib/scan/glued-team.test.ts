@@ -6,6 +6,8 @@ import { indexPlayer } from "@/lib/players/directory";
 import { SCAN_DIRECTORY } from "@/lib/players/scan-directory";
 import type { IndexedDirectoryPlayer } from "@/lib/players/types";
 import { onlyPlayerRead } from "./closest";
+import hardCards from "./hard-cards-v1.json";
+import { hardCardBack, markPlayer, type HardCard } from "./hard-cards";
 import { lookupLiveSolds } from "./live-solds";
 import { rankScanMatches, scanChecklistKey } from "./match";
 import { nameBesideTeam, readRawCardText } from "./raw-text";
@@ -104,6 +106,54 @@ describe("a team code or team name beside the nameplate is never part of the nam
   });
 });
 
+describe("a team line is a team, never a name with its nickname taken off", () => {
+  const hard = (hardCards as { cards: HardCard[] }).cards;
+
+  it("a line that is a team's whole name is left alone, and what is left is never a team's city", () => {
+    for (const line of ["LOS ANGELES DODGERS", "NEW YORK YANKEES", "SAN ANTONIO SPURS", "GOLDEN STATE WARRIORS", "TAMPA BAY BUCCANEERS", "UTAH JAZZ"]) {
+      assert.equal(nameBesideTeam(line, SCAN_DIRECTORY), null, line);
+      // Even when the card's own team line "backs" it: the line is that team.
+      const team = line.toLowerCase().replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
+      assert.equal(nameBesideTeam(line, SCAN_DIRECTORY, [team]), null, line);
+    }
+    // A city with a code or a nickname of another team beside it is still a city.
+    assert.equal(nameBesideTeam("LOS ANGELES LAD", SCAN_DIRECTORY, ["Los Angeles Dodgers"]), null);
+    assert.equal(nameBesideTeam("NEW YORK YANKEES NYY", SCAN_DIRECTORY, ["New York Yankees"]), null);
+  });
+
+  it("NEW YORK YANKEES above ZEKE MARLOWE: the name is Zeke Marlowe, never New York", () => {
+    for (const side of ["front", "back"] as const) {
+      const read = readRawCardText(["NEW YORK YANKEES", "ZEKE MARLOWE"], SCAN_DIRECTORY, { side });
+      assert.equal(read.printedName, "Zeke Marlowe", side);
+      assert.deepEqual(read.team, { name: "New York Yankees", sport: "Baseball" }, side);
+    }
+  });
+
+  it("a one-word name above SAN ANTONIO SPURS never names \"San Antonio\"", async () => {
+    for (const lines of [["ZEKEO", "SAN ANTONIO SPURS"], ["SAN ANTONIO SPURS", "ZEKEO"]]) {
+      assert.equal(front(lines).printedName, "", lines.join(" / "));
+      const back257 = ["257", ...lines, LEGAL];
+      for (const result of [await scan(lines, null), await scan(lines, back257), await scan(["ZEKEO", "RC"], back257)]) {
+        for (const match of result.matches) assert.ok(!/san antonio/i.test(match.playerName), match.playerName);
+      }
+      const { top, searches } = await live(lines, back257);
+      assert.ok(!/san antonio/i.test(top?.playerName ?? ""));
+      for (const query of searches) assert.ok(!/san antonio/i.test(query), query);
+    }
+  });
+
+  it("hc-090 MIYAVI (one-word name, LOS ANGELES DODGERS on the card): the player is right again, and never searched as Los Angeles", async () => {
+    const card = hard.find((item) => item.id === "hc-090")!;
+    const lines = card.typical_ocr_front;
+    const backLines = hardCardBack(card);
+    const top = (await scan(lines, backLines)).matches[0];
+    assert.equal(markPlayer(top?.playerName ?? "", card.player, card.player_also), "right", top?.playerName);
+    const searched = await live(lines, backLines);
+    assert.equal(markPlayer(searched.top?.playerName ?? "", card.player, card.player_also), "right");
+    for (const query of searched.searches) assert.ok(!/los angeles/i.test(query), query);
+  });
+});
+
 describe("a draft, pick or rank line never gives the card #", () => {
   it("DRAFTED: JAZZ #1, 2026 is not card #1: the lone 257 is the card #", () => {
     assert.equal(back(BACK).cardNumber, "257");
@@ -115,6 +165,11 @@ describe("a draft, pick or rank line never gives the card #", () => {
       assert.equal(back([line, LEGAL]).cardNumber, "", line);
       assert.equal(back(["88", line, LEGAL]).cardNumber, "88", line);
     }
+  });
+
+  it("only the # beside the draft word is skipped: a card # on the same line still reads", () => {
+    assert.equal(back(["NO. 27 AARON JUDGE #32 OVERALL", LEGAL]).cardNumber, "27");
+    assert.equal(back(["No. 257", "DRAFTED: JAZZ #1, 2026 NO. 9 OVERALL", LEGAL]).cardNumber, "257");
   });
 
   it("a printed card # still reads, and Draft Picks is a set, not a draft line", () => {
