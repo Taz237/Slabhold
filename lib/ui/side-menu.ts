@@ -24,21 +24,28 @@ export const SIDE_MENU_ITEMS = [
   { href: INVITE_MENU_HREF, label: "Invite a collector" },
 ] as const;
 
-/** Below the divider. Log out is a button after these. */
+/** The everyday settings, in a quieter group under the main items. */
 export const SIDE_MENU_SETTINGS = [
   { href: "/settings/notifications", label: "Notifications" },
   { href: "/settings/privacy", label: "Privacy & safety" },
-  { href: "/settings/invite", label: "Invite friends" },
   { href: "/settings/collecting", label: "Collecting settings" },
+] as const;
+
+/** The row that opens the About & legal group in place. */
+export const SIDE_MENU_LEGAL_LABEL = "About & legal";
+
+/** Behind "About & legal": one tap opens them. Delete account is the last row of the group. */
+export const SIDE_MENU_LEGAL = [
   { href: "/about", label: "About" },
   { href: "/privacy", label: "Privacy policy" },
   { href: "/terms", label: "Terms" },
+  { href: "/settings/invite", label: "Invite friends" },
 ] as const;
 
 /** Below the settings links. Apple asks for an easy way to reach support. */
 export const SIDE_MENU_SUPPORT = { href: "/support", label: "Help & support" } as const;
 
-/** Straight to Delete account on Privacy & safety. Apple asks that it's easy to find. */
+/** Straight to Delete account on Privacy & safety. Two taps from the open menu: About & legal, then this. */
 export const SIDE_MENU_DELETE = { href: "/settings/privacy#delete-account", label: "Delete account" } as const;
 
 /** Replays the quick tour. A button after the settings links. */

@@ -65,7 +65,7 @@ describe("App Store web fixes: Help & support", () => {
     assert.deepEqual(SIDE_MENU_SUPPORT, { href: "/support", label: "Help & support" });
     assert.deepEqual(
       SIDE_MENU_SETTINGS.map((item) => item.href),
-      ["/settings/notifications", "/settings/privacy", "/settings/invite", "/settings/collecting", "/about", "/privacy", "/terms"],
+      ["/settings/notifications", "/settings/privacy", "/settings/collecting"],
     );
   });
 

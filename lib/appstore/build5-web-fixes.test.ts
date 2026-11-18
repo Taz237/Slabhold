@@ -92,11 +92,15 @@ describe("1.2: terms", () => {
   });
 });
 
-describe("5.1.1: Delete account is one tap from the menu", () => {
+describe("5.1.1: Delete account is two taps from the open menu", () => {
   it("has its own row that lands on the delete section", () => {
     assert.deepEqual(SIDE_MENU_DELETE, { href: "/settings/privacy#delete-account", label: "Delete account" });
     const menu = read("components/side-menu.tsx");
     assert.ok(menu.indexOf("SIDE_MENU_DELETE.label") > menu.indexOf("SIDE_MENU_SUPPORT.label"));
+    // About & legal opens in place; Delete account is a link inside that group.
+    const legal = menu.slice(menu.indexOf("data-menu-legal"));
+    assert.match(legal, /href=\{SIDE_MENU_DELETE\.href\}/);
+    assert.match(menu, /aria-expanded=\{legalOpen\}/);
     assert.match(read("components/delete-account.tsx"), /<section id="delete-account"/);
   });
 });
