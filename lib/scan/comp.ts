@@ -167,6 +167,8 @@ export function compIdentityFromMatch(
       cardNumber: match.cardNumber.trim(),
       parallel: parallel || "Base",
       grade,
+      // The insert the card # is in ("Rookie Code"): its sales are only titles that name it.
+      ...(match.insertName?.trim() ? { insertName: match.insertName.trim() } : {}),
     },
     assumedBase: !parallel,
   };
@@ -183,6 +185,7 @@ export function compQueryString(identity: QuickCompIdentity, serialRun?: number 
   params.set("grade", identity.grade);
   if (serialRun != null && Number.isInteger(serialRun) && serialRun > 0) params.set("run", String(serialRun));
   if (query) params.set("q", query);
+  if (identity.insertName?.trim()) params.set("insert", identity.insertName.trim());
   return params.toString();
 }
 

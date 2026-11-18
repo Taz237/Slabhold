@@ -318,6 +318,7 @@ const CollectionValueCard = memo(function CollectionValueCard({
   const headlineRef = useRef<HTMLParagraphElement>(null);
   const counting = useRef<(() => void) | undefined>(undefined);
   const wasLoading = useRef(valuesLoading);
+  const lastShown = useRef<number | null>(null);
   const lastScrub = useRef<ChartPoint | null>(null);
   const modeRef = useRef(mode);
   useEffect(loadCountUp, []);
@@ -381,17 +382,32 @@ const CollectionValueCard = memo(function CollectionValueCard({
   const countText = `${cardCount} card${cardCount === 1 ? "" : "s"}`;
   const anyAdds = points.some((point) => point.marker);
 
-  // The count-up: once, as values land, from the range's first value (never $0). Skipped if its chunk is not in yet.
-  const countFrom = points[0]?.value ?? 0;
+  // The count-up, as values land: from the total this screen last showed (after adding a card, a
+  // $2.25 card counts +$2.25), else the last saved day's total. Never $0 and never the range's
+  // start, which made one add look like a month of gains. Nothing to count from: it simply shows.
+  // Skipped if its chunk is not in yet.
+  const previousDay = useMemo(() => {
+    let found: { date: string; value: number } | null = null;
+    for (const row of snapshots.rows) {
+      if (row.snapshot_date < today && row.value > 0 && (!found || row.snapshot_date > found.date)) found = { date: row.snapshot_date, value: row.value };
+    }
+    return found?.value ?? null;
+  }, [snapshots.rows, today]);
   useClientLayoutEffect(() => {
     const was = wasLoading.current;
     wasLoading.current = valuesLoading;
     const node = headlineRef.current;
     if (!was || valuesLoading || valuesFailed || !node || !countUp) return;
+    const countFrom = lastShown.current ?? previousDay;
+    if (countFrom == null || countFrom <= 0 || countFrom === collectionValue) return;
     const cancel = countUp.heroCountUp(node, countFrom, collectionValue);
     counting.current = cancel ?? undefined;
     return cancel ?? undefined;
   }, [valuesLoading]);
+  // The total on screen once values settle: the next count starts from it.
+  useEffect(() => {
+    if (!valuesLoading && !valuesFailed && collectionValue > 0) lastShown.current = collectionValue;
+  }, [valuesLoading, valuesFailed, collectionValue]);
 
   function choose(next: RangeId) {
     setScrub(null);

@@ -1,3 +1,4 @@
+import { insertNameOf } from "@/lib/cards/insert-name";
 import { parseQuickCompParams } from "@/lib/quick-comp/respond";
 import type { QuickCompIdentity } from "@/lib/quick-comp/identity";
 import type { ScanCompResult } from "./comp";
@@ -30,6 +31,9 @@ export async function respondScanComp(request: Request, deps: ScanCompRouteDeps)
   // q: the live search this scan ran. Read from the shared cache only.
   const query = (params.get("q") ?? "").replace(/\s+/g, " ").trim().slice(0, 200) || null;
   params.delete("q");
+  // insert: the insert the card # is in ("Rookie Code"). It only narrows which titles count.
+  const insertName = insertNameOf({ insertName: params.get("insert") });
+  params.delete("insert");
   const run = runText != null && /^\d{1,4}$/.test(runText) ? Number(runText) : null;
   if (runText != null && !run) return Response.json({ error: "run is not a print run" }, { status: 400 });
   const parsed = parseQuickCompParams(params);
@@ -37,6 +41,7 @@ export async function respondScanComp(request: Request, deps: ScanCompRouteDeps)
   if (!(await deps.allow(userId))) {
     return Response.json({ error: SCAN_COMP_RATE_MESSAGE }, { status: 429, headers: PRIVATE });
   }
-  const result = await deps.lookup(parsed.identity, userId, { serialRun: run, query });
+  const identity = insertName ? { ...parsed.identity, insertName } : parsed.identity;
+  const result = await deps.lookup(identity, userId, { serialRun: run, query });
   return Response.json(result, { headers: PRIVATE });
 }

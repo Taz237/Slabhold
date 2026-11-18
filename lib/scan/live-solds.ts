@@ -8,7 +8,7 @@ import { toMatchCard, type QuickCompIdentity } from "@/lib/quick-comp/identity";
 import type { QuickCompLimitReason } from "@/lib/quick-comp/limits";
 import { compIdentityFromMatch, scanCompGrade, type ScanCompResult } from "./comp";
 import { type QuickCompCachedSale } from "./comp-lookup";
-import { cleanCompFor, priceScanGroup } from "./clean-sales";
+import { cleanCompFor, cleanGroups, priceScanGroup } from "./clean-sales";
 import {
   MAX_LADDER_RUNGS,
   cardSearchQuery,
@@ -122,20 +122,30 @@ async function cachedComp(
   titles: readonly SoldTitle[],
   deps: LiveSoldsDeps,
 ): Promise<ScanCompResult | null> {
+  // An insert with its version open (plain, Refractor, Holo) is never priced as Base: its cached
+  // sales show by version, to pick, like the live search's.
+  const versionOpen = !top.parallel && top.serialRun == null && Boolean(top.insertName);
+  const answer = (results: readonly TrawlSoldResult[], asOf: string | null, source: "quick-comp" | "sold-cache"): ScanCompResult | null => {
+    if (versionOpen) {
+      const groups = cleanGroups(identity, results, deps.directory, top.serialRun);
+      return groups.length > 0 ? { status: "split", groups: groups.map(groupSummary) } : null;
+    }
+    const result = cleanCompFor(identity, results, deps.directory, { serialRun: top.serialRun, asOf, source, runPicked: top.parallelSource === "run" });
+    return result.status === "ok" ? result : null;
+  };
   // Every cached sale goes through the same filter as a live one: titles only, junk and grades out.
   try {
     const cached = await deps.quickCompCache(identity);
     if (cached && !cached.sample && cached.comps.length > 0) {
       const results = asTrawlResults(cached.comps.filter((comp) => comp.title).map((comp) => ({ title: comp.title!, price: comp.soldPrice, soldAt: comp.soldDate })));
-      const result = cleanCompFor(identity, results, deps.directory, { serialRun: top.serialRun, asOf: cached.fetchedAt, source: "quick-comp", runPicked: top.parallelSource === "run" });
-      if (result.status === "ok") return result;
+      const result = answer(results, cached.fetchedAt, "quick-comp");
+      if (result) return result;
     }
   } catch {
     // A failed cache read falls through to the saved listings, then a live search.
   }
   const saved = asTrawlResults(titles.map((item) => ({ title: item.title, price: Number(item.price), soldAt: item.soldAt ?? null })));
-  const result = cleanCompFor(identity, saved, deps.directory, { serialRun: top.serialRun, asOf: newest(titles), source: "sold-cache", runPicked: top.parallelSource === "run" });
-  return result.status === "ok" ? result : null;
+  return answer(saved, newest(titles), "sold-cache");
 }
 
 function newest(sales: readonly { soldAt?: string | null }[]): string | null {
@@ -259,7 +269,9 @@ async function lookupSolds(
     // 3. The sold titles help finish the identity (set, #, parallel).
     matches = rank([...saved, ...liveTitles(results)]);
     const best = matches[0];
-    found = best?.playerName ? scanSalesFor(best, { grade: scanCompGrade(best), setBrand: best.setBrand, parallel: best.parallel }, results, deps.directory) : found;
+    found = best?.playerName
+      ? scanSalesFor(best, { grade: scanCompGrade(best), setBrand: best.setBrand, parallel: best.parallel, insertName: best.insertName }, results, deps.directory)
+      : found;
     deps.log?.({ rung: index, query, ok: true, results: live.results.length, kept: found.kept.length, dropped: found.dropped });
     if (found.kept.length > 0) break;
     // The titles just named the player: the rest of the ladder searches by that name.

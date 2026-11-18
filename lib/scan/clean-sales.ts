@@ -37,7 +37,7 @@ export function cleanGroups(
 ): ParallelGroup[] {
   const { kept } = scanSalesFor(
     { playerName: identity.playerName, cardNumber: identity.cardNumber, serialRun: serialRun ?? null, yearLabel: identity.yearLabel },
-    { grade: identity.grade, setBrand: identity.setBrand, parallel: identity.parallel },
+    { grade: identity.grade, setBrand: identity.setBrand, parallel: identity.parallel, insertName: identity.insertName },
     results,
     directory,
   );
