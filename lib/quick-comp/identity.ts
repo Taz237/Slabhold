@@ -15,6 +15,11 @@ export type QuickCompIdentity = {
   serialRun?: number | null;
   /** "Raw", "PSA 10", "BGS 9.5" and the like. */
   grade: string;
+  /**
+   * The insert the card is in ("Rookie Code"), when the scan knows it. Only its titles are its
+   * sales (lib/scan/scan-sales.ts). Not part of any cache key: it narrows, never widens.
+   */
+  insertName?: string;
 };
 
 export function isRawGrade(grade: string): boolean {

@@ -16,6 +16,7 @@ import { parallelLabel, type ScanMatch } from "./match";
 import { SAPPHIRE_WORD, inSapphireFamily, isSapphireSet, withoutSapphire } from "./sapphire";
 import { COLOR_NAME_PHRASES, readRawCardText } from "./raw-text";
 import { setMakerOf, type CardMaker } from "./maker";
+import { insertNameOf } from "@/lib/cards/insert-name";
 
 /**
  * A scanned card's sold sales from eBay results, filtered the way eBay's own
@@ -190,6 +191,20 @@ function salePrice(result: TrawlSoldResult): number {
   return result.sale_price;
 }
 
+const titleWords = (text: string) => ` ${text.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()} `;
+
+/**
+ * A sale of a card in an insert (the 2026-27 Topps Rookie Code #RC-3) names the insert ("Rookie
+ * Code"), or at least its set ("Topps") beside the code. Cheap cards of his from other products
+ * print an RC-3 too, and name neither.
+ */
+function titleNamesInsert(title: string, insert: string, setBrand: string): boolean {
+  const text = titleWords(title);
+  if (text.includes(titleWords(insert))) return true;
+  const set = titleWords(setBrand).trim();
+  return Boolean(set) && text.includes(` ${set} `);
+}
+
 /** The title names a set, and that set's maker isn't the card's. A title naming no set says nothing. */
 function otherMakerTitle(title: string, cardMaker: CardMaker, yearLabel: string, directory: readonly IndexedDirectoryPlayer[]): boolean {
   const named = readRawCardText([title], directory).setNames[0] ?? "";
@@ -219,6 +234,7 @@ export function scanSalesFor(
     grade: identity.grade,
   });
   const cardMaker = setMakerOf(setBrand, match.yearLabel);
+  const insert = insertNameOf(identity);
   const raw = card.conditionType === "raw";
   const year = startYear(match.yearLabel);
   const kept: ScanSale[] = [];
@@ -240,6 +256,11 @@ export function scanSalesFor(
     }
     if (match.cardNumber && !titleHasCardNumber(title, match.cardNumber)) {
       dropped.number += 1;
+      continue;
+    }
+    // An insert's sales name it (or its set and code): another product's RC-3 is another card.
+    if (insert && !titleNamesInsert(title, insert, setBrand)) {
+      dropped.set += 1;
       continue;
     }
     // A numbered card keeps only titles naming its run (the corrected one, when OCR misread it).
