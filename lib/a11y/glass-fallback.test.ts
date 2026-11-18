@@ -12,7 +12,9 @@ const css = read("app/globals.css");
 /** Chrome that blurs what's behind it: still blurred, and marked for the solid fallback. */
 const GLASS: [file: string, marker: RegExp][] = [
   ["components/app-shell.tsx", /glass sticky top-0 z-20 bg-\[var\(--chrome-bg\)\][^`]*backdrop-blur-xl/],
-  ["components/app-shell.tsx", /glass fixed inset-x-0 bottom-0 z-30[^"]*backdrop-blur-xl/],
+  // The floating tab bar and the side menu panel: liquid glass, blurred in globals.css.
+  ["components/app-shell.tsx", /glass liquid-glass fixed inset-x-2 bottom-\[var\(--tabbar-bottom\)\] z-30/],
+  ["components/side-menu.tsx", /glass liquid-glass-panel absolute inset-y-0 left-0/],
   ["components/timeline-ui.tsx", /glass bg-\[var\(--chrome-bg\)\] backdrop-blur-xl/],
   ["components/add-card/flow-ui.tsx", /glass bg-\[color-mix[^"]*backdrop-blur-xl/],
   ["components/message-thread.tsx", /glass bg-\[color-mix[^"]*backdrop-blur-xl/],
@@ -33,6 +35,20 @@ describe("glass: blur stays, with a solid fallback", () => {
   }
 
   const block = css.slice(css.indexOf("Glass fallback."));
+
+  it("keeps liquid glass as one reusable style: blur, tint, a bright top edge, an inner shadow and a drop shadow", () => {
+    const liquid = css.slice(css.indexOf("Liquid glass."), css.indexOf("Glass fallback."));
+    assert.match(liquid, /\.liquid-glass,\s*\.liquid-glass-panel \{\s*-webkit-backdrop-filter: blur\(24px\) saturate\(1\.8\);\s*backdrop-filter: blur\(24px\) saturate\(1\.8\);/);
+    assert.match(liquid, /\.liquid-glass \{\s*background-color: var\(--glass-tint\);\s*box-shadow:\s*inset 0 1px 0 var\(--glass-edge\),\s*inset 0 0 0 1px var\(--glass-line\),\s*inset 0 -10px 14px -12px var\(--glass-inner\),\s*var\(--glass-drop\);/);
+    assert.match(liquid, /\.glass-highlight \{/);
+    // Tinted enough to read over a photo: at least 78% in both themes.
+    const tints = [...liquid.matchAll(/--glass-tint(?:-panel)?: rgb\([\d ]+\/ (0\.\d+)\)/g)].map((m) => Number(m[1]));
+    assert.equal(tints.length, 4);
+    assert.ok(tints.every((alpha) => alpha >= 0.78), tints.join(", "));
+    assert.doesNotMatch(liquid, /teal|cyan|aqua|emerald/i);
+    // Only transform and opacity move. A blur is never animated.
+    assert.doesNotMatch(liquid, /transition[^;]*(backdrop|filter)|@keyframes[^}]*blur/);
+  });
 
   it("goes solid when Reduce Transparency is on", () => {
     const media = block.slice(block.indexOf("@media (prefers-reduced-transparency: reduce)"), block.indexOf("@supports"));

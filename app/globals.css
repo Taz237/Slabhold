@@ -2101,6 +2101,101 @@ html:not([data-get-started-hidden]) [data-after-get-started] {
 }
 
 /*
+ * Liquid glass. One style for floating chrome: the tab bar and the side menu
+ * now, sheets and floating buttons later.
+ *   .liquid-glass        a floating surface: tint, blur, a bright top edge,
+ *                        a soft inner shadow and a soft shadow underneath.
+ *   .liquid-glass-panel  the same glass for a panel on a screen edge, a touch
+ *                        more opaque.
+ *   .glass-highlight     the pill behind the current tab or menu row.
+ * The tint is heavy on purpose: labels keep their contrast over card photos.
+ * Pair the first two with .glass, so they turn solid with Reduce Transparency
+ * on or where backdrop-filter is missing (see the fallback below).
+ */
+:root {
+  --glass-tint: rgb(250 250 250 / 0.86);
+  --glass-tint-panel: rgb(250 250 250 / 0.94);
+  --glass-edge: rgb(255 255 255 / 0.95);
+  --glass-line: rgb(24 24 27 / 0.08);
+  --glass-inner: rgb(24 24 27 / 0.08);
+  --glass-drop: 0 12px 32px -12px rgb(24 24 27 / 0.28), 0 2px 8px -2px rgb(24 24 27 / 0.1);
+  --glass-pill: rgb(24 24 27 / 0.07);
+  --glass-pill-edge: rgb(255 255 255 / 0.8);
+  /* The floating tab bar: its height, and its gap above the screen's bottom edge. */
+  --tabbar-h: 3.75rem;
+  --tabbar-bottom: max(0.5rem, calc(env(safe-area-inset-bottom) - 0.75rem));
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --glass-tint: rgb(24 24 27 / 0.78);
+    --glass-tint-panel: rgb(14 14 17 / 0.88);
+    --glass-edge: rgb(255 255 255 / 0.16);
+    --glass-line: rgb(255 255 255 / 0.07);
+    --glass-inner: rgb(0 0 0 / 0.5);
+    --glass-drop: 0 14px 36px -12px rgb(0 0 0 / 0.7), 0 2px 8px -2px rgb(0 0 0 / 0.4);
+    --glass-pill: rgb(255 255 255 / 0.1);
+    --glass-pill-edge: rgb(255 255 255 / 0.14);
+  }
+}
+
+.liquid-glass,
+.liquid-glass-panel {
+  -webkit-backdrop-filter: blur(24px) saturate(1.8);
+  backdrop-filter: blur(24px) saturate(1.8);
+}
+
+.liquid-glass {
+  background-color: var(--glass-tint);
+  box-shadow:
+    inset 0 1px 0 var(--glass-edge),
+    inset 0 0 0 1px var(--glass-line),
+    inset 0 -10px 14px -12px var(--glass-inner),
+    var(--glass-drop);
+}
+
+.liquid-glass-panel {
+  background-color: var(--glass-tint-panel);
+  box-shadow:
+    inset -1px 0 0 var(--glass-edge),
+    inset 0 0 0 1px var(--glass-line),
+    var(--glass-drop);
+}
+
+.glass-highlight {
+  background-color: var(--glass-pill);
+  box-shadow: inset 0 1px 0 var(--glass-pill-edge);
+}
+
+/* The side menu's rows step in a few ms apart as it opens. Reduced motion: they are just there. */
+@keyframes menu-row-in {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-menu-open] [data-menu-step] {
+    animation: menu-row-in 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: calc(var(--menu-step, 0) * 22ms + 40ms);
+  }
+  [data-menu-step="1"] { --menu-step: 1; }
+  [data-menu-step="2"] { --menu-step: 2; }
+  [data-menu-step="3"] { --menu-step: 3; }
+  [data-menu-step="4"] { --menu-step: 4; }
+  [data-menu-step="5"] { --menu-step: 5; }
+  [data-menu-step="6"] { --menu-step: 6; }
+  [data-menu-step="7"] { --menu-step: 7; }
+  [data-menu-step="8"] { --menu-step: 8; }
+  [data-menu-step="9"] { --menu-step: 9; }
+}
+
+/*
  * Glass fallback. The header, tab bar, sticky bars (.glass) and sheet backdrops
  * (.glass-scrim) blur what's behind them. With Reduce Transparency on, or in a
  * browser with no backdrop-filter, they turn solid instead of see-through:

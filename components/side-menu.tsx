@@ -17,14 +17,12 @@ import {
   Award,
   Bell,
   Camera,
+  ChevronDown,
   Compass,
-  FileText,
   Info,
   LifeBuoy,
-  Link2,
   LogOut,
   Mail,
-  Scale,
   ShieldCheck,
   SlidersHorizontal,
   SquarePlus,
@@ -33,7 +31,6 @@ import {
   Trophy,
   User,
   UserPlus,
-  UserX,
   WalletCards,
   Wrench,
   type LucideIcon,
@@ -61,6 +58,8 @@ import {
   ADD_TO_HOME_LABEL,
   INVITE_MENU_HREF,
   SIDE_MENU_DELETE,
+  SIDE_MENU_LEGAL,
+  SIDE_MENU_LEGAL_LABEL,
   SIDE_MENU_SETTINGS,
   SIDE_MENU_SUPPORT,
   countLabel,
@@ -87,25 +86,36 @@ const ITEM_ICONS: Record<string, LucideIcon> = {
   [INVITE_MENU_HREF]: UserPlus,
   "/settings/notifications": Bell,
   "/settings/privacy": ShieldCheck,
-  "/settings/invite": Link2,
   "/settings/collecting": SlidersHorizontal,
-  "/about": Info,
-  "/privacy": FileText,
-  "/terms": Scale,
 };
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-const mainRow =
-  "tap-fade flex min-h-12 items-center gap-4 rounded-2xl px-3 text-[1.1875rem] font-semibold tracking-tight focus-visible:ring-2 focus-visible:ring-[#7C3AED] focus-visible:outline-none";
-const settingsRow =
-  "tap-fade flex min-h-11 items-center gap-3 rounded-2xl px-3 text-15 font-medium focus-visible:ring-2 focus-visible:ring-[#7C3AED] focus-visible:outline-none";
+const FOCUS_RING = "focus-visible:ring-2 focus-visible:ring-[#7C3AED] focus-visible:outline-none";
 
+/** Main items: big rows that give a little under the thumb. */
+const mainRow =
+  "tap-fade flex min-h-[3.25rem] items-center gap-4 rounded-2xl px-3 text-17 font-medium transition-[scale] duration-150 active:scale-[0.98] motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-[#7C3AED] focus-visible:outline-none";
+/** Settings: smaller and quieter, so the main items lead. */
+const settingsRow =
+  "tap-fade flex min-h-11 items-center gap-3 rounded-xl px-3 text-15 transition-[scale] duration-150 active:scale-[0.98] motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-[#7C3AED] focus-visible:outline-none";
+/** About & legal rows: text only, lined up under the labels above. */
+const legalRow = `tap-fade flex min-h-11 items-center rounded-xl pr-3 pl-11 text-14 ${FOCUS_RING}`;
+
+const HAIRLINE = "mx-5 my-2 h-px bg-zinc-900/[0.07] dark:bg-white/[0.08]";
+
+/** The current row sits on the same glass pill as the current tab. */
 function rowTone(active: boolean) {
   return active
-    ? "bg-[#7C3AED]/10 text-zinc-950 dark:bg-[#7C3AED]/20 dark:text-white"
-    : "text-zinc-900 hover:bg-zinc-100 dark:text-zinc-100 dark:hover:bg-white/[0.06]";
+    ? "glass-highlight text-zinc-950 dark:text-white"
+    : "text-zinc-900 hover:bg-zinc-900/[0.04] dark:text-zinc-100 dark:hover:bg-white/[0.05]";
+}
+
+function quietTone(active: boolean) {
+  return active
+    ? "glass-highlight text-zinc-950 dark:text-white"
+    : "text-zinc-600 hover:bg-zinc-900/[0.04] dark:text-zinc-400 dark:hover:bg-white/[0.05]";
 }
 
 function iconTone(active: boolean) {
@@ -132,12 +142,20 @@ type BadgeSummary = { userId: string; label: string | null; pins: EarnedBadge[] 
 export function AccountMenu({ user, showLogin }: { user: Profile | null; showLogin: boolean }) {
   const [open, setOpen] = useState(false);
   const [everOpened, setEverOpened] = useState(false);
+  /** Rows step in on a tap. A finger-dragged menu arrives with them already in place. */
+  const [stagger, setStagger] = useState(true);
   const [guideOpen, setGuideOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelId = useId();
   const platform = useInstallPlatform();
 
   const openMenu = useCallback(() => {
+    setStagger(true);
+    setOpen(true);
+    setEverOpened(true);
+  }, []);
+  const openFromSwipe = useCallback(() => {
+    setStagger(false);
     setOpen(true);
     setEverOpened(true);
   }, []);
@@ -148,7 +166,7 @@ export function AccountMenu({ user, showLogin }: { user: Profile | null; showLog
     window.setTimeout(() => setGuideOpen(true), TOUR_AFTER_CLOSE_MS);
   }, []);
   const pathname = usePathname() || "/";
-  useMenuEdgeSwipe({ enabled: Boolean(user) && pathname === "/", panelId, open, onOpen: openMenu });
+  useMenuEdgeSwipe({ enabled: Boolean(user) && pathname === "/", panelId, open, onOpen: openFromSwipe });
 
   if (!user) return <GuestAccount showLogin={showLogin} />;
 
@@ -180,6 +198,7 @@ export function AccountMenu({ user, showLogin }: { user: Profile | null; showLog
         id={panelId}
         user={user}
         open={open}
+        stagger={stagger}
         mountExtras={everOpened}
         onClose={closeMenu}
         returnFocus={buttonRef}
@@ -406,7 +425,7 @@ function MenuQueryOpener({ onOpen }: { onOpen: () => void }) {
 }
 
 /**
- * X-style side menu. Slides in from the left over a dimmed page. Closes on
+ * X-style side menu: a glass panel that slides in from the left over a dimmed page. Closes on
  * the backdrop, a swipe left, Escape, or picking an item. Focus stays inside
  * and the page does not scroll while it is open.
  */
@@ -414,6 +433,7 @@ export function SideMenu({
   id,
   user,
   open,
+  stagger = true,
   mountExtras,
   onClose,
   returnFocus,
@@ -422,6 +442,8 @@ export function SideMenu({
   id: string;
   user: Profile;
   open: boolean;
+  /** Rows step in a few ms apart as the menu opens. Off when a swipe dragged it out. */
+  stagger?: boolean;
   /** Admin check and the like wait for the first open. */
   mountExtras: boolean;
   onClose: () => void;
@@ -439,6 +461,10 @@ export function SideMenu({
   const lastTouch = useRef<{ x: number; t: number } | null>(null);
   const [drag, setDrag] = useState<{ px: number; progress: number } | null>(null);
   const [badges, setBadges] = useState<BadgeSummary | null>(null);
+  /** About & legal: null until tapped, so it starts open on one of its own pages. */
+  const [legalPicked, setLegalPicked] = useState<boolean | null>(null);
+  const legalRef = useRef<HTMLUListElement>(null);
+  const legalId = useId();
   const userId = user.id;
   const hosted = mode === "supabase";
   const invite = useInviteShare(user.username);
@@ -476,7 +502,16 @@ export function SideMenu({
     const overflow = root.style.overflow;
     root.style.overflow = "hidden";
     // The panel takes focus so no item shows a ring until you press Tab.
-    panel?.focus();
+    panel?.focus({ preventScroll: true });
+    // A browser refuses focus until the panel has turned visible, a frame or two in: ask again until it takes.
+    let refocus = 0;
+    let tries = 0;
+    const takeFocus = () => {
+      if (!panel || panel.contains(document.activeElement) || tries++ >= 6) return;
+      panel.focus({ preventScroll: true });
+      refocus = window.requestAnimationFrame(takeFocus);
+    };
+    refocus = window.requestAnimationFrame(takeFocus);
 
     function onKey(event: KeyboardEvent) {
       if (event.key === "Escape") {
@@ -495,6 +530,7 @@ export function SideMenu({
 
     document.addEventListener("keydown", onKey);
     return () => {
+      window.cancelAnimationFrame(refocus);
       document.removeEventListener("keydown", onKey);
       root.style.overflow = overflow;
       focusTarget?.focus();
@@ -506,6 +542,18 @@ export function SideMenu({
   const summary = badges?.userId === userId ? badges : null;
   const badgesHref = `${userHref(user.username)}/badges`;
   const supportActive = menuItemActive(pathname, SIDE_MENU_SUPPORT.href, user.username);
+  const legalOpen = legalPicked ?? SIDE_MENU_LEGAL.some((item) => menuItemActive(pathname, item.href, user.username));
+
+  function toggleLegal() {
+    const opening = !legalOpen;
+    setLegalPicked(opening);
+    if (!opening) return;
+    // The group opens at the foot of the panel: bring its rows into view.
+    window.requestAnimationFrame(() => {
+      const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      legalRef.current?.scrollIntoView?.({ block: "nearest", behavior: reduced ? "auto" : "smooth" });
+    });
+  }
 
   function logOut() {
     markLogoutHome();
@@ -570,6 +618,7 @@ export function SideMenu({
         open ? "visible" : "invisible"
       }`}
       inert={!open}
+      data-menu-open={open && stagger ? "" : undefined}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
@@ -595,47 +644,51 @@ export function SideMenu({
         aria-label="Menu"
         tabIndex={-1}
         style={drag !== null && open ? { transform: `translateX(${drag.px}px)`, transition: "none" } : undefined}
-        className={`absolute inset-y-0 left-0 flex w-[80%] max-w-[320px] flex-col big:w-full big:max-w-none overflow-y-auto overscroll-contain border-r border-zinc-200 bg-white pt-[env(safe-area-inset-top)] pb-[max(1rem,env(safe-area-inset-bottom))] pl-[env(safe-area-inset-left)] shadow-2xl outline-none transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none dark:border-white/10 dark:bg-[#09090B] ${
+        className={`glass liquid-glass-panel absolute inset-y-0 left-0 flex w-[80%] max-w-[320px] flex-col big:w-full big:max-w-none overflow-y-auto overscroll-contain rounded-r-[1.75rem] big:rounded-none pt-[env(safe-area-inset-top)] pb-[max(1rem,env(safe-area-inset-bottom))] pl-[env(safe-area-inset-left)] outline-none transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="px-4 pt-4">
+        <div
+          data-menu-step="0"
+          className="mx-3 mt-3 rounded-3xl bg-white/70 p-3 shadow-[inset_0_0_0_1px_rgba(24,24,27,0.06)] dark:bg-white/[0.04] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.07)]"
+        >
           <Link
             href="/profile"
             onClick={onClose}
             aria-label={`Your profile, ${user.displayName}`}
-            className="flex min-h-11 flex-col items-start gap-2 rounded-2xl focus-visible:ring-2 focus-visible:ring-[#7C3AED] focus-visible:outline-none"
+            className={`tap-fade flex min-h-14 items-center gap-3 rounded-2xl ${FOCUS_RING}`}
           >
-            <Avatar
-              name={user.displayName}
-              image={user.avatarDataUrl}
-              accent={user.accent}
-              expandable={false}
-              className="h-12 w-12 text-sm"
-            />
-            <span className="block w-full min-w-0">
-              <span className="block truncate text-17 font-semibold tracking-tight">
-                {user.displayName}
-              </span>
-              <span className="block truncate text-15 text-zinc-500">@{user.username}</span>
+            <span className="relative shrink-0">
+              <span
+                aria-hidden
+                className="absolute -inset-3 rounded-full bg-[radial-gradient(closest-side,rgba(124,58,237,0.28),transparent)] dark:bg-[radial-gradient(closest-side,rgba(124,58,237,0.45),transparent)]"
+              />
+              <Avatar
+                name={user.displayName}
+                image={user.avatarDataUrl}
+                accent={user.accent}
+                expandable={false}
+                className="relative h-12 w-12 text-sm"
+              />
+            </span>
+            <span className="block min-w-0 flex-1">
+              <span className="block truncate text-17 font-semibold">{user.displayName}</span>
+              <span className="block truncate text-14 text-zinc-500 dark:text-zinc-400">@{user.username}</span>
             </span>
           </Link>
-          <div className="mt-1 flex items-center gap-1 text-14">
+          <div className="mt-1 flex items-center gap-3 text-14">
             <CountLink href="/profile/following" count={followingCount(userId)} label="Following" onPick={onClose} />
-            <span aria-hidden className="text-zinc-400">
-              ·
-            </span>
             <CountLink href="/profile/followers" count={followerCount(userId)} label="Followers" onPick={onClose} />
           </div>
           {summary && summary.pins.length > 0 ? (
-            <ul aria-label="Pinned badges" className="mt-1 flex items-center gap-1">
+            <ul aria-label="Pinned badges" className="-mx-1 flex items-center">
               {summary.pins.map((badge) => (
                 <li key={`${badge.category}:${badge.tier}`}>
                   <Link
                     href={badgesHref}
                     onClick={onClose}
                     aria-label={badgeLabel(badge.category, badge.tier)}
-                    className="grid h-11 w-11 place-items-center rounded-full focus-visible:ring-2 focus-visible:ring-[#7C3AED] focus-visible:outline-none"
+                    className={`grid h-11 w-11 place-items-center rounded-full ${FOCUS_RING}`}
                   >
                     <Badge category={badge.category} tier={badge.tier} size={36} label="" />
                   </Link>
@@ -645,9 +698,9 @@ export function SideMenu({
           ) : null}
         </div>
 
-        <nav aria-label="Menu" className="mt-3 px-2">
-          <ul className="space-y-0.5">
-            {items.map((item) => {
+        <nav aria-label="Menu" className="mt-3 px-3">
+          <ul className="space-y-1">
+            {items.map((item, index) => {
               const active = menuItemActive(pathname, item.href, user.username);
               const Icon = ITEM_ICONS[item.href] ?? User;
               let trailing: ReactNode = null;
@@ -674,7 +727,7 @@ export function SideMenu({
               }
               if (item.href === INVITE_MENU_HREF) {
                 return (
-                  <li key={item.href}>
+                  <li key={item.href} data-menu-step={index + 1}>
                     <button
                       type="button"
                       data-invite-menu=""
@@ -685,14 +738,14 @@ export function SideMenu({
                       }}
                       className={`${mainRow} w-full text-left ${rowTone(false)}`}
                     >
-                      <Icon aria-hidden className={`h-6 w-6 shrink-0 ${iconTone(false)}`} />
+                      <Icon aria-hidden strokeWidth={1.75} className={`h-[22px] w-[22px] shrink-0 ${iconTone(false)}`} />
                       <span className="min-w-0 flex-1 truncate">{item.label}</span>
                     </button>
                   </li>
                 );
               }
               return (
-                <li key={item.href}>
+                <li key={item.href} data-menu-step={index + 1}>
                   <Link
                     href={item.href}
                     onClick={onClose}
@@ -700,7 +753,7 @@ export function SideMenu({
                     aria-current={active ? "page" : undefined}
                     className={`${mainRow} ${rowTone(active)}`}
                   >
-                    <Icon aria-hidden className={`h-6 w-6 shrink-0 ${iconTone(active)}`} />
+                    <Icon aria-hidden strokeWidth={1.75} className={`h-[22px] w-[22px] shrink-0 ${iconTone(active)}`} />
                     <span className="min-w-0 flex-1 truncate">{item.label}</span>
                     {trailing}
                   </Link>
@@ -710,48 +763,115 @@ export function SideMenu({
           </ul>
         </nav>
 
-        <div className="mx-4 my-3 border-t border-zinc-200 dark:border-white/10" />
+        <div aria-hidden className={HAIRLINE} />
 
-        <div className="px-2">
-          <h2 className="px-3 pb-1 text-13 font-medium text-zinc-500">
-            Settings and support
-          </h2>
-          <ul className="space-y-0.5">
-            {SIDE_MENU_SETTINGS.map((item) => {
-              const active = menuItemActive(pathname, item.href, user.username);
-              const Icon = ITEM_ICONS[item.href] ?? Info;
-              return (
-                <li key={item.href}>
+        <ul aria-label="Settings and support" data-menu-quiet="" data-menu-step="8" className="px-3">
+          {SIDE_MENU_SETTINGS.map((item) => {
+            const active = menuItemActive(pathname, item.href, user.username);
+            const Icon = ITEM_ICONS[item.href] ?? Info;
+            return (
+              <li key={item.href}>
+                <Link
+                  href={item.href}
+                  onClick={onClose}
+                  aria-current={active ? "page" : undefined}
+                  className={`${settingsRow} ${quietTone(active)}`}
+                >
+                  <Icon aria-hidden strokeWidth={1.75} className={`h-5 w-5 shrink-0 ${iconTone(active)}`} />
+                  {item.label}
+                </Link>
+              </li>
+            );
+          })}
+          <li>
+            <Link
+              href={SIDE_MENU_SUPPORT.href}
+              onClick={onClose}
+              aria-current={supportActive ? "page" : undefined}
+              className={`${settingsRow} ${quietTone(supportActive)}`}
+            >
+              <LifeBuoy aria-hidden strokeWidth={1.75} className={`h-5 w-5 shrink-0 ${iconTone(supportActive)}`} />
+              {SIDE_MENU_SUPPORT.label}
+            </Link>
+          </li>
+          <li>
+            <button type="button" onClick={takeTour} className={`${settingsRow} ${quietTone(false)} w-full text-left`}>
+              <Compass aria-hidden strokeWidth={1.75} className="h-5 w-5 shrink-0" />
+              {TAKE_TOUR_LABEL}
+            </button>
+          </li>
+          {onAddToHome ? (
+            <li>
+              <button
+                type="button"
+                onClick={onAddToHome}
+                className={`${settingsRow} ${quietTone(false)} w-full text-left`}
+              >
+                <SquarePlus aria-hidden strokeWidth={1.75} className="h-5 w-5 shrink-0" />
+                {ADD_TO_HOME_LABEL}
+              </button>
+            </li>
+          ) : null}
+          <li>
+            <button
+              type="button"
+              aria-expanded={legalOpen}
+              aria-controls={legalId}
+              onClick={toggleLegal}
+              className={`${settingsRow} ${quietTone(false)} w-full text-left`}
+            >
+              <Info aria-hidden strokeWidth={1.75} className="h-5 w-5 shrink-0" />
+              <span className="min-w-0 flex-1">{SIDE_MENU_LEGAL_LABEL}</span>
+              <ChevronDown
+                aria-hidden
+                strokeWidth={1.75}
+                className={`h-4 w-4 shrink-0 transition-transform duration-200 motion-reduce:transition-none ${
+                  legalOpen ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+            {legalOpen ? (
+              <ul ref={legalRef} id={legalId} data-menu-legal="" className="scroll-mb-4">
+                {SIDE_MENU_LEGAL.map((item) => {
+                  const active = menuItemActive(pathname, item.href, user.username);
+                  return (
+                    <li key={item.href}>
+                      <Link
+                        href={item.href}
+                        onClick={onClose}
+                        aria-current={active ? "page" : undefined}
+                        className={`${legalRow} ${quietTone(active)}`}
+                      >
+                        {item.label}
+                      </Link>
+                    </li>
+                  );
+                })}
+                <li>
                   <Link
-                    href={item.href}
+                    href={SIDE_MENU_DELETE.href}
                     onClick={onClose}
-                    aria-current={active ? "page" : undefined}
-                    className={`${settingsRow} ${rowTone(active)}`}
+                    className={`${legalRow} text-rose-700/90 hover:bg-rose-600/[0.06] dark:text-rose-300/80 dark:hover:bg-rose-400/[0.08]`}
                   >
-                    <Icon aria-hidden className={`h-5 w-5 shrink-0 ${iconTone(active)}`} />
-                    {item.label}
+                    {SIDE_MENU_DELETE.label}
                   </Link>
                 </li>
-              );
-            })}
-            <li>
-              <Link
-                href={SIDE_MENU_SUPPORT.href}
-                onClick={onClose}
-                aria-current={supportActive ? "page" : undefined}
-                className={`${settingsRow} ${rowTone(supportActive)}`}
-              >
-                <LifeBuoy aria-hidden className={`h-5 w-5 shrink-0 ${iconTone(supportActive)}`} />
-                {SIDE_MENU_SUPPORT.label}
-              </Link>
-            </li>
-            <li>
-              <Link href={SIDE_MENU_DELETE.href} onClick={onClose} className={`${settingsRow} ${rowTone(false)}`}>
-                <UserX aria-hidden className={`h-5 w-5 shrink-0 ${iconTone(false)}`} />
-                {SIDE_MENU_DELETE.label}
-              </Link>
-            </li>
-            {mountExtras ? (
+              </ul>
+            ) : null}
+          </li>
+        </ul>
+
+        <div data-menu-step="9" className="mt-auto px-3 pt-2">
+          <div aria-hidden className="mx-2 mb-2 h-px bg-zinc-900/[0.07] dark:bg-white/[0.08]" />
+          <button type="button" onClick={logOut} className={`${settingsRow} ${quietTone(false)} w-full text-left`}>
+            <LogOut aria-hidden strokeWidth={1.75} className="h-5 w-5 shrink-0" />
+            Log out
+          </button>
+          {mountExtras ? (
+            <ul
+              aria-label="Admin"
+              className="[&:not(:empty)]:mt-2 [&:not(:empty)]:border-t [&:not(:empty)]:border-zinc-900/[0.07] [&:not(:empty)]:pt-2 dark:[&:not(:empty)]:border-white/[0.08]"
+            >
               <AdminMenuLinks
                 renderLink={(item) => {
                   const active = menuItemActive(pathname, item.href, user.username);
@@ -760,52 +880,27 @@ export function SideMenu({
                       href={item.href}
                       onClick={onClose}
                       aria-current={active ? "page" : undefined}
-                      className={`${settingsRow} ${rowTone(active)}`}
+                      className={`${settingsRow} ${quietTone(active)}`}
                     >
-                      <Wrench aria-hidden className={`h-5 w-5 shrink-0 ${iconTone(active)}`} />
+                      <Wrench aria-hidden strokeWidth={1.75} className={`h-5 w-5 shrink-0 ${iconTone(active)}`} />
                       {item.label}
                     </Link>
                   );
                 }}
               />
-            ) : null}
-            {onAddToHome ? (
-              <li>
-                <button
-                  type="button"
-                  onClick={onAddToHome}
-                  className={`${settingsRow} ${rowTone(false)} w-full text-left`}
-                >
-                  <SquarePlus aria-hidden className="h-5 w-5 shrink-0" />
-                  {ADD_TO_HOME_LABEL}
-                </button>
-              </li>
-            ) : null}
-            <li>
-              <button type="button" onClick={takeTour} className={`${settingsRow} ${rowTone(false)} w-full text-left`}>
-                <Compass aria-hidden className="h-5 w-5 shrink-0" />
-                {TAKE_TOUR_LABEL}
-              </button>
-            </li>
-            <li>
-              <button type="button" onClick={logOut} className={`${settingsRow} ${rowTone(false)} w-full text-left`}>
-                <LogOut aria-hidden className="h-5 w-5 shrink-0" />
-                Log out
-              </button>
-            </li>
-          </ul>
+            </ul>
+          ) : null}
         </div>
 
-        <div className="mt-auto px-5 pt-5 text-xs leading-5 text-zinc-500">
-          {status ? (
-            <p className="text-rose-600 dark:text-rose-400">{status}</p>
-          ) : mode === "local" ? (
-            <p>Accounts are saved in this browser. Add Supabase keys in .env.local when you want hosted login.</p>
-          ) : null}
-          <p className={status || mode === "local" ? "mt-2" : undefined}>
-            Slabhold follows your device light or dark mode.
-          </p>
-        </div>
+        {status || mode === "local" ? (
+          <div className="px-6 pt-3 text-xs leading-5 text-zinc-500">
+            {status ? (
+              <p className="text-rose-600 dark:text-rose-400">{status}</p>
+            ) : (
+              <p>Accounts are saved in this browser. Add Supabase keys in .env.local when you want hosted login.</p>
+            )}
+          </div>
+        ) : null}
       </div>
     </div>,
     document.body,
@@ -830,10 +925,10 @@ function CountLink({
     <Link
       href={href}
       onClick={onPick}
-      className="inline-flex min-h-11 items-center gap-1 rounded-full px-1 focus-visible:ring-2 focus-visible:ring-[#7C3AED] focus-visible:outline-none first:-ml-1"
+      className={`tap-fade inline-flex min-h-11 items-center gap-1.5 rounded-full ${FOCUS_RING}`}
     >
-      <span className="font-semibold tabular-nums">{count}</span>
-      <span className="text-zinc-500">{label}</span>
+      <span className="font-mono font-medium tabular-nums">{count}</span>
+      <span className="text-zinc-500 dark:text-zinc-400">{label}</span>
     </Link>
   );
 }

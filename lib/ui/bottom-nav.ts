@@ -39,7 +39,7 @@ export function labelWidthFits(
   viewportPx = BOTTOM_NAV_VIEWPORT_PX,
 ): boolean {
   if (tabCount <= 0) return false;
-  const rowPadding = 8;
+  const rowPadding = 24;
   const tabPadding = 4;
   const slot = (viewportPx - rowPadding) / tabCount - tabPadding;
   return label.length * LABEL_PX_PER_CHAR <= slot;
@@ -47,7 +47,7 @@ export function labelWidthFits(
 
 /**
  * True when every label fits in an equal slot at the phone width.
- * Horizontal padding matches the bar: px-1 on the row, px-0.5 on each tab.
+ * Horizontal padding matches the floating bar: 8px off each screen edge, px-1 inside it, px-0.5 on each tab.
  */
 export function bottomNavLabelsFit(
   labels: readonly string[],

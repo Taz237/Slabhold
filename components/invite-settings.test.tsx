@@ -6,14 +6,14 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { ResetLinkSheet, displayInviteLink } from "@/components/invite/invite-settings";
 import { resetNotice } from "@/lib/invites/code";
-import { SIDE_MENU_SETTINGS } from "@/lib/ui/side-menu";
+import { SIDE_MENU_LEGAL } from "@/lib/ui/side-menu";
 
 const CODE = "0123456789abcdef0123456789abcdef";
 const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
 
 describe("Settings > Invite friends", () => {
   it("is a settings page in the side menu", () => {
-    assert.ok(SIDE_MENU_SETTINGS.some((item) => item.href === "/settings/invite" && item.label === "Invite friends"));
+    assert.ok(SIDE_MENU_LEGAL.some((item) => item.href === "/settings/invite" && item.label === "Invite friends"));
     assert.match(read("app/(app)/settings/invite/page.tsx"), /<InviteSettings \/>/);
   });
 
