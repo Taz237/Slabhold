@@ -68,12 +68,22 @@ describe("card server actions", () => {
   });
 
   it("check the rate limits before writing", () => {
-    const like = actions.indexOf("consumeLikeLimit(userId)");
+    const like = actions.indexOf("consumeRateLimit(userId, CARD_LIKES_BUCKET");
     const likeWrite = actions.indexOf('from("card_likes").insert');
-    assert.ok(like > 0 && like < likeWrite, "hourly like limit first");
+    assert.ok(like > 0 && like < likeWrite, "hourly card like limit first");
     const comment = actions.indexOf("consumeRateLimit(userId, CARD_COMMENTS_BUCKET");
     const commentWrite = actions.indexOf('from("card_comments")\n    .insert');
     assert.ok(comment > 0 && comment < commentWrite, "comment limit first");
+  });
+
+  it("card hearts have their own hourly limit, never the timeline's post like limit", async () => {
+    const { CARD_LIKES_BUCKET, CARD_LIKES_LIMIT, CARD_LIKES_WINDOW_MS, CARD_LIKE_LIMIT_MESSAGE } = await import("./card-social");
+    assert.equal(CARD_LIKES_BUCKET, "card-likes");
+    assert.notEqual(CARD_LIKES_BUCKET, "likes", "not the post likes bucket");
+    assert.equal(CARD_LIKES_LIMIT, 300);
+    assert.equal(CARD_LIKES_WINDOW_MS, 60 * 60 * 1000);
+    assert.match(CARD_LIKE_LIMIT_MESSAGE, /liking cards too quickly/);
+    assert.doesNotMatch(actions, /consumeLikeLimit|[^_]LIKE_LIMIT_MESSAGE/);
   });
 
   it("add no SQL: nothing in supabase/migrations mentions the card tables", async () => {

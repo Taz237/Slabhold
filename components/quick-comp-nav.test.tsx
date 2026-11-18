@@ -154,12 +154,15 @@ for (const flag of ["1", undefined]) {
     });
 
     it("the bar is Home, Catalog, Scan, Collection, Messages, with no /comp or /leaderboard tab", () => {
-      for (const path of ["/", "/comp", "/leaderboard", "/catalog"]) {
+      for (const path of ["/", "/comp", "/leaderboard"]) {
         const links = bar(path);
         assert.deepEqual(links.map(tabLabel), TODAY_BAR, path);
         assert.equal(links.some((link) => ["/comp", "/leaderboard"].includes(link.getAttribute("href") ?? "")), false, path);
       }
-      assert.equal(bar("/catalog")[1]?.getAttribute("aria-current"), "page");
+      assert.equal(bar("/")[1]?.getAttribute("href"), "/catalog");
+      // The Catalog feed is full screen, like TikTok: no tab bar over it.
+      const catalog = renderToStaticMarkup(providers("/catalog", createElement(mods.AppShell, null, createElement("p", null, "page"))));
+      assert.doesNotMatch(catalog, /app-nav/);
       assert.equal(bar("/leaderboard").some((link) => link.getAttribute("aria-current") === "page"), false);
     });
 

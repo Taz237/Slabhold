@@ -1,10 +1,14 @@
 "use server";
 
-import { consumeLikeLimit, consumeRateLimit, LIKE_LIMIT_MESSAGE } from "@/lib/comps/rate-limit";
+import { consumeRateLimit } from "@/lib/comps/rate-limit";
 import { createSupabaseServer, getAuthUserId } from "@/lib/supabase/server";
 import { isUuid } from "@/lib/value/card-value-access";
 import {
   CARD_COMMENT_LIMIT_MESSAGE,
+  CARD_LIKE_LIMIT_MESSAGE,
+  CARD_LIKES_BUCKET,
+  CARD_LIKES_LIMIT,
+  CARD_LIKES_WINDOW_MS,
   CARD_COMMENTS_BUCKET,
   CARD_COMMENTS_LIMIT,
   CARD_COMMENTS_WINDOW_MS,
@@ -20,7 +24,8 @@ import {
 /**
  * Card hearts and comments. Every write runs as the signed-in user, so the
  * tables' own rules decide (public cards only, blocks, own rows). The
- * hourly like limit and the comment limit are checked here first.
+ * hourly card like limit (its own, not the timeline's) and the comment
+ * limit are checked here first.
  */
 
 /** Heart or unheart a card. The screen has already moved; this saves it. */
@@ -29,7 +34,9 @@ export async function syncCardLike(input: { cardId: string; liked: boolean }): P
   if (!userId) return { ok: false, error: SIGNED_OUT_LIKE };
   if (!isUuid(input.cardId)) return { ok: false, error: "That card could not be liked." };
 
-  if (input.liked && !(await consumeLikeLimit(userId))) return { ok: false, error: LIKE_LIMIT_MESSAGE };
+  if (input.liked && !(await consumeRateLimit(userId, CARD_LIKES_BUCKET, CARD_LIKES_WINDOW_MS, CARD_LIKES_LIMIT))) {
+    return { ok: false, error: CARD_LIKE_LIMIT_MESSAGE };
+  }
 
   const supabase = await createSupabaseServer();
   if (!supabase) return { ok: false, error: "Likes aren't available right now." };

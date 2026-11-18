@@ -14,6 +14,7 @@ import type { CardCommentResult, CardLikeResult } from "@/lib/catalog-feed/card-
 import type { SocialContextValue } from "@/components/social-provider";
 
 const { win } = installDom();
+const SHEET_SETTLE = 240;
 Object.defineProperty(globalThis, "sessionStorage", { configurable: true, writable: true, value: win.sessionStorage });
 Object.defineProperty(globalThis, "Image", { configurable: true, writable: true, value: win.Image });
 
@@ -211,7 +212,9 @@ describe("Catalog feed", () => {
     assert.match(scroller.className, /snap-y snap-mandatory/);
     const slides = host.querySelectorAll("[data-feed-slide]");
     assert.equal(slides.length, 2);
-    assert.match(slides[0].className, /h-\[100dvh\] snap-start snap-always/);
+    // Sized to the scroller, never 100dvh (they differ in the iOS app and the snap springs back).
+    assert.match(slides[0].className, /\bh-full\b.*\bsnap-start\b/);
+    assert.doesNotMatch(slides[0].className, /100dvh|snap-always/);
     const text = slides[0].textContent ?? "";
     assert.match(text, /Victor Wembanyama/);
     assert.match(text, /2023-24 Prizm #136/);
@@ -254,8 +257,14 @@ describe("Catalog feed", () => {
       assert.match(prompt.textContent ?? "", new RegExp(title));
       assert.ok(prompt.querySelector("a[href='/signup?next=%2Fcatalog']"));
       assert.ok(prompt.querySelector("a[href^='/login']"));
+      // Its own layer on the page, above the app's tab bar, never inside the feed's layer.
+      const layer = prompt.closest<HTMLElement>("[data-feed-sheet]")!;
+      assert.equal(layer.parentElement, document.body);
+      assert.match(layer.className, /z-\[60\]/);
+      assert.equal(prompt.closest("[data-catalog-feed]"), null);
       act(() => prompt.querySelector<HTMLButtonElement>("button[aria-label='Close']")!.click());
-      await flush();
+      await flush(SHEET_SETTLE + 20);
+      assert.equal(document.querySelector("[data-sign-in-prompt]"), null, "closed");
     }
     assert.deepEqual(likeCalls, [], "nothing is written signed out");
     assert.deepEqual(pushed, [], "the feed stays put");
@@ -325,13 +334,17 @@ describe("Catalog feed", () => {
     await flush(320);
     assert.deepEqual(pushed, [card(1).href]);
     // The spot is saved, so Back lands on this card.
-    assert.ok(window.sessionStorage.getItem("slabhold:catalog-feed:v1:for-you:all"));
+    assert.ok(window.sessionStorage.getItem("slabhold:catalog-feed:v2:for-you:all"));
   });
 
   it("restores the saved spot on Back", async () => {
     window.sessionStorage.setItem(
-      "slabhold:catalog-feed:v1:for-you:all",
-      JSON.stringify({ cards: [card(5), card(6), card(7)], nextOffset: null, index: 2, savedAt: Date.now() }),
+      "slabhold:catalog-feed:cards:v1",
+      JSON.stringify(Object.fromEntries([card(5), card(6), card(7)].map((c) => [c.id, c]))),
+    );
+    window.sessionStorage.setItem(
+      "slabhold:catalog-feed:v2:for-you:all",
+      JSON.stringify({ ids: [id(5), id(6), id(7)], nextOffset: null, index: 2, savedAt: Date.now() }),
     );
     mount(createElement(CatalogFeed, { initial: feedPage(1, 2, null), initialFilters: forYou }));
     await flush(20);
@@ -368,9 +381,33 @@ describe("Catalog feed", () => {
     mount(createElement(CatalogFeed, { initial: feedPage(1, 3, 12), initialFilters: forYou }));
     await flush(10);
     assert.match(fetched[0] ?? "", /offset=12/);
-    const ids = [...host.querySelectorAll("[data-feed-slide]")].map((slide) => slide.getAttribute("aria-label"));
+    const ids = [...host.querySelectorAll("[data-card-id]")].map((slide) => slide.getAttribute("data-card-id"));
     assert.equal(ids.length, 5);
     assert.equal(new Set(ids).size, 5);
+  });
+
+  it("mounts only the cards within two of the screen; the rest hold their place", async () => {
+    mount(createElement(CatalogFeed, { initial: feedPage(1, 10, null), initialFilters: forYou }));
+    await flush();
+    assert.equal(host.querySelectorAll("[data-card-id]").length, 10, "every card keeps a box");
+    assert.equal(host.querySelectorAll("[data-feed-slide]").length, 3, "the card on screen and the next two");
+    const hold = host.querySelector("[data-feed-hold]")!;
+    assert.equal(hold.getAttribute("aria-hidden"), "true");
+    assert.equal(hold.textContent, "");
+  });
+
+  it("saves card ids for Back, never whole cards on every swipe", async () => {
+    mount(createElement(CatalogFeed, { initial: feedPage(1, 3, null), initialFilters: forYou }));
+    await flush(700);
+    const spot = JSON.parse(window.sessionStorage.getItem("slabhold:catalog-feed:v2:for-you:all") ?? "null");
+    assert.deepEqual(spot.ids, [id(1), id(2), id(3)]);
+    assert.equal("cards" in spot, false);
+  });
+
+  it("a heart from the catalog only touches card hearts, never timeline likes", () => {
+    const actions = read("lib/catalog-feed/card-actions.ts");
+    assert.match(actions, /CARD_LIKES_BUCKET/);
+    assert.doesNotMatch(actions, /consumeLikeLimit/);
   });
 
   it("shows a designed empty state, never a blank screen", async () => {
@@ -399,6 +436,117 @@ describe("Card comments sheet", () => {
     await flush(5);
     return document.querySelector<HTMLElement>("[role='dialog']")!;
   }
+
+  it("opens in its own layer above the app's tab bar, with the comment bar always showing", async () => {
+    viewer = { id: id(1), username: "me", displayName: "Me", avatarDataUrl: null };
+    listed = [comment(1, id(50), "Clean card")];
+    const sheet = await openSheet(card(1, { commentCount: 1 }));
+    const layer = sheet.closest<HTMLElement>("[data-feed-sheet]")!;
+    assert.equal(layer.parentElement, document.body, "portaled to the page, out of the feed's layer");
+    assert.match(layer.className, /fixed inset-0 z-\[60\]/);
+    const bar = sheet.querySelector("[data-comment-bar]")!;
+    assert.equal(bar.querySelector("textarea")?.getAttribute("placeholder"), "Add a comment…");
+    assert.ok(bar.querySelector("button[type='submit']"));
+  });
+
+  it("goes straight to writing when a card has no comments yet", async () => {
+    viewer = { id: id(1), username: "me", displayName: "Me", avatarDataUrl: null };
+    const sheet = await openSheet(card(1));
+    assert.ok(sheet.querySelector("[data-comments-empty]"));
+    assert.equal(document.activeElement, sheet.querySelector("textarea"));
+  });
+
+  it("sits on top of the iOS keyboard", async () => {
+    viewer = { id: id(1), username: "me", displayName: "Me", avatarDataUrl: null };
+    const sheet = await openSheet(card(1));
+    act(() => {
+      window.dispatchEvent(Object.assign(new win.Event("keyboardWillShow"), { keyboardHeight: 320 }));
+    });
+    await flush(20);
+    assert.equal(sheet.style.bottom, "320px");
+    act(() => {
+      window.dispatchEvent(new win.Event("keyboardWillHide"));
+    });
+    await flush(20);
+    assert.equal(sheet.style.bottom, "");
+  });
+
+  it("gives focus back to the comments button without scrolling the feed", async () => {
+    viewer = { id: id(1), username: "me", displayName: "Me", avatarDataUrl: null };
+    listed = [comment(1, id(50), "Clean card")];
+    mount(createElement(CatalogFeed, { initial: { cards: [card(1)], nextOffset: null }, initialFilters: forYou }));
+    await flush();
+    const button = host.querySelector<HTMLButtonElement>("button[aria-label^='Comments']")!;
+    button.focus();
+    act(() => button.click());
+    for (let i = 0; i < 20 && !document.querySelector("[role='dialog'] h2"); i++) await flush(5);
+    const calls: { node: Element; options: unknown }[] = [];
+    const focus = win.HTMLElement.prototype.focus;
+    win.HTMLElement.prototype.focus = function (this: HTMLElement, options?: FocusOptions) {
+      calls.push({ node: this, options });
+      return focus.call(this, options);
+    };
+    try {
+      act(() => document.querySelector<HTMLButtonElement>("[role='dialog'] button[aria-label='Close']")!.click());
+      await flush(SHEET_SETTLE + 20);
+    } finally {
+      win.HTMLElement.prototype.focus = focus;
+    }
+    assert.equal(document.querySelector("[role='dialog']"), null);
+    const back = calls.find((call) => call.node === button);
+    assert.deepEqual(back?.options, { preventScroll: true });
+  });
+
+  it("shows a new comment at once, then keeps it with Retry when it fails", async () => {
+    viewer = { id: id(1), username: "me", displayName: "Me", avatarDataUrl: null };
+    let release: (value: CardCommentResult) => void = () => {};
+    postReply = () => new Promise((resolve) => (release = resolve));
+    const sheet = await openSheet(card(1));
+    const field = sheet.querySelector<HTMLTextAreaElement>("textarea")!;
+    const setter = Object.getOwnPropertyDescriptor(win.HTMLTextAreaElement.prototype, "value")!.set!;
+    act(() => {
+      setter.call(field, "Sharp corners");
+      field.dispatchEvent(new win.Event("input", { bubbles: true }));
+    });
+    act(() => sheet.querySelector<HTMLButtonElement>("button[type='submit']")!.click());
+    const row = () => sheet.querySelector("[data-comments] li")!;
+    assert.match(row().textContent ?? "", /Sharp corners/, "shows before the server answers");
+    assert.equal(row().getAttribute("data-comment-state"), "sending");
+    assert.equal(field.value, "", "the bar is ready for the next one");
+
+    release({ ok: false, error: "That comment can't be posted." });
+    await flush(10);
+    assert.equal(row().getAttribute("data-comment-state"), "failed");
+    assert.equal(sheet.querySelector("[role='alert']")?.textContent, "That comment can't be posted.");
+    assert.ok(host.querySelector("button[aria-label='Comments, 0']"), "no count for a comment that didn't post");
+
+    postReply = async (input) => ({
+      ok: true,
+      comment: { id: id(778), cardId: input.cardId, userId: viewer!.id, body: input.body, createdAt: new Date().toISOString() },
+    });
+    act(() => [...row().querySelectorAll("button")].find((b) => b.textContent === "Retry")!.click());
+    await flush(10);
+    assert.equal(row().hasAttribute("data-comment-state"), false, "posted");
+    assert.deepEqual(posted.map((p) => p.body), ["Sharp corners", "Sharp corners"]);
+    assert.ok(host.querySelector("button[aria-label='Comments, 1']"));
+  });
+
+  it("says why comments didn't load and lets you try again", async () => {
+    viewer = { id: id(1), username: "me", displayName: "Me", avatarDataUrl: null };
+    let fail = true;
+    client.list = async () => {
+      if (fail) throw { code: "42501", message: "permission denied for table card_comments" };
+      return [comment(1, id(50), "Back again")];
+    };
+    const sheet = await openSheet(card(1, { commentCount: 1 }));
+    const box = sheet.querySelector("[data-comments-error]")!;
+    assert.match(box.textContent ?? "", /Your account can't do that right now\./);
+    assert.doesNotMatch(box.textContent ?? "", /permission denied/);
+    fail = false;
+    act(() => [...box.querySelectorAll("button")].find((b) => b.textContent === "Try again")!.click());
+    await flush(10);
+    assert.match(sheet.querySelector("[data-comments]")?.textContent ?? "", /Back again/);
+  });
 
   it("lists comments newest first, as read", async () => {
     viewer = { id: id(1), username: "me", displayName: "Me", avatarDataUrl: null };
@@ -514,6 +662,21 @@ describe("Catalog feed rules", () => {
     const page = read("app/(app)/catalog/page.tsx");
     assert.match(page, /<CatalogFeed /);
     assert.match(page, /readFeedPage\(filters, 0, viewerId\)/);
+  });
+});
+
+describe("Full screen catalog", () => {
+  it("hides the app's tab bar, + button and join bar on /catalog only", async () => {
+    const { isFullScreenPath } = await import("@/lib/auth/guest-paths");
+    assert.equal(isFullScreenPath("/catalog"), true);
+    assert.equal(isFullScreenPath("/catalog?tab=following"), true);
+    assert.equal(isFullScreenPath("/catalog/"), true);
+    assert.equal(isFullScreenPath("/"), false);
+    assert.equal(isFullScreenPath("/collection"), false);
+    const shell = read("components/app-shell.tsx");
+    assert.match(shell, /showNav && !chromeless && !fullScreen \? \(\n\s*<nav/);
+    assert.match(shell, /showJoin && !chromeless && !fullScreen \? <JoinBar \/>/);
+    assert.match(shell, /showNav && !chromeless && !fullScreen \? <CreateMenu/);
   });
 });
 

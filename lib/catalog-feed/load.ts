@@ -1,9 +1,9 @@
 import "server-only";
 
+import { unstable_cache } from "next/cache";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { cleanImageUrl } from "@/lib/social/link-preview";
 import { hiddenMovingOwner } from "@/lib/moving-today/present";
-import { getCardLikes } from "@/lib/public-catalog/load";
 import { isTcgRow } from "@/lib/public-catalog/query";
 import { FEED_PAGE_SIZE, feedCardFromRow, type FeedCard, type FeedFilters, type FeedPage } from "./feed";
 
@@ -16,6 +16,17 @@ export const FEED_POPULAR_PER_PAGE = 4;
 /** Following reads the newest this many follows. */
 export const FEED_FOLLOW_LIMIT = 200;
 const IN_CHUNK = 80;
+/**
+ * Rows one grouped count read takes. Under the API's row cap, so a read that
+ * comes back this full may have been cut short: then exact counts take over.
+ */
+export const ENGAGEMENT_ROW_CAP = 1000;
+/** Recent hearts read to rank the For You popular lane. */
+export const HEART_RANK_ROWS = 1000;
+/** Cards in the popular ranking. */
+export const HEART_RANK_CARDS = 200;
+/** The ranking is shared for five minutes. */
+export const HEART_RANK_CACHE_SECONDS = 300;
 
 type Row = Record<string, unknown>;
 type Admin = NonNullable<ReturnType<typeof createSupabaseAdmin>>;
@@ -81,8 +92,8 @@ async function readOwners(admin: Admin, ids: string[]): Promise<Map<string, Feed
 
 export type CardEngagement = { likeCount: number; commentCount: number };
 
-/** Exact head counts per card, run together. Small pages (12 cards), so 2 counts each. */
-async function countBy(admin: Admin, table: "card_likes" | "card_comments", cardIds: string[]): Promise<Map<string, number>> {
+/** Exact head counts per card, run together. Only when a grouped read came back full. */
+async function exactCounts(admin: Admin, table: "card_likes" | "card_comments", cardIds: string[]): Promise<Map<string, number>> {
   const counts = await Promise.all(
     cardIds.map(async (cardId) => {
       const { count, error } = (await admin
@@ -96,14 +107,72 @@ async function countBy(admin: Admin, table: "card_likes" | "card_comments", card
   return new Map(counts);
 }
 
-/** Hearts and comments on cards, from card_likes and card_comments. */
-export async function readCardEngagement(admin: Admin, cardIds: string[]): Promise<Map<string, CardEngagement>> {
+/**
+ * Rows per card for a whole page in one read (card_id only), counted here.
+ * A page is 12 to 16 cards, so this stays small. If the read comes back
+ * full it may be cut short, so those cards get exact counts instead.
+ */
+async function countBy(
+  admin: Admin,
+  table: "card_likes" | "card_comments",
+  cardIds: string[],
+  cap: number,
+): Promise<Map<string, number>> {
+  const out = new Map<string, number>(cardIds.map((id) => [id, 0]));
+  const result = (await admin.from(table).select("card_id").in("card_id", cardIds).limit(cap)) as Result;
+  if (result.error) return out;
+  const rows = (result.data ?? []) as Row[];
+  if (rows.length >= cap) return exactCounts(admin, table, cardIds);
+  for (const row of rows) {
+    const id = text(row.card_id);
+    if (out.has(id)) out.set(id, (out.get(id) ?? 0) + 1);
+  }
+  return out;
+}
+
+/** Hearts and comments on cards, from card_likes and card_comments. One read per table per page. */
+export async function readCardEngagement(
+  admin: Admin,
+  cardIds: string[],
+  cap = ENGAGEMENT_ROW_CAP,
+): Promise<Map<string, CardEngagement>> {
   const ids = [...new Set(cardIds)];
   const out = new Map<string, CardEngagement>();
   if (ids.length === 0) return out;
-  const [likes, comments] = await Promise.all([countBy(admin, "card_likes", ids), countBy(admin, "card_comments", ids)]);
+  const groups = chunks(ids, IN_CHUNK);
+  const read = async (table: "card_likes" | "card_comments") =>
+    new Map((await Promise.all(groups.map((group) => countBy(admin, table, group, cap)))).flatMap((map) => [...map]));
+  const [likes, comments] = await Promise.all([read("card_likes"), read("card_comments")]);
   for (const id of ids) out.set(id, { likeCount: likes.get(id) ?? 0, commentCount: comments.get(id) ?? 0 });
   return out;
+}
+
+/**
+ * The For You popular lane: cards ranked by their newest hearts in
+ * card_likes. Catalog only. Timeline posts and their likes never count.
+ */
+export async function readCardHeartRanking(admin: Admin | null = createSupabaseAdmin()): Promise<[string, number][]> {
+  if (!admin) return [];
+  const rows = rowsOf(
+    (await admin
+      .from("card_likes")
+      .select("card_id")
+      .order("created_at", { ascending: false })
+      .limit(HEART_RANK_ROWS)) as Result,
+  );
+  const hearts = new Map<string, number>();
+  for (const row of rows) {
+    const id = text(row.card_id);
+    if (id) hearts.set(id, (hearts.get(id) ?? 0) + 1);
+  }
+  return [...hearts.entries()].sort((a, b) => b[1] - a[1]).slice(0, HEART_RANK_CARDS);
+}
+
+/** The heart ranking, shared for five minutes. */
+export async function getCardHeartRanking(): Promise<[string, number][]> {
+  return unstable_cache(() => readCardHeartRanking(), ["catalog-feed-card-hearts-v1"], {
+    revalidate: HEART_RANK_CACHE_SECONDS,
+  })();
 }
 
 async function toFeedCards(admin: Admin, rows: Row[], source: (row: Row) => FeedCard["source"]): Promise<FeedCard[]> {
@@ -139,7 +208,7 @@ export async function readFollowing(admin: Admin, viewerId: string): Promise<str
 
 /**
  * One page of the feed.
- * For You: the newest public cards, plus a few of the most liked. The screen
+ * For You: the newest public cards, plus a few of the most hearted (card_likes). The screen
  * mixes them with what the viewer likes (see mixFeed).
  * Following: public cards from people the viewer follows, newest first.
  * Tests pass a fake `admin` and `likes`.
@@ -171,7 +240,7 @@ export async function readFeedPage(
   }
 
   const page = Math.floor(offset / FEED_PAGE_SIZE);
-  const pairs = likes ?? (await getCardLikes().catch(() => []));
+  const pairs = likes ?? (await getCardHeartRanking().catch(() => []));
   const popularIds = pairs
     .slice(page * FEED_POPULAR_PER_PAGE, (page + 1) * FEED_POPULAR_PER_PAGE)
     .map(([id]) => id);

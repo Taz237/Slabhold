@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
-import { FEED_COLUMNS, FEED_POPULAR_PER_PAGE, readCardEngagement, readFeedPage } from "./load";
+import { FEED_COLUMNS, FEED_POPULAR_PER_PAGE, readCardEngagement, readCardHeartRanking, readFeedPage } from "./load";
 import { FEED_PAGE_SIZE, type FeedFilters } from "./feed";
 
 type Row = Record<string, unknown>;
@@ -45,9 +45,9 @@ function tables(): Record<string, Row[]> {
     ],
     follows: [{ follower_id: uuid(1), following_id: uuid(901), created_at: "2026-11-01" }],
     card_likes: [
-      { card_id: uuid(3), user_id: uuid(1) },
-      { card_id: uuid(3), user_id: uuid(2) },
-      { card_id: uuid(4), user_id: uuid(1) },
+      { card_id: uuid(3), user_id: uuid(1), created_at: "2026-11-03" },
+      { card_id: uuid(3), user_id: uuid(2), created_at: "2026-11-02" },
+      { card_id: uuid(4), user_id: uuid(1), created_at: "2026-11-04" },
     ],
     card_comments: [
       { id: "c1", card_id: uuid(3) },
@@ -152,11 +152,50 @@ describe("readCardEngagement", () => {
     assert.deepEqual([...tablesRead].sort(), ["card_comments", "card_likes"]);
   });
 
+  it("reads each table once for the whole page, not once per card", async () => {
+    const { admin, calls } = fakeAdmin(tables());
+    const ids = Array.from({ length: 12 }, (_, i) => uuid(i + 1));
+    const map = await readCardEngagement(admin, ids);
+    assert.deepEqual(map.get(uuid(3)), { likeCount: 2, commentCount: 1 });
+    assert.equal(calls.filter((call) => call.table === "card_likes").length, 1);
+    assert.equal(calls.filter((call) => call.table === "card_comments").length, 1);
+    const likes = calls.find((call) => call.table === "card_likes")!;
+    assert.deepEqual(likes.ops.find(([op]) => op === "in")?.[1], ["card_id", ids]);
+  });
+
+  it("falls back to exact counts per card when a page has more rows than one read returns", async () => {
+    const { admin, calls } = fakeAdmin(tables());
+    const map = await readCardEngagement(admin, [uuid(3), uuid(4)], 2);
+    assert.deepEqual(map.get(uuid(3)), { likeCount: 2, commentCount: 1 });
+    assert.deepEqual(map.get(uuid(4)), { likeCount: 1, commentCount: 0 });
+    // One grouped read that hit the cap, then one exact count per card for likes.
+    assert.equal(calls.filter((call) => call.table === "card_likes").length, 3);
+  });
+
   it("feed cards carry those counts", async () => {
     const { admin } = fakeAdmin(tables());
     const page = await readFeedPage(forYou, 0, null, admin, [[uuid(3), 9]]);
     const three = page.cards.find((c) => c.id === uuid(3));
     assert.equal(three?.likeCount, 2);
     assert.equal(three?.commentCount, 1);
+  });
+});
+
+describe("For You popular lane", () => {
+  it("ranks cards by recent hearts in card_likes, most hearted first", async () => {
+    const { admin, calls } = fakeAdmin(tables());
+    const ranking = await readCardHeartRanking(admin);
+    assert.deepEqual(ranking, [
+      [uuid(3), 2],
+      [uuid(4), 1],
+    ]);
+    assert.deepEqual([...new Set(calls.map((call) => call.table))], ["card_likes"]);
+  });
+
+  it("stays apart from the timeline: no posts, post likes or post_cards", () => {
+    const load = readFileSync(join(process.cwd(), "lib/catalog-feed/load.ts"), "utf8");
+    assert.doesNotMatch(load, /getCardLikes|readCardLikes|public-catalog\/load/);
+    assert.doesNotMatch(load, /"posts"|"post_cards"|"likes"|"comments"|like_count/);
+    assert.match(load, /getCardHeartRanking\(\)/);
   });
 });
