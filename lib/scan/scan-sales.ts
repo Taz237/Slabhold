@@ -124,6 +124,18 @@ export function isUnnamedRunLabel(label: string | null | undefined): boolean {
 }
 
 /**
+ * Sales of a card that is never a plain version (a patch card) whose titles name no parallel and
+ * no print run: we can't tell which version sold, so they are never this card's price and never
+ * "Base" or the insert's name.
+ */
+export const UNNAMED_VERSION_LABEL = "Version not named";
+
+/** A group that names no parallel (only a run, or nothing): shown, never a version to pick or to price a card by. */
+export function isUnnamedLabel(label: string | null | undefined): boolean {
+  return label === UNNAMED_VERSION_LABEL || isUnnamedRunLabel(label);
+}
+
+/**
  * The parallel a sold title names, from its color and finish words and insert, then the set's own
  * checklist (Choice, Snakeskin, X-Fractor). "Base" only when the title names no parallel or finish.
  */
@@ -213,7 +225,11 @@ function otherMakerTitle(title: string, cardMaker: CardMaker, yearLabel: string,
 }
 
 export function scanSalesFor(
-  match: Pick<ScanMatch, "playerName" | "cardNumber" | "serialRun" | "yearLabel"> & Pick<Partial<ScanMatch>, "runUnsure">,
+  match: Pick<ScanMatch, "playerName" | "cardNumber" | "serialRun" | "yearLabel"> &
+    Pick<Partial<ScanMatch>, "runUnsure"> & {
+      /** The card is never a plain version (it holds a patch or a relic): a title naming no version isn't "Base". */
+      neverPlain?: boolean;
+    },
   identity: Pick<QuickCompIdentity, "grade"> & Partial<QuickCompIdentity>,
   results: readonly TrawlSoldResult[],
   directory: readonly IndexedDirectoryPlayer[],
@@ -304,7 +320,19 @@ export function scanSalesFor(
     }
     // "Sapphire" in the title is the product, not the parallel: "Sapphire Black /10" is Black.
     const named = titleParallel(sapphireCard ? withoutSapphire(title) : title, directory, setBrand);
-    const parallel = named === "Base" && match.serialRun ? unnamedRunLabel(match.serialRun) : named;
+    // A title that names no color is filed by the print run it names: the card's own when it was
+    // read, else the title's (one run only). A "/10" sale is never mixed in with unnumbered ones.
+    const runs = match.serialRun ? [] : [...new Set(titleSerialRuns(title))];
+    const parallel =
+      named !== "Base"
+        ? named
+        : match.serialRun
+          ? unnamedRunLabel(match.serialRun)
+          : runs.length === 1
+            ? unnamedRunLabel(runs[0])
+            : match.neverPlain
+              ? UNNAMED_VERSION_LABEL
+              : named;
     kept.push({ itemId: result.item_id, title, price, soldAt: result.date_sold ?? null, parallel });
   }
   return { kept, dropped };

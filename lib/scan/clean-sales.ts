@@ -34,9 +34,11 @@ export function cleanGroups(
   results: readonly TrawlSoldResult[],
   directory: readonly IndexedDirectoryPlayer[],
   serialRun: number | null | undefined,
+  /** The card is never a plain version (a patch card). */
+  neverPlain = false,
 ): ParallelGroup[] {
   const { kept } = scanSalesFor(
-    { playerName: identity.playerName, cardNumber: identity.cardNumber, serialRun: serialRun ?? null, yearLabel: identity.yearLabel },
+    { playerName: identity.playerName, cardNumber: identity.cardNumber, serialRun: serialRun ?? null, yearLabel: identity.yearLabel, neverPlain },
     { grade: identity.grade, setBrand: identity.setBrand, parallel: identity.parallel, insertName: identity.insertName },
     results,
     directory,

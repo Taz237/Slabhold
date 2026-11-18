@@ -1522,7 +1522,10 @@ function pickParallel(
   // base can look like its Silver/Refractor (Prizm, Optic, Select, Mosaic), so titles never flip it.
   // An autograph or a named variation is never Base either, so titles that agree may name its color.
   const neverBase = run != null || evidence.isAuto || Boolean(evidence.subset);
-  const soldColor = neverBase ? titleColor(titles, run, evidence.border) : "";
+  // A patch card whose serial wasn't read: its versions differ by run, so a color most titles name
+  // (the Red /99 that sold last week) says nothing about this one. Open, never a guess.
+  const runMissed = Boolean(evidence.isRelic) && run == null;
+  const soldColor = neverBase && !runMissed ? titleColor(titles, run, evidence.border) : "";
 
   // A printed insert is the card's own name (Instinct), not a guess. Its color comes from the card or a sold title.
   if (evidence.insert) {
