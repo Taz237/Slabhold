@@ -3,12 +3,13 @@ import { describe, it } from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { DeltaChip } from "@/components/sales-chart";
+import { LB_CARD_TOP, LB_RANK_TEXT, LB_YOU, LB_YOU_TINT, LB_YOU_TINT_ALPHA } from "@/lib/leaderboard/theme";
 import { boardHtml, pageModel, render, rows, snap } from "@/lib/test/leaderboard-view";
 
-/** Slabhold purple (violet-600): rings, glows and fills. */
+/** Slabhold purple (violet-600): the board accent and the viewer row's tint. */
 const VIOLET_600 = "#7c3aed";
-/** Rank numerals are small text on the near-black board, so they need 4.5:1. */
-const BOARD_BG = "#09090b";
+/** Rank numerals sit on the board card. Its lighter top is the hardest place for them, so they need 4.5:1 there. */
+const BOARD_BG = LB_CARD_TOP;
 const EMERALD = /#10b981|emerald|16,\s*185,\s*129/i;
 
 function rgb(hex: string): [number, number, number] {
@@ -29,7 +30,7 @@ function contrast(a: [number, number, number], b: [number, number, number]): num
   return (hi + 0.05) / (lo + 0.05);
 }
 
-/** `over` at `alpha` on top of `under`, as the viewer row's `${accent}1f` tint draws. */
+/** `over` at `alpha` on top of `under`, as the viewer row's tint draws. */
 function blend(over: string, alpha: number, under: string): [number, number, number] {
   const top = rgb(over);
   const bottom = rgb(under);
@@ -45,19 +46,23 @@ describe("Rising collectors board in Slabhold purple", () => {
   it("draws no emerald and uses violet-600 for the board accent", () => {
     const html = risingBoard();
     assert.doesNotMatch(html, EMERALD);
-    assert.match(html, new RegExp(`--lb-accent:${VIOLET_600}`, "i"), "board glow and focus ring");
-    assert.match(html, new RegExp(`box-shadow:0 0 0 2px #09090b, 0 0 0 4px ${VIOLET_600}`, "i"), "viewer ring");
-    assert.match(html, new RegExp(`background-color:${VIOLET_600}1f`, "i"), "viewer row tint");
+    assert.match(html, new RegExp(`--lb-accent:${VIOLET_600}`, "i"), "board accent");
+    assert.equal(LB_YOU_TINT.toLowerCase(), VIOLET_600, "the viewer row is tinted with brand purple");
+    const alpha = Math.round(LB_YOU_TINT_ALPHA * 255).toString(16).padStart(2, "0");
+    assert.match(html, new RegExp(`background-color:${LB_YOU_TINT}${alpha}`, "i"), "viewer row tint");
+    // The viewer row's edge is drawn inside the row, so it shares the row's box and corners.
+    assert.match(html, new RegExp(`box-shadow:inset 0 0 0 1.5px ${LB_YOU}`, "i"), "viewer row edge");
   });
 
   it("keeps rank numerals at 4.5:1 or better on the board and the viewer's tinted row", () => {
     const html = risingBoard();
-    const colors = [...html.matchAll(/text-sm font-semibold tabular-nums" style="color:(#[0-9a-f]{6})"/gi)].map((m) => m[1]);
+    const colors = [...html.matchAll(/data-rank-numeral=""[^>]*style="color:(#[0-9a-f]{6})"/gi)].map((m) => m[1]);
     assert.ok(colors.length > 0, "rank rows render a numeral color");
     const text = colors[0];
     assert.ok(colors.every((color) => color === text), "one numeral color per board");
     const onBoard = contrast(rgb(text), rgb(BOARD_BG));
-    const onViewerRow = contrast(rgb(text), blend(VIOLET_600, 0x1f / 255, BOARD_BG));
+    assert.equal(text, LB_RANK_TEXT);
+    const onViewerRow = contrast(rgb(text), blend(LB_YOU_TINT, LB_YOU_TINT_ALPHA, BOARD_BG));
     assert.ok(onBoard >= 4.5, `numeral on board ${onBoard.toFixed(2)}:1`);
     assert.ok(onViewerRow >= 4.5, `numeral on viewer row ${onViewerRow.toFixed(2)}:1`);
     assert.ok(contrast(rgb(VIOLET_600), rgb(BOARD_BG)) < 4.5, "violet-600 alone is too dark for small text here");

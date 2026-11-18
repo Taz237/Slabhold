@@ -108,11 +108,12 @@ describe("web fixes 2: livelier leaderboards", () => {
     assert.deepEqual(leadBoardFirst([], "current").boards, []);
   });
 
-  it("shows one short lead line and moves the rest into How the boards work", () => {
+  it("keeps the header to the layout and moves every line into How the boards work", () => {
     const markup = render(pageModel(snap({})));
     const header = markup.slice(0, markup.indexOf("<details"));
     const sheet = markup.slice(markup.indexOf("<details"), markup.indexOf("</details>"));
-    assert.match(header, new RegExp(RULES_LINE));
+    assert.doesNotMatch(header, new RegExp(RULES_LINE), "the reset line is not always on screen");
+    assert.match(sheet, new RegExp(RULES_LINE), "it is in the rules sheet");
     const description = LEADERBOARD_DESCRIPTION.replace(/[.]/g, "\\.").replace(/'/g, "(?:'|&#x27;)");
     assert.doesNotMatch(header, new RegExp(description));
     assert.match(sheet, new RegExp(description));

@@ -18,8 +18,6 @@ import {
   BOARD_ERROR_TITLE,
   CLOSED_NOTE,
   FINAL_LABEL,
-  ON_BOARD_THIN_DETAIL,
-  ON_BOARD_THIN_TITLE,
   REMOVED_FOLLOW_RULE,
   TOP_CARD_LEAD,
   VALUE_BOARD_ID,
@@ -105,7 +103,7 @@ describe("leaderboard page", () => {
     assert.match(model.countdownLabel, /^Resets in /);
     assert.equal(model.showCountdown, true);
     assert.equal(model.rules[0]?.lines[0], LEADERBOARD_TABS.find((tab) => tab.id === model.rules[0]?.id)?.howTo[0]);
-    const html = renderToStaticMarkup(createElement(LeaderboardView, { model }));
+    const html = renderToStaticMarkup(withRouter(createElement(LeaderboardView, { model })));
     assert.match(html, /Test accounts are left out\./);
     assert.doesNotMatch(html, /Mail Day posts do not count/);
     assert.doesNotMatch(html, /qa_/);
@@ -160,11 +158,9 @@ describe("leaderboard page", () => {
     assert.equal(thin.description.startsWith("Last week's"), true);
     assert.equal(thin.description.includes("This week's"), false);
     assert.equal(thin.showCountdown, false);
-    assert.equal(rising?.lead, "Get follows from real collectors last week.");
-    assert.doesNotMatch(rising?.lead ?? "", /this week/);
-    const thinHtml = renderToStaticMarkup(createElement(LeaderboardView, { model: thin }));
+    const thinHtml = renderToStaticMarkup(withRouter(createElement(LeaderboardView, { model: thin })));
     assert.doesNotMatch(thinHtml, /Resets in/);
-    assert.match(thinHtml, /Get follows from real collectors last week/);
+    assert.doesNotMatch(thinHtml, /Get follows from real collectors last week/, "no lead sentence on the board");
     assert.match(thinHtml, /Last week(?:'|&#x27;)s cards added/);
     assert.doesNotMatch(thinHtml, /This week(?:'|&#x27;)s/);
     assert.match(thinHtml, /data-standing=""[^>]*>Closed</);
@@ -199,11 +195,12 @@ describe("leaderboard page", () => {
     assert.equal(posts?.entries.length, 2);
     assert.equal(posts?.you?.label, "You: #1");
     assert.equal(posts?.yourSpot, null);
-    assert.equal(posts?.leadTitle, ON_BOARD_THIN_TITLE);
-    assert.equal(posts?.lead, ON_BOARD_THIN_DETAIL);
+    assert.equal(posts?.entries[0]?.mine, true);
     assert.equal(posts?.ghosts.length, 1);
-    const html = renderToStaticMarkup(createElement(LeaderboardView, { model: scored }));
-    assert.match(html, /You&#x27;re on the board/);
+    const html = renderToStaticMarkup(withRouter(createElement(LeaderboardView, { model: scored })));
+    // The podium says it: the viewer's block wears the ring and the You tag. No sentence.
+    assert.doesNotMatch(html, /You&#x27;re on the board/);
+    assert.match(html, /data-viewer-row=""[\s\S]*>You<[\s\S]*data-you-block=""/);
     assert.match(html, /data-ghost-rank="3"/);
 
     const guest = presentLeaderboard({
@@ -215,8 +212,7 @@ describe("leaderboard page", () => {
     });
     const guestPosts = guest.boards.find((board) => board.id === "top-card-post");
     assert.equal(guestPosts?.you, null);
-    assert.equal(guestPosts?.leadTitle, null);
-    assert.equal(guestPosts?.lead, TOP_CARD_LEAD);
+    assert.equal(guestPosts?.entries.some((entry) => entry.mine), false);
 
     const none = presentLeaderboard({
       snapshot: emptySnapshot(now),
@@ -229,7 +225,6 @@ describe("leaderboard page", () => {
     assert.equal(nonePosts?.thin, true);
     assert.equal(nonePosts?.you?.score, 0);
     assert.equal(nonePosts?.yourSpot?.ctaHref, "/compose");
-    assert.equal(nonePosts?.leadTitle, null);
   });
 
   it("caps the list at 10 and still ranks the viewer past that", () => {
@@ -288,7 +283,7 @@ describe("leaderboard page", () => {
     assert.equal(posts?.entries.at(-1)?.rank, 10);
     assert.equal(posts?.you?.rank, 5);
     assert.equal(posts?.ghosts.length, 0);
-    const html = renderToStaticMarkup(createElement(LeaderboardView, { model }));
+    const html = renderToStaticMarkup(withRouter(createElement(LeaderboardView, { model })));
     assert.match(html, /lb-banner lb-banner-1/);
     assert.match(html, /data-rank-rows=""/);
     assert.match(html, /data-rank="4"/);
@@ -304,7 +299,7 @@ describe("leaderboard page", () => {
     const rankRows = html.match(/<ol [^>]*data-rank-rows="">([\s\S]*?)<\/ol>/)?.[1] ?? "";
     const rowClasses = [...rankRows.matchAll(/<li [^>]*data-rank="\d+"[^>]*><(?:a|div) [^>]*class="([^"]*)"/g)].map((m) => m[1].split(/\s+/));
     assert.equal(rowClasses.length, (rankRows.match(/<li /g) ?? []).length);
-    assert.ok(rowClasses.length > 0 && rowClasses.every((cls) => cls.includes("min-h-12")));
+    assert.ok(rowClasses.length > 0 && rowClasses.every((cls) => cls.includes("min-h-14")));
     assert.match(html.match(/<div data-your-spot=""[^>]*>/)?.[0] ?? "", /class="[^"]*\bmin-h-14\b/);
     snap.previous.boards["top-card-post"] = { rows };
     const last = presentLeaderboard({
@@ -314,7 +309,7 @@ describe("leaderboard page", () => {
       focusBoardId: null,
       now,
     });
-    const lastHtml = renderToStaticMarkup(createElement(LeaderboardView, { model: last }));
+    const lastHtml = renderToStaticMarkup(withRouter(createElement(LeaderboardView, { model: last })));
     assert.match(lastHtml, /data-rank="4"/);
     assert.match(lastHtml, /href="\/u\/u4\?tab=cards"/);
     assert.doesNotMatch(lastHtml, /href="\/posts\//);
@@ -334,10 +329,9 @@ describe("leaderboard page", () => {
       focusBoardId: "rising-collectors",
       now,
     });
-    const risingHtml = renderToStaticMarkup(createElement(LeaderboardView, { model: rising }));
+    const risingHtml = renderToStaticMarkup(withRouter(createElement(LeaderboardView, { model: rising })));
     assert.match(risingHtml, /data-rank="4"/);
     assert.match(risingHtml, /Dee Collector/);
-    assert.match(risingHtml, /@dee/);
     assert.match(risingHtml, /href="\/u\/dee\?tab=cards"/);
     assert.match(risingHtml, /new follower/);
   });
