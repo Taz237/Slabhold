@@ -24,6 +24,13 @@ export type MatchCard = {
    */
   anyRun?: boolean;
   /**
+   * The other parallels on this card's own product list (its year, set and sport), by name: every
+   * listed parallel that isn't this card's (lib/comps/known-run.ts). A sold title that names one is
+   * that parallel's sale, never this card's: "Sandglitter" and "Rainbow Foilboard" are not on the
+   * general parallel word list, but they are on 2026-27 Topps' own. Missing: no list for the card.
+   */
+  otherParallels?: readonly string[];
+  /**
    * serialRun came from the checklist, not from the owner (lib/comps/known-run.ts). Sellers often
    * leave the run out ("Gold Refractor PSA 10"), so a title that prints no run counts; a title
    * that prints a different run never does. An owner-saved run keeps the strict rule.
@@ -1161,6 +1168,50 @@ function agreeOnOneCard(card: MatchCard, sales: CleanedSale[]): CleanedSale[] {
   return sales;
 }
 
+/** The family words sellers add to a named parallel: a Gold is a "Gold Refractor", a Silver a "Silver Prizm". Never a parallel of their own on a named card. */
+const LISTED_SUFFIX_WORDS = ["refractor", "refractors", "prizm", "prizms", "border", "parallel"];
+
+/** A listed parallel's name as a pattern: hyphens and spaces alike ("Tie-Dye", "Tie Dye", "TieDye"). */
+function listedNamePattern(name: string): RegExp {
+  const body = name
+    .trim()
+    .toLowerCase()
+    .split(/[\s-]+/)
+    .map((part) => escapeRegExp(part))
+    .join("[\\s-]*");
+  return new RegExp(`\\b${body}\\b`, "i");
+}
+
+/**
+ * The title names a parallel from the card's own product list that isn't the card's. The set's
+ * name, the player's and team names are taken out first, so "Red Sox" is not the Red and "James
+ * Wood" is not the Wood. A listed name whose words are all in the card's own parallel ("Gold" for a
+ * Gold Refractor) is the card's.
+ */
+export function titleNamesOtherParallel(title: string, card: Pick<MatchCard, "otherParallels" | "parallel" | "setBrand" | "playerName">): boolean {
+  if (!card.otherParallels?.length) return false;
+  const text = stripTeamNames(stripSetAndPlayer(joinParallelSpellings(title.toLowerCase()), { setBrand: card.setBrand, playerName: card.playerName }));
+  const ownName = joinParallelSpellings((card.parallel ?? "").toLowerCase());
+  const own = new Set(parallelNameWords(ownName));
+  const named = !parallelIsBase(card.parallel);
+  // The card's own parallel as the title writes it comes out first, with the word sellers add to
+  // it: a Gold sells as "Gold Refractor", and that "Refractor" is not the plain Refractor.
+  const rest = named
+    ? text
+        .replace(new RegExp(`${listedNamePattern(ownName).source}(?:[\\s-]+(?:${LISTED_SUFFIX_WORDS.join("|")}))?`, "gi"), " ")
+        .replace(new RegExp(`\\b(?:${LISTED_SUFFIX_WORDS.join("|")})[\\s-]+${listedNamePattern(ownName).source}`, "gi"), " ")
+    : text;
+  for (const name of card.otherParallels) {
+    const words = parallelNameWords(joinParallelSpellings(name.toLowerCase()));
+    if (words.length === 0 || words.every((word) => own.has(word))) continue;
+    // A named card may carry the family's own word anywhere in the title ("Gold /50 Refractor").
+    if (named && words.every((word) => LISTED_SUFFIX_WORDS.includes(word))) continue;
+    // A longer name built on the card's own word ("Gold Wave Refractor" for a Gold) is read off the whole title.
+    if (listedNamePattern(joinParallelSpellings(name)).test(words.some((word) => own.has(word)) ? text : rest)) return true;
+  }
+  return false;
+}
+
 export function titleMatchesCard(title: string, card: MatchCard): boolean {
   if (titleLooksExcluded(title)) return false;
   if (card.playerName.trim() && !titleHasPlayer(title, card.playerName)) {
@@ -1204,6 +1255,8 @@ export function titleMatchesCard(title: string, card: MatchCard): boolean {
   ) {
     return false;
   }
+  // A title naming another parallel on the card's own product list is that parallel's sale.
+  if (titleNamesOtherParallel(title, card)) return false;
   const runOpen = card.anyRun === true && !card.serialRun && !parallelIsBase(card.parallel);
   if (!runOpen && !titleSerialOk(title, card.serialRun, card.runFromChecklist === true)) return false;
 

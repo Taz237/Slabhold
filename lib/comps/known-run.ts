@@ -51,3 +51,59 @@ export function withKnownRun<T extends RunCard & { serialRun?: number | null; ru
   const run = knownPrintRun(products, card);
   return run ? { ...card, serialRun: run, runFromChecklist: true } : card;
 }
+
+/**
+ * The card as its sold filter needs it: its known print run (withKnownRun), and the other parallels
+ * on its own product list, so a sale that names one of them is never counted as this card's
+ * (MatchCard.otherParallels). With no list for the card it is the card, unchanged.
+ */
+export function withProductList<T extends RunCard & { serialRun?: number | null; runFromChecklist?: boolean; otherParallels?: readonly string[] }>(
+  card: T,
+  products: readonly ProductRecord[] | null,
+): T {
+  const known = withKnownRun(card, products);
+  const others = otherListedParallels(products, card);
+  return others.length > 0 ? { ...known, otherParallels: others } : known;
+}
+
+/** Base subsets and tiers a product list carries beside its parallels: never a parallel a title is rejected for. */
+const BASE_LEVELS = new Set(["base", "rated rookie", "rated rookies", "concourse", "premier", "premier level", "club level", "field level", "suite level", "courtside"]);
+
+/**
+ * Every other parallel on the card's own product list (its year, set and sport, and its card #'s
+ * prefix): the names a sold title must not carry to be this card's sale (MatchCard.otherParallels).
+ * Left out: Base, the card's own parallel (give or take "Refractor" or "Border"), and a tier's own
+ * name (Select's "Field Level"). Empty with no list for the card.
+ */
+export function otherListedParallels(products: readonly ProductRecord[] | null, card: RunCard): string[] {
+  const own = displayParallelName((card.parallel ?? "").trim() || "Base");
+  return listedParallelNames(products, card).filter((name) => parallelMatchKey(name) !== parallelMatchKey(own) && !sameParallelLoosely(name, own));
+}
+
+/**
+ * Every parallel on the card's own product list (its year, set and sport, and its card #'s prefix),
+ * by name: what a sold title can call a version of this card. Base and a tier's own name (Select's
+ * "Field Level") are left out. Empty with no list for the card.
+ */
+export function listedParallelNames(products: readonly ProductRecord[] | null | undefined, card: Omit<RunCard, "parallel">): string[] {
+  if (!products?.length) return [];
+  const yearLabel = (card.yearLabel ?? "").trim() || (card.year > 0 ? String(card.year) : "");
+  const phrase = productPhrase(card.setBrand);
+  if (!yearLabel || !phrase) return [];
+  const sport = (card.sport ?? "").trim().toLowerCase();
+  const names = new Map<string, string>();
+  for (const product of products) {
+    if (!sameSeason(product.yearLabel, yearLabel) || productPhrase(product.product) !== phrase) continue;
+    if (sport && product.sport.trim().toLowerCase() !== sport) continue;
+    const options = parallelsIn([product], product.sport, product.yearLabel, product.product, card.cardNumber);
+    const keys = options.map((option) => parallelMatchKey(option.name));
+    options.forEach((option, index) => {
+      const key = keys[index];
+      if (!key || BASE_LEVELS.has(key)) return;
+      // A tier (three or more names start with it) is where the card sits in the set, not a parallel.
+      if (keys.filter((other) => other.startsWith(`${key} `)).length >= 3 && option.serialRun == null) return;
+      if (!names.has(key)) names.set(key, option.name);
+    });
+  }
+  return [...names.values()];
+}

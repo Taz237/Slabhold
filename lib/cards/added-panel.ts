@@ -114,6 +114,15 @@ export function recentSoldPrices(
     }));
 }
 
+/**
+ * Under the short list of sold prices: how many of the sales the figure stands on are listed here,
+ * when not all of them are ("The 3 newest of 9"). Null when every one is listed.
+ */
+export function hiddenSalesNote(total: number | null | undefined, listed: number): string | null {
+  if (typeof total !== "number" || !(listed > 0) || total <= listed) return null;
+  return `The ${listed} newest of ${total}`;
+}
+
 export type AddedRevealLine =
   | AddedValueLine
   | { kind: "weak" | "none"; text: string; fix: { label: string; href: string } | null };

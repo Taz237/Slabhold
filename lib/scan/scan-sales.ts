@@ -230,7 +230,15 @@ export function scanSalesFor(
       /** The card is never a plain version (it holds a patch or a relic): a title naming no version isn't "Base". */
       neverPlain?: boolean;
     },
-  identity: Pick<QuickCompIdentity, "grade"> & Partial<QuickCompIdentity>,
+  identity: Pick<QuickCompIdentity, "grade"> &
+    Partial<QuickCompIdentity> & {
+      /**
+       * The parallels on the card's own product list (lib/comps/known-run.ts listedParallelNames).
+       * A title naming one is that parallel's sale, never Base: "Sandglitter" and "Rainbow Foilboard"
+       * are 2026-27 Topps' own. Missing or empty: the set family's general list.
+       */
+      listedParallels?: readonly string[];
+    },
   results: readonly TrawlSoldResult[],
   directory: readonly IndexedDirectoryPlayer[],
 ): ScanSalesResult {
@@ -319,7 +327,7 @@ export function scanSalesFor(
       continue;
     }
     // "Sapphire" in the title is the product, not the parallel: "Sapphire Black /10" is Black.
-    const named = titleParallel(sapphireCard ? withoutSapphire(title) : title, directory, setBrand);
+    const named = titleParallel(sapphireCard ? withoutSapphire(title) : title, directory, setBrand, identity.listedParallels?.length ? identity.listedParallels : undefined);
     // A title that names no color is filed by the print run it names: the card's own when it was
     // read, else the title's (one run only). A "/10" sale is never mixed in with unnumbered ones.
     const runs = match.serialRun ? [] : [...new Set(titleSerialRuns(title))];

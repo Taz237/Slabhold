@@ -1,3 +1,4 @@
+import { listedParallelNames } from "@/lib/comps/known-run";
 import { onlyParallelAtRun, type ProductRecord } from "@/lib/cards/product-data";
 import { gradesMatchCard, isRawCard, parseGradeFromTitle, titleMatchesCard } from "@/lib/comps/match";
 import { sharedCompValue } from "@/lib/comps/shared-value";
@@ -62,6 +63,8 @@ export type ScanCompOptions = {
   serialRun?: number | null;
   /** The live search the scan ran (from /api/scan/solds), so another parallel or grade reuses it. */
   query?: string | null;
+  /** Every search the scan ran that answered. Read together: the scan counted its sales from all of them. */
+  queries?: readonly string[];
 };
 
 /**
@@ -94,9 +97,13 @@ export async function lookupScanComp(
   let sources = 2;
   // The only parallel at this run: the run's clear majority of sales is this card, whatever the titles call it.
   let runPicked = false;
-  if (deps.products && options.serialRun) {
+  // The parallels on the card's own product list: a sale naming one is that version's, as the scan counted it.
+  let listedParallels: string[] = [];
+  if (deps.products) {
     try {
-      runPicked = onlyParallelAtRun(await deps.products(), identity, options.serialRun);
+      const products = await deps.products();
+      if (options.serialRun) runPicked = onlyParallelAtRun(products, identity, options.serialRun);
+      listedParallels = listedParallelNames(products, { yearLabel: identity.yearLabel, year: identity.year, setBrand: identity.setBrand, cardNumber: identity.cardNumber });
     } catch {
       runPicked = false;
     }
@@ -107,7 +114,7 @@ export async function lookupScanComp(
     if (cached && !cached.sample && cached.comps.length > 0 && deps.directory) {
       // The scan's own filter, so this list matches what the scan showed for the same card.
       const results = asTrawlResults(cached.comps.filter((comp) => comp.title).map((comp) => ({ title: comp.title!, price: comp.soldPrice, soldAt: comp.soldDate })));
-      const result = cleanCompFor(identity, results, deps.directory, { runPicked, serialRun: options.serialRun, asOf: cached.fetchedAt, source: "quick-comp" });
+      const result = cleanCompFor(identity, results, deps.directory, { runPicked, listedParallels, serialRun: options.serialRun, asOf: cached.fetchedAt, source: "quick-comp" });
       if (result.status === "ok") return result;
     }
     const comps = cached && !deps.directory ? cachedSalesFor(identity, cached.comps, deps.directory) : [];
@@ -123,12 +130,13 @@ export async function lookupScanComp(
   }
 
   // Another parallel or grade on the same scan: the live search already ran, so filter it again.
-  if (options.query && deps.liveCache) {
+  const queries = [...new Set([...(options.queries ?? []), ...(options.query ? [options.query] : [])])];
+  if (queries.length > 0 && deps.liveCache) {
     try {
-      const results = await deps.liveCache(options.query);
+      const results = await cachedSearches(queries, deps.liveCache);
       if (results) {
         if (deps.directory) {
-          const result = cleanCompFor(identity, results, deps.directory, { runPicked, serialRun: options.serialRun, asOf: newestSoldAt(results.map((item) => ({ soldAt: item.date_sold }))), source: "live" });
+          const result = cleanCompFor(identity, results, deps.directory, { runPicked, listedParallels, serialRun: options.serialRun, asOf: newestSoldAt(results.map((item) => ({ soldAt: item.date_sold }))), source: "live" });
           return result.status === "ok" ? result : { status: "none", searched: true };
         }
         const sales = liveCardSales(identity, options, results);
@@ -149,7 +157,7 @@ export async function lookupScanComp(
       const saved = await deps.soldCache(identity.playerName);
       if (deps.directory) {
         const results = asTrawlResults(saved.map((item) => ({ title: item.title, price: Number(item.price), soldAt: item.soldAt ?? null })));
-        const result = cleanCompFor(identity, results, deps.directory, { runPicked, serialRun: options.serialRun, asOf: newestSoldAt(saved.map((item) => ({ soldAt: item.soldAt ?? null }))), source: "sold-cache" });
+        const result = cleanCompFor(identity, results, deps.directory, { runPicked, listedParallels, serialRun: options.serialRun, asOf: newestSoldAt(saved.map((item) => ({ soldAt: item.soldAt ?? null }))), source: "sold-cache" });
         if (result.status === "ok") return result;
         throw new SkipSaved();
       }
@@ -173,6 +181,24 @@ export async function lookupScanComp(
   }
 
   return failures === sources ? { status: "unavailable" } : { status: "none" };
+}
+
+/**
+ * The scan's searches read back from the shared cache, as one list with each sale once (the same
+ * listing can answer two searches). Null when none of them is cached.
+ */
+async function cachedSearches(queries: readonly string[], read: (query: string) => Promise<TrawlSoldResult[] | null>): Promise<TrawlSoldResult[] | null> {
+  const answers = await Promise.all(queries.map((query) => read(query).catch(() => null)));
+  if (answers.every((answer) => answer === null)) return null;
+  const seen = new Set<string>();
+  const out: TrawlSoldResult[] = [];
+  for (const result of answers.flatMap((answer) => answer ?? [])) {
+    const key = `${result.item_id}|${result.date_sold}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(result);
+  }
+  return out;
 }
 
 /** Without the directory: the card-page title rules. */

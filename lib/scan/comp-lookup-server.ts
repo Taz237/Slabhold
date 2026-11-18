@@ -1,14 +1,14 @@
 import "server-only";
 
-import { unstable_cache } from "next/cache";
 import { loadProductData } from "@/lib/cards/product-data";
-import { loadSharedQuickComp, QuickCompFailure, type CacheFn } from "@/lib/quick-comp/cache";
+import { loadSharedQuickComp, QuickCompFailure } from "@/lib/quick-comp/cache";
 import { toSoldCompCard } from "@/lib/quick-comp/identity";
 import type { QuickCompPayload } from "@/lib/quick-comp/lookup";
 import { SCAN_DIRECTORY } from "@/lib/players/scan-directory";
 import { readPriceContext } from "@/lib/value/price-context";
 import type { ScanCompDeps } from "./comp-lookup";
 import { makeLiveCacheRead } from "./live-search";
+import { keyedCache } from "@/lib/quick-comp/keyed-cache";
 import { searchCachedSoldTitles } from "./sold-titles-server";
 
 /** Not a real card. The price context needs an id; this one matches no row. */
@@ -26,7 +26,7 @@ export const serverScanCompDeps: ScanCompDeps = {
         async () => {
           throw new QuickCompFailure("unavailable");
         },
-        unstable_cache as CacheFn,
+        keyedCache,
       );
     } catch (error) {
       if (error instanceof QuickCompFailure) return null;
@@ -34,7 +34,7 @@ export const serverScanCompDeps: ScanCompDeps = {
     }
   },
   soldCache: searchCachedSoldTitles,
-  liveCache: makeLiveCacheRead(unstable_cache as CacheFn),
+  liveCache: makeLiveCacheRead(keyedCache),
   directory: SCAN_DIRECTORY,
   products: loadProductData,
   async collectionSales(identity, viewerId) {

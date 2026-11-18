@@ -16,7 +16,8 @@
   "hc-108 to hc-112 are the Cameron Boozer 2026-27 Topps Rookie Code RC-3 a collector scanned front and back (the app showed 2026-27 O-Pee-Chee #1). hc-112 is the real card: its front and back are an OCR read of the collector's own photos (Tesseract, not the phone's reader), binary-digit art and all, which read as O-Pee-Chee and pushed the © line past the line limit. hc-108 to hc-111 are modeled shapes of the same card #: a bio \"No. 1\", a split \"RC\" / \"3\", a lost hyphen and a code run into the bio.",
   "hc-113 to hc-115 are three cards a collector scanned on 2026-11-17 that all came back not found (docs/scanner-coverage-plan.md). Fronts and backs are the lines the collector's own photos print, read off the photos (the clean print by eye; Tesseract read the plain type and missed the foil and stylised type, and its reads of the same photos are scored too in lib/scan/coverage-misses.test.ts). \"front_only\": the collector took no back, so none is built: hc-113 has only its front, which prints no year, set or card #, so those stay open and the scanner offers the player's real cards to pick from.",
   "hc-116 is hc-115 as the live app read it on 2026-11-18: the serial is printed sideways in small gold foil up the front's right edge and the phone did not read it, and the back prints none. Same photos, the front without its \"03/10\" line. The titles are modeled on what such a search returns: the /10, a Red /99, a Blue /25 and titles that name no version. The app showed \"First Impressions\" as a version chip beside \"Red\" and priced it from unnumbered sales. Nothing names this card's version, so any parallel shown is wrong (\"parallel_unconfirmed\") and the run stays open.",
-  "hc-117 is the Nov 18 device miss: 2026-27 Topps #257 Darryn Peterson RC, read as \"Player not read\". The front prints the team code beside the nameplate, so the phone gives one line, \"DARRYN PETERSON UTA\"; the back's draft line prints \"#1\". Front and back are modeled on the collector's photos (\"back_modeled\"); the other reads of the same card (UTA on its own line, a sideways back, front only) are in bakeoff-fixtures.ts. Titles modeled."
+  "hc-117 is the Nov 18 device miss: 2026-27 Topps #257 Darryn Peterson RC, read as \"Player not read\". The front prints the team code beside the nameplate, so the phone gives one line, \"DARRYN PETERSON UTA\"; the back's draft line prints \"#1\". Front and back are modeled on the collector's photos (\"back_modeled\"); the other reads of the same card (UTA on its own line, a sideways back, front only) are in bakeoff-fixtures.ts. Titles modeled.",
+  "hc-118 is the Nov 18 live scan of the Darryn Peterson 2026-27 Topps #257 as a Shimmer (scan_misses row 4, \"Shown with set, number open\"). Front and back are the real Vision lines off the device, the back held sideways. \"Shimmer\" is the sellers' name for it and is not on our 2026-27 Topps parallel list, so nothing confirms it (\"parallel_unconfirmed\"): open is right, Shimmer is what the sales say, any other name is wrong. Titles modeled."
  ],
  "cards": [
   {
@@ -3739,6 +3740,86 @@
    ],
    "listing_titles_modeled": true,
    "confidence": "player and card # checked against the 2026-27 Topps checklist in the store (#257); front and back modeled on the collector's photos; titles modeled"
+  },
+  {
+   "id": "hc-118",
+   "category": "device_miss",
+   "year": "2026-27",
+   "manufacturer": "Topps",
+   "product": "Topps Basketball",
+   "card_number": "257",
+   "player": "Darryn Peterson",
+   "team": "Utah Jazz",
+   "parallel": null,
+   "parallel_unconfirmed": true,
+   "parallel_also": [
+    "Shimmer"
+   ],
+   "print_run": null,
+   "sport": "basketball",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "PJU",
+    "UTA",
+    "I TAH",
+    "22",
+    "DARRYN PETERSON",
+    "UTAH JAZZ"
+   ],
+   "typical_ocr_back": [
+    "670",
+    "Career",
+    "25-26",
+    "YEAR",
+    "L COLLEGE RECORD",
+    "257",
+    "KANSAS",
+    "Team",
+    "24",
+    "24",
+    "Austin Ainge says. \"I appreciated his drive and desire.\"",
+    ".438",
+    "438",
+    "FG%",
+    "BORN: 1-17-07, CANTON, OH HOME: CANTON, OH",
+    "DRAFTED: JAZZ #1, 2026 ACQUIRED: VIA DRAFT",
+    "HT: 6'ỊẠịWT: 205",
+    "UTAH JAZZ",
+    "DARRYN PETERSUN",
+    ".382",
+    "382",
+    "3Р%",
+    "the National Basketball Players Association, and others. For complete licensing legal language, visit www.topps.com/page",
+    "®, TM, & © 2026 The Topps Company, Inc. All rights reserved. Officially licensed products and intellectual property of t",
+    "OPPs",
+    "attention of Utah's decision-makers. \"I appreciated his maturity,' Jazz president",
+    "Darryn is a versatile playmaker with an advanced feel for the game that caught the",
+    "4.2",
+    "4.2",
+    "REB/G",
+    "1.4",
+    "STL/G",
+    "0.6",
+    "0.6",
+    "BLK/G",
+    "1.6",
+    "1.6",
+    "AST/G",
+    "X Li @TOPPS",
+    "20.2"
+   ],
+   "why_hard": "A sideways back read cell by cell gives six bare numbers (670, 257, 24, 24, 438, 382), so the cap on bare numbers dropped 257 with the stat cells and the card # stayed open, though the back printed it cleanly. With the # open, a Hardwood Stars insert that sellers title \"#17\" (HS-17 on the checklist) showed as flagship #17, a card that doesn't exist for him. The Shimmer foil did not stop the read.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2026-27-topps-flagship-basketball"
+   ],
+   "listing_title_examples": [
+    "2026-27 Topps Darryn Peterson Hardwood Stars #17 Rookie RC Jazz",
+    "2026-27 Topps Darryn Peterson Hardwood Stars #17 Rookie RC Jazz",
+    "2026-27 Topps Darryn Peterson Levitation #LV-12 RC",
+    "2026-27 Topps Darryn Peterson #257 Shimmer RC"
+   ],
+   "listing_titles_modeled": true,
+   "confidence": "player and card # checked against the 2026-27 Topps checklist in the store (#257); front and back are the device's own Vision lines from the live scan; titles modeled"
   }
  ]
 }

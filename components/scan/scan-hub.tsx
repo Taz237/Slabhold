@@ -312,7 +312,7 @@ export function ScanHub({
         solds: dropped
           ? { status: "done", comp: { status: "version" }, query: null }
           : solds
-            ? { status: "done", comp: solds.comp, query: solds.query, ...(solds.similar ? { similar: solds.similar } : {}) }
+            ? { status: "done", comp: solds.comp, query: solds.query, ...(solds.queries?.length ? { queries: solds.queries } : {}), ...(solds.similar ? { similar: solds.similar } : {}) }
             : { status: "done", comp: { status: "unavailable" }, query: null },
       });
     },

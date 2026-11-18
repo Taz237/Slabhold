@@ -106,7 +106,7 @@ describe("the version travels with the lookup", () => {
     const xf = withVersion(dart, { name: "X-Fractor", serialRun: null });
     assert.notEqual(quickCompIdentityKey(dart), quickCompIdentityKey(xf));
     assert.notEqual(quickCompIdentityKey(withVersion(dart, { name: "Gold", serialRun: 50 })), quickCompIdentityKey(withVersion(dart, { name: "Gold", serialRun: null })));
-    assert.match(quickCompCacheKey(dart), /^quick-comp-v2\|/);
+    assert.match(quickCompCacheKey(dart), /^quick-comp-v3\|/);
   });
 
   it("the matcher gets the run; a named version with no known run takes sales at any run", () => {

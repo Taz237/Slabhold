@@ -108,6 +108,40 @@ const PETERSON_LEGAL = "©, TM & © 2026 The Topps Company, Inc. All rights rese
 const PETERSON_BACK = ["257", "DARRYN PETERSON", "UTAH JAZZ", "GUARD", "DRAFTED: JAZZ #1, 2026", "KANSAS", PETERSON_LEGAL];
 const PETERSON_BACK_SIDEWAYS = ["257", PETERSON_LEGAL];
 
+/**
+ * The Nov 18 live scan of the same card as a Shimmer (scan_misses row 4): the real Vision lines off
+ * the device, the back held sideways, so its stat table reads cell by cell and "257" is one bare
+ * number among six. "Shimmer" is what sellers call it; our 2026-27 Topps list doesn't have it, so the
+ * parallel is right when open or Shimmer and never anything else.
+ */
+// No rookie flag here: the device's lines read no RC logo, and nothing invents one.
+const PETERSON_SHIMMER: BakeoffTruth = { player: "Darryn Peterson", year: "2026-27", set: "Topps", number: "257", parallel: "", parallelAlso: ["Shimmer"], run: null, sport: "Basketball" };
+const PETERSON_DEVICE_FRONT = ["PJU", "UTA", "I TAH", "22", "DARRYN PETERSON", "UTAH JAZZ"];
+const PETERSON_DEVICE_BACK = ["670", "Career", "25-26", "YEAR", "L COLLEGE RECORD", "257", "KANSAS", "Team", "24", "24", "Austin Ainge says. \"I appreciated his drive and desire.\"", ".438", "438", "FG%", "BORN: 1-17-07, CANTON, OH HOME: CANTON, OH", "DRAFTED: JAZZ #1, 2026 ACQUIRED: VIA DRAFT", "HT: 6'ỊẠịWT: 205", "UTAH JAZZ", "DARRYN PETERSUN", ".382", "382", "3Р%", "the National Basketball Players Association, and others. For complete licensing legal language, visit www.topps.com/page", "®, TM, & © 2026 The Topps Company, Inc. All rights reserved. Officially licensed products and intellectual property of t", "OPPs", "attention of Utah's decision-makers. \"I appreciated his maturity,' Jazz president", "Darryn is a versatile playmaker with an advanced feel for the game that caught the", "4.2", "4.2", "REB/G", "1.4", "STL/G", "0.6", "0.6", "BLK/G", "1.6", "1.6", "AST/G", "X Li @TOPPS", "20.2"];
+/** 2026-27 Topps basketball, the rows a Darryn Peterson scan can land on (the real checklist's numbers, and who else has #17). */
+const TOPPS_2026_27_PETERSON = checklistProductFrom(
+  { sport: "Basketball", yearLabel: "2026-27", product: "Topps", source: "bake-off fixture", read: "2026-11-18" },
+  [
+    { name: "Base", cards: [{ number: "17", player: "Giannis Antetokounmpo", team: "Milwaukee Bucks" }, { number: "257", player: "Darryn Peterson", team: "Utah Jazz" }] },
+    { name: "Base Break Point", cards: [{ number: "192", player: "Darryn Peterson", team: "Utah Jazz" }] },
+    { name: "Base Project Rookie", cards: [{ number: "92", player: "Darryn Peterson", team: "Utah Jazz" }] },
+    { name: "The Flagship Collection", cards: [{ number: "17", player: "Cade Cunningham", team: "Detroit Pistons" }, { number: "62", player: "Darryn Peterson", team: "Utah Jazz" }] },
+    { name: "All Kings", cards: [{ number: "AK-17", player: "Darryn Peterson", team: "Utah Jazz" }] },
+    { name: "Bounce", cards: [{ number: "TB-17", player: "Darryn Peterson", team: "Utah Jazz" }] },
+    { name: "Hardwood Stars", cards: [{ number: "HS-17", player: "Darryn Peterson", team: "Utah Jazz" }] },
+    { name: "Levitation", cards: [{ number: "LV-12", player: "Darryn Peterson", team: "Utah Jazz" }] },
+  ],
+);
+
+/** What a search for him returns: the Hardwood Stars insert sellers title "#17" (HS-17 on the checklist), another insert, and the card. Modeled. */
+const PETERSON_DEVICE_TITLES: SoldTitle[] = [
+  { title: "2026-27 Topps Darryn Peterson Hardwood Stars #17 Rookie RC Jazz", price: 6, soldAt: "2026-11-13" },
+  { title: "2026-27 Topps Darryn Peterson Hardwood Stars #17 Rookie RC Jazz", price: 6, soldAt: "2026-11-12" },
+  { title: "2026-27 Topps Darryn Peterson Hardwood Stars #17 Rookie RC Jazz", price: 7, soldAt: "2026-11-11" },
+  { title: "2026-27 Topps Darryn Peterson Levitation #LV-12 RC", price: 9, soldAt: "2026-11-12" },
+  { title: "2026-27 Topps Darryn Peterson #257 Shimmer RC", price: 7, soldAt: "2026-11-13" },
+];
+
 const MILLER: BakeoffTruth = { player: "Aidan Miller", year: "2024", set: "Bowman", number: "BP-27", parallel: "Pink/Red", parallelAlso: ["Fuchsia Border"], run: 299 };
 const MILLER_FRONT = ["3B", "1ST BOWMAN", "PHILADELPHIA PHILLIES", "137/299", "AIDAN MILLER"];
 /** The stylized 1ST BOWMAN logo often doesn't read. */
@@ -505,4 +539,7 @@ export const BAKEOFF_CASES: BakeoffCase[] = [
   { name: "Peterson, 2026-27 Topps #257: UTA on a line of its own, the whole back", front: PETERSON_FRONT_LINES, back: PETERSON_BACK, truth: PETERSON },
   { name: "Peterson, 2026-27 Topps #257: UTA on a line of its own, a sideways back (only the # and the ©)", front: PETERSON_FRONT_LINES, back: PETERSON_BACK_SIDEWAYS, truth: PETERSON },
   { name: "Peterson, 2026-27 Topps #257: UTA on a line of its own, front only", front: PETERSON_FRONT_LINES, back: null, truth: PETERSON },
+  { name: "Peterson Shimmer, the device's lines: a sideways back read cell by cell (six bare numbers)", front: PETERSON_DEVICE_FRONT, back: PETERSON_DEVICE_BACK, truth: PETERSON_SHIMMER },
+  { name: "Peterson Shimmer, the device's lines: the same back without the 670", front: PETERSON_DEVICE_FRONT, back: PETERSON_DEVICE_BACK.filter((line) => line !== "670"), truth: PETERSON_SHIMMER },
+  { name: "Peterson Shimmer, the device's lines: saved titles for Hardwood Stars \"#17\", Levitation and the card", front: PETERSON_DEVICE_FRONT, back: PETERSON_DEVICE_BACK, titles: PETERSON_DEVICE_TITLES, checklist: [TOPPS_2026_27_PETERSON], truth: PETERSON_SHIMMER },
 ];
