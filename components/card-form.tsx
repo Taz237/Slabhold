@@ -23,6 +23,7 @@ import { useCollection, useDefaultAccent } from "@/components/collection-provide
 import { NativeSelect, SearchSelect, SET_PARALLEL_HINT } from "@/components/search-select";
 import { useSocial } from "@/components/social-provider";
 import { toPublicAttachment } from "@/lib/social/card-posts";
+import { confirmTypedCard } from "@/lib/scan/typed-confirm";
 import { queueCardPost } from "@/lib/social/card-post-queue";
 import {
   FEED_POST_LABEL,
@@ -988,6 +989,8 @@ export function CardForm({
       await saved;
       // The stored card: its photo is the uploaded URL, so the feed post never uploads it again.
       const card = result.stored?.() ?? result.card;
+      // Typed in after a scan found no card: remembered for the next scan that reads the same.
+      if (!existing) confirmTypedCard(card);
       // Set once this add's post is on the feed: the haptic says "post", not "save".
       let postedNow = false;
       // The regular form's post failed: the card still saved, so the haptic says "save".

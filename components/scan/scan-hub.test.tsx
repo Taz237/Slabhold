@@ -1026,7 +1026,7 @@ describe("never a dead end: only the player was read", () => {
     throw new Error(text().slice(0, 600));
   }
 
-  function closestDeps(seen: { identified: ScanCapture[]; misses: { closest: number; matches: number }[]; confirmed: string[] }, confirmedBefore = false) {
+  function closestDeps(seen: { identified: ScanCapture[]; misses: { closest: number; matches: number }[]; confirmed: string[] }, confirmedBefore: boolean | number = false) {
     return nativeDeps({
       scan: async () => FRONT,
       identify: async (capture) => {
@@ -1034,7 +1034,7 @@ describe("never a dead end: only the player was read", () => {
         return result(capture.pickedLines?.length ? [picked] : []);
       },
       solds: async (_capture, matches) => ({ matches, comp: { status: "none" }, query: null }),
-      closest: async () => ({ player: "Mario Lemieux", readKey: "mariolemieux|hockey||||", cards: [confirmedBefore ? { ...TOPPS, confirmed: 2 } : TOPPS, OPC] }),
+      closest: async () => ({ player: "Mario Lemieux", readKey: "mariolemieux|hockey||||", cards: [confirmedBefore ? { ...TOPPS, confirmed: confirmedBefore === true ? 2 : confirmedBefore } : TOPPS, OPC] }),
       logMiss: (report) => void seen.misses.push({ closest: report.closest, matches: report.result?.matches.length ?? 0 }),
       confirm: (key, card) => void seen.confirmed.push(`${key} ${card.yearLabel} ${card.setBrand} #${card.cardNumber}`),
     });
@@ -1074,6 +1074,35 @@ describe("never a dead end: only the player was read", () => {
       assert.deepEqual(seen.confirmed, [], "nothing is saved until the collector adds it");
       await act(async () => button("Add to my collection").click());
       assert.deepEqual(seen.confirmed, ["mariolemieux|hockey|||| 1985-86 Topps #9"]);
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("one collector's pick is one person's word: the note shows only from 2 picks", async () => {
+    const seen = { identified: [] as ScanCapture[], misses: [] as { closest: number; matches: number }[], confirmed: [] as string[] };
+    const view = await mount("add", closestDeps(seen, 1));
+    try {
+      await until(() => text().includes("Is it one of these?"));
+      assert.ok(!text().includes("Picked by other collectors"));
+      assert.equal(win.document.querySelectorAll('[data-pick="list"] li').length, 2, "the card is still a choice");
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("\"Add it step by step\" after a miss keeps the read, so the card typed in can be remembered; a new scan clears it", async () => {
+    const seen = { identified: [] as ScanCapture[], misses: [] as { closest: number; matches: number }[], confirmed: [] as string[] };
+    const view = await mount("add", closestDeps(seen));
+    try {
+      await until(() => text().includes("Is it one of these?"));
+      assert.equal(win.sessionStorage.getItem("cardflip.scan-miss"), null);
+      await act(async () => button("Add it step by step").click());
+      assert.equal(win.sessionStorage.getItem("cardflip.scan-miss"), "mariolemieux|hockey||||");
+      assert.ok(pushed.includes("/cards/new"));
+      await act(async () => button("Scan a card").click());
+      await until(() => text().includes("Is it one of these?"));
+      assert.equal(win.sessionStorage.getItem("cardflip.scan-miss"), null, "a new scan starts clean");
     } finally {
       view.unmount();
     }

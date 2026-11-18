@@ -13,7 +13,7 @@ import { CollectionContext } from "@/components/collection-provider";
 import { haptic } from "@/lib/ios/haptics";
 import { cardInputFromScan } from "@/lib/scan/quick-add";
 import { nextAccent } from "@/lib/storage";
-import { saveScan, saveScanMatch } from "@/lib/capture";
+import { saveScan, saveScanMatch, saveScanMiss } from "@/lib/capture";
 import { isNativeApp, loadNative } from "@/lib/ios/platform";
 import { CAMERA_DENIED, type ScanOutcome } from "@/lib/ios/scanner";
 import { PHOTO_READ_ERROR, readPhotoFile } from "@/lib/photos";
@@ -63,6 +63,9 @@ export type ScanHubDeps = {
   /** Inside the iPhone app. There, a scanner that didn't load is an error, not "coming soon". */
   nativeApp: () => boolean;
 };
+
+/** "Picked by other collectors" shows once this many collectors picked the card: one pick is one person's word. */
+export const PICKED_NOTE_MIN = 2;
 
 export type ScanClosest = { player: string; readKey: string; cards: ClosestCard[] };
 export type ScanMissReport = { capture: ScanCapture; result: ScanMatchResult | null; closest: number; leftForSearch?: boolean };
@@ -294,7 +297,7 @@ export function ScanHub({
         setSheet({
           kind: "none",
           offline: false,
-          ...(found ? { closest: { player: found.player, cards: found.cards.map(closestMatch), confirmed: found.cards.map((card) => Boolean(card.confirmed)) } } : {}),
+          ...(found ? { closest: { player: found.player, cards: found.cards.map(closestMatch), confirmed: found.cards.map((card) => (card.confirmed ?? 0) >= PICKED_NOTE_MIN) } } : {}),
         });
         return;
       }
@@ -326,6 +329,7 @@ export function ScanHub({
       run.current = controller;
       waitingBack.current = null;
       closest.current = null;
+      saveScanMiss(null);
       if (!scanned.pickedLines?.length) pickedClosest.current = null;
       setError(null);
       setPhoto(scanned.image);
@@ -533,6 +537,8 @@ export function ScanHub({
   function stepByStep() {
     // A card was shown and the collector left it: logged, so we can see what we got wrong.
     if (shown.current && !shown.current.capture.pickedLines?.length) deps.logMiss({ ...shown.current, closest: 0, leftForSearch: true });
+    // A miss with the player read: the card they type in next is remembered for that read (once it saves).
+    saveScanMiss(sheet?.kind === "none" && closest.current ? closest.current.readKey : null);
     if (photo) saveScan(photo);
     router.push("/cards/new");
   }

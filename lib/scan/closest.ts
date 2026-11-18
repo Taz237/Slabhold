@@ -61,7 +61,8 @@ export function buildPlayerCards(products: readonly ChecklistProduct[], isBase: 
   };
 }
 
-const cardKey = (card: Pick<ClosestCard, "yearLabel" | "setBrand" | "cardNumber">) =>
+/** One card, however it is spelled: "1985-86 Topps #9" and "1985-86 TOPPS 9" are one key. */
+export const cardKey = (card: Pick<ClosestCard, "yearLabel" | "setBrand" | "cardNumber">) =>
   [card.yearLabel, card.setBrand, card.cardNumber].map((part) => part.toLowerCase().replace(/[^a-z0-9]+/g, "")).join("|");
 
 /**
@@ -69,6 +70,11 @@ const cardKey = (card: Pick<ClosestCard, "yearLabel" | "setBrand" | "cardNumber"
  * checklists', oldest first. Each card once. Empty when we know no card of theirs.
  */
 export function closestCards(player: { name: string; sport: string }, index: PlayerCards | null, confirmed: readonly ClosestCard[] = []): ClosestCard[] {
+  return allPlayerCards(player, index, confirmed).slice(0, MAX_CLOSEST);
+}
+
+/** Every card of the player's, in the pick list's order, with no cap: what a confirmation is checked against. */
+function allPlayerCards(player: { name: string; sport: string }, index: PlayerCards | null, confirmed: readonly ClosestCard[] = []): ClosestCard[] {
   const out: ClosestCard[] = [];
   const seen = new Set<string>();
   const add = (card: ClosestCard) => {
@@ -86,7 +92,25 @@ export function closestCards(player: { name: string; sport: string }, index: Pla
     if (!product) continue;
     add({ playerName: player.name, sport: index!.sport || player.sport, yearLabel: product[0], setBrand: product[1], cardNumber: entry.slice(at + 1) });
   }
-  return out.slice(0, MAX_CLOSEST);
+  return out;
+}
+
+/**
+ * A card we know: the checklists put this player on this year, set and card #. A confirmation is
+ * only ever saved or shown for one of these, so nobody can seed a made-up choice.
+ */
+export function isKnownCard(card: ClosestCard, index: PlayerCards | null): boolean {
+  if (!index || !card.playerName) return false;
+  const key = cardKey(card);
+  return allPlayerCards({ name: card.playerName, sport: card.sport }, index).some((known) => cardKey(known) === key);
+}
+
+/**
+ * The read a confirmed card is filed under: its own player and sport, and nothing else. A
+ * confirmation's key must be this, so a card is never filed under another player's read.
+ */
+export function confirmKeyOf(card: Pick<ClosestCard, "playerName" | "sport">): string {
+  return readKeyOf({ playerName: card.playerName, sport: card.sport });
 }
 
 /** A choice as a row for the pick list: the card's identity, everything else open. Never a scan's own match. */

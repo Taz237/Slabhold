@@ -1,13 +1,14 @@
 import "server-only";
 
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
-import type { ClosestCard } from "./closest";
+import { isKnownCard, type ClosestCard } from "./closest";
+import { loadPlayerCards } from "./closest-load";
 import type { ScanMiss } from "./miss";
 
 /**
  * Where the scanner's misses and confirmed cards are kept: public.scan_misses and
- * public.scan_confirmations (supabase/migrations/20261118130000_scan_misses_and_confirmations.sql,
- * unapplied until reviewed). Every function throws when the tables are not there; the routes
+ * public.scan_confirmations (the QA-reviewed scan SQL, applied separately; confirm_scan_card takes
+ * the user id as p_user_id). Every function throws when the tables are not there; the routes
  * treat that as "not stored" and the scan goes on.
  */
 
@@ -61,8 +62,16 @@ export async function readConfirmedCards(key: string): Promise<ClosestCard[]> {
   }));
 }
 
-/** One more collector confirmed this card for this read: a new row, or the row's count goes up by one. */
-export async function saveConfirmedCard(key: string, card: ClosestCard): Promise<void> {
+/** Our checklists have this player on this year, set and card #. False for a sport we have no list for. */
+export async function isKnownConfirmedCard(card: ClosestCard): Promise<boolean> {
+  return isKnownCard(card, await loadPlayerCards(card.sport));
+}
+
+/**
+ * One more collector confirmed this card for this read: the database counts one vote per user per
+ * card. It throws scan_confirm_rate_limited or scan_confirm_invalid by name; the route maps them.
+ */
+export async function saveConfirmedCard(key: string, card: ClosestCard, userId: string): Promise<void> {
   const client = createSupabaseAdmin();
   if (!client) throw new Error("No database");
   const { error } = await client.rpc("confirm_scan_card", {
@@ -72,6 +81,8 @@ export async function saveConfirmedCard(key: string, card: ClosestCard): Promise
     p_year_label: card.yearLabel,
     p_set_brand: card.setBrand,
     p_card_number: card.cardNumber,
+    // One vote per user per card. Server-only: it never leaves the database, and goes with the account.
+    p_user_id: userId,
   });
   if (error) throw new Error(error.message);
 }

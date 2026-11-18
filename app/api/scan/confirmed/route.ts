@@ -1,7 +1,7 @@
 import { consumeRateLimit } from "@/lib/comps/rate-limit";
 import { scanPreviewAllowed } from "@/lib/scan/confirm";
 import { respondConfirmCard, respondConfirmedCards } from "@/lib/scan/coverage-respond";
-import { readConfirmedCards, saveConfirmedCard } from "@/lib/scan/coverage-server";
+import { isKnownConfirmedCard, readConfirmedCards, saveConfirmedCard } from "@/lib/scan/coverage-server";
 import { getAuthUserId } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
@@ -13,7 +13,7 @@ const READ_LIMIT = 60;
 /** Saves: one per card added from the choices. Kept low: a confirmation is a vote. */
 const SAVE_LIMIT = 20;
 
-const base = { enabled: () => scanPreviewAllowed(), userId: getAuthUserId };
+const base = { enabled: () => scanPreviewAllowed(), userId: getAuthUserId, known: isKnownConfirmedCard };
 
 export async function GET(request: Request) {
   return respondConfirmedCards(request, { ...base, allow: (userId) => consumeRateLimit(userId, "scan_confirmed", WINDOW_MS, READ_LIMIT), read: readConfirmedCards });

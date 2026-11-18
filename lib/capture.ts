@@ -3,6 +3,7 @@ import { parseScanHandoff, type ScanHandoff } from "@/lib/scan/handoff";
 const SCAN_KEY = "cardflip.scan";
 const COMPOSE_KEY = "cardflip.compose";
 const SCAN_MATCH_KEY = "cardflip.scan-match";
+const SCAN_MISS_KEY = "cardflip.scan-miss";
 
 function storage(): Storage | null {
   try {
@@ -98,3 +99,30 @@ export function clearScanMatch() {
   }
 }
 
+
+/**
+ * A scan read a player and found no card, and the collector went to type it in: the read's key
+ * (lib/scan/closest.ts), kept until the card is saved so what they typed can be remembered for the
+ * next scan that reads the same. Null clears it. Text only.
+ */
+export function saveScanMiss(readKey: string | null) {
+  try {
+    if (readKey) storage()?.setItem(SCAN_MISS_KEY, readKey);
+    else storage()?.removeItem(SCAN_MISS_KEY);
+  } catch {
+    // A blocked store must not crash the scan.
+  }
+}
+
+/** The pending miss's read key, taken once. Null when there is none. */
+export function takeScanMiss(): string | null {
+  try {
+    const store = storage();
+    if (!store) return null;
+    const value = store.getItem(SCAN_MISS_KEY);
+    if (value) store.removeItem(SCAN_MISS_KEY);
+    return value;
+  } catch {
+    return null;
+  }
+}
