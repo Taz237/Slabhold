@@ -1,4 +1,5 @@
 import { parseGrade, RAW_GRADE } from "./card-options";
+import { insertNameOf } from "./cards/insert-name";
 import { SEED_CARDS } from "./seed";
 import type { ConditionType, SportsCard } from "./types";
 
@@ -49,6 +50,8 @@ function normalizeCard(card: Partial<SportsCard> & { id: string }): SportsCard {
     accent: card.accent ?? "#7c5cff",
     category: card.category === "pc" ? "pc" : "flipping",
     isPublic: Boolean(card.isPublic),
+    // The insert it's in ("Rookie Code"), from a scan. Left off a card that has none.
+    ...(insertNameOf(card) ? { insertName: insertNameOf(card) } : {}),
     createdAt: card.createdAt ?? new Date().toISOString(),
     updatedAt: card.updatedAt ?? new Date().toISOString(),
   };

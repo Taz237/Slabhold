@@ -37,6 +37,8 @@ export type TileCard = {
   gradeQualifier?: string;
   certNumber?: string;
   isRookie?: boolean;
+  /** The insert the card is in ("Rookie Code"), shown with the set. */
+  insertName?: string;
 };
 
 /** Fills the fields a PublicCard may not have. */
@@ -198,8 +200,9 @@ export function CardTile({
               />
             ) : null}
           </div>
-          <p className={compact ? "truncate text-11 leading-4 text-zinc-500 dark:text-zinc-400" : "truncate text-xs text-zinc-500 dark:text-zinc-400"}>
-            {yearSetLine(art)}
+          {/* Wraps to 2 lines instead of cutting off: "2026-27 · Topps Rookie Code" stays whole. */}
+          <p className={compact ? "line-clamp-2 break-words text-11 leading-4 text-zinc-500 dark:text-zinc-400" : "line-clamp-2 break-words text-xs text-zinc-500 dark:text-zinc-400"}>
+            {yearSetLine({ ...art, insertName: card.insertName })}
           </p>
           <div
             className={`${compact ? "mt-0.5" : "mt-1"} flex min-h-5 min-w-0 items-center justify-between gap-1.5`}

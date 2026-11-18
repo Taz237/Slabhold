@@ -1,5 +1,6 @@
 import { canonicalParallelName } from "@/lib/cards/parallels";
 import type { SportsCard } from "./types";
+import { setWithInsertName } from "./cards/insert-name";
 
 /** Shared display format for card pages, collection, Home, and share previews. */
 const usd = new Intl.NumberFormat("en-US", {
@@ -62,10 +63,12 @@ export function cardDatesLine(input: {
 }
 
 export function cardTitle(
-  card: Pick<SportsCard, "year" | "setBrand"> & { yearLabel?: string },
+  card: Pick<SportsCard, "year" | "setBrand"> & { yearLabel?: string; insertName?: string | null },
 ) {
   const year = (card.yearLabel ?? "").trim() || String(card.year);
-  return `${year} ${card.setBrand}`;
+  // A card in an insert reads with it: "2026-27 Topps Rookie Code".
+  const set = card.insertName?.trim() ? setWithInsertName(card) : card.setBrand;
+  return `${year} ${set}`;
 }
 
 export function cardSubtitle(

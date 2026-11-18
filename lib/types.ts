@@ -40,6 +40,11 @@ export type SportsCard = {
    * False is the default once the column exists.
    */
   openToOffers?: boolean | null;
+  /**
+   * The insert the card is in ("Rookie Code"), from a scan. Missing when cards.insert_name isn't in
+   * the database yet; "" when saved with none.
+   */
+  insertName?: string;
   /** Set when the other person confirms a sale or trade. */
   soldAt?: string | null;
   createdAt: string;

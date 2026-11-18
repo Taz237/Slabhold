@@ -1,3 +1,4 @@
+import { insertNameOf } from "@/lib/cards/insert-name";
 import type { CardInput } from "@/lib/types";
 import { readyToSave } from "./confirm";
 import type { ScanMatch } from "./match";
@@ -58,6 +59,8 @@ export function cardInputFromScan(
     notes: "",
     photoDataUrl: options.photo,
     accent: options.accent,
+    // The insert the scan placed it in ("Rookie Code"), saved with it.
+    ...(insertNameOf(match) ? { insertName: insertNameOf(match) } : {}),
     category: "pc",
     isPublic: options.isPublic,
   };

@@ -8,6 +8,7 @@ import { cardTitle, hasPaid, isSold, pct, signedMoney } from "@/lib/format";
 import { cardProfit, cardProfitPct } from "@/lib/portfolio";
 import type { SportsCard } from "@/lib/types";
 import type { CardValueResult } from "@/lib/value/types";
+import { setWithInsertName } from "@/lib/cards/insert-name";
 
 type GradeFields = {
   grade?: string | null;
@@ -115,10 +116,10 @@ export function showPhotoPlaceholder(source: PhotoSource, status: PhotoStatus): 
 }
 
 export function yearSetLine(
-  card: Pick<SportsCard, "year" | "setBrand"> & { yearLabel?: string },
+  card: Pick<SportsCard, "year" | "setBrand"> & { yearLabel?: string; insertName?: string | null },
 ): string {
   const year = (card.yearLabel ?? "").trim() || (card.year > 0 ? String(card.year) : "");
-  return [year, card.setBrand.trim()].filter(Boolean).join(" · ");
+  return [year, setWithInsertName(card)].filter(Boolean).join(" · ");
 }
 
 export type TileGain = {

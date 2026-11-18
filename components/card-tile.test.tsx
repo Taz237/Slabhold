@@ -4,6 +4,7 @@ import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { ImageConfigContext } from "next/dist/shared/lib/image-config-context.shared-runtime";
 import { imageConfigDefault } from "next/dist/shared/lib/image-config";
+import { CardTile } from "@/components/card-tile";
 import { PostCardTile, postCardHref } from "@/components/post-card-tile";
 import { ProfileCardGrid } from "@/components/profile-card-grid";
 import nextConfig from "@/next.config";
@@ -165,6 +166,22 @@ describe("390px layout", () => {
       assert.match(html, /<p class="min-w-0 truncate text-sm font-semibold[^"]*" title=/);
       assert.doesNotMatch(html, /(?<![\w-])(?:w|min-w)-\[\d+px\]/);
     }
+  });
+
+  it("the collection tile's year and set wrap to 2 lines instead of cutting off (Topps Rookie Code)", () => {
+    const html = render(
+      createElement(CardTile, {
+        card: { ...card({ setBrand: "Topps", year: 2026 }), yearLabel: "2026-27", insertName: "Rookie Code" },
+        href: "/cards/c1",
+        index: 0,
+        priceLabel: null,
+      }),
+    );
+    const caption = html.match(/<p class="([^"]*)">2026-27 · Topps Rookie Code<\/p>/)?.[1] ?? "";
+    assert.ok(caption, html);
+    assert.match(caption, /\bline-clamp-2\b/);
+    assert.match(caption, /\bbreak-words\b/);
+    assert.doesNotMatch(caption, /\btruncate\b/);
   });
 
   it("sizes the post tile by percent with a cap, never a fixed width", () => {
