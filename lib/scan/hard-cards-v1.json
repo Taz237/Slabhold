@@ -14,7 +14,8 @@
   "hc-087 to hc-090 are one-word names (Ludacris, Ichiro, MIYAVI) the checklist import used to drop; hc-091 to hc-100 come from the 2023-2026 checklists added on 2026-11-17. Their fronts and titles are modeled (\"listing_titles_modeled\"); player and card # are checked against the checklist page each names.",
   "hc-101 to hc-107 test plain Topps backs (no product printed: the set comes from the Topps checklists, or stays open) and Hoops backs (the year from the © or the \"2025-26 NBA HOOPS\" line, never a stat row). No real back photos of these cards yet: fronts, backs and titles are modeled (\"back_modeled\", \"listing_titles_modeled\"); player and card # are checked against each checklist page.",
   "hc-108 to hc-112 are the Cameron Boozer 2026-27 Topps Rookie Code RC-3 a collector scanned front and back (the app showed 2026-27 O-Pee-Chee #1). hc-112 is the real card: its front and back are an OCR read of the collector's own photos (Tesseract, not the phone's reader), binary-digit art and all, which read as O-Pee-Chee and pushed the © line past the line limit. hc-108 to hc-111 are modeled shapes of the same card #: a bio \"No. 1\", a split \"RC\" / \"3\", a lost hyphen and a code run into the bio.",
-  "hc-113 to hc-115 are three cards a collector scanned on 2026-11-17 that all came back not found (docs/scanner-coverage-plan.md). Fronts and backs are the lines the collector's own photos print, read off the photos (the clean print by eye; Tesseract read the plain type and missed the foil and stylised type, and its reads of the same photos are scored too in lib/scan/coverage-misses.test.ts). \"front_only\": the collector took no back, so none is built: hc-113 has only its front, which prints no year, set or card #, so those stay open and the scanner offers the player's real cards to pick from."
+  "hc-113 to hc-115 are three cards a collector scanned on 2026-11-17 that all came back not found (docs/scanner-coverage-plan.md). Fronts and backs are the lines the collector's own photos print, read off the photos (the clean print by eye; Tesseract read the plain type and missed the foil and stylised type, and its reads of the same photos are scored too in lib/scan/coverage-misses.test.ts). \"front_only\": the collector took no back, so none is built: hc-113 has only its front, which prints no year, set or card #, so those stay open and the scanner offers the player's real cards to pick from.",
+  "hc-116 is hc-115 as the live app read it on 2026-11-18: the serial is printed sideways in small gold foil up the front's right edge and the phone did not read it, and the back prints none. Same photos, the front without its \"03/10\" line. The titles are modeled on what such a search returns: the /10, a Red /99, a Blue /25 and titles that name no version. The app showed \"First Impressions\" as a version chip beside \"Red\" and priced it from unnumbered sales. Nothing names this card's version, so any parallel shown is wrong (\"parallel_unconfirmed\") and the run stays open."
  ],
  "cards": [
   {
@@ -3647,6 +3648,58 @@
    ],
    "listing_titles_modeled": true,
    "confidence": "player and card # checked against the 2023 Illusions checklist (First Impressions Autographed Memorabilia #131); front and back read off the collector's real photos; the /10 parallel's name is not confirmed by any checklist we have; titles modeled"
+  },
+  {
+   "id": "hc-116",
+   "category": "device_miss",
+   "year": "2023",
+   "manufacturer": "Panini",
+   "product": "Panini Illusions Football",
+   "card_number": "131",
+   "player": "Sam LaPorta",
+   "team": "Detroit Lions",
+   "parallel": null,
+   "parallel_unconfirmed": true,
+   "print_run": 10,
+   "sport": "football",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "ROOKIE",
+    "RC",
+    "CARD",
+    "LIONS",
+    "SAM LaPORTA",
+    "FIRST IMPRESSIONS"
+   ],
+   "typical_ocr_back": [
+    "No. 131",
+    "FIRST IMPRESSIONS",
+    "SAM LaPORTA",
+    "LIONS",
+    "The enclosed authentic memorabilia is not from any specific game or event.",
+    "The autograph is guaranteed by Panini America, Inc.",
+    "NFL",
+    "PANINI",
+    "2023 PANINI - ILLUSIONS FOOTBALL",
+    "© 2024 Panini America, Inc.",
+    "NFLPA"
+   ],
+   "why_hard": "The same card with its serial missed: \"03/10\" runs sideways up the front's right edge in small gold foil, and the phone's reader does not read sideways text. With no run read, sold titles for #131 mix the /10 with a Red /99, a Blue /25 and listings that name no version. First Impressions is the insert, never a parallel, and a patch card is never a plain version: the parallel and the run stay open and no group of sales is this card's price until the collector picks.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2023-panini-illusions-football"
+   ],
+   "listing_title_examples": [
+    "2023 Panini Illusions Sam LaPorta First Impressions Rookie Patch Auto /10 #131 Lions RPA",
+    "Sam LaPorta 2023 Illusions First Impressions RPA 03/10 RC #131",
+    "2023 Panini Illusions Sam LaPorta First Impressions Rookie Patch Auto Red /99 #131",
+    "2023 Illusions Sam LaPorta First Impressions RPA Red 45/99 #131 Lions",
+    "2023 Illusions Sam LaPorta First Impressions RPA Red /99 #131 RC",
+    "2023 Panini Illusions Sam LaPorta First Impressions Patch Auto RC #131 Lions",
+    "2023 Illusions Sam LaPorta First Impressions Auto Patch #131 Rookie",
+    "2023 Panini Illusions Sam LaPorta First Impressions RPA Blue /25 #131"
+   ],
+   "listing_titles_modeled": true,
+   "confidence": "the same card and photos as hc-115; the front as the live app read it (no serial); titles modeled"
   }
  ]
 }

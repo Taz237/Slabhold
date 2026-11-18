@@ -10,7 +10,7 @@ import { COMP_COPY, lastSale, soldCount, type SoldsState } from "@/lib/scan/comp
 import { CONFIRM_COPY, gradeLabel, maskCert, matchLine, setWithInsert, versionLabel, type ParallelPick } from "@/lib/scan/confirm";
 import type { FieldSureness, ScanMatch } from "@/lib/scan/match";
 import type { ProductParallel } from "@/lib/cards/product-data";
-import { isUnnamedRunLabel } from "@/lib/scan/scan-sales";
+import { isUnnamedLabel } from "@/lib/scan/scan-sales";
 import { ListingThumb } from "@/components/scan/listing-photo";
 
 /** The scanner's bottom sheet: a labelled modal dialog with a grabber, a title and Close. */
@@ -450,7 +450,7 @@ type GroupRow = { label: string; nSales: number; lastPriceCents?: number | null 
 
 /** A sold group the collector can tap to price their card as that parallel. A run-only group isn't a parallel. */
 function tappable(label: string): boolean {
-  return !isUnnamedRunLabel(label);
+  return !isUnnamedLabel(label);
 }
 
 function GroupRows({ groups, onPick, insertName }: { groups: readonly GroupRow[]; onPick?: (label: string) => void; insertName?: string }) {
@@ -647,7 +647,7 @@ export function withSoldGroups(
   // The Base the sheet is showing reads first and selected.
   if (assumedBase && groups.length > 0 && !has("Base")) out.unshift({ name: "Base", serialRun: null });
   for (const group of groups) {
-    if (isUnnamedRunLabel(group.label) || has(group.label)) continue;
+    if (isUnnamedLabel(group.label) || has(group.label)) continue;
     out.push({ name: group.label, serialRun });
   }
   // No sales yet on a numbered card with no parallel named: last year's parallels at this print run, to tap.

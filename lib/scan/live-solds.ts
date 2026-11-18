@@ -26,7 +26,7 @@ import {
 import { comparableSales, ESTIMATE_MAX_CALLS, ESTIMATE_MIN_SALES, estimateFrom, estimateQueries, yearAgoParallels, type ScanEstimateResult } from "./estimate";
 import { withListingPhotos } from "./listing-photo";
 import { newLookupBudget, type LookupBudget } from "./live-search";
-import { asTrawlResults, groupByParallel, groupFor, groupForPick, isUnnamedRunLabel, scanSalesFor, type ParallelGroup, type ScanSale, type ScanSalesResult } from "./scan-sales";
+import { asTrawlResults, groupByParallel, groupFor, groupForPick, isUnnamedLabel, scanSalesFor, type ParallelGroup, type ScanSale, type ScanSalesResult } from "./scan-sales";
 import { scanReadFrom, type ScanCapture } from "./session";
 
 /** One rung of the search ladder, for the dev log. Queries carry card names only, never user data. */
@@ -138,10 +138,11 @@ async function cachedComp(
 ): Promise<ScanCompResult | null> {
   // An insert with its version open (plain, Refractor, Holo) is never priced as Base: its cached
   // sales show by version, to pick, like the live search's.
-  const versionOpen = !top.parallel && top.serialRun == null && Boolean(top.insertName);
+  // A patch card with its run unread is the same: which version it is isn't known yet.
+  const versionOpen = !top.parallel && top.serialRun == null && (Boolean(top.insertName) || Boolean(top.isRelic));
   const answer = (results: readonly TrawlSoldResult[], asOf: string | null, source: "quick-comp" | "sold-cache"): ScanCompResult | null => {
     if (versionOpen) {
-      const groups = cleanGroups(identity, results, deps.directory, top.serialRun);
+      const groups = cleanGroups(identity, results, deps.directory, top.serialRun, Boolean(top.isRelic));
       return groups.length > 0 ? { status: "split", groups: groups.map(groupSummary) } : null;
     }
     const result = cleanCompFor(identity, results, deps.directory, { serialRun: top.serialRun, asOf, source, runPicked: top.parallelSource === "run" });
@@ -301,7 +302,7 @@ async function lookupSolds(
     matches = rank([...saved, ...liveTitles(results)]);
     const best = matches[0];
     found = best?.playerName
-      ? scanSalesFor(best, { grade: scanCompGrade(best), setBrand: best.setBrand, parallel: best.parallel, insertName: best.insertName }, results, deps.directory)
+      ? scanSalesFor({ ...best, neverPlain: Boolean(best.isRelic) }, { grade: scanCompGrade(best), setBrand: best.setBrand, parallel: best.parallel, insertName: best.insertName }, results, deps.directory)
       : found;
     deps.log?.({ rung: index, query, ok: true, results: live.results.length, kept: found.kept.length, dropped: found.dropped });
     if (found.kept.length > 0) break;
@@ -346,12 +347,17 @@ async function lookupSolds(
       query: usedQuery,
     };
   }
+  // A patch card whose serial wasn't read (foil, glare, printed sideways): nothing says which version
+  // it is, so no group is its price. The sales show by version and run, to pick. Never a guess.
+  if (!best.parallel && best.serialRun == null && best.isRelic) {
+    return { matches, comp: { status: "split", groups: groups.map(groupSummary) }, query: usedQuery };
+  }
   if (!best.parallel && !isMajority(leader, found.kept.length)) {
     return { matches, comp: { status: "split", groups: groups.map(groupSummary) }, query: usedQuery };
   }
   // A colored group takes the card's parallel chip. A Base majority, or a numbered card's sales that
   // name no color ("/299, parallel not named"), leave it open.
-  if (!best.parallel && leader.label !== "Base" && !isUnnamedRunLabel(leader.label)) matches = [withSalesParallel(best, leader.label), ...matches.slice(1)];
+  if (!best.parallel && leader.label !== "Base" && !isUnnamedLabel(leader.label)) matches = [withSalesParallel(best, leader.label), ...matches.slice(1)];
   // A parallel the print run alone picked off the checklist prices from the run's clear majority,
   // whatever those titles call it: "Pink/Red" sales are the Fuchsia Border /299.
   const group = best.parallel ? groupForPick(groups, best.parallel, best.parallelSource === "run" && best.serialRun != null) : leader;
