@@ -151,7 +151,7 @@ export function MatchSummary({ photo, match }: { photo: string | null; match: Sc
         </p>
         {match.subset ? <p className="mt-1 text-sm leading-5 text-zinc-600 dark:text-zinc-400">{match.subset}</p> : null}
         {match.playerNew ? <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">{CONFIRM_COPY.playerNew}</p> : null}
-        {grade || match.isRookie || match.isAuto || match.firstBowman || match.serialRun ? (
+        {grade || match.isRookie || match.isAuto || match.isRelic || match.firstBowman || match.serialRun ? (
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {grade ? (
               <span className="rounded-md border border-zinc-300 px-2 py-0.5 font-mono text-xs leading-5 font-medium tabular-nums dark:border-white/20">
@@ -175,6 +175,7 @@ export function MatchSummary({ photo, match }: { photo: string | null; match: Sc
             {match.isRookie ? <span className="font-mono text-xs leading-5 text-zinc-500 dark:text-zinc-400">RC</span> : null}
             {match.firstBowman ? <span className="font-mono text-xs leading-5 text-zinc-500 dark:text-zinc-400">1st Bowman</span> : null}
             {match.isAuto ? <span className="font-mono text-xs leading-5 text-zinc-500 dark:text-zinc-400">Auto</span> : null}
+            {match.isRelic ? <span className="font-mono text-xs leading-5 text-zinc-500 dark:text-zinc-400">Patch</span> : null}
           </div>
         ) : null}
         <div className="mt-2 empty:hidden">
@@ -298,7 +299,7 @@ export function RevealName({ match, parallel, photo = null }: { match: ScanMatch
           {CONFIRM_COPY.playerNew}
         </p>
       ) : null}
-      {grade || cert || match.isRookie || match.isAuto || match.firstBowman || match.serialRun ? (
+      {grade || cert || match.isRookie || match.isAuto || match.isRelic || match.firstBowman || match.serialRun ? (
         <div data-stage="tags" className={`mt-3 flex flex-wrap items-center justify-center gap-2 ${tags.className}`} style={tags.style}>
           {grade ? (
             <span className="rounded-md border border-zinc-300 px-2 py-0.5 font-mono text-xs leading-5 font-medium tabular-nums dark:border-white/20">
@@ -321,6 +322,7 @@ export function RevealName({ match, parallel, photo = null }: { match: ScanMatch
           {match.isRookie ? <span className="font-mono text-xs leading-5 text-zinc-500 dark:text-zinc-400">RC</span> : null}
           {match.firstBowman ? <span className="font-mono text-xs leading-5 text-zinc-500 dark:text-zinc-400">1st Bowman</span> : null}
           {match.isAuto ? <span className="font-mono text-xs leading-5 text-zinc-500 dark:text-zinc-400">Auto</span> : null}
+            {match.isRelic ? <span className="font-mono text-xs leading-5 text-zinc-500 dark:text-zinc-400">Patch</span> : null}
         </div>
       ) : null}
       <div className={`mt-2 empty:hidden ${tags.className}`} style={tags.style}>

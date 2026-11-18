@@ -28,6 +28,8 @@ export type ScanCapture = {
   kind: "card" | "slab" | null;
   /** The version the collector picked for a slab whose label named none, as the line it was added as. */
   versionLine?: string | null;
+  /** The card the collector picked from the closest choices, as the two front lines it was added as (closest.ts). */
+  pickedLines?: string[] | null;
   /** The border's color name from the photo (pink, red, purple...), read on the phone. Null when unclear. */
   border?: string | null;
   /** The photo's look (border color, rainbow sheen), read from `image` on the phone. Null when unclear. */

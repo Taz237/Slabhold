@@ -13,7 +13,8 @@
   "hc-076 is the Nov 16 device miss (Jaxson Dart X-Fractor slab shown as Base). Here the label's variety line reads; the same slab with that line missed is the open case tracked in docs/scanner-audit.md (fix B). Its Quick Comp side is tested in lib/quick-comp/versions.test.ts.",
   "hc-087 to hc-090 are one-word names (Ludacris, Ichiro, MIYAVI) the checklist import used to drop; hc-091 to hc-100 come from the 2023-2026 checklists added on 2026-11-17. Their fronts and titles are modeled (\"listing_titles_modeled\"); player and card # are checked against the checklist page each names.",
   "hc-101 to hc-107 test plain Topps backs (no product printed: the set comes from the Topps checklists, or stays open) and Hoops backs (the year from the © or the \"2025-26 NBA HOOPS\" line, never a stat row). No real back photos of these cards yet: fronts, backs and titles are modeled (\"back_modeled\", \"listing_titles_modeled\"); player and card # are checked against each checklist page.",
-  "hc-108 to hc-112 are the Cameron Boozer 2026-27 Topps Rookie Code RC-3 a collector scanned front and back (the app showed 2026-27 O-Pee-Chee #1). hc-112 is the real card: its front and back are an OCR read of the collector's own photos (Tesseract, not the phone's reader), binary-digit art and all, which read as O-Pee-Chee and pushed the © line past the line limit. hc-108 to hc-111 are modeled shapes of the same card #: a bio \"No. 1\", a split \"RC\" / \"3\", a lost hyphen and a code run into the bio."
+  "hc-108 to hc-112 are the Cameron Boozer 2026-27 Topps Rookie Code RC-3 a collector scanned front and back (the app showed 2026-27 O-Pee-Chee #1). hc-112 is the real card: its front and back are an OCR read of the collector's own photos (Tesseract, not the phone's reader), binary-digit art and all, which read as O-Pee-Chee and pushed the © line past the line limit. hc-108 to hc-111 are modeled shapes of the same card #: a bio \"No. 1\", a split \"RC\" / \"3\", a lost hyphen and a code run into the bio.",
+  "hc-113 to hc-115 are three cards a collector scanned on 2026-11-17 that all came back not found (docs/scanner-coverage-plan.md). Fronts and backs are the lines the collector's own photos print, read off the photos (the clean print by eye; Tesseract read the plain type and missed the foil and stylised type, and its reads of the same photos are scored too in lib/scan/coverage-misses.test.ts). \"front_only\": the collector took no back, so none is built: hc-113 has only its front, which prints no year, set or card #, so those stay open and the scanner offers the player's real cards to pick from."
  ],
  "cards": [
   {
@@ -3519,6 +3520,133 @@
    ],
    "listing_titles_modeled": true,
    "confidence": "player and card # checked against the 2026-27 Topps checklist (Rookie Code RC-3); front and back read off the collector's real photos (Tesseract OCR, card cropped); titles modeled"
+  },
+  {
+   "id": "hc-113",
+   "category": "device_miss",
+   "year": "1985-86",
+   "manufacturer": "Topps",
+   "product": "Topps Hockey",
+   "card_number": "9",
+   "player": "Mario Lemieux",
+   "team": "Pittsburgh Penguins",
+   "parallel": null,
+   "print_run": null,
+   "sport": "hockey",
+   "is_rookie": true,
+   "front_only": true,
+   "typical_ocr_front": [
+    "Cooper",
+    "MARIO LEMIEUX",
+    "C",
+    "Cooper",
+    "Cooper"
+   ],
+   "why_hard": "Vintage, front only, in a one-touch. The front prints the name and the position and nothing else: no year, no set, no card #, and the team is a logo. The scan found no card and stopped at \"We couldn't find this one yet\". The same front is the 1985-86 O-Pee-Chee #9 too, so the front alone can't say which: the year, set and # stay open, and the scanner offers his real cards (both 1985-86 cards first) to pick from.",
+   "source_urls": [
+    "https://www.cardboardconnection.com/1985-86-topps-hockey-cards"
+   ],
+   "listing_title_examples": [],
+   "confidence": "player and card # checked against the 1985-86 Topps checklist in the store; front read off the collector's real photo"
+  },
+  {
+   "id": "hc-114",
+   "category": "device_miss",
+   "year": "2023",
+   "manufacturer": "Panini",
+   "product": "Panini Select Football",
+   "card_number": "389",
+   "player": "Mike Evans",
+   "team": "Tampa Bay Buccaneers",
+   "parallel": "Field Level Tie-Dye Prizm",
+   "parallel_also": [
+    "Tie-Dye Prizm",
+    "Tie-Dye"
+   ],
+   "print_run": 25,
+   "sport": "football",
+   "is_rookie": false,
+   "typical_ocr_front": [
+    "SELECT",
+    "2023",
+    "TAMPA BAY BUCCANEERS",
+    "MIKE EVANS"
+   ],
+   "typical_ocr_back": [
+    "FIELD LEVEL",
+    "No. 389",
+    "PRIZM",
+    "MIKE EVANS",
+    "TAMPA BAY BUCCANEERS",
+    "When you hear “high upside,” think Evans in 2014. The Buccaneers",
+    "sure did when they drafted the Texas A&M receiver, who had",
+    "played only one year of high school football and two in college. “He",
+    "played like he had a natural instinct of a guy playing his whole life,”",
+    "GM Jason Licht said. “So you know it's going to get even better.”",
+    "PANINI",
+    "07/25",
+    "2023 PANINI - SELECT FOOTBALL",
+    "© 2024 Panini America, Inc.",
+    "NFL",
+    "NFLPA"
+   ],
+   "why_hard": "The bio says \"a natural instinct\", and the scanner read that as the Instinct insert: the card came back as an insert it isn't. And Select's /25 is one parallel per tier (Tie-Dye in five tiers, Blue Disco in four): the card is Field Level, printed on the back and in the checklist, so only the Field Level /25 fits.",
+   "source_urls": [
+    "https://www.paniniamerica.net/checklist.html"
+   ],
+   "listing_title_examples": [
+    "2023 Panini Select Mike Evans Field Level Tie-Dye Prizm /25 #389 Buccaneers",
+    "Mike Evans 2023 Select Football Tie Dye Prizm Field Level 07/25 #389"
+   ],
+   "listing_titles_modeled": true,
+   "confidence": "player and card # checked against the 2023 Select checklist (Base Field Level #389), the /25 against Panini's own parallel list (Field Level Tie-Dye Prizm /25); front and back read off the collector's real photos; titles modeled"
+  },
+  {
+   "id": "hc-115",
+   "category": "device_miss",
+   "year": "2023",
+   "manufacturer": "Panini",
+   "product": "Panini Illusions Football",
+   "card_number": "131",
+   "player": "Sam LaPorta",
+   "team": "Detroit Lions",
+   "parallel": null,
+   "parallel_unconfirmed": true,
+   "print_run": 10,
+   "sport": "football",
+   "is_rookie": true,
+   "typical_ocr_front": [
+    "ROOKIE",
+    "RC",
+    "CARD",
+    "LIONS",
+    "03/10",
+    "SAM LaPORTA",
+    "FIRST IMPRESSIONS"
+   ],
+   "typical_ocr_back": [
+    "No. 131",
+    "FIRST IMPRESSIONS",
+    "SAM LaPORTA",
+    "LIONS",
+    "The enclosed authentic memorabilia is not from any specific game or event.",
+    "The autograph is guaranteed by Panini America, Inc.",
+    "NFL",
+    "PANINI",
+    "2023 PANINI - ILLUSIONS FOOTBALL",
+    "© 2024 Panini America, Inc.",
+    "NFLPA"
+   ],
+   "why_hard": "Illusions wasn't a set we knew, so \"2023 PANINI - ILLUSIONS FOOTBALL\" named no set and the card had nowhere to land. It is a rookie patch autograph (First Impressions Autographed Memorabilia #131), numbered 03/10 up the right edge. No list we have names the /10 parallel, so the parallel stays open: any name would be a guess.",
+   "source_urls": [
+    "https://www.checklistinsider.com/2023-panini-illusions-football"
+   ],
+   "listing_title_examples": [
+    "2023 Panini Illusions Sam LaPorta First Impressions Rookie Patch Auto /10 #131 Lions RPA",
+    "Sam LaPorta 2023 Illusions First Impressions RPA 03/10 RC #131"
+   ],
+   "listing_titles_modeled": true,
+   "confidence": "player and card # checked against the 2023 Illusions checklist (First Impressions Autographed Memorabilia #131); front and back read off the collector's real photos; the /10 parallel's name is not confirmed by any checklist we have; titles modeled"
   }
  ]
 }

@@ -76,6 +76,13 @@ export type RawCardRead = {
   codeHints: string[];
   /** The card says it is signed: "CERTIFIED AUTOGRAPH ISSUE", "AUTOGRAPH", or an autograph checklist code. */
   isAuto: boolean;
+  /** The card says it holds a piece of memorabilia (a patch, a jersey swatch, a relic): the back's notice, or a relic line. */
+  isRelic?: boolean;
+  /**
+   * The product the back's own product line names in full, when it isn't a set on our list:
+   * "Panini Illusions" from "2023 PANINI - ILLUSIONS FOOTBALL". "" when the line names a listed set, or there is none.
+   */
+  productText?: string;
   /** The insert or variation the back names ("Rookie Autograph Variations"). "" when none. */
   subset: string;
   /** A stamped serial such as 12/99. */
@@ -241,6 +248,39 @@ export function looksLikeCatalogSku(value: string): boolean {
   return /\d{5,}/.test(text) || (text.length >= 8 && /[a-z]/i.test(text) && /\d/.test(text));
 }
 const YEAR_TOKEN = /\b(\d{4}(?:\s*-\s*\d{2})?)\s+(\S+)/g;
+
+/** The memorabilia notice a relic card's back carries, or the words for a worn or used piece. Legal text, so it counts inside a sentence. */
+const RELIC_NOTICE = /\bmemorabilia\b|\b(?:game|player|event|photo\s*shoot)[-\s]?(?:worn|used)\b/i;
+/** A relic's own title line: "ROOKIE PATCH AUTOGRAPH", "JUMBO SWATCHES", "DUAL RELICS". Short lines only. */
+const RELIC_TITLE = /\b(?:relics?|patch(?:es)?|swatch(?:es)?|materials?|jerseys?|memorabilia)\b/i;
+
+function saysRelic(line: string): boolean {
+  return RELIC_NOTICE.test(line) || (RELIC_TITLE.test(line) && !proseLine(line));
+}
+
+/** The back's product line: the year, the maker, the product and the sport, in that order. */
+const PRODUCT_LINE =
+  /^(?:\d{4}(?:\s*-\s*\d{2,4})?)\s+(panini|topps|upper\s+deck|leaf|donruss|bowman|fleer|skybox|score|sage)\b\s*[-–—~:]*\s*(.*?)\s*\b(?:football|basketball|baseball|hockey|soccer)\b\s*$/i;
+
+/**
+ * The product a back's product line names in full ("2023 PANINI - ILLUSIONS FOOTBALL" is Panini
+ * Illusions). The card printed it, so it is the set even when our list has never heard of it.
+ * "" when there is no such line, or the name is bare (just the maker) or reads like a sentence.
+ */
+export function printedProduct(lines: readonly string[]): string {
+  for (const line of lines) {
+    const found = PRODUCT_LINE.exec(line.replace(/\s+/g, " ").trim());
+    if (!found) continue;
+    const maker = found[1].replace(/\s+/g, " ");
+    const name = found[2].replace(/[^A-Za-z0-9'& ]+/g, " ").replace(/\s+/g, " ").trim();
+    const count = name ? name.split(" ").length : 0;
+    if (count === 0 || count > 4 || !/[a-z]/i.test(name)) continue;
+    return `${maker} ${name}`
+      .toLowerCase()
+      .replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
+  }
+  return "";
+}
 
 function emptyRead(): RawCardRead {
   return {
@@ -696,8 +736,10 @@ function colorLineWords(lines: string[], directory: readonly IndexedDirectoryPla
     });
 }
 
-function readInsert(lines: string[]): string {
-  const text = ` ${insertKey(lines.join(" "))} `;
+function readInsert(lines: string[], scanned: boolean): string {
+  // On a scanned card an insert's name is a title, never a word in the bio ("a natural instinct"
+  // is not Instinct). A sold title is one long line, and is read whole.
+  const text = ` ${insertKey((scanned ? lines.filter((line) => !proseLine(line)) : lines).join(" "))} `;
   for (const item of POPULAR_INSERTS) {
     for (const name of [item.name, ...item.aliases]) {
       if (text.includes(` ${insertKey(name)} `)) return item.name;
@@ -1189,6 +1231,7 @@ export function readRawCardText(
   read.isAuto =
     clean.some(saysAuto) ||
     [read.cardNumber, ...read.letterCodes].some((code) => AUTO_CODE_PREFIX.test(/^([A-Z]+)-/.exec(code)?.[1] ?? ""));
+  if (options.side && clean.some(saysRelic)) read.isRelic = true;
   read.statSeason = options.side === "back" ? readStatSeason(clean) : "";
   read.subset = readSubset(clean);
   read.serial = readSerial(clean, Boolean(options.side));
@@ -1204,9 +1247,14 @@ export function readRawCardText(
   // Nothing else names the set, and the back signs T.C.G.: a vintage Topps card.
   if (kept.length === 0 && options.side === "back" && clean.some((line) => TOPPS_CHEWING_GUM.test(line))) kept = ["Topps"];
   read.setNames = kept;
+  // No set on our list was named: the back's own product line still names the product.
+  if (kept.length === 0 && options.side === "back") {
+    const product = printedProduct(clean);
+    if (product) read.productText = product;
+  }
   read.printedSets = sets.printed.filter((name) => kept.includes(name));
   read.parallelWords = readParallelWords(colorLineWords(clean, directory, Boolean(options.side)));
-  read.insert = readInsert(clean);
+  read.insert = readInsert(clean, Boolean(options.side));
   read.side = readSide(clean, lineWords, read.copyrightYear);
   return read;
 }

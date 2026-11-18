@@ -79,6 +79,8 @@ export type ScanMatch = {
   serialNo: string;
   isRookie: boolean;
   isAuto: boolean;
+  /** The card says it holds a patch, a swatch or a relic (the back's memorabilia notice, or the label). */
+  isRelic?: boolean;
   /** Slabs only. */
   grade: ScanGrade | null;
   score: number;
@@ -264,6 +266,8 @@ type Evidence = {
   parallelWords: string[];
   isRookie: boolean;
   isAuto: boolean;
+  /** The card says it holds a patch, a swatch or a relic. */
+  isRelic?: boolean;
   grade: ScanGrade | null;
 };
 
@@ -318,6 +322,9 @@ function seasonFor(sport: string, yearLabel: string, setBrand = ""): string {
   return `${start}-${String((start + 1) % 100).padStart(2, "0")}`;
 }
 
+/** A slab label's word for a piece of memorabilia: PATCH, RELIC, JERSEY, SWATCH, MEMORABILIA, MATERIAL(S). */
+const RELIC_LABEL_WORD = /^(?:patch(?:es)?|relics?|jerseys?|swatch(?:es)?|memorabilia|materials?|rpa)$/i;
+
 function evidenceFrom(read: ScanRead, directory: readonly IndexedDirectoryPlayer[]): Evidence {
   if (read.kind === "slab") {
     const label = read.label;
@@ -346,6 +353,7 @@ function evidenceFrom(read: ScanRead, directory: readonly IndexedDirectoryPlayer
       parallelWords: slabParallelWords(label.varietyText),
       isRookie: label.isRookie,
       isAuto: Boolean(label.autoGrade) || variety.some((word) => word.startsWith("auto")),
+      ...(variety.some((word) => RELIC_LABEL_WORD.test(word)) ? { isRelic: true } : {}),
       grade: {
         company: label.grader,
         number: label.gradeNumber,
@@ -449,7 +457,8 @@ function evidenceFrom(read: ScanRead, directory: readonly IndexedDirectoryPlayer
     ...(yearOpen ? { yearOpen: true } : {}),
     setNames,
     ...(plainToppsBack(read, setNames) ? { toppsBack: true } : {}),
-    setText: "",
+    // No set on our list was read, and the back's product line names its product in full: that is the set.
+    setText: setNames.length === 0 ? (sides.map((side) => side.productText ?? "").find(Boolean) ?? "") : "",
     cardNumber,
     backNumbers: loneNumbers(read.back),
     codeHints: [...(read.back?.codeHints ?? []), ...read.front.codeHints].filter((code, index, all) => all.indexOf(code) === index),
@@ -458,6 +467,7 @@ function evidenceFrom(read: ScanRead, directory: readonly IndexedDirectoryPlayer
     parallelWords,
     isRookie: sides.some((side) => side.isRookie),
     isAuto: sides.some((side) => side.isAuto) || AUTO_CODE_PREFIX.test(numberPrefix),
+    ...(sides.some((side) => side.isRelic) ? { isRelic: true } : {}),
     grade: null,
   };
 }
@@ -615,7 +625,8 @@ function checklistYears(evidence: Evidence): string[] {
 
 function cardKeyOf(evidence: Evidence): ScanCardKey | null {
   if (evidence.slab) return null;
-  const setBrand = evidence.setNames[0] ?? "";
+  // The set as read, or the product the back's own product line names (a set our list doesn't have).
+  const setBrand = evidence.setNames[0] ?? (evidence.setText ? titleCase(evidence.setText) : "");
   if (!setBrand || !evidence.cardNumber) return null;
   const years = cardYears(evidence);
   if (years.length === 0) return null;
@@ -828,7 +839,61 @@ function insertSectionFor(
   const sections = new Set(his.map((hit) => hit.section));
   if (sections.size !== 1) return "";
   const [section] = sections;
-  return NOT_INSERT_NAME.test(section) ? "" : section;
+  // A tier of the base set ("Base Field Level" in Select) goes by its own name: Field Level.
+  return NOT_INSERT_NAME.test(section) ? "" : section.replace(/^base\s+(?=\S)/i, "");
+}
+
+/** Words on the end of an autograph or relic section's name: what is left is the name the card prints. */
+const SIGNED_SECTION_TAIL = /(?:\s+(?:autograph(?:ed|s)?|autos?|signatures?|signed|memorabilia|relics?|materials?|jerseys?|patch(?:es)?|swatch(?:es)?|prizms?))+$/i;
+
+/**
+ * An autograph or relic section the card itself names: "First Impressions Autographed
+ * Memorabilia" on a card that prints FIRST IMPRESSIONS on a line of its own. The checklist has this
+ * player at this # in that one section, and the card prints the section's own name (two words or
+ * more), so it is the card's insert, signed and with its piece of memorabilia as the section says.
+ * Anything less names nothing.
+ */
+export function signedSectionFor(
+  card: Pick<ScanMatch, "playerName" | "yearLabel" | "setBrand" | "cardNumber" | "sport">,
+  checklists: readonly ChecklistProduct[] | null | undefined,
+  printedLines: readonly string[],
+): { insertName: string; isAuto: boolean; isRelic: boolean } | null {
+  if (!checklists?.length || !card.playerName || !card.cardNumber || !card.setBrand || !card.yearLabel) return null;
+  const hits = playersAt(checklists, { yearLabel: card.yearLabel, setBrand: card.setBrand, cardNumber: card.cardNumber, sport: card.sport || undefined });
+  const his = hits.filter((hit) => namesAgree(hit.player, card.playerName));
+  const printed = new Set(printedLines.map(tierKey));
+  const named = [...new Set(his.map((hit) => hit.section))].filter((section) => {
+    const name = tierKey(section.replace(SIGNED_SECTION_TAIL, ""));
+    return NOT_INSERT_NAME.test(section) && name.split(" ").length >= 2 && printed.has(name);
+  });
+  if (named.length !== 1) return null;
+  const [section] = named;
+  return {
+    insertName: section.replace(SIGNED_SECTION_TAIL, "").trim(),
+    isAuto: /\b(?:autograph(?:ed|s)?|autos?|signatures?|signed)\b/i.test(section),
+    isRelic: /\b(?:memorabilia|relics?|materials?|jerseys?|patch(?:es)?|swatch(?:es)?)\b/i.test(section),
+  };
+}
+
+const tierKey = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
+/**
+ * A set split into tiers (Select: Concourse, Premier Level, Club Level, Field Level) names each
+ * parallel after its tier, and a card can only be a parallel of its own. The card's tier is the
+ * one it prints on a line of its own ("FIELD LEVEL"), or the one its checklist section is named
+ * for. Then only that tier's rows are offered: a /25 Field Level is never a Club Level /25.
+ * No tiers in the list, or no tier (or two) named for the card: the list is left as it is.
+ */
+export function tierParallels(options: ProductParallel[], printedLines: readonly string[], section = ""): ProductParallel[] {
+  const keys = options.map((option) => tierKey(option.name));
+  const tiers = keys.filter((key, index) => key && key !== "base" && keys.indexOf(key) === index && keys.filter((other) => other.startsWith(`${key} `)).length >= 3);
+  if (tiers.length < 2) return options;
+  const printed = new Set(printedLines.map(tierKey));
+  const sectionKey = tierKey(section).replace(/^base /, "");
+  const named = tiers.filter((tier) => printed.has(tier) || sectionKey === tier);
+  if (named.length !== 1) return options;
+  const [tier] = named;
+  return options.filter((option, index) => keys[index] === "base" || keys[index] === tier || keys[index].startsWith(`${tier} `));
 }
 
 /**
@@ -977,6 +1042,13 @@ function withLookedUpPlayer(
 /** The player the card names (nameplate first), or "" when none was read. */
 export function scanPlayerName(read: ScanRead, directory: readonly IndexedDirectoryPlayer[]): string {
   return bestPlayerName(evidenceFrom(read, directory));
+}
+
+/** The player a scan read and their sport ("" when the card and our list give none). Null with no player. */
+export function scanPlayer(read: ScanRead, directory: readonly IndexedDirectoryPlayer[]): { name: string; sport: string } | null {
+  const evidence = evidenceFrom(read, directory);
+  const name = bestPlayerName(evidence);
+  return name ? { name, sport: evidence.players[0]?.sport ?? evidence.sport } : null;
 }
 
 /** Sets that are only a maker's name: a seller's "Topps" on a Bowman card is the maker. */
@@ -1958,6 +2030,7 @@ export function rankScanMatches(
       if (!card.titles?.length && compactName(card.playerName) === compactName(bestPlayerName(evidence))) card.titles = loose;
     }
   }
+  const printedLines = read.kind === "raw" ? [...read.front.lines, ...(read.back?.lines ?? [])] : [];
   const scored = merged.map((found) => {
     let card = found;
     // Sapphire the card didn't print: named only when most sold titles for this player, card # and run say so.
@@ -1973,7 +2046,8 @@ export function rankScanMatches(
       : card.titles;
     const lastYear = yearBefore(card.yearLabel);
     const yearAgo = lastYear && options.products?.length ? parallelsIn(options.products, card.sport, lastYear, card.setBrand, card.cardNumber) : [];
-    const parallel = pickParallel(evidence, checklistFor(options.products, card, options.checklists), titles, yearAgo, vintageWithoutList(options.products, card));
+    const tierList = tierParallels(checklistFor(options.products, card, options.checklists), printedLines, insertSectionFor(card, options.checklists));
+    const parallel = pickParallel(evidence, tierList, titles, yearAgo, vintageWithoutList(options.products, card));
     const inDirectory = evidence.players.some((item) => compactName(item.name) === compactName(card.playerName));
     // A slab label prints no run: when every sold title for this parallel names the same one, use it.
     if (parallel.serialRun == null && parallel.parallel && card.titles?.length) {
@@ -1984,6 +2058,8 @@ export function rankScanMatches(
     // The insert this card # is in: the one the front named, else the checklist's section for it.
     const insertName =
       evidence.insertSection && checklistNumberKey(card.cardNumber) === checklistNumberKey(evidence.cardNumber) ? evidence.insertSection : insertSectionFor(card, options.checklists);
+    // An autograph or relic section never names an insert by the # alone: only when the card prints its name.
+    const signed = insertName ? null : signedSectionFor(card, options.checklists, printedLines);
     const match: ScanMatch = {
       catalogId: rowId ?? card.catalogId,
       playerName: card.playerName,
@@ -1995,7 +2071,8 @@ export function rankScanMatches(
       serialRun: parallel.serialRun,
       serialNo: evidence.serial?.number ?? "",
       isRookie: card.isRookie || evidence.isRookie,
-      isAuto: evidence.isAuto,
+      isAuto: evidence.isAuto || Boolean(signed?.isAuto),
+      ...(evidence.isRelic || signed?.isRelic ? { isRelic: true } : {}),
       grade: evidence.grade,
       // Scored and judged as the set the card printed: Sapphire from sales rides on top of it.
       score: identityScore(evidence, found) + titleScore(evidence, found) + parallelBonus + (found.numberNudge ?? 0),
@@ -2006,7 +2083,7 @@ export function rankScanMatches(
       // year that set first had a Sapphire Edition.
       ...(!evidence.slab && sapphireOptionFor(card.setBrand, card.yearLabel) ? { sapphireOption: sapphireOptionFor(card.setBrand, card.yearLabel)! } : {}),
       ...(evidence.subset ? { subset: evidence.subset } : {}),
-      ...(insertName ? { insertName } : {}),
+      ...(insertName || signed ? { insertName: insertName || signed!.insertName } : {}),
       ...(read.kind === "raw" && [read.front, read.back].some((side) => side?.firstBowman) ? { firstBowman: true } : {}),
       ...(!evidence.slab && !inDirectory && card.playerName && compactName(card.playerName) === compactName(evidence.playerText) ? { playerNew: true } : {}),
       ...(parallel.source ? { parallelSource: parallel.source } : {}),

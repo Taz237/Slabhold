@@ -41,6 +41,12 @@ export const CONFIRM_COPY = {
   unpinnedTitle: "We couldn't pin this one down",
   unpinnedBody: "What the card prints doesn't match a card we know, so we won't guess. Search for it instead.",
   search: "Search for it",
+  /** Only the player was read: their real cards from our checklists, to pick from. Never a guess. */
+  closestTitle: "Is it one of these?",
+  closestBody: "but not the year, set or card number. Tap your card, or add it yourself.",
+  closestList: "Cards we know for this player",
+  /** A choice other collectors picked for a scan that read the same. */
+  closestConfirmed: "Picked by other collectors",
   stepByStep: "Add it step by step",
   close: "Close",
 } as const;

@@ -83,7 +83,7 @@ added, skipped or failed.
 
 ## What is in the store today
 
-493 files, 386,685 cards (every year and product in `index.json`). `index.json` has each one's source and the day it was read.
+494 files, 387,314 cards (every year and product in `index.json`). `index.json` has each one's source and the day it was read.
 
 | Sport | Product | Years |
 | --- | --- | --- |
@@ -123,6 +123,7 @@ added, skipped or failed.
 | Football | Donruss Optic | 2019, 2020, 2021, 2022, 2023, 2024, 2025 |
 | Football | Panini Contenders | 2023, 2024 |
 | Football | Panini Donruss | 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026 |
+| Football | Panini Illusions | 2023 |
 | Football | Panini Mosaic | 2020, 2021, 2022, 2023, 2024, 2025 |
 | Football | Panini Prizm | 2019, 2020, 2021, 2022, 2023, 2024, 2025 |
 | Football | Panini Select | 2019, 2020, 2021, 2022, 2023, 2024, 2025 |

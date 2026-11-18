@@ -34,6 +34,8 @@ export type ScanHandoff = {
   serialNo: string;
   isRookie: boolean;
   isAuto: boolean;
+  /** The card holds a patch, a swatch or a relic. Older handoffs have none. */
+  isRelic?: boolean;
   grade: ScanGrade | null;
   sureness: ScanMatch["sureness"];
   /** "Yes, add it": Add card saves on open instead of waiting on Review. */
@@ -73,6 +75,7 @@ export function scanHandoffFrom(match: ScanMatch, id: string, options: { autoSav
     serialNo: match.serialNo,
     isRookie: match.isRookie,
     isAuto: match.isAuto,
+    ...(match.isRelic ? { isRelic: true } : {}),
     grade: match.grade,
     sureness: match.sureness,
     // An autograph, a variation or a numbered card with its parallel still open is never saved as
@@ -164,6 +167,7 @@ export function parseScanHandoff(raw: string | null): ScanHandoff | null {
     serialNo: values.serialNo!,
     isRookie: data.isRookie,
     isAuto: data.isAuto,
+    ...(data.isRelic === true ? { isRelic: true } : {}),
     grade,
     sureness,
     autoSave: data.autoSave === true,
@@ -187,6 +191,8 @@ export type ScanCardStart = {
   parallelIsCustom: boolean;
   isRookie: boolean;
   isAuto: boolean;
+  /** The card holds a patch, a swatch or a relic. */
+  isRelic?: boolean;
   /** "" for a raw card: Add card keeps its own default. */
   gradeCompany: string;
   gradeNumber: string;
@@ -218,6 +224,7 @@ export function scanCardStart(handoff: ScanHandoff): ScanCardStart {
     parallelIsCustom,
     isRookie: handoff.isRookie,
     isAuto: handoff.isAuto,
+    ...(handoff.isRelic ? { isRelic: true } : {}),
     gradeCompany: handoff.grade?.company ?? "",
     gradeNumber: handoff.grade?.number ?? "",
     gradeQualifier: handoff.grade?.qualifier ?? "",

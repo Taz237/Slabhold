@@ -358,7 +358,7 @@ export function CardForm({
   const [isAuto, setIsAuto] = useState(
     restored?.isAuto ?? (Boolean(existing?.isAuto) || Boolean(scanStart?.isAuto)),
   );
-  const [isRelic, setIsRelic] = useState(restored?.isRelic ?? Boolean(existing?.isRelic));
+  const [isRelic, setIsRelic] = useState(restored?.isRelic ?? (Boolean(existing?.isRelic) || Boolean(scanStart?.isRelic)));
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const sections = addFormSections(Boolean(existing));
   const [moreOpen, setMoreOpen] = useState(() => draftOpensMoreDetails(restored));

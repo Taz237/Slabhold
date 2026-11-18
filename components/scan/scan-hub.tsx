@@ -18,6 +18,7 @@ import { isNativeApp, loadNative } from "@/lib/ios/platform";
 import { CAMERA_DENIED, type ScanOutcome } from "@/lib/ios/scanner";
 import { PHOTO_READ_ERROR, readPhotoFile } from "@/lib/photos";
 import { needsBackStep, withBack, type ScanSource } from "@/lib/scan/back-step";
+import { closestCards, closestMatch, readKeyOf, withPickedCard, type ClosestCard } from "@/lib/scan/closest";
 import { compQueryString, type ScanCompResult } from "@/lib/scan/comp";
 import { newScanId, scanAddPath, scanHandoffFrom } from "@/lib/scan/handoff";
 import type { LiveSoldsResult } from "@/lib/scan/live-solds";
@@ -49,10 +50,65 @@ export type ScanHubDeps = {
    */
   solds: (capture: ScanCapture, matches: ScanMatch[], signal: AbortSignal) => Promise<LiveSoldsResult | null>;
   compLookup: CompLookup;
+  /**
+   * Only the player was read: their real cards to pick from (our checklists, and what other
+   * collectors picked for the same read). Null when no player was read or we know no card of theirs.
+   */
+  closest: (capture: ScanCapture, signal: AbortSignal) => Promise<ScanClosest | null>;
+  /** Logs a scan that didn't end on the card (what we read, what we searched, why). Never awaited, never shown. */
+  logMiss: (miss: ScanMissReport) => void;
+  /** The collector added the card they picked from the choices: saved so the next scan that reads the same finds it. */
+  confirm: (readKey: string, card: ClosestCard) => void;
   online: () => boolean;
   /** Inside the iPhone app. There, a scanner that didn't load is an error, not "coming soon". */
   nativeApp: () => boolean;
 };
+
+export type ScanClosest = { player: string; readKey: string; cards: ClosestCard[] };
+export type ScanMissReport = { capture: ScanCapture; result: ScanMatchResult | null; closest: number; leftForSearch?: boolean };
+
+async function defaultClosest(capture: ScanCapture, signal: AbortSignal): Promise<ScanClosest | null> {
+  const [{ SCAN_DIRECTORY }, { scanPlayer }, { loadPlayerCards, fetchConfirmedCards }] = await Promise.all([
+    import("@/lib/players/scan-directory"),
+    import("@/lib/scan/match"),
+    import("@/lib/scan/closest-load"),
+  ]);
+  const player = scanPlayer(scanReadFrom(capture, SCAN_DIRECTORY), SCAN_DIRECTORY);
+  if (!player) return null;
+  const readKey = readKeyOf({ playerName: player.name, sport: player.sport });
+  const [index, confirmed] = await Promise.all([loadPlayerCards(player.sport), fetchConfirmedCards(readKey, signal)]);
+  const cards = closestCards(player, index, confirmed);
+  return cards.length > 0 ? { player: player.name, readKey, cards } : null;
+}
+
+/** POST /api/scan/miss. The read text and what was searched: no photo, and a failure is silent. */
+function defaultLogMiss(report: ScanMissReport): void {
+  void (async () => {
+    const [{ SCAN_DIRECTORY }, { catalogQueriesFor, scanChecklistKey, scanPlayer }, { checklistFilesFor }, { scanMissOf }] = await Promise.all([
+      import("@/lib/players/scan-directory"),
+      import("@/lib/scan/match"),
+      import("@/lib/cards/checklist-load"),
+      import("@/lib/scan/miss"),
+    ]);
+    const read = scanReadFrom(report.capture, SCAN_DIRECTORY);
+    const checklist = scanChecklistKey(read, SCAN_DIRECTORY);
+    const miss = scanMissOf({
+      capture: report.capture,
+      result: report.result,
+      player: scanPlayer(read, SCAN_DIRECTORY) ?? { name: "", sport: "" },
+      searched: { catalog: catalogQueriesFor(read, SCAN_DIRECTORY), checklist, checklistFiles: checklist ? checklistFilesFor(checklist).length : 0 },
+      closest: report.closest,
+      leftForSearch: report.leftForSearch,
+    });
+    if (!miss) return;
+    await fetch("/api/scan/miss", { method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store", keepalive: true, body: JSON.stringify(miss) });
+  })().catch(() => {});
+}
+
+/** POST /api/scan/confirmed. Text only; a failure is silent. */
+function defaultConfirm(readKey: string, card: ClosestCard): void {
+  void fetch("/api/scan/confirmed", { method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store", keepalive: true, body: JSON.stringify({ key: readKey, card }) }).catch(() => {});
+}
 
 /** The phone's alternate readings fill open fields (lib/scan/alternates.ts); the result is plain lines. */
 async function defaultSettle(capture: ScanCapture): Promise<ScanCapture> {
@@ -152,6 +208,9 @@ const defaultDeps: ScanHubDeps = {
   identify: defaultIdentify,
   solds: defaultSolds,
   compLookup: defaultCompLookup,
+  closest: defaultClosest,
+  logMiss: defaultLogMiss,
+  confirm: defaultConfirm,
   online: () => (typeof navigator === "undefined" ? true : navigator.onLine !== false),
   nativeApp: isNativeApp,
 };
@@ -197,6 +256,11 @@ export function ScanHub({
   const lastCapture = useRef<ScanCapture | null>(null);
   // "Flip it over": the front as scanned (before settling) and its read, while the sheet asks for the back.
   const waitingBack = useRef<{ front: ScanCapture; capture: ScanCapture; result: ScanMatchResult } | null>(null);
+  // The choices on the sheet when only the player was read, and the one the collector picked from them.
+  const closest = useRef<ScanClosest | null>(null);
+  const pickedClosest = useRef<{ readKey: string; card: ClosestCard } | null>(null);
+  // The card on the sheet, for the miss log when the collector leaves it for a search.
+  const shown = useRef<{ capture: ScanCapture; result: ScanMatchResult } | null>(null);
   const opened = useRef(false);
   const cameraRef = useRef<HTMLInputElement>(null);
   const libraryRef = useRef<HTMLInputElement>(null);
@@ -216,9 +280,27 @@ export function ScanHub({
       const dropped = Boolean(solds && solds.matches.length > 0 && downgradesPin(pin, solds.matches));
       const matches = solds && solds.matches.length > 0 ? keepPinned(pin, solds.matches, result.matches[0] ?? null) : result.matches;
       if (matches.length === 0) {
-        setSheet({ kind: "none", offline: false, ...(result.unpinned ? { unpinned: true } : {}) });
+        shown.current = null;
+        if (result.unpinned) {
+          deps.logMiss({ capture, result, closest: 0 });
+          setSheet({ kind: "none", offline: false, unpinned: true });
+          return;
+        }
+        // Never a dead end: with a player read, their real cards are offered to pick from.
+        const found = await deps.closest(capture, controller.signal).catch(() => null);
+        if (controller.signal.aborted) return;
+        closest.current = found;
+        deps.logMiss({ capture, result, closest: found?.cards.length ?? 0 });
+        setSheet({
+          kind: "none",
+          offline: false,
+          ...(found ? { closest: { player: found.player, cards: found.cards.map(closestMatch), confirmed: found.cards.map((card) => Boolean(card.confirmed)) } } : {}),
+        });
         return;
       }
+      shown.current = { capture, result: { ...result, matches } };
+      // A card the collector picked themselves is theirs to name: only the scan's own read is logged.
+      if (!capture.pickedLines?.length) deps.logMiss({ capture, result: { ...result, matches }, closest: 0 });
       setSheet({
         kind: "ready",
         matches,
@@ -243,6 +325,8 @@ export function ScanHub({
       const controller = new AbortController();
       run.current = controller;
       waitingBack.current = null;
+      closest.current = null;
+      if (!scanned.pickedLines?.length) pickedClosest.current = null;
       setError(null);
       setPhoto(scanned.image);
       setBackPhoto(scanned.backImage ?? null);
@@ -344,6 +428,19 @@ export function ScanHub({
     [deps],
   );
 
+  /** A card picked from the closest choices: the same scan, read again as that card, with its sold prices. */
+  const pickClosest = useCallback(
+    (index: number) => {
+      const found = closest.current;
+      const capture = lastCapture.current;
+      const card = found?.cards[index];
+      if (!found || !capture || !card) return;
+      pickedClosest.current = { readKey: found.readKey, card };
+      void identify(withPickedCard(capture, card), null);
+    },
+    [identify],
+  );
+
   const startScan = useCallback(async () => {
     let capture: ScanOutcome = null;
     setError(null);
@@ -410,6 +507,12 @@ export function ScanHub({
    * Anything still missing (a year, a card #) goes to Add card, which asks for it.
    */
   function toAddCard(match: ScanMatch, options: { save: boolean }) {
+    // The collector confirmed the card they picked from the choices: the next scan that reads the same finds it first.
+    const picked = pickedClosest.current;
+    if (picked && match.yearLabel === picked.card.yearLabel && match.setBrand === picked.card.setBrand && match.cardNumber === picked.card.cardNumber) {
+      deps.confirm(picked.readKey, picked.card);
+      pickedClosest.current = null;
+    }
     const input = collection && options.save ? cardInputFromScan(match, { photo, accent: nextAccent(collection.cards.length), isPublic: false }) : null;
     if (collection && input) {
       collection.addCard(input);
@@ -428,6 +531,8 @@ export function ScanHub({
   }
 
   function stepByStep() {
+    // A card was shown and the collector left it: logged, so we can see what we got wrong.
+    if (shown.current && !shown.current.capture.pickedLines?.length) deps.logMiss({ ...shown.current, closest: 0, leftForSearch: true });
     if (photo) saveScan(photo);
     router.push("/cards/new");
   }
@@ -550,6 +655,7 @@ export function ScanHub({
           onVersion={asVersion}
           onScanBack={() => void scanBack()}
           onSkipBack={skipBack}
+          onPickClosest={pickClosest}
           onClose={closeSheet}
         />
       ) : null}

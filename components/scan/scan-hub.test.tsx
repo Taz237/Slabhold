@@ -134,6 +134,10 @@ function nativeDeps(overrides: Partial<ScanHubDeps> = {}): Partial<ScanHubDeps> 
     identify: async () => result([fixtures.PREVIEW_SLAB]),
     compLookup: fixtures.previewCompLookup,
     solds: fixtures.previewSolds,
+    // Nothing is fetched in these tests: no choices, no miss log, no confirmations unless a test asks.
+    closest: async () => null,
+    logMiss: () => {},
+    confirm: () => {},
     online: () => true,
     ...overrides,
   };
@@ -984,6 +988,94 @@ describe("ScanHub: Add to my collection is one tap", () => {
     } finally {
       act(() => root.unmount());
       host.remove();
+    }
+  });
+});
+
+describe("never a dead end: only the player was read", () => {
+  const FRONT: ScanCapture = { lines: ["Cooper", "MARIO LEMIEUX", "C"], backLines: null, image: null, kind: "card" };
+  const TOPPS = { playerName: "Mario Lemieux", sport: "Hockey", yearLabel: "1985-86", setBrand: "Topps", cardNumber: "9" };
+  const OPC = { ...TOPPS, setBrand: "O-Pee-Chee" };
+  const picked: ScanMatch = {
+    ...({} as ScanMatch),
+    catalogId: null,
+    playerName: "Mario Lemieux",
+    sport: "Hockey",
+    yearLabel: "1985-86",
+    setBrand: "Topps",
+    cardNumber: "9",
+    parallel: "Base",
+    serialRun: null,
+    serialNo: "",
+    isRookie: false,
+    isAuto: false,
+    grade: null,
+    score: 90,
+    sureness: { player: "sure", year: "sure", set: "sure", number: "sure", parallel: "sure" },
+    parallelOptions: [{ name: "Base", serialRun: null }],
+  };
+
+  /** Waits without tapping anything: the shared waitFor taps the list's first row, and here the tap is the test. */
+  async function until(check: () => boolean) {
+    for (let i = 0; i < 80; i += 1) {
+      if (check()) return;
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      });
+    }
+    throw new Error(text().slice(0, 600));
+  }
+
+  function closestDeps(seen: { identified: ScanCapture[]; misses: { closest: number; matches: number }[]; confirmed: string[] }, confirmedBefore = false) {
+    return nativeDeps({
+      scan: async () => FRONT,
+      identify: async (capture) => {
+        seen.identified.push(capture);
+        return result(capture.pickedLines?.length ? [picked] : []);
+      },
+      solds: async (_capture, matches) => ({ matches, comp: { status: "none" }, query: null }),
+      closest: async () => ({ player: "Mario Lemieux", readKey: "mariolemieux|hockey||||", cards: [confirmedBefore ? { ...TOPPS, confirmed: 2 } : TOPPS, OPC] }),
+      logMiss: (report) => void seen.misses.push({ closest: report.closest, matches: report.result?.matches.length ?? 0 }),
+      confirm: (key, card) => void seen.confirmed.push(`${key} ${card.yearLabel} ${card.setBrand} #${card.cardNumber}`),
+    });
+  }
+
+  it("shows the player's real cards to pick from, labeled, with nothing preselected, and logs the miss", async () => {
+    const seen = { identified: [] as ScanCapture[], misses: [] as { closest: number; matches: number }[], confirmed: [] as string[] };
+    const view = await mount("add", closestDeps(seen, true));
+    try {
+      await until(() => text().includes("Is it one of these?"));
+      assert.ok(text().includes("We read Mario Lemieux, but not the year, set or card number"));
+      assert.ok(!text().includes("We couldn't find this one yet"));
+      assert.ok(!text().includes("Most likely"), "choices, not a guess");
+      const rows = [...win.document.querySelectorAll('[data-pick="list"] li')].map((row) => row.textContent ?? "");
+      assert.equal(rows.length, 2);
+      assert.match(rows[0], /Picked by other collectors.*1985-86.*Topps.*#9/);
+      assert.match(rows[1], /1985-86.*O-Pee-Chee.*#9/);
+      assert.ok(!rows[1].includes("Picked by other collectors"));
+      assert.ok(button("Add it step by step"), "the exact version can still be added by hand");
+      assert.deepEqual(seen.misses, [{ closest: 2, matches: 0 }]);
+      assert.deepEqual(seen.confirmed, []);
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("one tap reads the same scan as that card; adding it saves the pick for the next collector", async () => {
+    const seen = { identified: [] as ScanCapture[], misses: [] as { closest: number; matches: number }[], confirmed: [] as string[] };
+    const view = await mount("add", closestDeps(seen));
+    try {
+      await until(() => text().includes("Is it one of these?"));
+      const row = win.document.querySelector<HTMLElement>('[data-pick="list"] li button');
+      await act(async () => row!.click());
+      await waitFor(() => text().includes("Add to my collection"));
+      assert.deepEqual(seen.identified[1].lines, [...FRONT.lines, "1985-86 TOPPS", "#9"]);
+      assert.equal(seen.misses.length, 1, "the pick itself is not logged as a miss");
+      assert.deepEqual(seen.confirmed, [], "nothing is saved until the collector adds it");
+      await act(async () => button("Add to my collection").click());
+      assert.deepEqual(seen.confirmed, ["mariolemieux|hockey|||| 1985-86 Topps #9"]);
+    } finally {
+      view.unmount();
     }
   });
 });

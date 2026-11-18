@@ -46,7 +46,7 @@ export function cardInputFromScan(
     serialNo,
     isRookie: match.isRookie,
     isAuto: match.isAuto,
-    isRelic: false,
+    isRelic: Boolean(match.isRelic),
     conditionType: graded ? "graded" : "raw",
     gradeQualifier: graded ? (match.grade!.qualifier ?? "") : "",
     certNumber: graded ? (match.grade!.certNumber ?? "") : "",
