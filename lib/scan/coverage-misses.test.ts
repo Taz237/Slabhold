@@ -6,7 +6,8 @@ import { SCAN_DIRECTORY } from "@/lib/players/scan-directory";
 import hardCards from "./hard-cards-v1.json";
 import { cardKey, closestCards, closestMatch, confirmKeyOf, isKnownCard, readKeyOf, withPickedCard, type ClosestCard, type PlayerCards } from "./closest";
 import { loadPlayerCards } from "./closest-load";
-import { NOT_KNOWN_MESSAGE, confirmedCardFromBody, respondConfirmCard, respondConfirmedCards, respondScanMiss } from "./coverage-respond";
+import { checklistCardFor } from "./coverage-known";
+import { MAX_CONFIRMED_SHOWN, NOT_KNOWN_MESSAGE, confirmedCardFromBody, respondConfirmCard, respondConfirmedCards, respondScanMiss } from "./coverage-respond";
 import { hardCardBack, type HardCard } from "./hard-cards";
 import { rankScanMatches, scanChecklistKey, scanPlayer, tierParallels, type ScanMatch, type ScanMatchResult } from "./match";
 import { scanMissFromBody, scanMissOf, type ScanMiss } from "./miss";
@@ -247,7 +248,7 @@ describe("the coverage routes", () => {
     assert.equal(stored.length, 1);
   });
 
-  const known = async (item: ClosestCard) => isKnownCard(item, await loadPlayerCards(item.sport));
+  const known = checklistCardFor;
   const LEMIEUX_KEY = "mariolemieux|hockey||||";
   const TOPPS: ClosestCard = { playerName: "Mario Lemieux", sport: "Hockey", yearLabel: "1985-86", setBrand: "Topps", cardNumber: "9" };
 
@@ -266,11 +267,27 @@ describe("the coverage routes", () => {
     const saved: string[] = [];
     const deps = { ...gate, known, save: async (key: string, item: ClosestCard, userId: string) => void saved.push(`${userId} ${key} ${item.yearLabel} ${item.setBrand} #${item.cardNumber}`) };
     assert.equal((await respondConfirmCard(post({ key: LEMIEUX_KEY, card: TOPPS }), deps)).status, 200);
-    // However the phone spells it: "TOPPS", "#9" typed as 9.
-    assert.equal((await respondConfirmCard(post({ key: LEMIEUX_KEY, card: { ...TOPPS, setBrand: "TOPPS" } }), deps)).status, 200);
-    assert.deepEqual(saved, ["user-1 mariolemieux|hockey|||| 1985-86 Topps #9", "user-1 mariolemieux|hockey|||| 1985-86 TOPPS #9"]);
     assert.equal((await respondConfirmCard(post({ key: LEMIEUX_KEY, card: TOPPS }), { ...deps, userId: async () => null })).status, 401);
-    assert.equal(saved.length, 2);
+    assert.deepEqual(saved, ["user-1 mariolemieux|hockey|||| 1985-86 Topps #9"]);
+  });
+
+  it("a confirmed card is saved as the checklist spells it, so two spellings are one vote count", async () => {
+    const saved: ClosestCard[] = [];
+    const deps = { ...gate, known, save: async (_key: string, item: ClosestCard) => void saved.push(item) };
+    // However the phone or the collector spells it: "T.o.p.p.s", "TOPPS", "mario lemieux", "hockey".
+    const spellings: ClosestCard[] = [
+      { ...TOPPS, setBrand: "T.o.p.p.s" },
+      { ...TOPPS, setBrand: "TOPPS", playerName: "MARIO LEMIEUX" },
+      { ...TOPPS, playerName: "mario lemieux", sport: "hockey" },
+    ];
+    for (const spelling of spellings) assert.equal((await respondConfirmCard(post({ key: LEMIEUX_KEY, card: spelling }), deps)).status, 200);
+    assert.deepEqual(saved, [TOPPS, TOPPS, TOPPS]);
+  });
+
+  it("the checklist's own card: its player, year, set and card #, or null for a card it doesn't have", async () => {
+    assert.deepEqual(await checklistCardFor({ playerName: "MARIO LEMIEUX", sport: "hockey", yearLabel: "1985-86", setBrand: "t.o.p.p.s", cardNumber: "9" }), TOPPS);
+    assert.equal(await checklistCardFor({ ...TOPPS, cardNumber: "999" }), null);
+    assert.equal(await checklistCardFor({ ...TOPPS, sport: "Cricket" }), null);
   });
 
   it("a card our checklists don't have for that player is refused: \"Not a card we know\", and nothing is saved", async () => {
@@ -320,6 +337,22 @@ describe("the coverage routes", () => {
     const response = await respondConfirmedCards(new Request(`http://localhost/api?key=${LEMIEUX_KEY}`), { ...gate, known, read: async () => rows });
     assert.deepEqual(((await response.json()) as { cards: ClosestCard[] }).cards, [{ ...TOPPS, confirmed: 3 }]);
     assert.equal((await respondConfirmedCards(new Request("http://localhost/api?key=x"), { ...gate, known, read: async () => rows })).status, 400);
+  });
+
+  it("reading the picks back: made-up rows on top don't push real ones out; the top 5 that pass are shown, as the checklist spells them", async () => {
+    const real = closestCards({ name: "Mario Lemieux", sport: "Hockey" }, await loadPlayerCards("Hockey")).slice(0, 7);
+    assert.equal(real.length, 7);
+    const junk = Array.from({ length: 10 }, (_, at): ClosestCard => ({ ...TOPPS, cardNumber: `${900 + at}`, confirmed: 99 - at }));
+    const rows = [
+      ...junk,
+      ...real.map((item, at) => ({ ...item, setBrand: item.setBrand.toUpperCase(), confirmed: 20 - at })),
+      // An old row saved under the collector's spelling: the same card, shown once.
+      { ...real[0], setBrand: real[0].setBrand.split("").join("."), confirmed: 2 },
+    ];
+    const response = await respondConfirmedCards(new Request(`http://localhost/api?key=${LEMIEUX_KEY}`), { ...gate, known, read: async () => rows });
+    const cards = ((await response.json()) as { cards: ClosestCard[] }).cards;
+    assert.equal(MAX_CONFIRMED_SHOWN, 5);
+    assert.deepEqual(cards, real.slice(0, 5).map((item, at) => ({ ...item, confirmed: 20 - at })));
   });
 
   it("a known card is checked against every card of the player's, not just the 8 the list shows", async () => {

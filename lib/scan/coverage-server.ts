@@ -1,8 +1,8 @@
 import "server-only";
 
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
-import { isKnownCard, type ClosestCard } from "./closest";
-import { loadPlayerCards } from "./closest-load";
+import type { ClosestCard } from "./closest";
+import { checklistCardFor } from "./coverage-known";
 import type { ScanMiss } from "./miss";
 
 /**
@@ -40,7 +40,11 @@ export async function storeScanMiss(miss: ScanMiss): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
-const MAX_CONFIRMED = 5;
+/**
+ * Rows read per lookup. The route shows the top 5 that pass the checklist check, so made-up rows
+ * with many votes can't push the real ones out.
+ */
+const CONFIRMED_ROWS_READ = 25;
 
 export async function readConfirmedCards(key: string): Promise<ClosestCard[]> {
   const client = createSupabaseAdmin();
@@ -50,7 +54,7 @@ export async function readConfirmedCards(key: string): Promise<ClosestCard[]> {
     .select("player_name, sport, year_label, set_brand, card_number, confirmations")
     .eq("read_key", key)
     .order("confirmations", { ascending: false })
-    .limit(MAX_CONFIRMED);
+    .limit(CONFIRMED_ROWS_READ);
   if (error) throw new Error(error.message);
   return ((data ?? []) as Record<string, unknown>[]).map((row) => ({
     playerName: String(row.player_name ?? ""),
@@ -62,10 +66,8 @@ export async function readConfirmedCards(key: string): Promise<ClosestCard[]> {
   }));
 }
 
-/** Our checklists have this player on this year, set and card #. False for a sport we have no list for. */
-export async function isKnownConfirmedCard(card: ClosestCard): Promise<boolean> {
-  return isKnownCard(card, await loadPlayerCards(card.sport));
-}
+/** The checklist's own card for this player, year, set and card #. Null for a sport we have no list for. */
+export const knownConfirmedCard = checklistCardFor;
 
 /**
  * One more collector confirmed this card for this read: the database counts one vote per user per

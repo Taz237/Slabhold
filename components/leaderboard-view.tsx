@@ -390,9 +390,11 @@ function PodiumPlace({ entry, boardId }: { entry: BoardRow; boardId: string }) {
           <LeaderboardAvatar title={labels.name} accent={entry.accent} url={entry.avatarUrl} size={PODIUM_AVATAR[rank] ?? 52} />
         </span>
       </span>
+      {/* A long name wraps to two lines in a tighter size, and is cut off only past that. */}
       <span className="mt-2 flex w-full min-w-0 items-center justify-center gap-1">
         <span
-          className={`min-w-0 truncate font-semibold tracking-tight text-white ${rank === 1 ? "text-17" : "text-15"}`}
+          data-podium-name=""
+          className={`line-clamp-2 min-w-0 break-words font-semibold leading-tight tracking-tight text-white ${rank === 1 ? "text-15" : "text-13"}`}
         >
           {labels.name}
         </span>
@@ -696,7 +698,7 @@ function PinnedSpot({ you, board, week }: { you: YouRow; board: LeaderboardBoard
   const hook = spotHook(you, board.scoreLabel, week);
   const action = spotAction(board.id);
   const shell =
-    "lb-spot sticky z-10 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] mt-3 min-h-14 rounded-2xl bg-[#24124D]/90 shadow-[0_10px_30px_rgba(0,0,0,0.5)] ring-1 ring-violet-300/25 backdrop-blur";
+    "lb-spot sticky z-10 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] mt-3 min-h-14 rounded-2xl bg-[#24124D]/[0.97] shadow-[0_10px_30px_rgba(0,0,0,0.5)] ring-1 ring-violet-300/25 backdrop-blur-sm";
   const label = <span className="sr-only">{you.label}</span>;
 
   if (you.rank <= 0) {

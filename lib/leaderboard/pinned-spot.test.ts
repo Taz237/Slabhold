@@ -50,8 +50,10 @@ describe("pinned your-spot bar", () => {
     assert.ok(classes.includes(BOTTOM), "sits just above the bottom tab bar");
     assert.doesNotMatch(tag, /\bfixed\b/);
     assert.match(tag, /z-10/);
-    assert.match(tag, /backdrop-blur/);
-    assert.match(tag, /bg-\[#24124D\]\/90/);
+    // Nearly solid dark purple with a light blur: rows scrolling under it never show through the text.
+    assert.ok(classes.includes("backdrop-blur-sm"), "a light blur");
+    assert.ok(classes.includes("bg-[#24124D]/[0.97]"), "nearly solid dark purple");
+    assert.ok(!classes.includes("bg-[#24124D]/90"), "no longer see-through");
     assert.match(tag, /\bmin-h-14\b/);
     assert.match(bar, /class="sr-only">You: #3</);
     // No overflow on the board, so the bar can stick and nothing in the board is clipped.
