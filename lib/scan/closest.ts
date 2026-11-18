@@ -172,3 +172,11 @@ export function readKeyOf(read: { playerName: string; sport?: string; yearLabel?
   const part = (text: string | undefined) => (text ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "");
   return [player, part(read.sport), part(read.yearLabel), part(read.setBrand), part(read.cardNumber), read.serialRun ? String(read.serialRun) : ""].join("|").slice(0, 200);
 }
+
+/**
+ * The scan read the player and nothing that names the card: its one match has a name and no year,
+ * set or card #. The sheet treats it like no card found, and offers the player's cards to pick from.
+ */
+export function onlyPlayerRead(matches: readonly Pick<ScanMatch, "playerName" | "yearLabel" | "setBrand" | "cardNumber">[]): boolean {
+  return matches.length > 0 && matches.every((match) => Boolean(match.playerName.trim()) && !match.yearLabel.trim() && !match.setBrand.trim() && !match.cardNumber.trim());
+}

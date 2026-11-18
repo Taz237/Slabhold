@@ -1,5 +1,6 @@
 import { SETS, parseYearLabel } from "@/lib/card-options";
 import { POPULAR_INSERTS, insertKey } from "@/lib/cards/data/popular-inserts";
+import { CODED_TEAM_NAMES, isCodedTeamName, teamsForCode } from "./team-codes";
 import type { IndexedDirectoryPlayer } from "@/lib/players/types";
 import { compactNorm, normInterest } from "@/lib/social/follow-rank";
 import { schoolOnLine } from "./schools";
@@ -812,6 +813,79 @@ export function readsAsNameLine(line: string, directory: readonly IndexedDirecto
   return !words.some((word) => NOT_NAME_WORDS.has(word) || SET_WORDS.has(word) || PARALLEL_WORD_SET.has(word) || BACK_WORDS.has(word));
 }
 
+const sameTeam = (a: string, b: string) => normInterest(a) === normInterest(b);
+
+const cityCache = new WeakMap<readonly IndexedDirectoryPlayer[], Set<string>>();
+
+/** Every team's name without its last word or two: "los angeles", "new york", "san antonio", "golden state", "portland". */
+function teamCities(directory: readonly IndexedDirectoryPlayer[]): Set<string> {
+  let cities = cityCache.get(directory);
+  if (!cities) {
+    cities = new Set<string>();
+    for (const name of [...teamIndex(directory).teams.keys(), ...CODED_TEAM_NAMES.map((team) => normInterest(team))]) {
+      const words = name.split(" ").filter(Boolean);
+      for (let size = 1; size < words.length; size += 1) cities.add(words.slice(0, size).join(" "));
+    }
+    cityCache.set(directory, cities);
+  }
+  return cities;
+}
+
+/**
+ * A nameplate with its team glued on: "DARRYN PETERSON UTA", "UTA DARRYN PETERSON", "CAMERON
+ * BOOZER GRIZZLIES". A team code, a nickname or a team's full name is never part of a person's name,
+ * so it comes off the front or the end, and says which team (and sport) the card is. Only when:
+ *   - what is left still reads as a name of two or three words;
+ *   - the whole line is not itself a player we list (a real name that ends in a code-looking word stays whole);
+ *   - and something backs the team: the card prints that team elsewhere (`hintTeams`), or what is
+ *     left is exactly a player on our roster, in a sport that code or team belongs to. His own team
+ *     first; a traded player's old team on our list still counts, the code being one of his sport's.
+ * Null for any other line: nothing is taken off a name on a hunch.
+ */
+export function nameBesideTeam(
+  line: string,
+  directory: readonly IndexedDirectoryPlayer[],
+  hintTeams: readonly string[] = [],
+): { name: string; team: { name: string; sport: string } } | null {
+  const tokens = line.trim().split(/\s+/).filter(Boolean);
+  if (tokens.length < 3 || tokens.length > 6 || /\d/.test(line)) return null;
+  // The whole line is someone we list: it is their name, whatever its last word looks like.
+  if (findPlayers([line], directory).some((hit) => hit.score === 1 && hit.nameplate)) return null;
+  const { teams, nicknames } = teamIndex(directory);
+  // The line is a team and nothing else ("LOS ANGELES DODGERS"): there is no name on it.
+  if (teams.has(normInterest(line)) || isCodedTeamName(line)) return null;
+  const teamsNamed = (words: readonly string[]): { name: string; sport: string }[] => {
+    if (words.length === 1) {
+      const coded = teamsForCode(words[0]);
+      if (coded.length > 0) return [...coded];
+      const nickname = normInterest(words[0]);
+      return nicknames.has(nickname) ? [...teams.entries()].filter(([key]) => key.split(" ").pop() === nickname).map(([, team]) => team) : [];
+    }
+    const team = teams.get(normInterest(words.join(" ")));
+    return team ? [team] : [];
+  };
+  for (const size of [1, 2, 3]) {
+    for (const lead of [false, true]) {
+      const teamWords = lead ? tokens.slice(0, size) : tokens.slice(tokens.length - size);
+      const rest = lead ? tokens.slice(size) : tokens.slice(0, tokens.length - size);
+      if (rest.length < 2 || rest.length > 3) continue;
+      const named = teamsNamed(teamWords);
+      const name = rest.join(" ");
+      if (named.length === 0 || !readsAsNameLine(name, directory)) continue;
+      // What is left is never a team's city: "LOS ANGELES" off "LOS ANGELES DODGERS", "NEW YORK" off
+      // "NEW YORK YANKEES" and "SAN ANTONIO" off "SAN ANTONIO SPURS" are where a team plays, not a person.
+      if (teamCities(directory).has(normInterest(name))) continue;
+      const hinted = named.find((team) => hintTeams.some((hint) => sameTeam(hint, team.name)));
+      if (hinted) return { name, team: hinted };
+      const listed = findPlayers([name], directory).find((hit) => hit.score === 1 && hit.nameplate && !hit.more);
+      if (!listed) continue;
+      const own = named.find((team) => listed.team && sameTeam(listed.team, team.name)) ?? named.find((team) => team.sport === listed.sport);
+      if (own) return { name, team: own };
+    }
+  }
+  return null;
+}
+
 /**
  * A nameplate: a short line that is only a person's name. Two or three words
  * of letters, no digits, and nothing a card prints that isn't a name (team,
@@ -880,6 +954,26 @@ const RANK_AFTER =
 const SENTENCE_BEFORE = /\b(?:the|a|an|his|her|their|its|was|is|as|at|of|and|wore|wears|wearing|became|named|ranked|finished|no)\s*$/i;
 const SENTENCE_AFTER = /^\s+[a-z]{2,}/;
 
+/**
+ * A draft line on a scanned card: "DRAFTED: JAZZ #1, 2026", "ROUND 1, PICK #4", "#1 OVERALL",
+ * "DRAFTED: BUFFALO (2) 2022". Its # is where he was picked, on either side of the word, never the
+ * card #. "DRAFT PICKS" is a set's name, not a draft line.
+ */
+const DRAFT_PICKS_SET = /\bdraft\s+picks\b/i;
+/** A draft word before the #, with no other # in between: "DRAFTED: JAZZ #1", "ROUND 1, PICK #4", "1ST ROUND (#1)". */
+const DRAFT_WORD_BEFORE = /\b(?:drafted|draft\s*:|draft|pick|round|overall)\b[^#]*$/i;
+/** A draft word right after the #: "#32 OVERALL", "#4 PICK". */
+const DRAFT_WORD_AFTER = /^\s*[,)]?\s*(?:overall|pick|round|in\s+the\s+draft)\b/i;
+
+/**
+ * This # is where he was picked: the # beside a draft word, on either side of it. Only that #:
+ * "NO. 27 AARON JUDGE #32 OVERALL" still reads card # 27.
+ */
+function draftNumber(line: string, before: string, after: string): boolean {
+  if (DRAFT_PICKS_SET.test(line)) return false;
+  return DRAFT_WORD_BEFORE.test(before) || DRAFT_WORD_AFTER.test(after);
+}
+
 /** "#17 | QB", "QB #17", "#23 G-F": a jersey number beside a position, never the card #. */
 function jerseyLine(line: string, matched: string): boolean {
   const rest = line.replace(matched, " ").split(/[\s|/,·•-]+/).filter(Boolean);
@@ -916,6 +1010,8 @@ function readCardNumber(
   for (const line of lines) {
     if (!usable(line)) continue;
     for (const match of line.matchAll(CARD_NUMBER)) {
+      // Where he was drafted ("DRAFTED: JAZZ #1, 2026") is never the card #.
+      if (scanned && draftNumber(line, line.slice(0, match.index ?? 0), line.slice((match.index ?? 0) + match[0].length))) continue;
       const number = match[1].toUpperCase();
       if (looksLikeCatalogSku(number) || wordCode(number)) continue;
       // A rank ("#1 OVERALL PICK") is not the card #, on a card or in a sold title.
@@ -1200,15 +1296,20 @@ export function readRawCardText(
   const maker = (line: string) => MAKER_LINE.test(line) || AUTOGRAPH_NOTICE.test(line) || (options.side === "back" && MAKER_ONLY_LINE.test(line));
   const printed = clean.filter((line) => !maker(line));
 
-  read.players = findPlayers(clean, directory);
-  const printedName = readPrintedName(clean, directory);
+  // A scanned nameplate with its team glued on ("DARRYN PETERSON UTA") is read as the name alone.
+  const sideTeam = readTeam(lineWords, directory);
+  const glued = options.side ? clean.map((line) => nameBesideTeam(line, directory, sideTeam ? [sideTeam.name] : [])) : [];
+  const nameLinesRead = glued.some(Boolean) ? clean.map((line, index) => glued[index]?.name ?? line) : clean;
+  read.players = findPlayers(nameLinesRead, directory);
+  const printedName = readPrintedName(nameLinesRead, directory);
   read.printedName = printedName.name;
   read.printedNameAnchored = printedName.anchored;
   // A wider-list name only confirms the name this side printed: the same line the card would have
   // been read by without it. Any other line that happens to be a listed name is not the player.
   const printedKey = compactNorm(normInterest(read.printedName));
   read.players = read.players.filter((hit) => !hit.more || (Boolean(printedKey) && compactNorm(normInterest(hit.name)) === printedKey));
-  read.team = readTeam(lineWords, directory);
+  // The team line the side prints, else the team taken off the nameplate: either gives the sport.
+  read.team = sideTeam ?? glued.find(Boolean)?.team ?? null;
   read.yearLabel = readYear(printed);
   read.copyrightYear =
     clean.map((line) => COPYRIGHT.exec(line)?.[1] ?? "").find(Boolean) ??

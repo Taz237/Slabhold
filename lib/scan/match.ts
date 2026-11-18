@@ -6,7 +6,7 @@ import { parallelsIn, productForSet, productPhrase, sameSeason, type ProductPara
 import { setMatchPhrase } from "@/lib/comps/match";
 import type { IndexedDirectoryPlayer } from "@/lib/players/types";
 import { compactNorm, normInterest } from "@/lib/social/follow-rank";
-import { AUTO_CODE_PREFIX, BOWMAN_U_BEST, findPlayers, looksLikeCatalogSku, readRawCardText, type RawCardRead, type RawPlayerHit } from "./raw-text";
+import { AUTO_CODE_PREFIX, BOWMAN_U_BEST, findPlayers, looksLikeCatalogSku, nameBesideTeam, readRawCardText, type RawCardRead, type RawPlayerHit } from "./raw-text";
 
 export { looksLikeCatalogSku };
 import type { SlabLabelRead } from "./slab-label";
@@ -364,6 +364,16 @@ function evidenceFrom(read: ScanRead, directory: readonly IndexedDirectoryPlayer
       },
     };
   }
+  // A name one side printed with its team glued on ("ZEKE MARLOWE UTA") and the other side's team
+  // line backs ("UTAH JAZZ"): the team comes off, so both sides read the same name. An exact roster
+  // name is already read this way on its own side (raw-text.ts); here the other side is the backing.
+  const teamHints = [read.front.team?.name, read.back?.team?.name].filter((name): name is string => Boolean(name));
+  const withoutTeam = (side: RawCardRead): RawCardRead => {
+    if (!side.printedName || teamHints.length === 0 || side.players.some((hit) => hit.nameplate)) return side;
+    const split = nameBesideTeam(side.printedName.toUpperCase(), directory, teamHints);
+    return split ? { ...side, printedName: titleCase(split.name), team: side.team ?? split.team } : side;
+  };
+  read = { ...read, front: withoutTeam(read.front), back: read.back ? withoutTeam(read.back) : read.back };
   const sides = [read.front, read.back].filter((side): side is RawCardRead => Boolean(side));
   // The sport the card itself gives: a team line, a position line, a league mark, the product line.
   const cardSports = sides.flatMap((side) => [side.team?.sport ?? "", side.sportHint ?? "", side.baseballSign ? "Baseball" : ""]).filter(Boolean);
@@ -690,6 +700,9 @@ export function scanChecklistKey(read: ScanRead, directory: readonly IndexedDire
   }
   // No set read, a back that signs only Topps: every Topps product for the year, to find the one with him at this #.
   if (!evidence.slab && toppsBackReady(evidence, years)) return { years, setBrand: "Topps", sport: toppsBackSport(evidence), family: "topps" };
+  // The same back with a name printed that we don't list, and nothing giving the sport: each sport's
+  // flagship Topps for those years, to find the one with that name at this # (withPlayerFromToppsNumber).
+  if (toppsNumberReady(evidence, years)) return { years, setBrand: "Topps", sport: "", family: "topps" };
   const setBrand = evidence.setNames[0] ?? "";
   if (evidence.slab || !setBrand || !bestPlayerName(evidence)) return null;
   // No year at all: every year of the set, in the sport the card names, to find the one with him at this #.
@@ -759,6 +772,68 @@ function withSetFromToppsBack(evidence: Evidence, checklists: readonly Checklist
   // Bowman and Hoops backs print their own names: a plain back that only one of them fits stays open.
   if (!/^topps\b/.test(productPhrase(pick.setBrand))) return evidence;
   return { ...evidence, setNames: [pick.setBrand], cardNumber: pick.cardNumber, yearLabel: evidence.yearLabel || pick.yearLabel, sport: evidence.sport || sport };
+}
+
+/** A plain Topps back, a card # (or one bare number), a year, a printed name our list doesn't have, and no sport read. */
+function toppsNumberReady(evidence: Evidence, years: readonly string[]): boolean {
+  return (
+    !evidence.slab &&
+    Boolean(evidence.toppsBack) &&
+    !evidence.setNames[0] &&
+    years.length > 0 &&
+    !toppsBackSport(evidence) &&
+    Boolean(evidence.playerText) &&
+    !evidence.players.some((hit) => hit.score === 1) &&
+    (Boolean(evidence.cardNumber) || evidence.backNumbers.length > 0)
+  );
+}
+
+/** Every run of two or three words in a printed line: "DARRYN PETERSON UTA" holds "Darryn Peterson". */
+function nameGrams(text: string): string[] {
+  const parts = text.trim().split(/\s+/).filter(Boolean);
+  const grams: string[] = [];
+  for (const size of [3, 2]) for (let start = 0; start + size <= parts.length; start += 1) grams.push(parts.slice(start, start + size).join(" "));
+  return grams;
+}
+
+/**
+ * A plain Topps back with no sport read and a printed name we don't list (a new rookie, or a name
+ * with something glued on): the flagship Topps checklists for the © year and the year before are
+ * asked who is at this card #. Exactly one row, across every sport, whose player is a name the card
+ * printed (two or three of its words in a row): that is the player, the sport, the set and the
+ * season. None or two: nothing changes. Never a player the card didn't print.
+ */
+function withPlayerFromToppsNumber(evidence: Evidence, checklists: readonly ChecklistProduct[] | null | undefined, directory: readonly IndexedDirectoryPlayer[]): Evidence {
+  const years = checklistYears(evidence);
+  if (!checklists?.length || !toppsNumberReady(evidence, years)) return evidence;
+  const numbers = evidence.cardNumber ? [evidence.cardNumber] : evidence.backNumbers;
+  const grams = nameGrams(evidence.playerText);
+  const found = new Map<string, { hit: ChecklistHit; product: ChecklistProduct; cardNumber: string }>();
+  for (const product of checklists) {
+    if (!toppsMade(product) || !years.some((yearLabel) => sameSeason(product.yearLabel, yearLabel))) continue;
+    for (const cardNumber of numbers) {
+      for (const hit of playersAt([product], { yearLabel: product.yearLabel, setBrand: product.product, cardNumber, sport: product.sport })) {
+        if (!isBaseSection(hit.section) || !grams.some((gram) => namesAgree(gram, hit.player))) continue;
+        found.set(`${product.sport}|${product.yearLabel}|${productPhrase(product.product)}|${checklistNumberKey(cardNumber)}|${nameKey(hit.player)}`, { hit, product, cardNumber });
+      }
+    }
+  }
+  if (found.size !== 1) return evidence;
+  const [{ hit, product, cardNumber }] = found.values();
+  const known = rosterPlayer(hit.player, product.sport, directory);
+  return {
+    ...evidence,
+    players: known ? [{ ...known, score: 1, nameplate: true }] : [],
+    playerText: known ? "" : hit.player,
+    playerLocked: true,
+    playerUnverified: false,
+    playerOpen: false,
+    lookedUp: { name: known?.name ?? hit.player, source: "checklist" },
+    sport: product.sport,
+    setNames: [product.product],
+    cardNumber,
+    yearLabel: evidence.yearLabel || product.yearLabel,
+  };
 }
 
 /** The checklists this card can be on: its set's for its years, or every Topps product for a plain Topps back. */
@@ -1629,7 +1704,10 @@ function synthesized(evidence: Evidence): Candidate | null {
   // No year on the front: the back's © year is usually the card's year (marked likely, not sure).
   const year = evidence.yearLabel || (evidence.slab || evidence.yearOpen ? "" : evidence.copyrightYear);
   // A clearly printed name with a print run still shows the player, with the set and number open.
-  if (!year && !setBrand && !evidence.cardNumber && !(evidence.playerLocked && evidence.serial)) return null;
+  // So does the nameplate of a player on our roster, read exactly, with nothing else read: the
+  // player is right, and the year, set and # stay open for the back (or the pick list) to settle.
+  const rosterNameplate = evidence.playerLocked && evidence.players.some((hit) => hit.score === 1 && hit.nameplate && !hit.more);
+  if (!year && !setBrand && !evidence.cardNumber && !(evidence.playerLocked && evidence.serial) && !rosterNameplate) return null;
   const sport = evidence.players[0]?.sport ?? evidence.sport;
   return {
     catalogId: null,
@@ -2004,7 +2082,7 @@ export function rankScanMatches(
       withBackedNearPlayer(
         withLookedUpPlayer(
           withChecklistNumber(
-            withSportFromParallel(evidenceFrom(read, options.directory), options.products),
+            withPlayerFromToppsNumber(withSportFromParallel(evidenceFrom(read, options.directory), options.products), options.checklists, options.directory),
             options.checklists,
             read.kind === "raw" ? read.front.lines.join(" ") : "",
           ),

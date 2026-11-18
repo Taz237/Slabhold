@@ -51,7 +51,16 @@ export function checklistFilesFor(
 ): string[] {
   // A plain Topps back: every product Topps makes for these years, in the card's sport only.
   if (card.family === "topps") {
-    if (!card.sport || card.years.length === 0) return [];
+    if (card.years.length === 0) return [];
+    // No sport read at all: the flagship Topps set of every sport for these years, to find the one
+    // with the name the card printed at its card #. Flagship only, so the load stays small.
+    if (!card.sport) {
+      return entries
+        .filter((entry) => productPhrase(entry.product) === productPhrase("Topps"))
+        .filter((entry) => card.years.some((yearLabel) => sameSeason(entry.yearLabel, yearLabel)))
+        .map((entry) => entry.file)
+        .slice(0, MAX_FAMILY_FILES);
+    }
     return entries
       .filter((entry) => entry.sport.toLowerCase() === card.sport!.toLowerCase())
       .filter((entry) => toppsMade(entry))

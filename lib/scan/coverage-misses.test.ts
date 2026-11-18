@@ -4,7 +4,7 @@ import { loadChecklistsFor } from "@/lib/cards/checklist-load";
 import { loadProductData } from "@/lib/cards/product-data";
 import { SCAN_DIRECTORY } from "@/lib/players/scan-directory";
 import hardCards from "./hard-cards-v1.json";
-import { cardKey, closestCards, closestMatch, confirmKeyOf, isKnownCard, readKeyOf, withPickedCard, type ClosestCard, type PlayerCards } from "./closest";
+import { cardKey, closestCards, closestMatch, confirmKeyOf, isKnownCard, onlyPlayerRead, readKeyOf, withPickedCard, type ClosestCard, type PlayerCards } from "./closest";
 import { loadPlayerCards } from "./closest-load";
 import { checklistCardFor } from "./coverage-known";
 import { MAX_CONFIRMED_SHOWN, NOT_KNOWN_MESSAGE, confirmedCardFromBody, respondConfirmCard, respondConfirmedCards, respondScanMiss } from "./coverage-respond";
@@ -33,9 +33,13 @@ async function scan(lines: string[], backLines: string[] | null): Promise<ScanMa
 const scanCard = (id: string) => scan(card(id).typical_ocr_front, hardCardBack(card(id)));
 
 describe("1985-86 Topps Mario Lemieux #9, front only (hc-113)", () => {
-  it("the front names no year, set or card #: the scan claims none, so nothing can be wrong", async () => {
+  it("the front names no year, set or card #: the scan shows the player and claims nothing else, so nothing can be wrong", async () => {
     const result = await scanCard("hc-113");
-    assert.equal(result.matches.length, 0);
+    assert.equal(result.matches.length, 1);
+    const [top] = result.matches;
+    assert.deepEqual([top.playerName, top.yearLabel, top.setBrand, top.cardNumber, top.parallel], ["Mario Lemieux", "", "", "", ""]);
+    // Only the player read: the sheet offers his cards to pick from, like no card found.
+    assert.equal(onlyPlayerRead(result.matches), true);
   });
 
   it("never a dead end: his real cards are offered, both 1985-86 #9 cards first, nothing preselected", async () => {
