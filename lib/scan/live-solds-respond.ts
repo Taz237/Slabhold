@@ -2,6 +2,7 @@ import type { CatalogCard } from "@/lib/card-catalog";
 import { scanCaptureFrom } from "@/lib/ios/scanner";
 import type { LiveSoldsInput, LiveSoldsResult } from "./live-solds";
 import { lookFromBody } from "./photo-look";
+import { pinFromBody } from "./pin";
 
 export const LIVE_SOLDS_RATE_MESSAGE = "You're scanning quickly. Try again in a few minutes";
 
@@ -73,6 +74,8 @@ export async function respondLiveSolds(request: Request, deps: LiveSoldsRouteDep
         look: lookFromBody(body?.look),
       },
       rows: rowsFromBody(body?.rows),
+      // The card the phone's read pinned (an insert and its #), checked field by field.
+      pin: pinFromBody(body?.pin),
     },
     userId,
   );

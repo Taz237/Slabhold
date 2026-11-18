@@ -282,6 +282,37 @@ describe("ScanHub: identify, then last eBay solds", () => {
     }
   });
 
+  it("device retest: an answer that drops the pinned Rookie Code #RC-3 never replaces it, and its base-set rows never show", async () => {
+    const read: ScanMatch = { ...fixtures.PREVIEW_ROOKIE_CODE[0], sureness: { ...fixtures.PREVIEW_ROOKIE_CODE[0].sureness, number: "sure" } };
+    // What the device got back: "2026-27 Topps", no insert, no #, priced from his base set's parallels.
+    const downgraded: ScanMatch = { ...read, setBrand: "Topps", cardNumber: "", insertName: undefined, sureness: { ...read.sureness, number: "unsure" } };
+    let sentPin: unknown = undefined;
+    const view = await mount(
+      "comp",
+      nativeDeps({
+        scan: async () => ({ ...CAPTURE, kind: "card", image: "data:image/jpeg;base64,YQ==", lines: ["ROOKIE CODE", "CAMERON BOOZER"], backLines: ["RC-3"] }),
+        identify: async () => result([read, fixtures.PREVIEW_ROOKIE_CODE[1]]),
+        solds: async (_capture, matches) => {
+          sentPin = matches[0]?.insertName;
+          return {
+            matches: [downgraded],
+            comp: { status: "split", groups: ["Base", "Blue", "Gold", "Orange", "Mojo"].map((label) => ({ label, nSales: 5, lastPriceCents: 175, lastSoldAt: null })) },
+            query: "Cameron Boozer Topps",
+          };
+        },
+      }),
+    );
+    try {
+      await waitFor(() => text().includes("Which version?"));
+      assert.equal(sentPin, "Rookie Code", "the phone's pinned card goes with the request");
+      assert.ok(text().includes("2026-27 Topps Rookie Code #RC-3"), text().slice(0, 600));
+      for (const gone of ["Blue", "Gold", "Orange", "Mojo"]) assert.equal(text().includes(`${gone} · 5 sales`), false, gone);
+      assert.equal(/\$\d/.test(text()), false, "no price from another card's sales");
+    } finally {
+      view.unmount();
+    }
+  });
+
   it("a card the catalog didn't find can still be found by the sold titles", async () => {
     const view = await mount(
       "comp",
