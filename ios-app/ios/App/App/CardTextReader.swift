@@ -686,6 +686,46 @@ enum CardTextReader {
         guard let data = Data(base64Encoded: base64, options: .ignoreUnknownCharacters) else { return nil }
         return UIImage(data: data)
     }
+
+    /// The long side of the picture the camera shows while the card is read.
+    static let previewSide: CGFloat = 1280
+
+    /// What the camera screen shows right after the shutter: the photo, upright and small, where
+    /// the card's corners sit in it, and the card flattened. Only for the screen: it runs beside
+    /// `read`, with the same card finder and the same straightening, and changes nothing `read`
+    /// returns. Corners and the flat card are nil when no card edge was found.
+    static func cropPreview(of image: UIImage) -> CardCropPreview? {
+        let long = max(image.size.width, image.size.height)
+        guard long > 0 else { return nil }
+        let scale = min(1, previewSide / long)
+        let size = CGSize(width: floor(image.size.width * scale), height: floor(image.size.height * scale))
+        guard size.width >= 1, size.height >= 1 else { return nil }
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1
+        format.opaque = true
+        // Drawing the photo turns it the right way up, like `normalized`.
+        let small = UIGraphicsImageRenderer(size: size, format: format).image { _ in
+            image.draw(in: CGRect(origin: .zero, size: size))
+        }
+        guard let still = small.cgImage else { return nil }
+        guard let edge = detectCard(in: still), let flat = straighten(still, to: edge) else {
+            return CardCropPreview(still: still, corners: nil, flat: nil)
+        }
+        // Vision's y runs up from the bottom; the screen's runs down from the top.
+        func screen(_ point: CGPoint) -> CGPoint { CGPoint(x: point.x, y: 1 - point.y) }
+        let corners = [screen(edge.topLeft), screen(edge.topRight), screen(edge.bottomRight), screen(edge.bottomLeft)]
+        return CardCropPreview(still: still, corners: corners, flat: flat)
+    }
+}
+
+/// The pictures for the camera's crop animation. Never sent to the web.
+struct CardCropPreview {
+    /// The photo, upright, long side at most `CardTextReader.previewSide`.
+    var still: CGImage
+    /// Top left, top right, bottom right, bottom left, each 0...1 of the still, origin top left.
+    var corners: [CGPoint]?
+    /// The card straightened from those corners.
+    var flat: CGImage?
 }
 
 /// How sharp and how washed out one camera frame is, from its brightness plane. Used for the

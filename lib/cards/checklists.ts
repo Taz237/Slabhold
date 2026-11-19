@@ -16,6 +16,13 @@ export type ChecklistSection = {
   /** "Base", "Rookie Autographs": the part of the product these numbers belong to. */
   name: string;
   cards: ChecklistRow[];
+  /**
+   * Every version of this section's cards, with its print run (null: unnumbered), as the source
+   * lists them: ["Base", 399], ["Green", 10]. Only for "Which version?": it never names a parallel.
+   */
+  versions?: [name: string, serialRun: number | null][];
+  /** The card #s the versions are for, when the section's print runs change card to card. None: every card. */
+  versionCards?: string[];
 };
 
 export type ChecklistProduct = {

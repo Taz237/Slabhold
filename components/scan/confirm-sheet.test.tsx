@@ -156,7 +156,7 @@ describe("ConfirmSheet", () => {
       await click(button("Add to my collection"));
       assert.equal(view.calls.confirmed.length, 0);
       assert.ok(text().includes("Pick your version first"));
-      const chip = view.host.querySelector<HTMLButtonElement>('[role="group"][aria-label="Parallel"] button');
+      const chip = view.host.querySelector<HTMLButtonElement>('[data-slot="pick-version"] button[data-version]');
       assert.ok(chip);
       await click(chip);
       await click(button("Add to my collection"));

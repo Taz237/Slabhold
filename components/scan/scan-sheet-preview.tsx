@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { SearchDoor } from "@/components/add-card/search-door";
 import { CompSheet } from "@/components/scan/comp-sheet";
 import { ScanHub } from "@/components/scan/scan-hub";
@@ -39,6 +39,8 @@ import {
   PREVIEW_SAPPHIRE,
   PREVIEW_SOLDS_NAMES_BLACK,
   PREVIEW_SOLDS_ESTIMATE,
+  PREVIEW_VERSIONS,
+  PREVIEW_SOLDS_VERSIONS,
   previewCompLookup,
 } from "@/lib/scan/preview-fixtures";
 
@@ -48,6 +50,9 @@ export type PreviewKind =
   | "numbered"
   | "matching"
   | "reading"
+  | "reveal"
+  | "reveal-fast"
+  | "versions"
   | "none"
   | "closest"
   | "unpinned"
@@ -97,6 +102,9 @@ const STATES: Record<Exclude<PreviewKind, "hub" | "hub-comp" | "door">, ConfirmS
   numbered: { kind: "ready", matches: [PREVIEW_NUMBERED, ...PREVIEW_RAW.slice(1)] },
   matching: { kind: "matching" },
   reading: { kind: "matching" },
+  reveal: { kind: "matching" },
+  "reveal-fast": { kind: "ready", matches: [PREVIEW_SLAB], solds: PREVIEW_SOLDS },
+  versions: { kind: "ready", matches: [PREVIEW_VERSIONS], solds: PREVIEW_SOLDS_VERSIONS },
   flip: { kind: "back", matches: [{ ...PREVIEW_RAW[0], yearLabel: "", cardNumber: "", sureness: { ...PREVIEW_RAW[0].sureness, year: "unsure", number: "unsure" } }] },
   "comp-flip": { kind: "back", matches: [{ ...PREVIEW_RAW[0], cardNumber: "", sureness: { ...PREVIEW_RAW[0].sureness, number: "unsure" } }] },
   none: { kind: "none" },
@@ -141,6 +149,9 @@ const LABELS: Record<PreviewKind, string> = {
   numbered: "Numbered",
   matching: "Matching",
   reading: "Reading, front and back",
+  reveal: "Reveal, a slow read",
+  "reveal-fast": "Reveal, a fast read",
+  versions: "Pick your version, no serial read",
   none: "No match",
   closest: "Only the player read: closest cards",
   unpinned: "Conflicts with the back",
@@ -175,6 +186,15 @@ const LABELS: Record<PreviewKind, string> = {
 
 const noop = () => {};
 
+/** "reveal": what the sheet is handed over a slow read. Each field as the phone read it, then the match. */
+const REVEAL_STEPS: ConfirmSheetState[] = [
+  { kind: "matching" },
+  { kind: "matching", read: { player: "Luka Doncic" } },
+  { kind: "matching", read: { player: "Luka Doncic", set: "2018-19 Panini Prizm" } },
+  { kind: "matching", read: { player: "Luka Doncic", set: "2018-19 Panini Prizm", number: "#280" } },
+  { kind: "ready", matches: [PREVIEW_SLAB], solds: PREVIEW_SOLDS },
+];
+
 /** The hub as the web sees it: no card reader in this build. */
 const PREVIEW_HUB_DEPS = { scannerAvailable: async () => false };
 
@@ -187,6 +207,13 @@ export function ScanSheetPreview({ kind }: { kind: PreviewKind }) {
   const [open, setOpen] = useState(true);
   // "Is this Sapphire?" tapped: the sheet shows the card as its Sapphire Edition.
   const [sapphire, setSapphire] = useState(false);
+  // "reveal": a slow read played out. The phone's own fields arrive one by one, then the match.
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    if (kind !== "reveal") return;
+    const timers = [700, 1500, 2300, 3600].map((ms, index) => window.setTimeout(() => setStep(index + 1), ms));
+    return () => timers.forEach((timer) => window.clearTimeout(timer));
+  }, [kind]);
 
   function confirm(match: ScanMatch, options: { save: boolean }) {
     const id = newScanId();
@@ -261,7 +288,7 @@ export function ScanSheetPreview({ kind }: { kind: PreviewKind }) {
           photo={PREVIEW_PHOTO}
           backPhoto={kind === "reading" ? PREVIEW_BACK_PHOTO : null}
           lookup={previewCompLookup}
-          state={sapphire ? STATES.sapphire : STATES[kind as keyof typeof STATES]}
+          state={sapphire ? STATES.sapphire : kind === "reveal" ? REVEAL_STEPS[step] : STATES[kind as keyof typeof STATES]}
           onSapphire={() => setSapphire(true)}
           onConfirm={confirm}
           onStepByStep={() => {

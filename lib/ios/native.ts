@@ -286,7 +286,24 @@ export async function shareSheet(data: NativeShareData): Promise<void> {
 /** Which taps are a success buzz; the rest are a light impact. */
 const SUCCESS_MOMENTS: ReadonlySet<HapticMoment> = new Set<HapticMoment>(["post", "save"]);
 
+/** The reveal's sweep takes ~900ms to cross the card: this many soft ticks, spread across it. */
+const SWEEP_TICKS = 4;
+const SWEEP_TICK_GAP_MS = 190;
+
+/** A soft purr: selection ticks (the lightest haptic iOS has), spaced across the sweep. */
+async function playSweep(): Promise<void> {
+  await Haptics.selectionStart();
+  for (let tick = 0; tick < SWEEP_TICKS; tick += 1) {
+    if (tick > 0) await new Promise((resolve) => setTimeout(resolve, SWEEP_TICK_GAP_MS));
+    await Haptics.selectionChanged();
+  }
+  await Haptics.selectionEnd();
+}
+
 export function playHaptic(moment: HapticMoment): Promise<void> {
+  if (moment === "sweep") return playSweep();
+  if (moment === "lock") return Haptics.impact({ style: ImpactStyle.Medium });
+  if (moment === "lockSure") return Haptics.notification({ type: NotificationType.Success });
   return SUCCESS_MOMENTS.has(moment)
     ? Haptics.notification({ type: NotificationType.Success })
     : Haptics.impact({ style: ImpactStyle.Light });

@@ -103,9 +103,9 @@ async function pickRow(host: HTMLElement, index: number) {
   });
 }
 
-/** A Parallel chip whose label starts with this name ("Silver", "Silver · 10 sales"). */
+/** A version's row on "Pick your version" (or, once one is picked, its Parallel chip) whose label starts with this name. */
 function chipNamed(name: string): HTMLButtonElement {
-  const found = [...win.document.querySelectorAll<HTMLButtonElement>('[role="group"][aria-label="Parallel"] button')].find((node) =>
+  const found = [...win.document.querySelectorAll<HTMLButtonElement>('[data-slot="pick-version"] button, [role="group"][aria-label="Parallel"] button')].find((node) =>
     (node.getAttribute("aria-label") ?? node.textContent ?? "").trim().startsWith(name),
   );
   assert.ok(found, `chip ${name}`);
@@ -186,8 +186,8 @@ describe("CompSheet", () => {
   it("never prices Base on its own: with the version open it asks which, and one tap prices that one", async () => {
     const view = await mount({ kind: "ready", matches: fixtures.PREVIEW_RAW });
     try {
-      await waitFor(() => text().includes("Which version?"));
-      assert.ok(text().includes("Pick the version to see its sold prices"));
+      await waitFor(() => text().includes("Pick your version"));
+      assert.ok(text().includes("Pick your version"));
       assert.equal(view.calls.lookups.length, 0, "nothing looked up as Base");
       assert.equal(/\$\d/.test(text()), false, "no price yet");
       assert.equal(button("Base").getAttribute("aria-pressed"), "false", "Base is a choice, never preselected");
@@ -216,7 +216,7 @@ describe("CompSheet", () => {
     };
     const view = await mount({ kind: "ready", matches: [rookieCode] });
     try {
-      await waitFor(() => text().includes("Which version?"));
+      await waitFor(() => text().includes("Pick your version"));
       assert.ok(text().includes("2026-27 Topps Rookie Code #RC-3"), text());
       assert.equal(view.calls.lookups.length, 0, "nothing looked up as Base");
       assert.equal(/\$\d/.test(text()), false, "no price yet");
@@ -507,7 +507,7 @@ describe("Aidan Miller after #245: a bio 'for-4' on the back, empty catalog", ()
     const solds = { status: "done" as const, comp: { ...base, parallel: "Base", groups }, query: "q" };
     const view = await mount({ kind: "ready", matches: [match], solds });
     try {
-      await waitFor(() => text().includes("Which version?"));
+      await waitFor(() => text().includes("Pick your version"));
       assert.doesNotMatch(text(), /Value · Base|Showing Base/);
       await click(chipNamed("Silver"));
       await waitFor(() => view.calls.lookups.length > 0);
@@ -530,7 +530,11 @@ describe("Aidan Miller after #245: a bio 'for-4' on the back, empty catalog", ()
     try {
       await waitFor(() => text().includes("No recent Base sales"));
       assert.doesNotMatch(text(), /Value · /);
-      assert.ok(button("Show Silver sales, 10 sales"));
+      // Silver leads the list with its price; Base is still there to pick, with no sales.
+      const rows = [...win.document.querySelectorAll<HTMLElement>('[data-slot="pick-version"] [data-version]')];
+      assert.equal(rows[0].dataset.version, "Silver");
+      assert.match(rows[0].textContent ?? "", /\$65\.00.*10 sold/);
+      assert.match(rows.find((row) => row.dataset.version === "Base")?.textContent ?? "", /No recent sales/);
     } finally {
       view.unmount();
     }

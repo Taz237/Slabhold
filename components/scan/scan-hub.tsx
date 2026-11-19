@@ -26,6 +26,7 @@ import type { ScanMatch, ScanMatchResult, SoldTitle } from "@/lib/scan/match";
 import { downgradesPin, keepPinned, pinOf } from "@/lib/scan/pin";
 import type { PhotoLook } from "@/lib/scan/photo-look";
 import { versionRereadSheet } from "@/lib/scan/version-reread";
+import type { RevealRead } from "@/lib/scan/reveal";
 import { HUB_COPY, scanReadFrom, sheetStateFrom, withVersionLine, type ScanCapture } from "@/lib/scan/session";
 
 export type ScanHubDeps = {
@@ -40,6 +41,8 @@ export type ScanHubDeps = {
   pickAndRead: () => Promise<ScanCapture | null>;
   /** The photo's look (border color, rainbow sheen), read on the phone. Null when unclear. Only orders "Which version?". */
   look: (image: string) => Promise<PhotoLook | null>;
+  /** What the phone's own read gives before the card is matched: the reveal shows each field as it is known. Null: nothing yet. */
+  peek: (capture: ScanCapture) => Promise<RevealRead | null>;
   /** Fills open fields from the phone's alternate readings, before anything reads the capture. */
   settle: (capture: ScanCapture) => Promise<ScanCapture>;
   /** Read and match against the catalog. Null when the search failed. */
@@ -118,6 +121,17 @@ async function defaultSettle(capture: ScanCapture): Promise<ScanCapture> {
   if (!capture.alternates?.length && !capture.backAlternates?.length) return capture;
   const [{ SCAN_DIRECTORY }, { withAlternates }] = await Promise.all([import("@/lib/players/scan-directory"), import("@/lib/scan/alternates")]);
   return withAlternates(capture, SCAN_DIRECTORY);
+}
+
+/** The player, set, card # and serial as the phone read them. Nothing is looked up. */
+async function defaultPeek(capture: ScanCapture): Promise<RevealRead | null> {
+  const [{ SCAN_DIRECTORY }, { scanPlayerName }, { revealReadFromScan }] = await Promise.all([
+    import("@/lib/players/scan-directory"),
+    import("@/lib/scan/match"),
+    import("@/lib/scan/reveal"),
+  ]);
+  const read = scanReadFrom(capture, SCAN_DIRECTORY);
+  return revealReadFromScan(read, scanPlayerName(read, SCAN_DIRECTORY));
 }
 
 async function defaultIdentify(capture: ScanCapture, signal: AbortSignal): Promise<ScanMatchResult | null> {
@@ -207,6 +221,7 @@ const defaultDeps: ScanHubDeps = {
   openSettings: async () => (await loadNative()).openAppSettings(),
   pickAndRead: defaultPickAndRead,
   look: async (image) => (await import("@/lib/scan/photo-look-browser")).readPhotoLook(image),
+  peek: defaultPeek,
   settle: defaultSettle,
   identify: defaultIdentify,
   solds: defaultSolds,
@@ -340,6 +355,13 @@ export function ScanHub({
       // Alternates are settled once, here, so the phone and the server read the same lines.
       const settled = await deps.settle(scanned).catch(() => scanned);
       if (controller.signal.aborted) return;
+      // What the phone itself read shows under the card while the match is looked up. Never waited on.
+      void deps.peek(settled).then(
+        (read) => {
+          if (read && !controller.signal.aborted) setSheet((now) => (now?.kind === "matching" ? { kind: "matching", read } : now));
+        },
+        () => {},
+      );
       // A raw card's photo look orders "Which version?". A slab's photo is mostly its case and label.
       // Read once per photo: a front kept for "Flip it over" carries its look (or null) back in.
       const look = settled.look === undefined && settled.image && settled.kind !== "slab" ? await deps.look(settled.image).catch(() => null) : (settled.look ?? null);

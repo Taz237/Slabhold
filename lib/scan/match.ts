@@ -1,7 +1,7 @@
 import { parallelSwatch } from "@/lib/cards/parallel-swatch";
 import type { CatalogCard } from "@/lib/card-catalog";
 import { parallelMatchKey, parallelSetFamily, parallelsForSet, sameParallelLoosely } from "@/lib/cards/parallels";
-import { baseSetHits, checklistNumberKey, isBaseSection, playersAt, toppsMade, type ChecklistHit, type ChecklistProduct } from "@/lib/cards/checklists";
+import { baseSetHits, checklistNumberKey, isBaseSection, playersAt, sameChecklistProduct, toppsMade, type ChecklistHit, type ChecklistProduct } from "@/lib/cards/checklists";
 import { parallelsIn, productForSet, productPhrase, sameSeason, type ProductParallel, type ProductRecord } from "@/lib/cards/product-data";
 import { setMatchPhrase } from "@/lib/comps/match";
 import type { IndexedDirectoryPlayer } from "@/lib/players/types";
@@ -87,6 +87,11 @@ export type ScanMatch = {
   sureness: Record<"player" | "year" | "set" | "number" | "parallel", FieldSureness>;
   /** Likely parallels for the picker, best first. One row when the parallel is sure. */
   parallelOptions: ProductParallel[];
+  /**
+   * Every version on our checklist for this card and set, with its print run. Only the picker reads
+   * it ("Pick your version", lib/scan/version-list.ts): it never names the parallel.
+   */
+  versions?: ProductParallel[];
   /** The insert or variation the back names ("Rookie Autograph Variations"). Never the parallel. */
   subset?: string;
   /**
@@ -954,6 +959,31 @@ function insertSectionFor(
   const [section] = sections;
   // A tier of the base set ("Base Field Level" in Select) goes by its own name: Field Level.
   return NOT_INSERT_NAME.test(section) ? "" : section.replace(/^base\s+(?=\S)/i, "");
+}
+
+/**
+ * Every version the checklist lists for this card: its own section's list (an autograph or insert
+ * section has its own print runs), when this player is at this # in exactly one section that has
+ * one. Empty when no section's list is this card's.
+ */
+export function sectionVersionsFor(
+  card: Pick<ScanMatch, "playerName" | "yearLabel" | "setBrand" | "cardNumber" | "sport">,
+  checklists: readonly ChecklistProduct[] | null | undefined,
+): ProductParallel[] {
+  if (!checklists?.length || !card.playerName || !card.cardNumber || !card.setBrand || !card.yearLabel) return [];
+  const number = checklistNumberKey(card.cardNumber);
+  const found: ProductParallel[][] = [];
+  for (const product of checklists) {
+    if (!sameChecklistProduct(product, card)) continue;
+    if (card.sport && product.sport.toLowerCase() !== card.sport.toLowerCase()) continue;
+    for (const section of product.sections) {
+      if (!section.cards.some(([cardNumber, player]) => checklistNumberKey(cardNumber) === number && namesAgree(player, card.playerName))) continue;
+      // A section without a list of its own (or whose list isn't for this #) leaves the card open.
+      const listed = section.versions?.length && (!section.versionCards || section.versionCards.some((item) => checklistNumberKey(item) === number));
+      found.push(listed ? section.versions!.map(([name, serialRun]) => ({ name, serialRun })) : []);
+    }
+  }
+  return found.length === 1 ? found[0] : [];
 }
 
 /** Words on the end of an autograph or relic section's name: what is left is the name the card prints. */
@@ -2202,6 +2232,9 @@ export function rankScanMatches(
     const yearAgo = lastYear && options.products?.length ? parallelsIn(options.products, card.sport, lastYear, card.setBrand, card.cardNumber) : [];
     const tierList = tierParallels(checklistFor(options.products, card, options.checklists), printedLines, insertSectionFor(card, options.checklists));
     const parallel = pickParallel(evidence, tierList, titles, yearAgo, vintageWithoutList(options.products, card));
+    // The picker's full list: the card's own section's versions, else the set's. Never read by the matching above.
+    const ownVersions = sectionVersionsFor(card, options.checklists);
+    const versions = ownVersions.length > 0 ? ownVersions : tierList;
     const inDirectory = evidence.players.some((item) => compactName(item.name) === compactName(card.playerName));
     // A slab label prints no run: when every sold title for this parallel names the same one, use it.
     if (parallel.serialRun == null && parallel.parallel && card.titles?.length) {
@@ -2232,6 +2265,7 @@ export function rankScanMatches(
       score: identityScore(evidence, found) + titleScore(evidence, found) + parallelBonus + (found.numberNudge ?? 0),
       sureness: sureness(evidence, found, parallel),
       parallelOptions: parallel.options,
+      ...(versions.length > 0 ? { versions } : {}),
       ...(fromSales ? { setSource: "sales" as const } : {}),
       // Asked only on a raw card (a slab's label prints SAPPHIRE when it is one), and only from the
       // year that set first had a Sapphire Edition.

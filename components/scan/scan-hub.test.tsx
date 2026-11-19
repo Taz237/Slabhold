@@ -261,6 +261,36 @@ describe("ScanHub with the native scanner", () => {
   });
 });
 
+describe("ScanHub: the reveal shows what the phone read while the card is matched", () => {
+  it("the read's own fields show under the card before the match is in, and a slow or failed peek never holds the scan", async () => {
+    let release: (value: ScanMatchResult) => void = () => {};
+    const view = await mount(
+      "add",
+      nativeDeps({
+        peek: async () => ({ player: "Fixture Player", number: "#306" }),
+        identify: () => new Promise<ScanMatchResult>((resolve) => (release = resolve)),
+      }),
+    );
+    try {
+      await waitFor(() => Boolean(win.document.querySelector('[data-reveal="label"] [data-line="number"]')));
+      const lines = [...win.document.querySelectorAll<HTMLElement>('[data-reveal="label"] [data-line]')].map((node) => node.textContent);
+      assert.deepEqual(lines, ["Fixture Player", "#306"], "only what was read: no set line, nothing made up");
+      assert.ok(win.document.querySelector("[data-stage]"), "still on the stage");
+      await act(async () => release(result([fixtures.PREVIEW_SLAB])));
+      await waitFor(() => text().includes("Luka Doncic"));
+    } finally {
+      view.unmount();
+    }
+    // A peek that throws: the scan goes on as if nothing was read early.
+    const broken = await mount("add", nativeDeps({ peek: async () => Promise.reject(new Error("no read")) }));
+    try {
+      await waitFor(() => text().includes("Your card"));
+    } finally {
+      broken.unmount();
+    }
+  });
+});
+
 describe("ScanHub: identify, then last eBay solds", () => {
   it("shows the card first, then fills in its last solds", async () => {
     let release: () => void = () => {};
@@ -307,7 +337,7 @@ describe("ScanHub: identify, then last eBay solds", () => {
       }),
     );
     try {
-      await waitFor(() => text().includes("Which version?"));
+      await waitFor(() => text().includes("Pick your version"));
       assert.equal(sentPin, "Rookie Code", "the phone's pinned card goes with the request");
       assert.ok(text().includes("2026-27 Topps Rookie Code #RC-3"), text().slice(0, 600));
       for (const gone of ["Blue", "Gold", "Orange", "Mojo"]) assert.equal(text().includes(`${gone} · 5 sales`), false, gone);
@@ -496,7 +526,7 @@ describe("ScanHub: a slab's version picked from \"Which version?\"", () => {
       }),
     );
     try {
-      await waitFor(() => text().includes("Pick the version to see its sold prices"));
+      await waitFor(() => text().includes("Pick your version"));
       await promote("Second Player");
       await act(async () => button("X-Fractor").click());
       await waitFor(() => reads.length === 2 && text().includes("We couldn't load sold prices"));
@@ -507,7 +537,7 @@ describe("ScanHub: a slab's version picked from \"Which version?\"", () => {
       // The sheet is still theirs: same row on top, the pick kept, nothing re-asked.
       assert.match(text(), /Second Player/);
       assert.equal(pressed("X-Fractor"), true);
-      assert.doesNotMatch(text(), /Which version\?/);
+      assert.doesNotMatch(text(), /Which version\?|Pick your version/);
       assert.ok(!text().includes("We couldn't find this one yet"));
     } finally {
       view.unmount();
@@ -526,7 +556,7 @@ describe("ScanHub: a slab's version picked from \"Which version?\"", () => {
       }),
     );
     try {
-      await waitFor(() => text().includes("Pick the version to see its sold prices"));
+      await waitFor(() => text().includes("Pick your version"));
       await act(async () => button("Refractor").click());
       await waitFor(() => text().includes("We couldn't load sold prices"));
       assert.equal(reads, 1, "no second read while offline");
@@ -567,7 +597,7 @@ describe("ScanHub: picking another version after a read", () => {
       }),
     );
     try {
-      await waitFor(() => text().includes("Pick the version to see its sold prices"));
+      await waitFor(() => text().includes("Pick your version"));
       await act(async () => button("X-Fractor").click());
       await waitFor(() => text().includes("$150"));
       await act(async () => button("Base").click());
@@ -599,7 +629,7 @@ describe("ScanHub: picking another version after a read", () => {
       }),
     );
     try {
-      await waitFor(() => text().includes("Pick the version to see its sold prices"));
+      await waitFor(() => text().includes("Pick your version"));
       await act(async () => button("X-Fractor").click());
       await waitFor(() => text().includes("We couldn't load sold prices"));
       await act(async () => button("X-Fractor").click());
@@ -626,7 +656,7 @@ describe("ScanHub: picking another version after a read", () => {
       }),
     );
     try {
-      await waitFor(() => text().includes("Pick the version to see its sold prices"));
+      await waitFor(() => text().includes("Pick your version"));
       await act(async () => button("X-Fractor").click());
       await waitFor(() => reads.length === 2 && text().includes("We couldn't load sold prices"));
       await act(async () => button("Refractor").click());
@@ -659,7 +689,7 @@ describe("ScanHub comp: a grade change after a version read", () => {
       }),
     );
     try {
-      await waitFor(() => text().includes("Pick the version to see its sold prices"));
+      await waitFor(() => text().includes("Pick your version"));
       await act(async () => button("X-Fractor").click());
       await waitFor(() => text().includes("$150"));
       assert.equal(lookups.length, 0);

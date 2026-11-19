@@ -7,10 +7,11 @@ import { RevealCard, SheetFrame, FlipStep } from "@/components/scan/sheet-parts"
 import type { SoldsState } from "@/lib/scan/comp";
 import { CONFIRM_COPY } from "@/lib/scan/confirm";
 import type { ScanMatch } from "@/lib/scan/match";
-import { REVEAL_COPY } from "@/lib/scan/reveal";
+import { REVEAL_COPY, type RevealRead } from "@/lib/scan/reveal";
 
 export type ConfirmSheetState =
-  | { kind: "matching" }
+  /** read: what the phone's own read gave so far, shown under the card as each field is known. */
+  | { kind: "matching"; read?: RevealRead }
   /** "Flip it over": the front alone couldn't pin the year, set or card #. Its read waits here. */
   | { kind: "back"; matches: ScanMatch[] }
   /** solds: the top card's last eBay solds, looked up after the card is read. */
