@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { PREVIEW_RAW, PREVIEW_SLAB } from "./preview-fixtures";
-import { cardInputFromScan, QUICK_ADD_COPY } from "./quick-add";
+import { cardInputFromScan, matchWithChosenGrade, QUICK_ADD_COPY } from "./quick-add";
 
 const options = { photo: "data:image/jpeg;base64,QUJD", accent: "#7C3AED", isPublic: false, value: 975 };
 
@@ -51,5 +51,38 @@ describe("one-tap add from the scan", () => {
     const all = JSON.stringify(QUICK_ADD_COPY);
     assert.doesNotMatch(all, /\bbest\b|\bAI\b|\bfree\b|number one|sell|market|list it/i);
     assert.equal(QUICK_ADD_COPY.add, "Add to my collection");
+  });
+});
+
+describe("the grade chip picked on the price sheet is the grade saved", () => {
+  it("unchanged keeps the slab's own grade: cert, qualifier and all", () => {
+    const slab = { ...PREVIEW_SLAB, grade: { ...PREVIEW_SLAB.grade!, qualifier: "OC" } };
+    assert.deepEqual(matchWithChosenGrade(slab, "PSA 10").grade, slab.grade);
+  });
+
+  it("Raw saves no grade", () => {
+    assert.equal(matchWithChosenGrade(PREVIEW_SLAB, "Raw").grade, null);
+  });
+
+  it("PSA 10 on a card read raw saves PSA 10", () => {
+    const grade = matchWithChosenGrade({ ...PREVIEW_SLAB, grade: null }, "PSA 10").grade;
+    assert.deepEqual(grade, { company: "PSA", number: "10", qualifier: "", certNumber: "", authentic: false, autoGrade: "" });
+  });
+
+  it("BGS 9.5 saves BGS 9.5", () => {
+    const grade = matchWithChosenGrade({ ...PREVIEW_SLAB, grade: null }, "BGS 9.5").grade;
+    assert.equal(grade?.company, "BGS");
+    assert.equal(grade?.number, "9.5");
+  });
+
+  it("another number from the same company keeps the cert; another company drops it", () => {
+    assert.equal(matchWithChosenGrade(PREVIEW_SLAB, "PSA 9").grade?.certNumber, "00000000");
+    assert.equal(matchWithChosenGrade(PREVIEW_SLAB, "SGC 10").grade?.certNumber, "");
+  });
+
+  it("leaves the rest of the match alone", () => {
+    const picked = matchWithChosenGrade(PREVIEW_SLAB, "Raw");
+    assert.equal(picked.parallel, PREVIEW_SLAB.parallel);
+    assert.equal(picked.playerName, PREVIEW_SLAB.playerName);
   });
 });

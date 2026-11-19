@@ -23,6 +23,9 @@ expose("IS_REACT_ACT_ENVIRONMENT", true);
 
 import type { QuickCompIdentity } from "@/lib/quick-comp/identity";
 import type { ScanCompResult } from "@/lib/scan/comp";
+import { cardInputFromScan } from "@/lib/scan/quick-add";
+
+const ADD_OPTIONS = { photo: null, accent: "#7C3AED", isPublic: false };
 
 type Props = {
   photo: string | null;
@@ -279,6 +282,45 @@ describe("CompSheet", () => {
       assert.deepEqual(view.calls.saves, [true]);
       await click(button("Scan another"));
       assert.equal(view.calls.next, 1);
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("Add saves the grade picked: a card read raw, with PSA 10 tapped, saves graded PSA 10", async () => {
+    const view = await mount({ kind: "ready", matches: [{ ...fixtures.PREVIEW_SLAB, grade: null }] });
+    try {
+      await click(button("PSA 10"));
+      await click(button("Add to my collection"));
+      const card = cardInputFromScan(view.calls.added[0]!, ADD_OPTIONS);
+      assert.equal(card?.conditionType, "graded");
+      assert.equal(card?.grade, "PSA 10");
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("Add saves the grade picked: a slab with Raw tapped saves raw", async () => {
+    const view = await mount({ kind: "ready", matches: [fixtures.PREVIEW_SLAB] });
+    try {
+      await click(button("Raw"));
+      await click(button("Add to my collection"));
+      const card = cardInputFromScan(view.calls.added[0]!, ADD_OPTIONS);
+      assert.equal(card?.conditionType, "raw");
+      assert.equal(card?.grade, "");
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("Add with the grade untouched saves the slab as read, cert and all", async () => {
+    const view = await mount({ kind: "ready", matches: [fixtures.PREVIEW_SLAB] });
+    try {
+      await click(button("Add to my collection"));
+      const card = cardInputFromScan(view.calls.added[0]!, ADD_OPTIONS);
+      assert.equal(card?.conditionType, "graded");
+      assert.equal(card?.grade, "PSA 10");
+      assert.equal(card?.certNumber, "00000000");
     } finally {
       view.unmount();
     }

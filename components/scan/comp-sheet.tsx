@@ -41,7 +41,7 @@ import { isUnnamedRunLabel } from "@/lib/scan/scan-sales";
 import { versionChoicesFor, versionFromSerial, versionRows } from "@/lib/scan/version-list";
 import { REVEAL_COPY, REVEAL_LAND_MS, REVEAL_REDUCED_MS, landingDelayMs, matchIsSure, revealFields, revealFieldsFromRead } from "@/lib/scan/reveal";
 import { haptic } from "@/lib/ios/haptics";
-import { QUICK_ADD_COPY } from "@/lib/scan/quick-add";
+import { matchWithChosenGrade, QUICK_ADD_COPY } from "@/lib/scan/quick-add";
 import { PickCard } from "@/components/scan/pick-card";
 import { RevealFields, RevealSpinCard, type RevealLanding } from "@/components/scan/scan-reveal";
 
@@ -310,7 +310,9 @@ export function CardPrice({
     }
     const result = confirmMatch(top, pick, top.serialNo);
     // A numbered card whose own number didn't read still adds: the number can be filled in later.
-    const match = "match" in result ? result.match : { ...top, parallel: pick.name, serialRun: pick.serialRun, serialNo: "", sureness: { ...top.sureness, parallel: "sure" as const } };
+    const read = "match" in result ? result.match : { ...top, parallel: pick.name, serialRun: pick.serialRun, serialNo: "", sureness: { ...top.sureness, parallel: "sure" as const } };
+    // The grade the Grade chip shows is the grade saved: a slab set to Raw saves raw, and the reverse.
+    const match = matchWithChosenGrade(read, grade);
     onAdd(match, { save: readyToSave(match) });
   }
 
