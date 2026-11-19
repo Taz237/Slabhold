@@ -251,7 +251,31 @@ for (const scheme of ["dark", "light"]) {
   const { context, page, cases, errors } = await open(browser, { scheme, who: ME });
   await show(page, `/cards/${cases.vertical.id}`);
   await shot(page, "own", scheme);
+  // The owner's controls under the card: who sees it, and the pile picker.
+  if (OUT) {
+    await page.evaluate(() => {
+      const controls = document.querySelector('[data-slot="owner-controls"]');
+      if (controls) window.scrollTo(0, window.scrollY + controls.getBoundingClientRect().top - 320);
+    });
+    await page.waitForTimeout(200);
+    await page.screenshot({ path: join(OUT, `${TAG}-own-controls-390-${scheme}.jpg`), type: "jpeg", quality: 82 });
+    await page.evaluate(() => window.scrollTo(0, 0));
+  }
+  if (CHECK) {
+    const piles = await page.locator('[data-slot="owner-controls"] [role="radio"]').allInnerTexts();
+    assert.deepEqual(piles, ["Open to offers", "Personal collection"], "the pile picker's two labels");
+  }
   if (CHECK) await checkPage(page, `own (${scheme})`, SALES.vertical.length);
+  // The Collection's pile tabs carry the same name as the card page's picker.
+  await page.goto(`${BASE}/collection`);
+  await page.waitForSelector('[role="tab"]');
+  await page.waitForTimeout(900);
+  if (CHECK) {
+    const tabs = await page.locator('[role="tab"]').allInnerTexts();
+    assert.ok(tabs.includes("Open to offers"), `Collection has an Open to offers tab (${tabs.join(", ")})`);
+    assert.ok(!tabs.some((tab) => /flip/i.test(tab)), "no tab says Flipping");
+  }
+  if (OUT) await page.screenshot({ path: join(OUT, `${TAG}-collection-tabs-390-${scheme}.jpg`), type: "jpeg", quality: 82 });
   assert.deepEqual(errors, [], "no page errors");
   await context.close();
   results.push(`own ${scheme}`);

@@ -165,9 +165,10 @@ describe("card search manual entry", () => {
 });
 
 describe("collection screens", () => {
-  it("gives Flipping and Personal their own empty states", () => {
-    assert.equal(collectionFilterEmpty("flipping").title, "No Flipping cards yet");
-    assert.match(collectionFilterEmpty("flipping").detail, /Flipping/);
+  it("gives Open to offers and Personal their own empty states", () => {
+    assert.equal(collectionFilterEmpty("flipping").title, "No cards open to offers yet");
+    assert.match(collectionFilterEmpty("flipping").detail, /Open to offers/);
+    assert.doesNotMatch(JSON.stringify(collectionFilterEmpty("flipping")), /flip/i);
     assert.equal(collectionFilterEmpty("pc").title, "No Personal cards yet");
     assert.match(collectionFilterEmpty("pc").detail, /Personal/);
     assert.notEqual(
@@ -181,7 +182,7 @@ describe("collection screens", () => {
     const personal = renderToStaticMarkup(
       createElement(CollectionLaneEmpty, { lane: "pc" }),
     );
-    assert.match(flipping, /No Flipping cards yet/);
+    assert.match(flipping, /No cards open to offers yet/);
     assert.match(personal, /No Personal cards yet/);
     assert.doesNotMatch(flipping, /Your collection starts here/);
     assert.doesNotMatch(personal, /Your collection starts here/);

@@ -2,6 +2,7 @@ import { signupPath } from "@/lib/auth/safe-next";
 import { BLOCKED_INTERACTION } from "@/lib/safety/block";
 import { inboxPreviewText } from "@/lib/social/dm-inbox";
 import type { CardMessagePreview } from "@/lib/social/types";
+import type { CardCategory } from "@/lib/types";
 import { userHref } from "@/lib/social/user-href";
 import { gradedLabel } from "@/lib/ui/timeline";
 import { resolvePriceRead, tilePriceText } from "@/lib/value/price-fallback";
@@ -125,6 +126,22 @@ export function publicTogglePatch(
     return { isPublic, openToOffers: false };
   }
   return { isPublic };
+}
+
+/**
+ * Moving a card between piles moves its Open to offers badge with it: into
+ * the Open to offers pile (saved as `flipping`) turns the badge on, out of it
+ * turns the badge off. Only a real move does this, so the owner's own switch
+ * on the card is left alone otherwise. A private card can't carry the badge,
+ * and the flag is left out when the column is unknown.
+ */
+export function categoryMovePatch(
+  card: { category?: string | null; isPublic?: boolean | null; openToOffers?: boolean | null },
+  category: CardCategory,
+): { category: CardCategory; openToOffers?: boolean } {
+  const from: CardCategory = card.category === "pc" ? "pc" : "flipping";
+  if (card.openToOffers == null || from === category) return { category };
+  return { category, openToOffers: category === "flipping" && Boolean(card.isPublic) };
 }
 
 export function withOpenToOffersColumn<T extends Record<string, unknown>>(

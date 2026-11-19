@@ -1,10 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
-import { SoldFreshness } from "@/components/sold-freshness";
 import { soldFreshnessLabel } from "@/lib/comps/freshness";
 
 const NOW = Date.parse("2026-10-01T12:00:00Z");
@@ -48,28 +45,13 @@ describe("soldFreshnessLabel", () => {
   });
 });
 
-describe("SoldFreshness", () => {
-  it("renders the label after a separator", () => {
-    const html = renderToStaticMarkup(
-      createElement(SoldFreshness, { comps: COMPS, fetchedAt: SEVEN_HOURS_AGO, now: NOW }),
-    );
-    assert.equal(html, " · Newest sale Sep 30 · checked 7 hours ago");
-    assert.doesNotMatch(html, /Updated|unknown/);
-  });
-
-  it("renders nothing when there is nothing to say", () => {
-    const html = renderToStaticMarkup(
-      createElement(SoldFreshness, { comps: [], fetchedAt: null, now: NOW }),
-    );
-    assert.equal(html, "");
-  });
-});
-
 describe("card page sold freshness", () => {
   it("keeps the freshness label, now behind the value section's ⓘ", () => {
     const value = source("components/card-page/card-value.tsx");
     assert.match(value, /soldFreshnessLabel\(allSales\.map\(\(sale\) => \(\{ soldDate: sale\.date \}\)\), fetchedAt\)/);
     assert.doesNotMatch(value, /Updated|formatRelativeTime/);
+    // The old wrapper component went with the old sold list header.
+    assert.equal(existsSync(join(process.cwd(), "components/sold-freshness.tsx")), false);
   });
 
   for (const path of ["components/card-detail.tsx", "components/public-card-view.tsx"]) {

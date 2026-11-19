@@ -231,7 +231,7 @@ describe("a just-added card on the owner's profile", () => {
 });
 
 describe("Collection shows every card the count includes", () => {
-  /** 14 cards: 7 Flipping, 7 Personal, 2 of the Personal ones sold. */
+  /** 14 cards: 7 Open to offers, 7 Personal, 2 of the Personal ones sold. */
   function fourteen(): SportsCard[] {
     const rows = Array.from({ length: 14 }, (_, index) =>
       row(`card-${index}`, {
@@ -268,12 +268,12 @@ describe("Collection shows every card the count includes", () => {
     return host.querySelector('[data-slot="grid-count"]')?.textContent ?? null;
   }
 
-  it("draws all 14 on All, 7 on Flipping and 7 on Personal", async () => {
+  it("draws all 14 on All, 7 on Open to offers and 7 on Personal", async () => {
     const cards = fourteen();
     act(() => root!.render(screen(createElement(Dashboard), cards)));
     assert.equal(tileIds().length, 14);
     assert.equal(countLine(), null, "nothing hidden, no count line");
-    act(() => tab("Flipping").click());
+    act(() => tab("Open to offers").click());
     assert.equal(tileIds().length, 7);
     act(() => tab("Personal").click());
     assert.equal(tileIds().length, 7);
@@ -289,9 +289,9 @@ describe("Collection shows every card the count includes", () => {
     assert.equal(tileIds().length, 12);
     assert.match(countLine() ?? "", /Showing 12 of 14 cards · Held/);
     // The filter stays on across lanes, so the line goes with it.
-    act(() => tab("Flipping").click());
+    act(() => tab("Open to offers").click());
     assert.equal(tileIds().length, 7);
-    assert.equal(countLine(), null, "all 7 Flipping cards are held");
+    assert.equal(countLine(), null, "all 7 Open to offers cards are held");
     act(() => tab("Personal").click());
     assert.equal(tileIds().length, 5);
     assert.match(countLine() ?? "", /Showing 5 of 7 cards · Held/);

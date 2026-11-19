@@ -86,15 +86,11 @@ describe("launch copy: USD price basis", () => {
     assert.equal(count(chart({ selectedSaleId: "s2" }), PRICE_BASIS_LINE), 1);
   });
 
-  it("stays off sample, no-sales and fallback-label states", () => {
+  it("stays off sample and no-sales states", () => {
     assert.equal(count(chart({ source: "sample", sample: true, lockedToComps: false }), PRICE_BASIS_LINE), 0);
     // Quick Comp locks the chart to its comps, sample payloads included.
     assert.equal(count(chart({ source: "sample", sample: true }), PRICE_BASIS_LINE), 0);
     assert.equal(count(chart({ sales: [], count: 0, median: null, p25: null, p75: null }), PRICE_BASIS_LINE), 0);
-    assert.equal(
-      count(chart({ headlineIsEstimate: false, headlineLabel: "Last sale $30.00" }), PRICE_BASIS_LINE),
-      0,
-    );
   });
 
   it("reaches the card page and the public card page behind ⓘ, and Quick Comp through SalesChart", () => {

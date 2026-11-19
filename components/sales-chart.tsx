@@ -1,18 +1,15 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { PriceFallbackText } from "@/components/price-readout";
 import { ValueChart, type ChartDot, type ChartPoint } from "@/components/charts/value-chart";
 import { medianLayers } from "@/components/charts/median-layer";
 import {
   COMP_PLOT_HEIGHT,
-  CompCardSkeleton,
   GhostPlot,
   compCaption,
   compCard,
   compHeroValue,
   compLabel,
-  compSectionValue,
   compTile,
   saleDate,
 } from "@/components/comp-basis";
@@ -29,8 +26,7 @@ import { middleFifty } from "@/lib/comps/stats";
 import { headlineRange, latestSale, saleTrend, splitOutliers, vsDaysAgo, type ChartSale } from "@/lib/chart/sales";
 import { snapshotDateInNewYork } from "@/lib/collection/totals-shared";
 import { money } from "@/lib/format";
-import { NOT_ENOUGH_SALES_LABEL } from "@/lib/value/format";
-import { mockValueHistory, type ValuePoint } from "@/lib/value-history";
+import { mockValueHistory } from "@/lib/value-history";
 import { MOVE_PILL } from "@/lib/chart/theme";
 import { PRICE_BASIS_LINE, TRAWL_ATTRIBUTION } from "@/lib/comps/price-basis";
 
@@ -204,31 +200,23 @@ function HeroMoney({ value }: { value: number }) {
  */
 export function SalesChart({
   card,
-  points: pointsProp,
   sales: salesProp,
   selectedSaleId = null,
   onSelectSale,
   fetchedAt,
   source = "sample",
-  loading = false,
   median = null,
   p25 = null,
   p75 = null,
   count = 0,
   sample = true,
-  unavailable = false,
-  noSalesLabel,
   /** Headline and count come from the comps on this card, not a separate estimate. */
   lockedToComps = false,
   heading,
   stableLayout = false,
-  /** Replaces the dollar headline. A fallback must set headlineIsEstimate false. */
-  headlineLabel,
-  headlineIsEstimate = true,
   lowConfidence: lowConfidenceProp,
 }: {
   card: { id: string; estimatedSellPrice: number; purchasePrice: number };
-  points?: ValuePoint[] | null;
   /** The sales listed under the chart, one dot each. */
   sales?: ChartSale[] | null;
   selectedSaleId?: string | null;
@@ -236,24 +224,16 @@ export function SalesChart({
   /** When we last checked for sales. */
   fetchedAt?: string | null;
   source?: "trawl" | "sample" | "off";
-  loading?: boolean;
   median?: number | null;
   p25?: number | null;
   p75?: number | null;
   count?: number;
   sample?: boolean;
-  unavailable?: boolean;
-  noSalesLabel?: string;
   lockedToComps?: boolean;
-  /** Kept for callers; empty comps show "Not enough sales yet". */
-  hideStatusLabel?: boolean;
   /** The eyebrow: "Last sale", "Recent sales", "Estimated value" or similar cards. */
   heading?: string;
   /** Keep the plot box mounted so an empty result does not collapse the page. */
   stableLayout?: boolean;
-  headlineLabel?: string | null;
-  /** False when headlineLabel is a last sale, a range, or another fallback. */
-  headlineIsEstimate?: boolean;
   /** The caller's call on the amber "Low confidence" tag, so its page never shows it twice. */
   lowConfidence?: boolean;
 }) {
@@ -262,8 +242,8 @@ export function SalesChart({
   const showSample = !lockedToComps && (sample || source === "sample" || source === "off");
 
   const allSales = useMemo<ChartSale[]>(
-    () => (live ? (salesProp ?? (pointsProp ?? []).map((point, index) => ({ id: `p${index}`, price: point.value, date: point.date }))) : []),
-    [live, salesProp, pointsProp],
+    () => (live ? (salesProp ?? []) : []),
+    [live, salesProp],
   );
   const today = snapshotDateInNewYork();
   const ranges = useMemo(() => compRanges(allSales, today), [allSales, today]);
@@ -303,13 +283,12 @@ export function SalesChart({
   const n = windowRead ? sales.length : live ? count : samplePoints.length;
   const lowConfidence = lowConfidenceProp ?? (live && n > 0 && n < 5);
   const noSales = live && (n === 0 || displayMedian == null);
-  const showEstimate = headlineIsEstimate !== false;
-  const estimateShown = showEstimate && live && !noSales;
+  const estimateShown = live && !noSales;
   const vs = estimateShown && displayMedian != null ? vsDaysAgo(trend, displayMedian, 30, today) : null;
   const vsTone = pctTone(vs);
   const selected = selectedSaleId ? allSales.find((sale) => sale.id === selectedSaleId) : null;
   const linePoints = showSample ? samplePoints : trend;
-  const showPlot = (live && sales.length > 0 && (!noSales || !showEstimate)) || (showSample && samplePoints.length > 1);
+  const showPlot = (live && sales.length > 0 && !noSales) || (showSample && samplePoints.length > 1);
   const outlierCount = split.outliers.length;
   const refValue = estimateShown ? displayMedian : null;
   const refLine = useMemo(
@@ -324,7 +303,7 @@ export function SalesChart({
     : `Recent sales${displayMedian != null && estimateShown ? `, median ${money(displayMedian)}` : ""}, ${sales.length} sale${sales.length === 1 ? "" : "s"}${
         vs == null ? "" : vsTone === "flat" ? ", unchanged vs 30 days ago" : `, ${vsTone} ${formatPct(vs, false)} vs 30 days ago`
       }`;
-  const eyebrow = heading ?? (showEstimate ? "Estimated value" : "Recent sales");
+  const eyebrow = heading ?? "Estimated value";
   const ago = usingLive ? shortAgo(fetchedAt) : "";
   const freshness = showSample ? "Sample" : ago ? `Recent sold · ${ago}` : null;
   const fewSales = split.inliers.length < TREND_MIN_SALES;
@@ -339,20 +318,12 @@ export function SalesChart({
   );
   const phrase = COMP_RANGES.find((item) => item.id === range)?.phrase ?? "";
 
-  if (unavailable && !loading) {
-    return null;
-  }
-
-  if (loading) {
-    return <CompCardSkeleton range={showEstimate} />;
-  }
-
   // An estimate keeps its headline; the tapped sale moves to the small line under it.
   const caption = selected && !estimateShown ? (
     saleMeta(selected, today)
   ) : showSample ? (
     "Sample history from recent months"
-  ) : noSales && showEstimate ? (
+  ) : noSales ? (
     "We'll show a value once this card has a recent sale."
   ) : fewSales ? (
     moreSalesText(split.inliers.length)
@@ -374,10 +345,6 @@ export function SalesChart({
           <p key={`sale-${selected.id}`} data-comp-value="" className={`comp-fade ${compHeroValue}`}>
             {money(selected.price)}
           </p>
-        ) : !showEstimate ? (
-          <p key="label" className={`comp-fade max-w-full py-1.5 ${compSectionValue}`}>
-            <PriceFallbackText text={headlineLabel || noSalesLabel || NOT_ENOUGH_SALES_LABEL} />
-          </p>
         ) : noSales ? (
           <p className="text-lg font-semibold tracking-tight leading-10 text-zinc-500">No sales yet</p>
         ) : (
@@ -394,7 +361,7 @@ export function SalesChart({
         <span key={selected && !estimateShown ? `c-${selected.id}` : "c"} className="comp-fade min-w-0 truncate tabular-nums">
           {caption}
         </span>
-        {(!selected || estimateShown) && showEstimate && lowConfidence && !noSales ? (
+        {(!selected || estimateShown) && lowConfidence && !noSales ? (
           <span className="shrink-0 rounded-md bg-amber-500/15 px-1.5 text-11 leading-4 font-semibold text-amber-800 dark:text-amber-200">
             Low confidence
           </span>
@@ -461,7 +428,7 @@ export function SalesChart({
             minimal
           />
         </div>
-      ) : stableLayout || (noSales && showEstimate) ? (
+      ) : stableLayout || noSales ? (
         <GhostPlot />
       ) : null}
 

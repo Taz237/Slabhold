@@ -4,7 +4,7 @@ import { categoryLabel } from "@/lib/card-category";
 import type { CardCategory } from "@/lib/types";
 
 const OPTIONS: { id: CardCategory; detail: string }[] = [
-  { id: "flipping", detail: "For sale" },
+  { id: "flipping", detail: "Collectors can message you" },
   { id: "pc", detail: "Personal collection" },
 ];
 

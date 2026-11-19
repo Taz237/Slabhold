@@ -1143,7 +1143,17 @@ export function CardForm({
       </div>
   );
 
-  const categoryNode = <CategoryPicker value={category} onChange={setCategory} />;
+  const categoryNode = (
+    <CategoryPicker
+      value={category}
+      onChange={(next) => {
+        // The pile and the badge move together on a card you already have: the
+        // switch follows the move, and can still be flipped by hand before saving.
+        if (existing && offersKnown && next !== category) setOpenToOffers(next === "flipping");
+        setCategory(next);
+      }}
+    />
+  );
 
   const sportOfferNode = sportOffer ? (
         <button

@@ -77,7 +77,7 @@ export default function PrivacyPolicyPage() {
       <p>
         In a browser or the iPhone app, signing in stores the login session in cookies. This browser&apos;s local storage keeps the
         posts you liked, recent searches, whether you dismissed the daily collection summary, and
-        the PC or Flipping category for a card. If you open Slabhold from a campaign link, this
+        the Personal or Open to offers category for a card. If you open Slabhold from a campaign link, this
         browser keeps that link&apos;s source, medium, and campaign for 7 days. Liking, reposting,
         or deleting a post also saves the comments, reposts, and notifications loaded at that
         moment. A scan or a photo for a

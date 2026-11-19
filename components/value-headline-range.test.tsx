@@ -120,8 +120,8 @@ describe("Estimated value: the headline sits inside its Low/High bar", () => {
     assert.equal(latestSale([]), null);
   });
 
-  it("adds no last-sold line when the headline is already a fallback", () => {
-    const html = chart({ headlineIsEstimate: false, headlineLabel: "Last sold $24.50 on Nov 13" });
+  it("adds no last-sold line when there is no estimate to sit under", () => {
+    const html = chart({ sales: [], count: 0, median: null, p25: null, p75: null });
     assert.doesNotMatch(html, /data-last-sold=""/);
   });
 });

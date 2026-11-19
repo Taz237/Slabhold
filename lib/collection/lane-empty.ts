@@ -4,8 +4,8 @@ import type { CardCategory } from "@/lib/types";
 export function collectionFilterEmpty(lane: CardCategory): { title: string; detail: string } {
   if (lane === "flipping") {
     return {
-      title: `No ${categoryLabel("flipping")} cards yet`,
-      detail: "Cards you mark Flipping show up here.",
+      title: "No cards open to offers yet",
+      detail: `Cards you move to ${categoryLabel("flipping")} show up here.`,
     };
   }
   return {

@@ -48,7 +48,7 @@ import {
 import { EbaySoldLine } from "@/components/price-readout";
 import { useSocial } from "@/components/social-provider";
 import { loginPath } from "@/lib/auth/safe-next";
-import { publicTogglePatch } from "@/lib/offers/open-to-offers";
+import { categoryMovePatch, publicTogglePatch } from "@/lib/offers/open-to-offers";
 import { cardCategory } from "@/lib/card-category";
 import {
   dismissFirstCardPrivacyInBrowser,
@@ -381,7 +381,9 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
   function moveCategory(category: ReturnType<typeof cardCategory>) {
     if (!card) return;
     const cardId = card.id;
-    void actions.run("category", "Couldn't move this card.", () => updateCard(cardId, { category }).saved);
+    // The pile and the badge move together: into Open to offers turns the badge on, out turns it off.
+    const patch = categoryMovePatch(card, category);
+    void actions.run("category", "Couldn't move this card.", () => updateCard(cardId, patch).saved);
   }
 
   function toggleEdit() {

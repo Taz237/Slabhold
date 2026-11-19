@@ -252,6 +252,29 @@ describe("card page value: one price, one pill, one line", () => {
     assert.match(renderToStaticMarkup(createElement(PlotEmpty, {})), /We&#x27;ll show a value once this card has a recent sale/);
   });
 
+  it("shows the real price right away, with no count-up", () => {
+    const html = value({ amount: 195, count: 12, sales: sales(12), live: true });
+    assert.match(html, /data-value-price=""[^>]*>\$195\.00</);
+    const src = read("components/card-page/card-value.tsx");
+    assert.doesNotMatch(src, /CountUp|requestAnimationFrame|COUNT_UP|useLayoutEffect/);
+  });
+
+  it("makes a similar card's headline a link to that card", () => {
+    const similar: PriceRead = {
+      kind: "similar",
+      text: "Similar cards",
+      detail: "Silver · PSA 10",
+      priceText: "$20.00–$30.00 from 2 sales",
+      href: "/u/maya/cards/abc",
+      isEstimate: false,
+      showEbaySold: false,
+    };
+    const html = value({ read: similar, count: 0, sales: [], live: true });
+    assert.match(html, /<a[^>]*href="\/u\/maya\/cards\/abc"[^>]*>Silver · PSA 10<\/a>/);
+    assert.match(html, /Similar cards/);
+    assert.match(html, /\$20\.00–\$30\.00 from 2 sales/);
+  });
+
   it("shows range buttons only when there are two or more ranges", () => {
     assert.doesNotMatch(value({ amount: 34, count: 5, sales: sales(5), live: true }), /data-comp-ranges/);
   });
@@ -282,6 +305,10 @@ describe("card page hero and title", () => {
     assert.match(html, /data-card-glow/);
     assert.match(html, /#7c3aed/);
     const frame = read("components/card-page/card-stage-frame.tsx");
+    // A little stronger in light mode; dark mode as it was. Still the same purples.
+    assert.match(html, /data-card-glow=""[^>]*class="[^"]*\bopacity-60 dark:opacity-65\b/);
+    // Only the sides are clipped, so the card's shadow is not cut off under it.
+    assert.match(html, /data-card-stage=""[^>]*class="[^"]*\boverflow-x-clip\b/);
     // Still gradients only: nothing to repaint while the page scrolls.
     assert.doesNotMatch(frame, /backdrop-filter|filter:|animate-|blur-/);
     // A card with no photo gets the designed tile, not a broken image.
@@ -341,7 +368,8 @@ describe("card page sales rows and community", () => {
   it("names the owner's two piles in plain words", () => {
     const html = renderToStaticMarkup(createElement(CategorySwitch, { value: "pc", onChange: () => {} }));
     const text = html.replace(/<[^>]+>/g, " ");
-    assert.match(text, /For sale/);
+    assert.match(text, /Open to offers/);
+    assert.doesNotMatch(text, /For sale/);
     assert.match(text, /Personal collection/);
     assert.doesNotMatch(text, /flip/i);
     assert.equal(html.split('role="radio"').length - 1, 2);
@@ -354,6 +382,26 @@ describe("card page sales rows and community", () => {
     const frame = read("components/card-talk-frame.tsx");
     assert.match(frame, /"Post about this card"/);
     assert.match(frame, /min-h-11/);
+  });
+});
+
+describe("left over from the old card page", () => {
+  it("is gone: no caller, no code", () => {
+    const basis = read("components/comp-basis.tsx");
+    assert.doesNotMatch(basis, /export function (CompBasis|CompRowsSkeleton|compEyebrow)\b/);
+    assert.doesNotMatch(read("components/price-readout.tsx"), /SimilarCardsLine/);
+    const chart = read("components/sales-chart.tsx");
+    for (const prop of ["points", "loading", "unavailable", "noSalesLabel", "hideStatusLabel", "headlineLabel", "headlineIsEstimate"]) {
+      assert.doesNotMatch(chart, new RegExp(`^  ${prop}\\??:`, "m"), prop);
+    }
+    // What Quick Comp, onboarding and the landing demo use is still there.
+    assert.match(basis, /export function CompEmpty/);
+    assert.match(basis, /export function CompCardSkeleton/);
+    assert.match(basis, /export function GhostPlot/);
+    assert.match(chart, /export function RangeBar/);
+    assert.match(chart, /export function TrawlAttribution/);
+    assert.match(chart, /stableLayout\?: boolean/);
+    assert.match(chart, /lowConfidence\?: boolean/);
   });
 });
 

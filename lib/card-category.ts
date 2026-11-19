@@ -6,9 +6,12 @@ export function cardCategory(card: { category?: string | null }): CardCategory {
   return card.category === "pc" ? "pc" : "flipping";
 }
 
-/** Display copy only. Stored values stay `pc` and `flipping`. */
+/**
+ * Display copy only. Stored values stay `pc` and `flipping`: the pile shown as
+ * "Open to offers" is still saved as `flipping`, so no card's data changes.
+ */
 export function categoryLabel(category: CardCategory) {
-  return category === "pc" ? "Personal" : "Flipping";
+  return category === "pc" ? "Personal" : "Open to offers";
 }
 
 export function readCategoryOverrides(): Record<string, CardCategory> {
