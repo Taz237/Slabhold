@@ -75,10 +75,15 @@ async function mount(scrolled: number, onClose: () => void = () => {}) {
   return { panel, row, reads, moves };
 }
 
+/** A slow finger: each event is 300ms after the last, so nothing here reads as a flick. */
+let clock = 0;
+
 function touch(target: HTMLElement, type: string, x: number, y: number) {
   const event = new win.Event(type, { bubbles: true, cancelable: true });
   const touches = type === "touchend" ? [] : [{ clientX: x, clientY: y }];
   Object.defineProperty(event, "touches", { value: touches });
+  clock += 300;
+  Object.defineProperty(event, "timeStamp", { value: clock });
   target.dispatchEvent(event);
   return event;
 }
