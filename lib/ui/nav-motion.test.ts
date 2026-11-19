@@ -207,6 +207,16 @@ describe("a back arrow", () => {
     assert.equal(backPops(stack, "/messages"), true);
     assert.equal(backPops(pushEntry(startStack("/u/sam?tab=cards"), "/u/sam/cards/1"), "/u/sam?tab=collection"), true);
     assert.equal(backPops(pushEntry(startStack("/collection/"), "/cards/1"), "/collection"), true);
+    // A card opens from the profile's carousel or from the grid: back pops to either.
+    const cardBack = ["/u/sam/cards", "/u/sam", "/profile"];
+    assert.equal(backPops(pushEntry(startStack("/u/sam"), "/u/sam/cards/1"), cardBack), true);
+    assert.equal(backPops(pushEntry(startStack("/u/sam/cards"), "/u/sam/cards/1"), cardBack), true);
+    assert.equal(backPops(pushEntry(startStack("/profile"), "/u/sam/cards/1"), cardBack), true);
+    assert.equal(backPops(pushEntry(startStack("/messages/sam"), "/u/sam/cards/1"), cardBack), false);
+    // The cards page is a pushed screen, never a tab root, even on your own profile.
+    assert.equal(isRootScreen("/u/sam/cards", "sam"), false);
+    assert.equal(navKind({ from: "/u/sam", to: "/u/sam/cards", direction: "push", ownUsername: "sam" }), "forward");
+    assert.equal(navKind({ from: "/u/sam/cards", to: "/u/sam", direction: "back" }), "back");
   });
 
   it("opens the page it names when you came from somewhere else, or cold", () => {

@@ -159,7 +159,7 @@ export function goBack({ to, push }: { to?: string; push: (href: string) => void
 }
 
 /** onClick for a back arrow that is a link to its parent page. A plain tap goes back in history when it can. */
-export function backLinkClick(event: MouseEvent<HTMLElement>, href: string) {
+export function backLinkClick(event: MouseEvent<HTMLElement>, href: string | readonly string[]) {
   if (event.defaultPrevented || event.button !== 0) return;
   if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
   if (!liveStack || !backPops(liveStack, href) || window.history.length <= 1) return;

@@ -14,8 +14,8 @@ export function profileLinkFor(entry: { subtitle: string; href: string }): strin
   return null;
 }
 
-/** The row's profile opened on the Cards tab, or null when the row stays unlinked. */
+/** The row's public cards (/u/<handle>/cards), or null when the row stays unlinked. */
 export function profileCardsLinkFor(entry: { subtitle: string; href: string }): string | null {
   const path = profileLinkFor(entry);
-  return path ? `${path}?tab=cards` : null;
+  return path ? `${path}/cards` : null;
 }

@@ -2,22 +2,44 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { mapPublicCard } from "./cards";
 import { imagesFromPost } from "./post-photos";
 import type { TimelineItem } from "./timeline";
+import { userHref } from "./user-href";
 import type { OwnedCard, Post, PostComment, Profile, PublicCard } from "./types";
 
-export type ProfileTab = "posts" | "replies" | "media" | "cards";
+export type ProfileTab = "posts" | "replies" | "media";
 
 export const PROFILE_TAB_LABELS: { id: ProfileTab; label: string }[] = [
   { id: "posts", label: "Posts" },
   { id: "replies", label: "Replies" },
   { id: "media", label: "Media" },
-  { id: "cards", label: "Cards" },
 ];
 
-/** `tab=collection` stays valid for older card links. */
+/**
+ * Cards are no longer a tab: they are the carousel at the top of the profile
+ * and the full grid at /u/<handle>/cards. `tab=cards` and the older
+ * `tab=collection` read as Posts here; the page sends them to the grid
+ * (profileCardsRedirect).
+ */
 export function profileTabFromQuery(value: string | null | undefined): ProfileTab {
-  if (value === "replies" || value === "media" || value === "cards") return value;
-  if (value === "collection") return "cards";
+  if (value === "replies" || value === "media") return value;
   return "posts";
+}
+
+/** The full grid of a profile's public cards. */
+export function profileCardsPath(username: string): string {
+  return `${userHref(username)}/cards`;
+}
+
+/**
+ * Old links to the Cards tab (`?tab=cards`, `?tab=collection`) open the grid.
+ * Null for any other tab, or until the handle is known.
+ */
+export function profileCardsRedirect(
+  tab: string | null | undefined,
+  username: string | null | undefined,
+): string | null {
+  if (tab !== "cards" && tab !== "collection") return null;
+  const handle = (username ?? "").replace(/^@/, "").trim();
+  return handle ? profileCardsPath(handle) : null;
 }
 
 export function postHasProfileMedia(

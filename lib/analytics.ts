@@ -153,6 +153,7 @@ export const PAGE_PATTERNS = [
   "/u/[username]",
   "/u/[username]/badges",
   "/u/[username]/badges/[category]/[tier]",
+  "/u/[username]/cards",
   "/u/[username]/cards/[id]",
   "/u/[username]/collection",
   "/u/[username]/followers",

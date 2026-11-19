@@ -3,14 +3,14 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, MessageCircle, WalletCards } from "lucide-react";
+import { ArrowLeft, MessageCircle } from "lucide-react";
 import { goBack } from "@/components/nav-motion";
 import { Avatar } from "@/components/avatar";
 import { outlineButton, solidButton } from "@/components/button-styles";
-import { OpenToOffersFilter } from "@/components/open-to-offers";
-import { ProfileCardGrid } from "@/components/profile-card-grid";
 import { ProfileEditSheet } from "@/components/profile-edit-sheet";
-import { ProfileBadgeStrip } from "@/components/badges/profile-badge-strip";
+import { ProfileShareButton } from "@/components/profile/profile-share-button";
+import { ProfileSpotlight } from "@/components/profile/spotlight-carousel";
+import { useProfileCards } from "@/components/profile/use-profile-cards";
 import { LoadMore } from "@/components/load-more";
 import { MentionText } from "@/components/mention-text";
 import { PullToRefresh } from "@/components/pull-to-refresh";
@@ -25,7 +25,6 @@ import { useCollection } from "@/components/collection-provider";
 import { useSocial } from "@/components/social-provider";
 import { loginPath, signupPath } from "@/lib/auth/safe-next";
 import { userHref } from "@/lib/social/user-href";
-import { publicCardKeys } from "@/lib/social/public-card-cache";
 import { useFollowCounts } from "@/lib/social/use-follow-counts";
 import { useProfiles } from "@/lib/social/use-profiles";
 import { ReadRetry } from "@/components/read-retry";
@@ -39,25 +38,20 @@ import { profileTimeline } from "@/lib/social/timeline";
 import { loadPostById } from "@/lib/social/load-feed-page";
 import {
   PROFILE_TAB_LABELS,
-  loadProfilePublicCards,
   profileCardCount,
-  profileCardsTab,
+  profileCardsPath,
+  profileCardsRedirect,
   profileMediaItems,
   profileTabFromQuery,
   visibleReplyParentIds,
   withPinnedFirst,
   type ProfileTab,
 } from "@/lib/social/profile-tabs";
-import type { OwnedCard, Post, PublicCard } from "@/lib/social/types";
-import {
-  filterOpenToOffers,
-  openToOffersFilterAvailable,
-} from "@/lib/offers/open-to-offers";
+import type { Post } from "@/lib/social/types";
+import { sortSpotlightCards } from "@/lib/profile/spotlight";
 import { useCardValues } from "@/lib/value/use-card-values";
-import type { ProfileBadges } from "@/lib/badges/load";
 import type { ServerCardCount } from "@/lib/social/profile-card-count";
 import { InviteButton } from "@/components/invite/invite-button";
-import { ShareCollectionCard } from "@/components/invite/share-collection-card";
 import { TeamBadge } from "@/components/team-badge";
 
 /**
@@ -71,12 +65,9 @@ export function failedReplyParents(key: string): { key: string; ids: ReadonlySet
 
 export function ProfileView({
   username,
-  badges = null,
   cardCount: serverCardCount = null,
 }: {
   username?: string;
-  /** Read on the server, so the strip never pops in after the header. */
-  badges?: ProfileBadges | null;
   /** Read on the server, so Cards never shows 0 while the lists load. */
   cardCount?: ServerCardCount | null;
 }) {
@@ -91,8 +82,6 @@ export function ProfileView({
     posts,
     reposts,
     profiles,
-    publicCards,
-    requestPublicCards,
     refresh,
     blockedIds,
     safetyAccounts,
@@ -112,11 +101,7 @@ export function ProfileView({
   const [editing, setEditing] = useState(false);
   const [openedEdit, setOpenedEdit] = useState(false);
   const [tab, setTab] = useState<ProfileTab>(() => profileTabFromQuery(searchParams.get("tab")));
-  const [offersOnly, setOffersOnly] = useState(false);
-  const [viewCards, setViewCards] = useState<{ ownerId: string; rows: OwnedCard[] } | null>(null);
   const [pinnedExtra, setPinnedExtra] = useState<Post | null>(null);
-  /** Bumped by pull to refresh. Reloads the shown cards; posts refresh in place. */
-  const [postsRefreshKey, setPostsRefreshKey] = useState(0);
   const [replyParents, setReplyParents] = useState<{ key: string; ids: ReadonlySet<string> } | null>(
     null,
   );
@@ -129,51 +114,17 @@ export function ProfileView({
     rememberPosts,
   });
 
-  const collection = useMemo(() => {
-    if (!profile) return [] as PublicCard[];
-    const sharedFromBook: PublicCard[] = isOwn
-      ? cards
-          .filter((card) => card.isPublic)
-          .map((card) => ({
-            id: card.id,
-            playerName: card.playerName,
-            year: card.year,
-            setBrand: card.setBrand,
-            cardNumber: card.cardNumber,
-            sport: card.sport,
-            photoDataUrl: card.photoDataUrl,
-            accent: card.accent,
-            estimatedSellPrice: card.estimatedSellPrice,
-            grade: card.grade,
-            parallel: card.parallel,
-            purchasePrice: card.purchasePrice,
-            openToOffers: card.openToOffers ?? null,
-            ownerId: profile.id,
-            isPublic: true,
-          }))
-      : [];
-    const listed =
-      viewCards && viewCards.ownerId === profile.id
-        ? viewCards.rows
-        : publicCards.filter((card) => card.ownerId === profile.id);
-    return profileCardsTab({
-      ownerId: profile.id,
-      viewerId: user?.id ?? null,
-      publicCards: listed,
-      ownBook: sharedFromBook,
-    });
-  }, [cards, isOwn, profile, publicCards, user?.id, viewCards]);
-
-  const offersAvailable = openToOffersFilterAvailable(collection);
-  const shownCollection = useMemo(
-    () => filterOpenToOffers(collection, offersOnly && offersAvailable),
-    [collection, offersAvailable, offersOnly],
-  );
-  const collectionIds = useMemo(
-    () => shownCollection.map((card) => card.id),
-    [shownCollection],
-  );
-  const { values: cardValues } = useCardValues(collectionIds);
+  // The carousel's cards: public only, the same list the grid at /u/<handle>/cards shows.
+  const { collection, loaded: cardsLoaded, fromView: cardsFromView, reload: reloadCards } = useProfileCards(profile);
+  const collectionIds = useMemo(() => collection.map((card) => card.id), [collection]);
+  const { values: cardValues, loading: valuesLoading } = useCardValues(collectionIds);
+  // Most valuable first, then newest: the order of /u/<handle>/collection.
+  const spotlight = useMemo(() => sortSpotlightCards(collection, cardValues), [collection, cardValues]);
+  // Old links to the Cards tab open the full grid.
+  const cardsRedirect = profileCardsRedirect(searchParams.get("tab"), username ?? user?.username);
+  useEffect(() => {
+    if (cardsRedirect) router.replace(cardsRedirect);
+  }, [cardsRedirect, router]);
   const editFromLink = searchParams.get("edit") === "1" && isOwn;
   if (editFromLink && !openedEdit) {
     setOpenedEdit(true);
@@ -188,33 +139,6 @@ export function ProfileView({
         pagedPosts.posts.some((post) => post.id === pinTarget) ||
         pagedPosts.items.some((item) => item.post.id === pinTarget)),
   );
-
-  useEffect(() => {
-    const ownerId = profile?.id;
-    if (mode !== "supabase" || !ownerId) return;
-    let cancelled = false;
-    void loadSupabaseBrowser().then((supabase) => {
-      if (!supabase || cancelled) return;
-      void loadProfilePublicCards(supabase, ownerId)
-        .then((rows) => {
-          if (!cancelled) setViewCards({ ownerId, rows });
-        })
-        .catch(() => {
-          if (cancelled) return;
-          setViewCards(null);
-          // The tab then lists this owner's cards from the shared public card read.
-          requestPublicCards(publicCardKeys({ ownerId }));
-        });
-    }).catch(() => {
-      // supabase-js failed to load: the same fallback as a failed read.
-      if (cancelled) return;
-      setViewCards(null);
-      requestPublicCards(publicCardKeys({ ownerId }));
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [mode, profile?.id, postsRefreshKey, requestPublicCards]);
 
   const replyAuthorId = profile?.id ?? "";
   // Hosted: this person's replies are read for their profile, not site-wide.
@@ -293,7 +217,8 @@ export function ProfileView({
     };
   }, [mode, pinInMemory, pinTarget, profile?.id, rememberPosts, user?.id]);
 
-  if (!ready) return <ProfileSkeleton />;
+  // On its way to the grid: no flash of the Posts tab first.
+  if (!ready || cardsRedirect) return <ProfileSkeleton />;
 
   if (!username && !user) {
     return (
@@ -377,12 +302,13 @@ export function ProfileView({
       serverCardCount && serverCardCount.username.toLowerCase() === profile.username.toLowerCase()
         ? serverCardCount.count
         : null,
-    publicLoaded: !remote || viewCards?.ownerId === profile.id ? collection.length : null,
+    publicLoaded: !remote || cardsFromView ? collection.length : null,
     ownTotal: cardsReady ? cards.length : null,
   });
-  // Server badges are for the profile in the URL; a client-side rename drops them.
-  const badgeView =
-    badges && badges.username.toLowerCase() === profile.username.toLowerCase() ? badges.view : null;
+  // The order needs the values, so the row waits for them: it never reshuffles under a thumb.
+  const spotlightLoading = !cardsLoaded || (collection.length > 1 && valuesLoading && cardValues.size === 0);
+  // Someone with no public cards gets no row, so no room is held for one.
+  const spotlightHidden = !isOwn && !cardsLoaded && cardCount === 0;
   const shownActivity =
     tab === "media"
       ? profileMediaItems(activity, profile.id)
@@ -395,7 +321,7 @@ export function ProfileView({
       disabled={editing}
       onRefresh={async () => {
         reload();
-        setPostsRefreshKey((key) => key + 1);
+        reloadCards();
         // The posts list stays on screen while the newest page loads over it.
         await Promise.all([refresh(), pagedPosts.refresh()]);
       }}
@@ -436,11 +362,21 @@ export function ProfileView({
             className="-mt-14 h-24 w-24 shrink-0 text-xl ring-4 ring-[var(--background)]"
           />
           <div className="mb-1 flex max-w-[17rem] flex-wrap items-center justify-end gap-2 big:max-w-full big:justify-start">
-            <ShareIconButton
-              path={userHref(profile.username)}
-              title={`${profile.displayName} (@${profile.username})`}
-              label={`Share ${profile.displayName}`}
-            />
+            {isOwn ? (
+              // Your own profile: Share profile and the "Share my collection" actions, in one sheet.
+              <ProfileShareButton
+                username={profile.username}
+                path={userHref(profile.username)}
+                title={`${profile.displayName} (@${profile.username})`}
+                label={`Share ${profile.displayName}`}
+              />
+            ) : (
+              <ShareIconButton
+                path={userHref(profile.username)}
+                title={`${profile.displayName} (@${profile.username})`}
+                label={`Share ${profile.displayName}`}
+              />
+            )}
             {isOwn ? (
               <>
                 <InviteButton username={profile.username} className={outlineButton} />
@@ -478,9 +414,8 @@ export function ProfileView({
           </p>
         ) : null}
         <div className="mt-2 flex flex-wrap items-center gap-x-1 text-sm">
-          <button
-            type="button"
-            onClick={() => setTab("cards")}
+          <Link
+            href={profileCardsPath(profile.username)}
             className="inline-flex min-h-11 items-center gap-1 rounded-md pr-1 hover:underline"
           >
             {cardCount == null ? (
@@ -492,7 +427,7 @@ export function ProfileView({
               <span className="font-semibold tabular-nums">{cardCount}</span>
             )}
             <span className="text-zinc-500">{cardCount === 1 ? "Card" : "Cards"}</span>
-          </button>
+          </Link>
           <span aria-hidden className="text-zinc-400 dark:text-zinc-600">
             ·
           </span>
@@ -510,20 +445,23 @@ export function ProfileView({
             label="Following"
           />
         </div>
-        {badgeView ? (
-          <ProfileBadgeStrip view={badgeView} badgesHref={`${userHref(profile.username)}/badges`} />
-        ) : null}
-        {isOwn ? (
-          <div className="mt-3">
-            <ShareCollectionCard />
-          </div>
-        ) : null}
       </div>
+
+      {spotlightHidden ? null : (
+        <ProfileSpotlight
+          cards={spotlight}
+          loading={spotlightLoading}
+          own={isOwn}
+          username={profile.username}
+          displayName={profile.displayName}
+          values={cardValues}
+        />
+      )}
 
       <div
         role="tablist"
         aria-label="Profile"
-        className="relative mt-3 grid min-w-0 grid-cols-4 overflow-x-hidden border-b border-zinc-200 text-13 min-[400px]:text-15 big:text-[19px] dark:border-white/10"
+        className="relative mt-3 grid min-w-0 grid-cols-3 overflow-x-hidden border-b border-zinc-200 text-13 min-[400px]:text-15 big:text-[19px] dark:border-white/10"
       >
         {PROFILE_TAB_LABELS.map((item) => (
           <ProfileTab
@@ -538,7 +476,7 @@ export function ProfileView({
         <span
           data-profile-underline=""
           aria-hidden="true"
-          className="pointer-events-none absolute bottom-0 left-0 flex h-1 w-1/4 justify-center transition-transform duration-[180ms] ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform motion-reduce:transition-none"
+          className="pointer-events-none absolute bottom-0 left-0 flex h-1 w-1/3 justify-center transition-transform duration-[180ms] ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform motion-reduce:transition-none"
           style={{ transform: `translateX(${Math.max(0, PROFILE_TAB_LABELS.findIndex((item) => item.id === tab)) * 100}%)` }}
         >
           <span className="block h-full w-8 max-w-[70%] rounded-full bg-zinc-900 dark:bg-zinc-100" />
@@ -584,49 +522,6 @@ export function ProfileView({
             ))}
           </div>
         )
-      ) : tab === "cards" ? (
-        <div className="px-4 py-4">
-          {isOwn && cardsReady && collection.length === 0 ? (
-            <p className="mb-3 text-xs text-zinc-500">
-              Cards are private by default.{" "}
-              <Link href="/collection" className="underline">
-                Open collection
-              </Link>{" "}
-              and mark a card public to show it here.
-            </p>
-          ) : null}
-          <OpenToOffersFilter
-            available={offersAvailable}
-            active={offersOnly}
-            onToggle={() => setOffersOnly((current) => !current)}
-          />
-          {shownCollection.length === 0 ? (
-            <EmptyState
-              compact
-              icon={<WalletCards className="h-5 w-5" />}
-              title={offersOnly && collection.length > 0 ? "No cards open to offers" : "No public cards yet"}
-              detail={
-                offersOnly && collection.length > 0
-                  ? "None of these public cards are open to offers."
-                  : isOwn
-                    ? "Cards you mark public will show up here."
-                    : "Cards this collector shares will show up here."
-              }
-            >
-              {isOwn && !(offersOnly && collection.length > 0) ? (
-                <Link href="/cards/new" className={solidButton}>
-                  Add a card
-                </Link>
-              ) : null}
-            </EmptyState>
-          ) : (
-            <ProfileCardGrid
-              cards={shownCollection}
-              username={profile.username}
-              values={cardValues}
-            />
-          )}
-        </div>
       ) : postsLoading ? (
         <LoadingRows count={3} />
       ) : pagedPosts.error && shownActivity.length === 0 ? (

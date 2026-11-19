@@ -3,19 +3,19 @@ import { describe, it } from "node:test";
 import { boardHtml, items, listHtml, pageModel, render, row, rows, snap } from "@/lib/test/leaderboard-view";
 import { profileCardsLinkFor } from "./profile-link";
 
-describe("rows open the Cards tab", () => {
-  it("adds ?tab=cards to clean profile links and leaves odd handles unlinked", () => {
+describe("rows open the collector's cards", () => {
+  it("links clean profiles to /u/<handle>/cards and leaves odd handles unlinked", () => {
     const base = row("ok", 1);
-    assert.equal(profileCardsLinkFor(base), "/u/ok?tab=cards");
-    assert.equal(profileCardsLinkFor({ ...base, subtitle: "@Card_Guy", href: "/posts/p1" }), "/u/Card_Guy?tab=cards");
-    assert.equal(profileCardsLinkFor({ ...base, subtitle: "", href: "/u/ok" }), "/u/ok?tab=cards");
+    assert.equal(profileCardsLinkFor(base), "/u/ok/cards");
+    assert.equal(profileCardsLinkFor({ ...base, subtitle: "@Card_Guy", href: "/posts/p1" }), "/u/Card_Guy/cards");
+    assert.equal(profileCardsLinkFor({ ...base, subtitle: "", href: "/u/ok" }), "/u/ok/cards");
     assert.equal(profileCardsLinkFor({ ...base, subtitle: "", href: "/posts/p1" }), null);
     assert.equal(profileCardsLinkFor({ ...base, subtitle: "@two words", href: "/posts/p1" }), null);
     assert.equal(profileCardsLinkFor({ ...base, subtitle: "@a/b", href: "/posts/p1" }), null);
     assert.equal(profileCardsLinkFor({ ...base, subtitle: "@..", href: "/posts/p1" }), null);
   });
 
-  it("links podium places and slim rows on every board to the Cards tab", () => {
+  it("links podium places and slim rows on every board to the cards page", () => {
     const markup = render(
       pageModel(snap({ "most-cards-added": rows(5), "rising-collectors": rows(5), "top-card-post": rows(5) })),
     );
@@ -26,7 +26,7 @@ describe("rows open the Cards tab", () => {
       assert.equal(podium.length, 3);
       assert.equal(slim.length, 2);
       for (const [index, item] of [...podium, ...slim].entries()) {
-        assert.match(item.body, new RegExp(`href="/u/u${index}\\?tab=cards"`), `${boardId} rank ${index + 1}`);
+        assert.match(item.body, new RegExp(`href="/u/u${index}/cards"`), `${boardId} rank ${index + 1}`);
       }
       assert.doesNotMatch(section, /href="\/u\/u\d+"/);
     }
@@ -39,6 +39,6 @@ describe("rows open the Cards tab", () => {
     );
     const [odd, fine] = items(listHtml(section, "data-podium") ?? "");
     assert.doesNotMatch(odd!.body, /<a /);
-    assert.match(fine!.body, /href="\/u\/fine\?tab=cards"/);
+    assert.match(fine!.body, /href="\/u\/fine\/cards"/);
   });
 });

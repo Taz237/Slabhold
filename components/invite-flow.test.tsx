@@ -298,7 +298,19 @@ describe("invite a collector", () => {
     const own = profile.slice(profile.indexOf("{isOwn ? ("), profile.indexOf("Edit profile"));
     assert.match(own, /<InviteButton username=\{profile\.username\}/);
     assert.equal(profile.match(/<InviteButton/g)?.length, 1);
-    assert.match(profile, /\{isOwn \? \(\s*<div className="mt-3">\s*<ShareCollectionCard \/>/);
+    // The profile has no share box. On your own profile the header's share control opens a sheet
+    // with Share profile and the same collection actions; on anyone else's it shares the link at once.
+    assert.doesNotMatch(profile, /ShareCollectionCard/);
+    assert.match(profile, /\{isOwn \? \(\s*(?:\/\/[^\n]*\n\s*)?<ProfileShareButton[\s\S]{0,260}path=\{userHref\(profile\.username\)\}[\s\S]{0,260}\) : \(\s*<ShareIconButton/);
+    const shareButton = readFileSync(join(process.cwd(), "components/profile/profile-share-button.tsx"), "utf8");
+    assert.match(shareButton, /lazyPart\(\s*\(\) => import\("@\/components\/profile\/profile-share-sheet-view"\)/);
+    assert.match(shareButton, /onPointerDown=\{ShareSheet\.warm\}/);
+    const shareSheet = readFileSync(join(process.cwd(), "components/profile/profile-share-sheet-view.tsx"), "utf8");
+    assert.match(shareSheet, /Share profile/);
+    assert.match(shareSheet, /<PreviewThumb src=\{`\$\{collectionSharePath\(username\)\}\/opengraph-image`\} \/>/);
+    assert.match(shareSheet, /<ShareCollectionActions \/>/);
+    // /u/<handle>/collection keeps its card.
+    assert.match(readFileSync(join(process.cwd(), "components/invite/public-collection.tsx"), "utf8"), /<ShareCollectionCard \/>/);
     // Collection has no share card in its scroll: one share control in the hero opens the same actions.
     const dash = readFileSync(join(process.cwd(), "components/dashboard.tsx"), "utf8");
     assert.doesNotMatch(dash, /ShareCollectionCard/);

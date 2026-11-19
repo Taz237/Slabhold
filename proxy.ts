@@ -76,6 +76,7 @@ export const config = {
     "/u/:username",
     "/u/:username/followers",
     "/u/:username/following",
+    "/u/:username/cards",
     "/u/:username/cards/:id",
     "/cards/:id",
     "/collection",

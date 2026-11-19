@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { ProfileView } from "@/components/profile-view";
 import { ProfileSkeleton } from "@/components/status";
-import { loadProfileBadges } from "@/lib/badges/load";
 import { previewMetadata } from "@/lib/social/link-preview";
 import { loadProfilePreview } from "@/lib/social/link-preview-load";
 import { loadProfileCardCount } from "@/lib/social/profile-card-count";
@@ -20,13 +19,11 @@ export default async function PublicProfilePage({ params }: Props) {
   const { username } = await params;
   // The profile check and the session check don't depend on each other.
   const [, viewerId] = await Promise.all([requireProfile(username), getAuthUserId()]);
-  const [badges, cardCount] = await Promise.all([
-    loadProfileBadges({ username }, viewerId),
-    loadProfileCardCount({ username }, viewerId),
-  ]);
+  // Badges are still earned, but the profile no longer shows them, so it no longer reads them.
+  const cardCount = await loadProfileCardCount({ username }, viewerId);
   return (
     <Suspense fallback={<ProfileSkeleton />}>
-      <ProfileView username={username} badges={badges} cardCount={cardCount} />
+      <ProfileView username={username} cardCount={cardCount} />
     </Suspense>
   );
 }

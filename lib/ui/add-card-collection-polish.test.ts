@@ -202,8 +202,10 @@ describe("collection screens", () => {
   });
 
   it("shows the profile collection note only to the owner with no public cards", () => {
-    const profile = read("components/profile-view.tsx");
+    // The note moved with the grid, from the profile's Cards tab to /u/<handle>/cards.
+    const profile = read("components/profile/profile-cards-view.tsx");
     assert.doesNotMatch(profile, /Your book stays on this device/);
+    assert.doesNotMatch(read("components/profile-view.tsx"), /Cards are private by default/);
     assert.match(profile, /isOwn && cardsReady && collection\.length === 0/);
     assert.match(
       profile,

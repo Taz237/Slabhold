@@ -143,10 +143,12 @@ export function canGoBack(stack: NavStack): boolean {
  * still lands where its label says and that screen keeps its scroll. With
  * none, whenever there is a page behind.
  */
-export function backPops(stack: NavStack, href?: string): boolean {
+export function backPops(stack: NavStack, href?: string | readonly string[]): boolean {
   if (!canGoBack(stack)) return false;
   if (href === undefined) return true;
-  return cleanPath(stack.entries[stack.index - 1] ?? "") === cleanPath(href);
+  const behind = cleanPath(stack.entries[stack.index - 1] ?? "");
+  // Several pages can lead to one screen: a card opens from the profile's carousel or from the grid.
+  return (typeof href === "string" ? [href] : href).some((page) => cleanPath(page) === behind);
 }
 
 /**

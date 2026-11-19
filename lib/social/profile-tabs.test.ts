@@ -18,6 +18,9 @@ import {
   profileWithPin,
   withPinnedFirst,
   type ProfileTabCard,
+  PROFILE_TAB_LABELS,
+  profileCardsPath,
+  profileCardsRedirect,
 } from "./profile-tabs";
 import { remotePinPost, remoteUnpinPost } from "./remote";
 import type { TimelineItem } from "./timeline";
@@ -218,8 +221,18 @@ describe("profile tab filters", () => {
     assert.equal(profileTabFromQuery("posts"), "posts");
     assert.equal(profileTabFromQuery("replies"), "replies");
     assert.equal(profileTabFromQuery("media"), "media");
-    assert.equal(profileTabFromQuery("cards"), "cards");
-    assert.equal(profileTabFromQuery("collection"), "cards");
+    // Cards are no longer a tab: old links read as Posts here and the page sends them to the grid.
+    assert.equal(profileTabFromQuery("cards"), "posts");
+    assert.equal(profileTabFromQuery("collection"), "posts");
+    assert.equal(profileCardsRedirect("cards", "maya"), "/u/maya/cards");
+    assert.equal(profileCardsRedirect("collection", "@maya"), "/u/maya/cards");
+    assert.equal(profileCardsRedirect("cards", "a/b"), "/u/a%2Fb/cards");
+    assert.equal(profileCardsRedirect("media", "maya"), null);
+    assert.equal(profileCardsRedirect(null, "maya"), null);
+    // /profile?tab=cards waits for the signed-in handle.
+    assert.equal(profileCardsRedirect("cards", null), null);
+    assert.equal(profileCardsPath("maya"), "/u/maya/cards");
+    assert.deepEqual(PROFILE_TAB_LABELS.map((tab) => tab.label), ["Posts", "Replies", "Media"]);
 
     const replies = profileReplies(
       [
@@ -462,23 +475,47 @@ describe("profile pin menu and tabs", () => {
 
     const profile = readFileSync(join(process.cwd(), "components/profile-view.tsx"), "utf8");
     assert.match(profile, /PROFILE_TAB_LABELS/);
-    assert.match(profile, /grid-cols-4/);
+    // Three tabs: Posts, Replies, Media. The underline is a third wide.
+    assert.match(profile, /grid-cols-3/);
+    assert.doesNotMatch(profile, /grid-cols-4/);
+    assert.match(profile, /data-profile-underline=""[\s\S]{0,120}w-1\/3/);
+    assert.doesNotMatch(profile, /setTab\("cards"\)|tab === "cards"/);
     assert.match(profile, /overflow-x-hidden/);
     assert.match(profile, /min-w-0/);
     assert.match(profile, /withPinnedFirst/);
     assert.match(profile, /profileMediaItems/);
-    assert.match(profile, /profileCardsTab/);
-    assert.match(profile, /loadProfilePublicCards/);
-    assert.match(profile, /OpenToOffersFilter/);
+    // The cards read lives in one hook, shared by the profile's carousel and the cards page.
+    const cardsHook = readFileSync(join(process.cwd(), "components/profile/use-profile-cards.ts"), "utf8");
+    assert.match(cardsHook, /profileCardsTab/);
+    assert.match(cardsHook, /loadProfilePublicCards/);
+    assert.match(profile, /useProfileCards\(profile\)/);
+    const cardsPage = readFileSync(join(process.cwd(), "components/profile/profile-cards-view.tsx"), "utf8");
+    assert.match(cardsPage, /useProfileCards\(profile\)/);
+    assert.match(cardsPage, /<OpenToOffersFilter/);
+    assert.match(cardsPage, /<ProfileCardGrid cards=\{shownCollection\} username=\{profile\.username\} values=\{cardValues\} \/>/);
+    assert.doesNotMatch(profile, /OpenToOffersFilter|ProfileCardGrid/);
+    // No badge row and no share box on the profile. Old Cards-tab links go to the grid.
+    assert.doesNotMatch(profile, /ProfileBadgeStrip|ShareCollectionCard|badgeView/);
+    assert.match(profile, /const cardsRedirect = profileCardsRedirect\(searchParams\.get\("tab"\), username \?\? user\?\.username\);/);
+    assert.match(profile, /if \(cardsRedirect\) router\.replace\(cardsRedirect\);/);
+    assert.match(profile, /if \(!ready \|\| cardsRedirect\) return <ProfileSkeleton \/>;/);
+    // The Cards count in the header is a link to the grid.
+    assert.match(profile, /<Link\s+href=\{profileCardsPath\(profile\.username\)\}[\s\S]{0,700}\{cardCount === 1 \? "Card" : "Cards"\}/);
+    // The profile routes no longer read badges on the server.
+    for (const page of ["app/(app)/profile/page.tsx", "app/(app)/u/[username]/page.tsx"]) {
+      const source = readFileSync(join(process.cwd(), page), "utf8");
+      assert.doesNotMatch(source, /loadProfileBadges|badges=/, page);
+      assert.match(source, /loadProfileCardCount/, page);
+    }
     assert.match(profile, /pinned=\{item\.key\.startsWith\("pinned:"\)\}/);
     assert.match(profile, /known\.hiddenAt/);
     assert.match(tweet, />\s*Pinned\s*</);
     assert.doesNotMatch(profile, /from\("cards"\)/);
     assert.doesNotMatch(profile, /overflow-x-auto/);
     assert.doesNotMatch(profile, /w-max/);
-    assert.match(profile, /isOwn && cardsReady && collection\.length === 0/);
+    assert.match(cardsPage, /isOwn && cardsReady && collection\.length === 0/);
     assert.match(
-      profile,
+      cardsPage,
       /Cards are private by default\.[\s\S]{0,240}mark a card public to show it here\./,
     );
   });

@@ -215,7 +215,7 @@ describe("collector sheet", () => {
     for (const [index, item] of all.entries()) {
       assert.match(
         item.body,
-        new RegExp(`<a data-collector="most-cards-added:u${index}" aria-haspopup="dialog"[^>]*href="/u/u${index}\\?tab=cards"`),
+        new RegExp(`<a data-collector="most-cards-added:u${index}" aria-haspopup="dialog"[^>]*href="/u/u${index}/cards"`),
       );
       assert.match(item.body, /class="tap /, "press feedback");
     }
