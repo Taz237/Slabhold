@@ -1,7 +1,9 @@
+import { parseGrade, RAW_GRADE } from "@/lib/card-options";
 import { insertNameOf } from "@/lib/cards/insert-name";
 import type { CardInput } from "@/lib/types";
+import { scanCompGrade } from "./comp";
 import { readyToSave } from "./confirm";
-import type { ScanMatch } from "./match";
+import type { ScanGrade, ScanMatch } from "./match";
 
 /**
  * One tap from the scan to the collection: the card as the scan read it (with the version the
@@ -16,6 +18,28 @@ export const QUICK_ADD_COPY = {
   /** The version isn't picked yet: the Add button says so instead of guessing Base. */
   pickFirst: "Pick your version first",
 } as const;
+
+/**
+ * The match with the grade the sheet's Grade chip shows, so Add saves what the collector picked.
+ * Unchanged keeps the slab's own read (qualifier, cert). Raw saves no grade. Another chip saves
+ * that company and number; the cert stays only when the company is the same.
+ */
+export function matchWithChosenGrade(match: ScanMatch, chosen: string): ScanMatch {
+  if (chosen === scanCompGrade(match)) return match;
+  const parsed = parseGrade(chosen);
+  if (parsed.company === RAW_GRADE) return { ...match, grade: null };
+  // A chip we can't read as a company and number: keep the scan's own grade, never a half grade.
+  if (!parsed.company || !parsed.number) return match;
+  const grade: ScanGrade = {
+    company: parsed.company,
+    number: parsed.number,
+    qualifier: "",
+    certNumber: match.grade?.company === parsed.company ? match.grade.certNumber : "",
+    authentic: false,
+    autoGrade: "",
+  };
+  return { ...match, grade };
+}
 
 export function cardInputFromScan(
   match: ScanMatch,
