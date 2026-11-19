@@ -464,6 +464,8 @@ describe("Card comments sheet", () => {
     });
     await flush(20);
     assert.equal(sheet.style.bottom, "320px");
+    assert.equal(sheet.dataset.keyboard, "open");
+    assert.doesNotMatch(sheet.className, /pb-\[env\(safe-area-inset-bottom\)\]/, "no safe-area gap over the keys");
     act(() => {
       window.dispatchEvent(new win.Event("keyboardWillHide"));
     });
@@ -676,7 +678,7 @@ describe("Full screen catalog", () => {
     const shell = read("components/app-shell.tsx");
     assert.match(shell, /showNav && !chromeless && !fullScreen \? \(\n\s*<nav/);
     assert.match(shell, /showJoin && !chromeless && !fullScreen \? <JoinBar \/>/);
-    assert.match(shell, /showNav && !chromeless && !fullScreen \? <CreateMenu/);
+    assert.match(shell, /showNav && !chromeless && !fullScreen \? \(\s*<div data-keyboard-hides=""[^>]*>\s*<CreateMenu/);
   });
 });
 

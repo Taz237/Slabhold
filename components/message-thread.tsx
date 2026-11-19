@@ -130,7 +130,7 @@ export function MessageThread({ username }: { username: string }) {
   const scroller = useRef<HTMLDivElement>(null);
   const fieldRef = useRef<HTMLTextAreaElement>(null);
   // The keyboard's height, from the iOS app's events or Safari's visual viewport.
-  const keyboardInset = useKeyboardInset();
+  const { inset: keyboardInset, keyboardOpen } = useKeyboardInset();
   const scrolledOnce = useRef(false);
   /** The reader is at the newest message, so new content keeps it in view. */
   const pinned = useRef(true);
@@ -228,8 +228,8 @@ export function MessageThread({ username }: { username: string }) {
     if (node && pinned.current) node.scrollTop = node.scrollHeight;
     // iOS can scroll the whole page to reveal the box. The thread already
     // ends at the keyboard, so put the page back: the header never jumps.
-    if (keyboardInset > 0 && window.scrollY !== 0) window.scrollTo(0, 0);
-  }, [keyboardInset]);
+    if (keyboardOpen && window.scrollY !== 0) window.scrollTo(0, 0);
+  }, [keyboardInset, keyboardOpen]);
 
   // Stay pinned while the reader is at the bottom: a shared post or card that
   // fills in, a photo that loads or the deal panel changing height never
@@ -370,7 +370,7 @@ export function MessageThread({ username }: { username: string }) {
   const canSend = !pending && Boolean(draft.trim() || offerAttachment);
 
   return (
-    <div data-dm-thread="" data-keyboard-inset={keyboardInset} className="-mx-4 -mt-5 -mb-28 flex flex-col" style={{ height: threadHeight(keyboardInset) }}>
+    <div data-dm-thread="" data-keyboard-inset={keyboardInset} data-keyboard={keyboardOpen ? "open" : "closed"} className="-mx-4 -mt-5 -mb-28 flex flex-col" style={{ height: threadHeight(keyboardInset, keyboardOpen) }}>
       <div className="flex shrink-0 items-center gap-2 border-b border-zinc-200/80 glass bg-[color-mix(in_oklab,var(--background)_88%,transparent)] px-2 py-1.5 backdrop-blur-xl dark:border-white/[0.08]">
         <button
           type="button"

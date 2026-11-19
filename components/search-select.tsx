@@ -245,8 +245,7 @@ export function SheetFrame({
   onClose: () => void;
   children: ReactNode;
 }) {
-  const { frame, inset } = useVisualViewport();
-  const keyboard = inset > 0;
+  const { frame, keyboardOpen: keyboard } = useVisualViewport();
   return (
     <div
       data-keyboard={keyboard ? "open" : undefined}

@@ -7,7 +7,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { AttachCardField } from "@/components/attach-card-field";
 import { isChromelessPath, loadingShellFor } from "@/lib/auth/guest-paths";
 import { charRing } from "@/lib/ui/char-ring";
-import { keyboardInset, resolveKeyboard, sheetFrame } from "@/lib/ui/use-keyboard-inset";
+import { KEYBOARD_CLOSED, keyboardInset, resolveKeyboard, sheetFrame } from "@/lib/ui/use-keyboard-inset";
+import { replyDockStyle } from "@/lib/ui/reply-dock";
 
 const root = process.cwd();
 const read = (path: string) => readFileSync(join(root, path), "utf8");
@@ -33,7 +34,7 @@ describe("chrome-less composer route", () => {
     assert.match(shell, /isChromelessPath\(pathname\)/);
     assert.match(shell, /!chromeless \? \(\s*<header/);
     assert.match(shell, /showNav && !chromeless(?: && !fullScreen)? \? \(\s*<nav/);
-    assert.match(shell, /showNav && !chromeless(?: && !fullScreen)? \? <CreateMenu/);
+    assert.match(shell, /showNav && !chromeless(?: && !fullScreen)? \? \(\s*<div data-keyboard-hides=""[^>]*>\s*<CreateMenu/);
     assert.match(shell, /showJoin && !chromeless(?: && !fullScreen)? \? <JoinBar/);
     assert.match(shell, /const mainPad = chromeless\s*\? ""/);
   });
@@ -63,6 +64,7 @@ describe("keyboard from the iOS app", () => {
     assert.deepEqual(resolveKeyboard({ viewport: { height: 508, offsetTop: 0 }, innerHeight: 844, native: 0 }), {
       frame: { top: 0, height: 508 },
       inset: 336,
+      keyboardOpen: true,
     });
   });
 
@@ -70,10 +72,12 @@ describe("keyboard from the iOS app", () => {
     assert.deepEqual(resolveKeyboard({ viewport: { height: 844, offsetTop: 0 }, innerHeight: 844, native: 336 }), {
       frame: { top: 0, height: 508 },
       inset: 336,
+      keyboardOpen: true,
     });
     assert.deepEqual(resolveKeyboard({ viewport: null, innerHeight: 844, native: 336 }), {
       frame: { top: 0, height: 508 },
       inset: 336,
+      keyboardOpen: true,
     });
   });
 
@@ -82,8 +86,127 @@ describe("keyboard from the iOS app", () => {
     assert.deepEqual(resolveKeyboard({ viewport: { height: 844, offsetTop: 0 }, innerHeight: 844, native: 40 }), {
       frame: { top: 0, height: 844 },
       inset: 0,
+      keyboardOpen: false,
     });
-    assert.deepEqual(resolveKeyboard({ viewport: null, innerHeight: 844, native: 0 }), { frame: null, inset: 0 });
+    assert.deepEqual(resolveKeyboard({ viewport: null, innerHeight: 844, native: 0 }), KEYBOARD_CLOSED);
+    assert.deepEqual(KEYBOARD_CLOSED, { frame: null, inset: 0, keyboardOpen: false });
+  });
+});
+
+/*
+ * The reply box floated mid-screen in the iOS app: the web view had already
+ * shrunk to sit above the keys, and the old reader added the keys' height on
+ * top. The lift is now measured from where a fixed bottom: 0 box really sits.
+ */
+describe("keyboard lift, measured", () => {
+  const phone = { innerHeight: 844, baseline: 844 };
+
+  it("A: native overlay, web view full height: lifts by the keyboard's height", () => {
+    const state = resolveKeyboard({
+      ...phone,
+      viewport: { height: 844, offsetTop: 0 },
+      native: 336,
+      probe: { top: 0, bottom: 844 },
+    });
+    assert.deepEqual(state, { frame: { top: 0, height: 508 }, inset: 336, keyboardOpen: true });
+  });
+
+  it("B: the web view shrank by the keyboard's height: no lift, keyboard still open", () => {
+    const state = resolveKeyboard({
+      viewport: { height: 508, offsetTop: 0 },
+      innerHeight: 508,
+      baseline: 844,
+      native: 336,
+      probe: { top: 0, bottom: 508 },
+    });
+    assert.equal(state.inset, 0, "bottom: 0 is already on the keys");
+    assert.equal(state.keyboardOpen, true);
+    assert.deepEqual(state.frame, { top: 0, height: 508 }, "a sheet keeps the whole space above the keys");
+  });
+
+  it("B: also when fixed boxes follow the visual viewport and innerHeight stays put", () => {
+    const state = resolveKeyboard({
+      ...phone,
+      viewport: { height: 508, offsetTop: 0 },
+      native: 336,
+      probe: { top: 0, bottom: 508 },
+    });
+    assert.equal(state.inset, 0);
+    assert.equal(state.keyboardOpen, true);
+  });
+
+  it("B: before the resize lands, a web view known to resize never lifts by the raw height", () => {
+    const state = resolveKeyboard({
+      ...phone,
+      viewport: { height: 844, offsetTop: 0 },
+      native: 336,
+      probe: { top: 0, bottom: 844 },
+      nativeOverlays: false,
+    });
+    assert.equal(state.inset, 0);
+    assert.equal(state.keyboardOpen, true);
+  });
+
+  it("C: Safari's visual viewport, with and without the page scrolled under it", () => {
+    assert.deepEqual(
+      resolveKeyboard({ ...phone, viewport: { height: 508, offsetTop: 0 }, native: 0, probe: { top: 0, bottom: 844 } }),
+      { frame: { top: 0, height: 508 }, inset: 336, keyboardOpen: true },
+    );
+    assert.deepEqual(
+      resolveKeyboard({ ...phone, viewport: { height: 508, offsetTop: 20 }, native: 0, probe: { top: 0, bottom: 844 } }),
+      { frame: { top: 20, height: 508 }, inset: 316, keyboardOpen: true },
+    );
+  });
+
+  it("calls it open only past a 120px shrink, and never for a pinch zoom", () => {
+    const toolbar = resolveKeyboard({ ...phone, viewport: { height: 734, offsetTop: 0 }, native: 0 });
+    assert.equal(toolbar.keyboardOpen, false);
+    assert.equal(toolbar.inset, 0);
+    const zoom = resolveKeyboard({ ...phone, viewport: { height: 422, offsetTop: 200, scale: 2 }, native: 0 });
+    assert.equal(zoom.keyboardOpen, false);
+    assert.equal(zoom.inset, 0);
+  });
+});
+
+describe("reply box dock", () => {
+  it("keyboard down: above the floating tab bar and the home indicator", () => {
+    assert.deepEqual(replyDockStyle({ inset: 0, keyboardOpen: false }), {
+      bottom: "calc(6.15rem + env(safe-area-inset-bottom))",
+    });
+  });
+
+  it("keyboard up: the measured lift only, no safe area and no tab bar room", () => {
+    assert.deepEqual(replyDockStyle({ inset: 336, keyboardOpen: true }), { bottom: "336px" });
+    assert.deepEqual(replyDockStyle({ inset: 0, keyboardOpen: true }), { bottom: "0px" });
+    assert.deepEqual(replyDockStyle({ inset: 335.6, keyboardOpen: true }), { bottom: "336px" });
+  });
+
+  it("is what the Post page uses", () => {
+    const post = read("components/post-view.tsx");
+    assert.match(post, /import \{ replyDockStyle \} from "@\/lib\/ui\/reply-dock"/);
+    assert.equal((post.match(/style=\{replyDockStyle\(keyboard\)\}/g) ?? []).length, 2);
+    assert.doesNotMatch(post, /function replyDockStyle/);
+  });
+});
+
+describe("tab bar while typing", () => {
+  const shell = read("components/app-shell.tsx");
+  const css = read("app/globals.css");
+
+  it("hides the tab bar and the Post button off keyboardOpen, not off the inset", () => {
+    assert.match(shell, /const keyboardOpen = useKeyboardOpen\(\);/);
+    const nav = shell.slice(shell.indexOf('viewTransitionName: "app-nav"'), shell.indexOf("</nav>"));
+    assert.match(nav, /data-keyboard-hides=""\s+data-keyboard-open=\{keyboardOpen \? "" : undefined\}/);
+    assert.match(shell, /<div data-keyboard-hides="" data-keyboard-open=\{keyboardOpen \? "" : undefined\}[^>]*>\s*<CreateMenu/);
+    assert.doesNotMatch(shell, /inset > 0/);
+  });
+
+  it("fades them fast with opacity and visibility only, so nothing moves", () => {
+    const rule = css.slice(css.indexOf("[data-keyboard-hides][data-keyboard-open] {"));
+    assert.match(rule, /^\[data-keyboard-hides\]\[data-keyboard-open\] \{\s*opacity: 0;\s*visibility: hidden;\s*pointer-events: none;\s*transition:\s*opacity 120ms ease-out,\s*visibility 0s linear 120ms;/);
+    const block = css.slice(css.indexOf("The keyboard is up"), css.indexOf("The photo viewer is fullscreen"));
+    assert.doesNotMatch(block, /transform|height|bottom|margin|display/);
+    assert.match(block, /prefers-reduced-motion: reduce[\s\S]*transition: none/);
   });
 });
 
@@ -137,7 +260,7 @@ describe("composer sheet wiring", () => {
 
   it("shares the keyboard hook with the reply bar", () => {
     const post = read("components/post-view.tsx");
-    assert.match(post, /useKeyboardInset\(\)/);
+    assert.match(post, /const keyboard = useKeyboardInset\(\);/);
     assert.doesNotMatch(post, /function useReplyKeyboardOffset/);
   });
 

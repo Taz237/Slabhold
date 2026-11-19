@@ -186,11 +186,11 @@ export function StepDock({
   layer?: "page" | "sheet";
   children: ReactNode;
 }) {
-  const inset = useKeyboardInset();
+  const { inset, keyboardOpen } = useKeyboardInset();
   const barRef = useRef<HTMLDivElement>(null);
   // Keyboard up: the field being typed in stays in view above the bar, not under it.
   useEffect(() => {
-    if (inset <= 0) return;
+    if (!keyboardOpen) return;
     const field = document.activeElement;
     if (!(field instanceof HTMLInputElement)) return;
     // Whatever scrolls the page, room for the keyboard and the bar under the field.
@@ -198,8 +198,8 @@ export function StepDock({
     field.style.scrollMarginBottom = `${inset + (barRef.current?.offsetHeight ?? 0) + 12}px`;
     field.scrollIntoView?.({ block: "nearest" });
     field.style.scrollMarginBottom = previous;
-  }, [inset]);
-  if (inset > 0 && typeof document !== "undefined") {
+  }, [inset, keyboardOpen]);
+  if (keyboardOpen && typeof document !== "undefined") {
     // Portaled: the step's slide-in leaves a transform, which would pin a fixed bar to the step.
     // The spacer adds the keyboard's and the bar's height to the page, so even a short step
     // can scroll its field up above the bar.

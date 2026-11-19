@@ -40,6 +40,7 @@ import { commentsSupportReplyImages, isOptimisticReply } from "@/lib/social/repl
 import { COMMENT_LIMIT, type AuthResult, type PostComment } from "@/lib/social/types";
 import { isOverLimit } from "@/lib/ui/compose-limit";
 import { useKeyboardInset } from "@/lib/ui/use-keyboard-inset";
+import { replyDockStyle } from "@/lib/ui/reply-dock";
 
 const PAGE_SIZE = 20;
 
@@ -92,7 +93,7 @@ export function PostView({ id }: { id: string }) {
       // The post itself is on screen. The rest loads on the next visit.
     });
   }, [loadThreadPosts, mode, threadId]);
-  const keyboardOffset = useKeyboardInset();
+  const keyboard = useKeyboardInset();
   const {
     images,
     limit,
@@ -400,7 +401,7 @@ export function PostView({ id }: { id: string }) {
 
       {user && lane === "replies" && author.id !== user.id && blockedIds.includes(author.id) ? (
         <div
-          style={replyDockStyle(keyboardOffset)}
+          style={replyDockStyle(keyboard)}
           className="fixed inset-x-0 z-20 mx-auto w-full max-w-lg border-t border-zinc-200 bg-[color-mix(in_oklab,var(--background)_92%,transparent)] px-4 py-3 text-sm text-zinc-500 backdrop-blur-xl dark:border-white/10"
         >
           You can&apos;t interact with this account.
@@ -408,7 +409,7 @@ export function PostView({ id }: { id: string }) {
       ) : user && lane === "replies" ? (
         <form
           onSubmit={submit}
-          style={replyDockStyle(keyboardOffset)}
+          style={replyDockStyle(keyboard)}
           className="fixed inset-x-0 z-20 mx-auto w-full max-w-lg border-t border-zinc-200 bg-[color-mix(in_oklab,var(--background)_92%,transparent)] px-3 py-2 backdrop-blur-xl dark:border-white/10"
         >
           {replyPhotosOn ? (
@@ -626,13 +627,6 @@ function ReplyMenu({
       ) : null}
     </div>
   );
-}
-
-function replyDockStyle(keyboardOffset: number): { bottom: string } {
-  if (keyboardOffset > 0) {
-    return { bottom: `calc(${keyboardOffset}px + env(safe-area-inset-bottom))` };
-  }
-  return { bottom: "calc(6.15rem + env(safe-area-inset-bottom))" };
 }
 
 function LaneTab({

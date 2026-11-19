@@ -87,7 +87,7 @@ function Sheet({
   const panelRef = useRef<HTMLDivElement>(null);
   const dismiss = useSheetDrag(panelRef, rootRef, onClose);
   useSheetFocus(dismiss);
-  const keyboard = useKeyboardInset();
+  const { inset: keyboard, keyboardOpen } = useKeyboardInset();
   // Focus moves into the sheet, without scrolling anything behind it.
   useEffect(() => {
     panelRef.current?.focus({ preventScroll: true });
@@ -109,13 +109,14 @@ function Sheet({
         aria-labelledby={titleId}
         tabIndex={-1}
         data-keyboard-inset={keyboard}
+        data-keyboard={keyboardOpen ? "open" : "closed"}
         style={
-          keyboard > 0
+          keyboardOpen
             ? { bottom: keyboard, maxHeight: `calc(100dvh - ${keyboard}px - env(safe-area-inset-top) - 0.75rem)` }
             : undefined
         }
         className={`absolute inset-x-0 bottom-0 mx-auto flex max-w-lg flex-col rounded-t-3xl outline-none bg-[var(--background)] text-[var(--foreground)] shadow-[0_-12px_40px_rgb(0_0_0/0.25)] motion-safe:animate-[feed-sheet-in_240ms_cubic-bezier(0.2,0.7,0.2,1)_both] ${
-          keyboard > 0 ? "" : "pb-[env(safe-area-inset-bottom)]"
+          keyboardOpen ? "" : "pb-[env(safe-area-inset-bottom)]"
         } ${tall ? "h-[72dvh] max-h-[72dvh]" : "max-h-[72dvh]"}`}
       >
         <div aria-hidden className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-zinc-300 dark:bg-white/20" />
