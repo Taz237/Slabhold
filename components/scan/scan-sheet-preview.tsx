@@ -8,6 +8,7 @@ import { CompSheet } from "@/components/scan/comp-sheet";
 import { ScanHub } from "@/components/scan/scan-hub";
 import { ConfirmSheet, type ConfirmSheetState } from "@/components/scan/confirm-sheet";
 import { closestMatch } from "@/lib/scan/closest";
+import { markFirstHit, resetFirstHit } from "@/lib/scan/hit-store";
 import { saveScan, saveScanMatch } from "@/lib/capture";
 import { newScanId, scanAddPath, scanHandoffFrom } from "@/lib/scan/handoff";
 import type { ScanMatch } from "@/lib/scan/match";
@@ -41,6 +42,11 @@ import {
   PREVIEW_SOLDS_ESTIMATE,
   PREVIEW_VERSIONS,
   PREVIEW_SOLDS_VERSIONS,
+  PREVIEW_HIT_ONE_OF_ONE,
+  PREVIEW_HIT_AUTO,
+  PREVIEW_HIT_NUMBERED,
+  PREVIEW_PLAIN,
+  PREVIEW_SOLDS_SMALL,
   previewCompLookup,
 } from "@/lib/scan/preview-fixtures";
 
@@ -53,6 +59,12 @@ export type PreviewKind =
   | "reveal"
   | "reveal-fast"
   | "versions"
+  | "hit-shatter"
+  | "hit-storm"
+  | "hit-pixel"
+  | "hit-first"
+  | "hit-late"
+  | "hit-none"
   | "none"
   | "closest"
   | "unpinned"
@@ -105,6 +117,12 @@ const STATES: Record<Exclude<PreviewKind, "hub" | "hub-comp" | "door">, ConfirmS
   reveal: { kind: "matching" },
   "reveal-fast": { kind: "ready", matches: [PREVIEW_SLAB], solds: PREVIEW_SOLDS },
   versions: { kind: "ready", matches: [PREVIEW_VERSIONS], solds: PREVIEW_SOLDS_VERSIONS },
+  "hit-shatter": { kind: "ready", matches: [PREVIEW_HIT_ONE_OF_ONE], solds: PREVIEW_SOLDS_NONE },
+  "hit-storm": { kind: "ready", matches: [PREVIEW_HIT_AUTO], solds: PREVIEW_SOLDS_NONE },
+  "hit-pixel": { kind: "ready", matches: [{ ...PREVIEW_SLAB, grade: null }], solds: PREVIEW_SOLDS },
+  "hit-first": { kind: "ready", matches: [PREVIEW_HIT_NUMBERED], solds: PREVIEW_SOLDS_NONE },
+  "hit-late": { kind: "ready", matches: [{ ...PREVIEW_SLAB, grade: null }], solds: PREVIEW_SOLDS_LOOKING },
+  "hit-none": { kind: "ready", matches: [PREVIEW_PLAIN], solds: PREVIEW_SOLDS_SMALL },
   flip: { kind: "back", matches: [{ ...PREVIEW_RAW[0], yearLabel: "", cardNumber: "", sureness: { ...PREVIEW_RAW[0].sureness, year: "unsure", number: "unsure" } }] },
   "comp-flip": { kind: "back", matches: [{ ...PREVIEW_RAW[0], cardNumber: "", sureness: { ...PREVIEW_RAW[0].sureness, number: "unsure" } }] },
   none: { kind: "none" },
@@ -152,6 +170,12 @@ const LABELS: Record<PreviewKind, string> = {
   reveal: "Reveal, a slow read",
   "reveal-fast": "Reveal, a fast read",
   versions: "Pick your version, no serial read",
+  "hit-shatter": "Hit: Crystal Shatter, a 1/1",
+  "hit-storm": "Hit: Storm Strike, a patch auto",
+  "hit-pixel": "Hit: Pixel Rebuild, a $100+ sale",
+  "hit-first": "Hit: the first hit ever",
+  "hit-late": "Hit: the sale comes in after the scan",
+  "hit-none": "Not a hit: the normal reveal",
   none: "No match",
   closest: "Only the player read: closest cards",
   unpinned: "Conflicts with the back",
@@ -214,6 +238,22 @@ export function ScanSheetPreview({ kind }: { kind: PreviewKind }) {
     const timers = [700, 1500, 2300, 3600].map((ms, index) => window.setTimeout(() => setStep(index + 1), ms));
     return () => timers.forEach((timer) => window.clearTimeout(timer));
   }, [kind]);
+
+  // Hit previews. "hit-first" plays as this phone's first hit ever; the others as a later one.
+  // "hit-late": the scan lands as a normal card, then its $100+ sale arrives.
+  const [armed, setArmed] = useState<PreviewKind | null>(null);
+  const [lateSale, setLateSale] = useState(false);
+  useEffect(() => {
+    if (kind === "hit-first") resetFirstHit();
+    else if (kind.startsWith("hit-")) markFirstHit();
+    const timers = [window.setTimeout(() => setArmed(kind), 0)];
+    if (kind === "hit-late") timers.push(window.setTimeout(() => setLateSale(true), 3200));
+    return () => {
+      timers.forEach((timer) => window.clearTimeout(timer));
+      setLateSale(false);
+    };
+  }, [kind]);
+  const hitState: ConfirmSheetState | null = kind === "hit-late" && lateSale ? { ...STATES["hit-pixel"] } : null;
 
   function confirm(match: ScanMatch, options: { save: boolean }) {
     const id = newScanId();
@@ -282,13 +322,13 @@ export function ScanSheetPreview({ kind }: { kind: PreviewKind }) {
           onClose={() => setOpen(false)}
         />
       ) : null}
-      {open && !SCREENS.has(kind) && !kind.startsWith("comp") ? (
+      {open && !SCREENS.has(kind) && !kind.startsWith("comp") && (!kind.startsWith("hit-") || armed === kind) ? (
         <ConfirmSheet
           key={`${kind}-${sapphire}`}
           photo={PREVIEW_PHOTO}
           backPhoto={kind === "reading" ? PREVIEW_BACK_PHOTO : null}
           lookup={previewCompLookup}
-          state={sapphire ? STATES.sapphire : kind === "reveal" ? REVEAL_STEPS[step] : STATES[kind as keyof typeof STATES]}
+          state={sapphire ? STATES.sapphire : kind === "reveal" ? REVEAL_STEPS[step] : (hitState ?? STATES[kind as keyof typeof STATES])}
           onSapphire={() => setSapphire(true)}
           onConfirm={confirm}
           onStepByStep={() => {

@@ -467,3 +467,57 @@ export const PREVIEW_SOLDS_VERSIONS: SoldsState = {
   },
   query: "preview",
 };
+
+/** Hit reveals (lib/scan/hit.ts), on made-up cards. A 1/1: Crystal Shatter, the full show. */
+export const PREVIEW_HIT_ONE_OF_ONE: ScanMatch = {
+  ...PREVIEW_NUMBERED,
+  playerName: "Fixture Player",
+  parallel: "Gold Vinyl",
+  serialRun: 1,
+  runRead: 1,
+  serialNo: "1",
+  parallelOptions: [{ name: "Gold Vinyl", serialRun: 1 }],
+};
+
+/** An on-card auto with a patch: Storm Strike. */
+export const PREVIEW_HIT_AUTO: ScanMatch = {
+  ...PREVIEW_NUMBERED,
+  playerName: "Fixture Player",
+  parallel: "Base",
+  serialRun: 99,
+  serialNo: "41",
+  isAuto: true,
+  isRelic: true,
+  subset: "Rookie Patch Autographs",
+  parallelOptions: [{ name: "Base", serialRun: 99 }],
+};
+
+/** Numbered /25: Pixel Rebuild, the quick version. Also the card the "first hit" preview plays. */
+export const PREVIEW_HIT_NUMBERED: ScanMatch = {
+  ...PREVIEW_NUMBERED,
+  playerName: "Fixture Player",
+  parallel: "Orange",
+  serialRun: 25,
+  runRead: 25,
+  serialNo: "12",
+  parallelOptions: [{ name: "Orange", serialRun: 25 }],
+};
+
+/** A plain card with small sales: not a hit, so it gets the normal reveal. */
+export const PREVIEW_PLAIN: ScanMatch = {
+  ...PREVIEW_NUMBERED,
+  playerName: "Fixture Player",
+  parallel: "Base",
+  serialRun: null,
+  serialNo: "",
+  parallelOptions: [{ name: "Base", serialRun: null }],
+};
+
+export const PREVIEW_SOLDS_SMALL: SoldsState = {
+  status: "done",
+  comp: summarizeSales(
+    [4, 5, 5, 6].map((price, index) => ({ price, soldAt: `2026-11-${String(index + 1).padStart(2, "0")}T12:00:00Z` })),
+    { asOf: "2026-11-08T12:00:00Z", source: "live" },
+  ),
+  query: "preview",
+};

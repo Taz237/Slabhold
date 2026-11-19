@@ -1704,6 +1704,14 @@ html[data-nav="none"]::view-transition-new(.page-in) {
   }
 }
 
+/* A sale made the card a hit after its sheet was up: the hit's row lights purple once, in place. */
+@keyframes hit-row-glow {
+  from {
+    border-color: #7c3aed;
+    background-color: rgba(124, 58, 237, 0.16);
+  }
+}
+
 /* A read field arrives under the card. */
 @keyframes reveal-field {
   from {

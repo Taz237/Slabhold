@@ -122,7 +122,12 @@ export type ScanMatch = {
    */
   parallelSource?: "card" | "sales" | "run";
   /** The print run read off the card matched no sold title, and 2+ titles agree on a run within 2 of it: theirs is used. */
-  runUnsure?: boolean;
+  runUnsure?: boolean;  /**
+   * The print run exactly as the card (or the slab's label) showed it. Not set when no serial was
+   * read, or when the read was replaced by the run sold titles agree on. Never from a checklist or
+   * a sold title: `serialRun` can be either, this can't. Only the hit reveal reads it (lib/scan/hit.ts).
+   */
+  runRead?: number;
 };
 
 export type ScanMatchResult = {
@@ -2247,6 +2252,9 @@ export function rankScanMatches(
       evidence.insertSection && checklistNumberKey(card.cardNumber) === checklistNumberKey(evidence.cardNumber) ? evidence.insertSection : insertSectionFor(card, options.checklists);
     // An autograph or relic section never names an insert by the # alone: only when the card prints its name.
     const signed = insertName ? null : signedSectionFor(card, options.checklists, printedLines);
+    // The run as the card showed it, for the hit reveal alone: nothing above or below reads it.
+    const readSerialRun = evidence.serial && !evidence.runUnsure ? Number(evidence.serial.run) : null;
+    const cardRun = readSerialRun != null && Number.isInteger(readSerialRun) && readSerialRun > 0 ? readSerialRun : null;
     const match: ScanMatch = {
       catalogId: rowId ?? card.catalogId,
       playerName: card.playerName,
@@ -2276,6 +2284,7 @@ export function rankScanMatches(
       ...(!evidence.slab && !inDirectory && card.playerName && compactName(card.playerName) === compactName(evidence.playerText) ? { playerNew: true } : {}),
       ...(parallel.source ? { parallelSource: parallel.source } : {}),
       ...(evidence.runUnsure ? { runUnsure: true } : {}),
+      ...(cardRun != null ? { runRead: cardRun } : {}),
       ...(evidence.lookedUp && compactName(card.playerName) === compactName(evidence.lookedUp.name) ? { playerSource: evidence.lookedUp.source } : {}),
     };
     return match;

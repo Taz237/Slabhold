@@ -18,7 +18,13 @@ export type HapticMoment =
   /** The reveal's card locks into its slot. */
   | "lock"
   /** The same, on a match the card itself pinned. */
-  | "lockSure";
+  | "lockSure"
+  /** A hit reveal's big moment (components/scan/hit-reveal.tsx): one heavy thump. */
+  | "hit"
+  /** A bigger hit: two heavy thumps. */
+  | "hitBig"
+  /** A 1/1: a heavy thump, then a success buzz. */
+  | "hitFull";
 
 /**
  * A light tap on Like, follow, send, refresh and a chart tick; a success buzz
