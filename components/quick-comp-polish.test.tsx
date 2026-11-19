@@ -169,8 +169,9 @@ describe("quick comp: states", () => {
     const html = renderToStaticMarkup(createElement(SalesChartPending, {}));
     assert.match(html, /skeleton-shimmer/);
     assert.match(html, /data-skeleton="hero"/);
-    assert.match(html, /data-skeleton="chip"/);
     assert.match(html, /data-skeleton="plot"/);
+    // The plot's skeleton is the plot's height.
+    assert.match(html, /height:208px/);
   });
 });
 
@@ -181,6 +182,14 @@ describe("quick comp: brand and motion", () => {
     "components/comp-basis.tsx",
     "components/card-detail-shell.tsx",
     "components/public-card-view.tsx",
+    "components/card-detail.tsx",
+    "components/card-page/card-value.tsx",
+    "components/card-page/sale-plot.tsx",
+    "components/card-page/value-head.tsx",
+    "components/card-page/card-stage.tsx",
+    "components/card-page/card-stage-frame.tsx",
+    "components/card-page/card-heading.tsx",
+    "components/card-talk-frame.tsx",
   ];
 
   it("has no teal or cyan class anywhere in the comp section", () => {
@@ -225,13 +234,13 @@ describe("quick comp: Trawl attribution never drops with live rows on screen", (
     const view = read("components/public-card-view.tsx");
     assert.match(
       view,
-      /const chartShowsAttribution =\s*chartCard && Boolean\(SalesChart\) && !chartFailed && !valueLoading && shownValue\?\.status !== "sample";/,
+      /const chartShowsAttribution =\s*chartCard && Boolean\(CardValueView\) && !chartFailed && !valueLoading && shownValue\?\.status !== "sample";/,
     );
     assert.match(view, /usingLive && !compsLoading && !authRequired && !chartShowsAttribution/);
     const detail = read("components/card-detail.tsx");
     assert.match(
       detail,
-      /usingLive && !compsLoading && !authRequired && !\(showChart && SalesChart && shownValue\?\.status !== "sample"\)/,
+      /usingLive && !compsLoading && !authRequired && !\(showChart && CardValueView && shownValue\?\.status !== "sample"\)/,
     );
   });
 });

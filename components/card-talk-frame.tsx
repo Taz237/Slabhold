@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { PenLine } from "lucide-react";
+import { cardSection, cardSectionTitle } from "@/components/card-page/section-styles";
 import { useSocial } from "@/components/social-provider";
 import { PartLoadFailed } from "@/components/card-page-parts";
 import { signupPath } from "@/lib/auth/safe-next";
@@ -25,34 +27,31 @@ export function CardTalkFrame({
   const { user } = useSocial();
   const pathname = usePathname() || "/";
   return (
-    <section
-      data-slot="card-talk"
-      className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03] sm:p-5"
-      aria-busy={loading || undefined}
-    >
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h2 className="font-semibold">{heading}</h2>
-          <p className="text-xs text-zinc-500">Posts about this card</p>
-        </div>
-        {user ? (
-          <Link
-            href={`/compose?card=${encodeURIComponent(cardId)}`}
-            className="hit-44 rounded-full bg-zinc-900 px-3 py-1.5 text-xs font-semibold whitespace-nowrap text-white big:whitespace-normal dark:bg-zinc-100 dark:text-zinc-950"
-          >
-            Post about this card
-          </Link>
-        ) : (
-          <Link
-            href={signupPath(pathname)}
-            className="text-xs font-semibold text-violet-700 underline underline-offset-2 dark:text-violet-300"
-          >
-            Sign up to post
-          </Link>
-        )}
-      </div>
+    <section data-slot="card-talk" className={cardSection} aria-busy={loading || undefined}>
+      <h2 className={cardSectionTitle}>{heading}</h2>
+      {/* One clear way in, shaped like the box you would type in. */}
+      <Link
+        href={user ? `/compose?card=${encodeURIComponent(cardId)}` : signupPath(pathname)}
+        data-card-talk-post=""
+        className="mt-3 flex min-h-11 items-center gap-2.5 rounded-full bg-zinc-950/[0.04] px-4 text-sm font-medium text-zinc-700 outline-none transition-colors duration-150 hover:bg-zinc-950/[0.07] focus-visible:ring-2 focus-visible:ring-violet-600 motion-reduce:transition-none dark:bg-white/[0.06] dark:text-zinc-200 dark:hover:bg-white/[0.09]"
+      >
+        <PenLine aria-hidden="true" className="h-[18px] w-[18px] shrink-0 text-violet-600 dark:text-violet-400" strokeWidth={1.5} />
+        {user ? "Post about this card" : "Sign up to post"}
+      </Link>
       {children}
     </section>
+  );
+}
+
+/** No posts yet: a warm nudge, not a blank. */
+export function CardTalkEmpty() {
+  return (
+    <div data-card-talk-empty="" className="px-2 pt-6 pb-2 text-center">
+      <p className="text-15 leading-5 font-semibold">Nobody has posted about this card yet</p>
+      <p className="mx-auto mt-1 max-w-64 text-sm leading-5 text-zinc-500 dark:text-zinc-400">
+        Pulled it, chasing it or just like it? Say so and get it started
+      </p>
+    </div>
   );
 }
 

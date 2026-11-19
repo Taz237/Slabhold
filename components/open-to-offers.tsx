@@ -18,8 +18,12 @@ import { useCardValue } from "@/lib/value/use-card-values";
 const badgeClass =
   "inline-flex items-center rounded-full bg-emerald-500/15 px-2 py-0.5 text-11 font-semibold text-emerald-800 dark:text-emerald-200";
 
-export function OpenToOffersBadge({ className = "" }: { className?: string }) {
-  return <span className={`${badgeClass} ${className}`.trim()}>{OPEN_TO_OFFERS_LABEL}</span>;
+/** The card page's tag: brand purple, like the rest of that page. */
+const brandBadgeClass =
+  "inline-flex items-center rounded-full bg-violet-500/12 px-2 py-0.5 text-xs leading-5 font-medium text-violet-700 dark:bg-violet-400/15 dark:text-violet-300";
+
+export function OpenToOffersBadge({ className = "", tone = "default" }: { className?: string; tone?: "default" | "brand" }) {
+  return <span className={`${tone === "brand" ? brandBadgeClass : badgeClass} ${className}`.trim()}>{OPEN_TO_OFFERS_LABEL}</span>;
 }
 
 export function OpenToOffersToggle({

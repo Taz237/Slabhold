@@ -507,10 +507,15 @@ describe("fallback is not drawn as the estimate", () => {
     const publicView = source("components/public-card-view.tsx");
     const chart = source("components/sales-chart.tsx");
     const chip = source("lib/social/use-attachment-label.ts");
-    assert.match(detail, /headlineIsEstimate=\{priceRead\?\.kind === "estimate"\}/);
-    assert.match(detail, /median=\{priceRead\?\.kind === "estimate" \? storedAmount : null\}/);
+    const head = source("components/card-page/value-head.tsx");
+    // Only an estimate read gets the big dollar: the value section takes the read itself.
+    assert.match(detail, /read=\{priceRead\}/);
+    assert.match(detail, /amount=\{priceRead\?\.kind === "estimate" \? storedAmount : null\}/);
+    assert.match(head, /if \(read\.kind === "estimate"\) return \{ label: "Estimated value", price: read\.text, estimate: true \}/);
+    assert.match(head, /price \|\| headline\?\.estimate \? valuePrice : valuePriceSmall/);
     assert.match(detail, /asEstimate=\{priceRead\?\.kind === "estimate" \|\| priceRead == null\}/);
-    assert.match(publicView, /headlineIsEstimate=\{priceRead\?\.kind === "estimate"\}/);
+    assert.match(publicView, /read=\{priceRead\}/);
+    assert.match(publicView, /amount=\{priceRead\?\.kind === "estimate" \? storedAmount : null\}/);
     assert.match(chart, /headlineIsEstimate !== false/);
     assert.match(chart, /text-lg font-semibold tracking-tight/);
     assert.match(chip, /soldHref: chip\.showEbaySold \? ebayHref : null/);
@@ -523,25 +528,27 @@ describe("fallback is not drawn as the estimate", () => {
     const estimate = renderToStaticMarkup(
       createElement(SalesChartPending, { priceLabel: "$120.00", priceIsEstimate: true }),
     );
-    assert.match(estimate, /text-3xl/);
+    assert.match(estimate, /text-\[2\.25rem\]/);
     assert.match(estimate, /\$120\.00/);
-    assert.match(estimate, /h-44/);
-    assert.match(estimate, /min-h-9/);
+    assert.match(estimate, /height:208px/);
+    assert.match(estimate, /min-h-11/);
 
     const lastSale = renderToStaticMarkup(
       createElement(SalesChartPending, { priceLabel: "Last sold $12.00 on Oct 2" }),
     );
-    assert.match(lastSale, /whitespace-nowrap/);
-    assert.doesNotMatch(lastSale, /text-3xl/);
-    assert.match(lastSale, /Last sold \$12\.00/);
-    assert.match(lastSale, /on Oct 2/);
-    assert.match(lastSale, /h-44/);
-    assert.match(lastSale, /min-h-9/);
+    // The words "Last sold" are the label, once; the dollar is set smaller than an estimate's.
+    assert.doesNotMatch(lastSale, /text-\[2\.25rem\]/);
+    assert.match(lastSale, /text-2xl/);
+    assert.equal(lastSale.split("Last sold").length - 1, 1);
+    assert.match(lastSale, /\$12\.00/);
+    assert.match(lastSale, /Oct 2/);
+    assert.match(lastSale, /height:208px/);
+    assert.match(lastSale, /min-h-11/);
 
     const none = renderToStaticMarkup(
       createElement(SalesChartPending, { priceLabel: "No sales found yet" }),
     );
     assert.match(none, /No sales found yet/);
-    assert.doesNotMatch(none, /text-3xl/);
+    assert.doesNotMatch(none, /text-\[2\.25rem\]/);
   });
 });

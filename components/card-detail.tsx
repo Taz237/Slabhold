@@ -16,7 +16,7 @@ import {
 import { useCompFlagState } from "@/components/use-comp-flags";
 import { NearCardCollectorsSaying } from "@/components/card-talk-near";
 import { LazyCardAddedPanel, LazyCompsList, preloadCompsList } from "@/components/card-page-parts";
-import { CategoryPicker } from "@/components/category-picker";
+import { CategorySwitch } from "@/components/card-page/category-switch";
 import { CardVisibilitySwitch } from "@/components/card-visibility";
 import { CardShareButton } from "@/components/card-share";
 import { FirstCardPrivacyPrompt } from "@/components/first-card-privacy-prompt";
@@ -36,17 +36,16 @@ import {
   cardPanelClass,
 } from "@/components/card-detail-shell";
 import {
-  CompBasis,
-  CompEmpty,
-  compCaption,
-  compCard,
-  compEyebrow,
-  compHeroValue,
-  compLabel,
-  compTile,
-} from "@/components/comp-basis";
-import { SimilarCardsLine, EbaySoldLine } from "@/components/price-readout";
-import { SoldFreshness } from "@/components/sold-freshness";
+  PlotEmpty,
+  ROUGH_VALUE_NOTE,
+  TRAWL_ATTRIBUTION,
+  ValueHead,
+  ValuePending,
+  cardSection,
+  cardSectionTitle,
+  valueHeadline,
+} from "@/components/card-page/value-head";
+import { EbaySoldLine } from "@/components/price-readout";
 import { useSocial } from "@/components/social-provider";
 import { loginPath } from "@/lib/auth/safe-next";
 import { publicTogglePatch } from "@/lib/offers/open-to-offers";
@@ -63,8 +62,9 @@ import { insertSpec } from "@/lib/cards/insert-name";
 import { canonicalParallelName, parallelMatchKey } from "@/lib/cards/parallels";
 import { parallelIn } from "@/lib/cards/product-data";
 import { useProductData } from "@/lib/cards/use-product-data";
+import { basedOnSalesLabel } from "@/lib/comps/sales-label";
 import { countForSalesLabel, valueFromShownSales } from "@/lib/comps/shared-value";
-import { lowConfidenceNote, lowConfidencePlacement } from "@/lib/value/low-confidence-placement";
+import { lowConfidencePlacement } from "@/lib/value/low-confidence-placement";
 import { soldNotice } from "@/lib/comps/sold-response";
 import { useSoldComps } from "@/lib/comps/use-sold-comps";
 import type { ChartSale } from "@/lib/chart/sales";
@@ -105,29 +105,18 @@ function subscribeCardValueMemory() {
   return () => {};
 }
 
-type SalesChartView = ComponentType<{
-  card: { id: string; estimatedSellPrice: number; purchasePrice: number };
-  points?: { date: string; label: string; value: number }[] | null;
+type CardValueView = ComponentType<{
+  read: PriceRead | null;
+  amount?: number | null;
+  count?: number;
   sales?: ChartSale[] | null;
   selectedSaleId?: string | null;
   onSelectSale?: (id: string | null) => void;
-  lowConfidence?: boolean;
   fetchedAt?: string | null;
-  source?: "trawl" | "sample" | "off";
-  loading?: boolean;
-  median?: number | null;
-  p25?: number | null;
-  p75?: number | null;
-  count?: number;
+  live?: boolean;
   sample?: boolean;
-  lockedToComps?: boolean;
-  noSalesLabel?: string;
-  unavailable?: boolean;
-  hideStatusLabel?: boolean;
-  heading?: string;
-  stableLayout?: boolean;
-  headlineLabel?: string | null;
-  headlineIsEstimate?: boolean;
+  rough?: boolean;
+  similarLabel?: string;
 }>;
 
 type CardFormView = ComponentType<{
@@ -155,7 +144,7 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
     () => readBrowserFirstCardPrivacy(user?.id ?? null, card?.id ?? null, Boolean(card?.isPublic)),
     () => false,
   );
-  const [SalesChart, setSalesChart] = useState<SalesChartView | null>(null);
+  const [CardValueView, setCardValueView] = useState<CardValueView | null>(null);
   const [saleId, setSaleId] = useState<string | null>(null);
   const [chartFailed, setChartFailed] = useState(false);
   const [chartAttempt, setChartAttempt] = useState(0);
@@ -209,11 +198,11 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
 
   useEffect(() => {
     let cancelled = false;
-    void import("@/components/sales-chart")
+    void import("@/components/card-page/card-value")
       .then((mod) => {
         if (cancelled) return;
         setChartFailed(false);
-        setSalesChart(() => mod.SalesChart);
+        setCardValueView(() => mod.CardValue);
       })
       .catch(() => {
         if (!cancelled) setChartFailed(true);
@@ -336,7 +325,6 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
       : (priceRead?.text ?? null);
 
   // Card pages show the value only. Paid and profit stay in the data and the edit form.
-  const paid = card.purchasePrice;
   const rawValueLabel = cardSold
     ? null
     : valueLoading && !flags.priced && !earlyValue
@@ -351,21 +339,21 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
   });
   const valueStatusLabel = rawValueLabel;
   const showChart =
-    SalesChart != null &&
+    CardValueView != null &&
     sold.status === "ready" &&
     !collapsePrices &&
     !authRequired &&
     !soldCopy;
-  // Whether SalesChart's amber tag is on screen: the chart is up (chunk loaded,
-  // not failed) with a value and no sale tapped. Otherwise the Recent sales caption says it.
-  const estimateTagShown =
-    lowConfidencePlacement({
-      salesCount,
-      live: usingLive,
-      estimate: estimateLowConfidence && storedAmount != null,
-      showChart,
-      saleSelected: saleId != null,
-    }) === "chart";
+  // Thin data is said once, and calmly: in the value line while the chart is up
+  // (chunk loaded, not failed) with a value, otherwise under Recent sales.
+  const roughPlace = lowConfidencePlacement({
+    salesCount,
+    live: usingLive,
+    estimate: estimateLowConfidence && storedAmount != null,
+    showChart,
+  });
+  const roughShown = roughPlace === "chart";
+  const roughInList = roughPlace === "caption";
 
   function dismissPrivacyNudge() {
     if (user) dismissFirstCardPrivacyInBrowser(user.id);
@@ -416,7 +404,7 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-card-page="">
       {dealOpen ? <DealSheet fixedCard={card} onClose={() => setDealOpen(false)} /> : null}
       <CardTopBar
         editing={editing}
@@ -444,13 +432,9 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
         />
       ) : null}
 
-      {/* Below the reveal, so its buttons fit one phone screen right after an add. */}
-      {editing ? null : (
-        <CardVisibilitySwitch isPublic={Boolean(card.isPublic)} onChange={setPublic} />
-      )}
-
       <CardHero
         card={card}
+        parallelName={canonicalParallelName}
         onFixDetails={() => {
           setMenuOpen(false);
           setFormFailed(false);
@@ -458,24 +442,10 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
         }}
       />
 
-      {/* Owner only: the same card again, for a second parallel or grade. The reveal has its own. */}
-      {editing || showAddedPanel({ added, owned: true, dismissed: addedDismissed }) ? null : (
-        <div className="-mt-3 flex justify-center">
-          <Link
-            href={copyCardPath(card)}
-            data-slot="copy-card"
-            aria-label="Copy this card: add another parallel or grade of it"
-            className="inline-flex min-h-11 items-center justify-center rounded-full px-4 text-sm font-medium text-violet-700 underline decoration-violet-700/40 underline-offset-4 outline-none hover:text-violet-600 focus-visible:ring-2 focus-visible:ring-violet-600 dark:text-[#A78BFA] dark:decoration-[#A78BFA]/40"
-          >
-            Copy this card
-          </Link>
-        </div>
-      )}
-
       {heldCopy && !editing && !(showAddedPanel({ added, owned: true, dismissed: addedDismissed })) ? (
         <p
           data-slot="price-held"
-          className="mx-auto max-w-sm rounded-xl border border-violet-400/30 bg-violet-500/10 px-3 py-1 text-center text-sm text-zinc-800 dark:text-zinc-200"
+          className="rounded-2xl bg-violet-500/10 px-4 py-1 text-sm text-zinc-800 dark:text-zinc-200"
         >
           {heldCopy.text}.{" "}
           {heldCopy.fix ? (
@@ -489,19 +459,28 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
         </p>
       ) : null}
 
+      {/* The owner's controls, in one tidy group under the card: who sees it, which pile it is in, and a copy. */}
       {editing ? null : (
-        <section aria-label="Collection" className="min-w-0 space-y-3">
-          <div className="min-w-0">
-            <p className="mb-2 text-sm text-zinc-500">Move this card</p>
-            <CategoryPicker value={cardCategory(card)} onChange={moveCategory} />
-            {actions.failureFor("category") ? (
-              <ActionError
-                className="mt-2"
-                message={actions.failureFor("category")!.message}
-                onRetry={actions.failureFor("category")!.retry}
-              />
-            ) : null}
-          </div>
+        <section aria-label="Collection" data-slot="owner-controls" className="min-w-0 space-y-2">
+          <CardVisibilitySwitch isPublic={Boolean(card.isPublic)} onChange={setPublic} />
+          <CategorySwitch value={cardCategory(card)} onChange={moveCategory} />
+          {actions.failureFor("category") ? (
+            <ActionError
+              message={actions.failureFor("category")!.message}
+              onRetry={actions.failureFor("category")!.retry}
+            />
+          ) : null}
+          {/* Owner only: the same card again, for a second parallel or grade. The reveal has its own. */}
+          {showAddedPanel({ added, owned: true, dismissed: addedDismissed }) ? null : (
+            <Link
+              href={copyCardPath(card)}
+              data-slot="copy-card"
+              aria-label="Copy this card: add another parallel or grade of it"
+              className="inline-flex min-h-11 items-center rounded-full text-sm font-medium text-violet-700 underline decoration-violet-700/40 underline-offset-4 outline-none hover:text-violet-600 focus-visible:ring-2 focus-visible:ring-violet-600 dark:text-[#A78BFA] dark:decoration-[#A78BFA]/40"
+            >
+              Copy this card
+            </Link>
+          )}
         </section>
       )}
 
@@ -680,82 +659,68 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
         </p>
       ) : null}
 
-      {showChart && SalesChart ? (
-        <div data-slot="sales-chart" className="contents">
-          <SalesChart
-            card={{
-              id: card.id,
-              estimatedSellPrice: pricedAmount ?? 0,
-              purchasePrice: paid ?? 0,
-            }}
-            points={usingLive ? sold.data?.history : null}
-            sales={usingLive ? chartSales : null}
-            selectedSaleId={saleId}
-            onSelectSale={setSaleId}
-            lowConfidence={estimateTagShown}
-            fetchedAt={sold.data?.fetchedAt ?? null}
-            source={sold.data?.source ?? (usingSample ? "sample" : "trawl")}
-            loading={false}
-            median={priceRead?.kind === "estimate" ? storedAmount : null}
-            p25={priceRead?.kind === "estimate" ? (shownValue?.low ?? null) : null}
-            p75={priceRead?.kind === "estimate" ? (shownValue?.high ?? null) : null}
-            count={priceRead?.kind === "estimate" ? (shownValue?.nSales ?? 0) : onScreenComps.length}
-            sample={shownValue?.status === "sample"}
-            lockedToComps
-            noSalesLabel={NO_SALES_FOUND_LABEL}
-            unavailable={false}
-            hideStatusLabel
-            heading={compEyebrow(priceRead?.kind, SIMILAR_CARDS_LABEL)}
-            stableLayout
-            headlineLabel={
-              priceRead && priceRead.kind !== "estimate"
-                ? priceRead.kind === "similar"
-                  ? SIMILAR_CARDS_LABEL
-                  : priceRead.text
-                : undefined
-            }
-            headlineIsEstimate={priceRead?.kind === "estimate"}
-          />
-        </div>
+      {showChart && CardValueView ? (
+        <CardValueView
+          read={priceRead}
+          amount={priceRead?.kind === "estimate" ? storedAmount : null}
+          count={priceRead?.kind === "estimate" ? (shownValue?.nSales ?? 0) : onScreenComps.length}
+          sales={usingLive ? chartSales : null}
+          selectedSaleId={saleId}
+          onSelectSale={setSaleId}
+          fetchedAt={sold.data?.fetchedAt ?? null}
+          live={usingLive}
+          sample={shownValue?.status === "sample"}
+          rough={roughShown}
+          similarLabel={SIMILAR_CARDS_LABEL}
+        />
       ) : collapsePrices ? (
-        priceRead?.kind === "similar" ? (
-          <section data-slot="sales-chart" className={compCard}>
-            <SimilarCardsLine read={priceRead} />
-          </section>
-        ) : (
-          <CompEmpty
-            slot="sales-chart"
-            title={!priceRead || priceRead.text === NO_SALES_FOUND_LABEL ? "No sales yet" : priceRead.text}
-          >
+        <section data-slot="sales-chart" data-comp-empty="" className={cardSection}>
+          <ValueHead
+            headline={
+              priceRead?.kind === "similar"
+                ? {
+                    label: SIMILAR_CARDS_LABEL,
+                    text: (
+                      <Link href={priceRead.href} className="text-violet-700 underline-offset-2 hover:underline dark:text-violet-300">
+                        {priceRead.detail}
+                      </Link>
+                    ),
+                  }
+                : {
+                    label: "Recent sales",
+                    text: !priceRead || priceRead.text === NO_SALES_FOUND_LABEL ? "No sales yet" : priceRead.text,
+                  }
+            }
+            line={priceRead?.kind === "similar" ? priceRead.priceText : undefined}
+          />
+          <PlotEmpty title={priceRead?.kind === "similar" ? "No sales of this exact card yet" : null}>
             {priceRead?.showEbaySold && ebayHref ? <EbaySoldLine href={ebayHref} /> : null}
-          </CompEmpty>
-        )
-      ) : chartFailed && !authRequired && !soldCopy ? (
-        <section data-slot="sales-chart" className={compCard}>
-          <p className={`flex min-h-5 items-center ${compLabel}`}>{compEyebrow(priceRead?.kind, SIMILAR_CARDS_LABEL)}</p>
-          <div className="mt-1 flex min-h-10 items-baseline">
-            {priceRead?.kind === "estimate" && pendingLabel ? (
-              <p className={compHeroValue}>{pendingLabel}</p>
-            ) : pendingLabel ? (
-              <p className="py-1.5 text-xl leading-[1.625rem] font-semibold tracking-tight">{pendingLabel}</p>
-            ) : null}
-          </div>
-          <div className={`mt-4 flex h-44 flex-col items-center justify-center gap-1 px-4 text-center ${compTile}`}>
-            <p className="text-sm font-semibold">Sales are taking a break</p>
-            <p className="text-sm text-zinc-500">Couldn&apos;t load the sales graph.</p>
-            <button
-              type="button"
-              onClick={() => {
-                setChartFailed(false);
-                setSalesChart(null);
-                setChartAttempt((attempt) => attempt + 1);
-              }}
-              className="mt-2 inline-flex h-11 items-center rounded-full px-5 text-sm font-semibold text-violet-700 hover:bg-violet-500/10 focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:outline-none dark:text-violet-300"
-            >
-              Try again
-            </button>
-          </div>
+          </PlotEmpty>
         </section>
+      ) : chartFailed && !authRequired && !soldCopy ? (
+        <ValuePending
+          slot="sales-chart"
+          busy={false}
+          headline={pendingLabel ? valueHeadline(priceRead, SIMILAR_CARDS_LABEL) : null}
+          line=""
+          note={
+            <>
+              <span className="block font-semibold text-zinc-900 dark:text-zinc-100">Sales are taking a break</span>
+              <span className="block">Couldn&apos;t load the sales graph.</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setChartFailed(false);
+                  setCardValueView(null);
+                  setChartAttempt((attempt) => attempt + 1);
+                }}
+                className="mt-1 inline-flex min-h-11 items-center rounded-full text-sm font-semibold text-violet-700 focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:outline-none dark:text-violet-300"
+              >
+                Try again
+              </button>
+            </>
+          }
+        />
       ) : (
         <SalesChartPending
           priceLabel={pendingLabel}
@@ -772,39 +737,22 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
       {compsLoading && !authRequired ? (
         <SalesListPending />
       ) : (
-        <section data-slot="sales-list" className={compCard}>
-          <div className="flex items-baseline justify-between gap-3">
-            <h2 className="text-sm font-semibold">Recent sales</h2>
-            {!authRequired && !soldCopy && sold.status === "ready" && onScreenComps.length > 0 ? (
-              <p className="shrink-0 text-xs font-medium text-zinc-500 tabular-nums">
-                {salesCount} sale{salesCount === 1 ? "" : "s"}
-              </p>
-            ) : null}
-          </div>
-          {authRequired ? null : (
-            <p className={`mt-1 leading-4 ${compCaption}`}>
-              {soldCopy
-                ? soldCopy
-                : sold.status === "ready"
-                  ? onScreenComps.length === 0
-                    ? priceRead?.kind === "similar"
-                      ? SIMILAR_CARDS_LABEL
-                      : (priceRead?.text ?? NO_SALES_FOUND_LABEL)
-                    : (
-                        <>
-                          Recent sold prices
-                          {lowConfidenceNote(salesCount, usingLive, estimateTagShown)}
-                          <SoldFreshness comps={onScreenComps} fetchedAt={sold.data?.fetchedAt} />
-                        </>
-                      )
-                  : usingSample
-                    ? "Sample listings"
-                    : ""}
+        <section data-slot="sales-list" className={cardSection}>
+          <h2 className={cardSectionTitle}>Recent sales</h2>
+          {authRequired ? null : soldCopy ? (
+            <p className="mt-1 text-sm leading-5 text-zinc-500 dark:text-zinc-400">{soldCopy}</p>
+          ) : sold.status === "ready" && onScreenComps.length === 0 ? (
+            <p className="mt-1 text-sm leading-5 text-zinc-500 dark:text-zinc-400">
+              {priceRead?.kind === "similar" ? SIMILAR_CARDS_LABEL : (priceRead?.text ?? NO_SALES_FOUND_LABEL)}
             </p>
-          )}
+          ) : sold.status === "ready" && roughInList ? (
+            <p data-rough-value="" className="mt-1 text-sm leading-5 text-zinc-500 dark:text-zinc-400">{ROUGH_VALUE_NOTE}</p>
+          ) : sold.status !== "ready" && usingSample ? (
+            <p className="mt-1 text-sm leading-5 text-zinc-500 dark:text-zinc-400">Sample listings</p>
+          ) : null}
           {authRequired ? (
-            <p className={`mt-3 px-3 py-2 text-xs text-zinc-700 dark:text-zinc-300 ${compTile}`}>
-              <Link href={loginPath(pathname)} className="font-semibold underline underline-offset-2">
+            <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-300">
+              <Link href={loginPath(pathname)} className="inline-flex min-h-11 items-center font-semibold underline underline-offset-2">
                 Log in
               </Link>{" "}
               to see sold comps
@@ -814,6 +762,7 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
             (onScreenComps.length > 0 || flags.hidden.length > 0) ? (
             <div className="mt-2">
               <LazyCompsList
+                compact
                 comps={onScreenComps}
                 cardId={card.id}
                 canFlag={Boolean(user)}
@@ -829,10 +778,10 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
           ) : collapsePrices ? (
             <p className="mt-3 text-sm text-zinc-500">No sales to show</p>
           ) : null}
-          {/* With the comp card up, the attribution sits in its footer. */}
-          {usingLive && !compsLoading && !authRequired && !(showChart && SalesChart && shownValue?.status !== "sample") ? (
-            <p className="mt-3 text-11 text-zinc-400">
-              Sold data via Trawl (third-party, not affiliated with eBay)
+          {/* With the value section up, the credit sits behind its ⓘ. Without it, it stays in plain sight here. */}
+          {usingLive && !compsLoading && !authRequired && !(showChart && CardValueView && shownValue?.status !== "sample") ? (
+            <p data-trawl-credit="" className="mt-3 text-11 leading-4 text-zinc-500">
+              {TRAWL_ATTRIBUTION}
             </p>
           ) : null}
         </section>
@@ -854,13 +803,6 @@ function scrollToSales() {
   const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
   target.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
 }
-
-/**
- * The Recent sales caption's " · Low confidence" (1–4 live sales). It is skipped
- * only while SalesChart's amber tag is on screen (`estimateTagShown`: chart loaded,
- * no sale tapped), so it shows once. EstSellMetric's tag lives in the actions menu.
- */
-export { lowConfidenceNote };
 
 function EstSellMetric({
   cardSold,
@@ -903,11 +845,9 @@ function EstSellMetric({
         {sample ? (
           <p className="mt-0.5 text-11 text-zinc-500">Sample estimate</p>
         ) : null}
-        <CompBasis count={count} basis={[]} />
+        {count >= 1 ? <p className="mt-1 text-11 text-zinc-500">{basedOnSalesLabel(count)}</p> : null}
         {lowConfidence ? (
-          <span className="mt-1 inline-block rounded-md bg-amber-500/15 px-1.5 py-0.5 text-10 font-semibold text-amber-800 dark:text-amber-200">
-            Low confidence
-          </span>
+          <p className="mt-1 text-11 leading-4 text-zinc-500">{ROUGH_VALUE_NOTE}</p>
         ) : null}
       </div>
     );

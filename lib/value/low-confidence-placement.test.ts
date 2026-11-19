@@ -2,32 +2,24 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
-import {
-  LOW_CONFIDENCE_NOTE,
-  lowConfidenceNote,
-  lowConfidencePlacement,
-  type LowConfidenceState,
-} from "@/lib/value/low-confidence-placement";
+import { lowConfidencePlacement, type LowConfidenceState } from "@/lib/value/low-confidence-placement";
 
 const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
 
-/** A low-confidence estimate with 3 live sales, the chart up and nothing tapped. */
+/** A rough estimate with 3 live sales and the chart up. */
 const base: LowConfidenceState = {
   salesCount: 3,
   live: true,
   estimate: true,
   showChart: true,
-  saleSelected: false,
 };
 
 const cases: [string, Partial<LowConfidenceState>, "chart" | "caption" | null][] = [
-  ["chart shown, no sale selected", {}, "chart"],
-  ["a sale selected", { saleSelected: true }, "caption"],
+  ["chart shown", {}, "chart"],
   ["chart chunk loading", { showChart: false }, "caption"],
   ["chart chunk failed", { showChart: false }, "caption"],
   ["chart hidden (collapsed or blocked)", { showChart: false }, "caption"],
   ["non-estimate read under 5 sales", { estimate: false }, "caption"],
-  ["non-estimate read, sale selected", { estimate: false, saleSelected: true }, "caption"],
   ["5+ sales", { salesCount: 6, estimate: false }, null],
   ["5+ sales, chart loading", { salesCount: 6, estimate: false, showChart: false }, null],
   ["no sales", { salesCount: 0, estimate: false }, null],
@@ -38,30 +30,22 @@ const cases: [string, Partial<LowConfidenceState>, "chart" | "caption" | null][]
 describe("lowConfidencePlacement", () => {
   for (const [name, patch, want] of cases) {
     it(`${name} → ${want ?? "nowhere"}`, () => {
-      const state = { ...base, ...patch };
-      const got = lowConfidencePlacement(state);
-      assert.equal(got, want);
-      // The caption note agrees with the placement, given whether the chart tag is up.
-      const note = lowConfidenceNote(state.salesCount, state.live, got === "chart");
-      assert.equal(note, got === "caption" ? LOW_CONFIDENCE_NOTE : "");
+      assert.equal(lowConfidencePlacement({ ...base, ...patch }), want);
     });
   }
 
-  it("never places it twice: the caption skips its note whenever the chart tag is up", () => {
+  it("always says a live rough estimate is rough, in exactly one place", () => {
     for (const salesCount of [0, 1, 4, 5, 9]) {
-      for (const flags of Array.from({ length: 32 }, (_, n) => n)) {
+      for (const flags of Array.from({ length: 8 }, (_, n) => n)) {
         const state: LowConfidenceState = {
           salesCount,
           live: Boolean(flags & 1),
           estimate: Boolean(flags & 2),
           showChart: Boolean(flags & 4),
-          saleSelected: Boolean(flags & 16),
         };
         const at = lowConfidencePlacement(state);
-        const shown = Number(at === "chart") + Number(lowConfidenceNote(salesCount, state.live, at === "chart") !== "");
-        assert.ok(shown <= 1, JSON.stringify(state));
         if (state.estimate && state.live && salesCount >= 1 && salesCount < 5) {
-          assert.equal(shown, 1, `a live low-confidence estimate always says so: ${JSON.stringify(state)}`);
+          assert.ok(at === "chart" || at === "caption", JSON.stringify(state));
         }
       }
     }
@@ -71,27 +55,28 @@ describe("lowConfidencePlacement", () => {
 describe("card-detail wiring", () => {
   const src = read("components/card-detail.tsx");
 
-  it("decides the chart tag with the helper and the real chart, sale and loading state", () => {
+  it("decides the place with the helper and the real chart and loading state", () => {
     assert.match(src, /from "@\/lib\/value\/low-confidence-placement"/);
-    const call = src.match(/const estimateTagShown =\s*lowConfidencePlacement\(\{([\s\S]*?)\}\) === "chart";/);
-    assert.ok(call, "estimateTagShown comes from lowConfidencePlacement");
+    const call = src.match(/const roughPlace = lowConfidencePlacement\(\{([\s\S]*?)\}\);/);
+    assert.ok(call, "roughPlace comes from lowConfidencePlacement");
     const args = call[1];
     assert.match(args, /salesCount/);
     assert.match(args, /live: usingLive/);
     assert.match(args, /showChart/);
-    assert.match(args, /saleSelected: saleId != null/);
+    assert.match(src, /const roughShown = roughPlace === "chart";/);
+    assert.match(src, /const roughInList = roughPlace === "caption";/);
   });
 
-  it("feeds that one flag to both the SalesChart tag and the Recent sales caption", () => {
-    const chart = src.slice(src.indexOf("<SalesChart\n"), src.indexOf("/>", src.indexOf("<SalesChart\n")));
-    assert.match(chart, /lowConfidence=\{estimateTagShown\}/);
-    assert.match(src, /Recent sold prices\s*\{lowConfidenceNote\(salesCount, usingLive, estimateTagShown\)\}/);
+  it("feeds the two places from that one answer, so it never shows twice", () => {
+    const value = src.slice(src.indexOf("<CardValueView\n"), src.indexOf("/>", src.indexOf("<CardValueView\n")));
+    assert.match(value, /rough=\{roughShown\}/);
+    assert.match(src, /roughInList \? \(\s*<p data-rough-value=""[^>]*>\{ROUGH_VALUE_NOTE\}<\/p>/);
   });
 
-  it("lets the SalesChart prop decide its amber tag", () => {
-    const chart = read("components/sales-chart.tsx");
-    assert.match(chart, /lowConfidence\?: boolean/);
-    assert.match(chart, /lowConfidenceProp \?\?/);
+  it("lets the caller's flag decide the value line's rough note", () => {
+    const value = read("components/card-page/card-value.tsx");
+    assert.match(value, /rough\?: boolean/);
+    assert.match(value, /const isRough = rough \?\?/);
   });
 
   it("keeps the helper out of comps matching code", () => {

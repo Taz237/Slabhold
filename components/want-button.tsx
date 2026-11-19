@@ -23,7 +23,10 @@ export function WantButton({
   card,
   fairLow = null,
   fairHigh = null,
+  compact = false,
 }: {
+  /** A 44px star with no words beside it (the label stays for screen readers). */
+  compact?: boolean;
   card: IdentityCard & { id: string };
   fairLow?: number | null;
   fairHigh?: number | null;
@@ -85,6 +88,19 @@ export function WantButton({
       cancelled = true;
     };
   }, [cardKey, scope, user]);
+
+  const compactClass =
+    "grid h-11 w-11 place-items-center rounded-full outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-violet-600 motion-reduce:transition-none";
+  const compactIdle =
+    "bg-zinc-950/[0.05] text-zinc-600 hover:bg-zinc-950/[0.09] dark:bg-white/[0.08] dark:text-zinc-300 dark:hover:bg-white/[0.12]";
+
+  if (!user && compact) {
+    return (
+      <Link href={signupPath(pathname)} aria-label={label} title={label} className={`${compactClass} ${compactIdle}`}>
+        <Star aria-hidden="true" className="h-5 w-5" strokeWidth={1.5} />
+      </Link>
+    );
+  }
 
   if (!user) {
     return (
@@ -166,6 +182,21 @@ export function WantButton({
 
   return (
     <div className="relative">
+      {compact ? (
+        <button
+          type="button"
+          data-want-star=""
+          aria-pressed={Boolean(want)}
+          aria-label={label}
+          title={label}
+          onClick={openEditor}
+          className={`${compactClass} ${
+            want ? "bg-violet-500/15 text-violet-700 dark:bg-violet-400/15 dark:text-violet-300" : compactIdle
+          }`}
+        >
+          <Star aria-hidden="true" className={`h-5 w-5 ${want ? "fill-current" : ""}`} strokeWidth={1.5} />
+        </button>
+      ) : (
       <button
         type="button"
         aria-pressed={Boolean(want)}
@@ -180,6 +211,7 @@ export function WantButton({
         <Star className={`h-4 w-4 shrink-0 ${want ? "fill-current" : ""}`} />
         {label}
       </button>
+      )}
       {open ? (
         <div className="absolute right-0 z-30 mt-2 w-[min(18rem,calc(100vw-2rem))] rounded-2xl border border-zinc-200 bg-white p-3 shadow-lg dark:border-white/10 dark:bg-zinc-950">
           <label className="block text-xs font-medium text-zinc-500" htmlFor={`want-price-${card.id}`}>

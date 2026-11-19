@@ -65,11 +65,17 @@ describe("SoldFreshness", () => {
   });
 });
 
-describe("card page sold headers", () => {
+describe("card page sold freshness", () => {
+  it("keeps the freshness label, now behind the value section's ⓘ", () => {
+    const value = source("components/card-page/card-value.tsx");
+    assert.match(value, /soldFreshnessLabel\(allSales\.map\(\(sale\) => \(\{ soldDate: sale\.date \}\)\), fetchedAt\)/);
+    assert.doesNotMatch(value, /Updated|formatRelativeTime/);
+  });
+
   for (const path of ["components/card-detail.tsx", "components/public-card-view.tsx"]) {
-    it(`${path} uses the freshness label`, () => {
+    it(`${path} hands the value section when we last checked`, () => {
       const text = source(path);
-      assert.match(text, /<SoldFreshness comps=\{onScreenComps\} fetchedAt=\{sold\.data\?\.fetchedAt\}/);
+      assert.match(text, /fetchedAt=\{sold\.data\?\.fetchedAt \?\? null\}/);
       assert.doesNotMatch(text, /Updated|formatRelativeTime/);
       // The type `unknown` is fine. The word on screen is not.
       assert.doesNotMatch(text, /["'`]unknown|\bunknown["'`]/);

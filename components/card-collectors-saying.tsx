@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CARD_TALK_HEADING, CardTalkFrame, CardTalkSkeleton } from "@/components/card-talk-frame";
+import { CARD_TALK_HEADING, CardTalkEmpty, CardTalkFrame, CardTalkSkeleton } from "@/components/card-talk-frame";
 import { Tweet } from "@/components/tweet";
 import { useSocial } from "@/components/social-provider";
 import {
@@ -115,9 +115,9 @@ export function CardCollectorsSaying({
       {loading ? (
         <CardTalkSkeleton />
       ) : posts.length === 0 ? (
-        <p className="mt-4 text-sm text-zinc-500">No posts yet. Be the first.</p>
+        <CardTalkEmpty />
       ) : (
-        <div className="mt-3 -mx-4 border-t border-zinc-200 dark:border-white/10 sm:-mx-5">
+        <div className="-mx-4 mt-3">
           {posts.map((post) => {
             const author =
               authors.get(post.authorId) ?? profileMap.get(post.authorId);
