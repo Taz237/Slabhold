@@ -17,28 +17,24 @@ function AppleMark({ className }: { className: string }) {
   );
 }
 
-const focus =
-  "focus-visible:ring-2 focus-visible:ring-[#A78BFA] focus-visible:ring-offset-2 focus-visible:ring-offset-[#09090b] focus-visible:outline-none";
-
 /**
- * The App Store link as a button, for web visitors. "button" is the hero's
- * secondary action ("Get the app"); "badge" is the two-line store badge that
- * closes the page. Hidden inside the iOS app. The row keeps its height either
- * way, so nothing jumps when the link appears after hydration.
+ * The App Store link, for web visitors. "primary" is the page's main action
+ * ("Get the app") in the hero and the closing slab; "nav" is the slim one in
+ * the sticky header. It is in the server HTML, so it paints with the page and
+ * nothing moves when React arrives. Inside the iOS app it is never shown: a
+ * head script tags <html data-native> before the first paint and CSS hides
+ * [data-app-store-badge] there (app/landing.css), and this check then takes
+ * the link out of the page.
  */
-export function AppStoreBadge({ variant }: { variant: "button" | "badge" }) {
-  const web = useSyncExternalStore(subscribe, () => !isNativeApp(), () => false);
+export function AppStoreBadge({ variant }: { variant: "primary" | "nav" }) {
+  const web = useSyncExternalStore(subscribe, () => !isNativeApp(), () => true);
   const track = () => trackEvent("landing_cta_clicked", { button: "app_store" });
-  if (variant === "button") {
+  if (variant === "nav") {
     return (
-      <div data-app-store-badge="button" className="h-14">
+      <div data-app-store-badge="nav" className="h-11">
         {web ? (
-          <a
-            href={APP_STORE_URL}
-            onClick={track}
-            className={`flex h-14 w-full items-center justify-center gap-2 rounded-full border border-white/15 bg-white/[0.04] text-[17px] font-semibold text-white transition-[background-color,transform] duration-150 hover:bg-white/[0.08] active:scale-[0.98] motion-reduce:transition-none ${focus}`}
-          >
-            <AppleMark className="-mt-0.5 h-5 w-5" />
+          <a href={APP_STORE_URL} onClick={track} className="lg-nav-cta">
+            <AppleMark className="-mt-0.5 h-4 w-4" />
             Get the app
           </a>
         ) : null}
@@ -46,19 +42,11 @@ export function AppStoreBadge({ variant }: { variant: "button" | "badge" }) {
     );
   }
   return (
-    <div data-app-store-badge="badge" className="mt-4 flex h-14 justify-center">
+    <div data-app-store-badge="primary" className="h-14">
       {web ? (
-        <a
-          href={APP_STORE_URL}
-          onClick={track}
-          aria-label="Download Slabhold on the App Store"
-          className={`inline-flex h-14 items-center gap-3 rounded-2xl border border-white/20 bg-black px-5 text-left text-white transition-transform duration-150 active:scale-[0.98] motion-reduce:transition-none ${focus}`}
-        >
-          <AppleMark className="h-8 w-8" />
-          <span>
-            <span className="block text-[11px] leading-3 text-zinc-300">Download on the</span>
-            <span className="block text-[20px] leading-6 font-semibold tracking-tight">App Store</span>
-          </span>
+        <a href={APP_STORE_URL} onClick={track} className="lg-btn lg-btn-primary">
+          <AppleMark className="-mt-0.5 h-5 w-5" />
+          Get the app
         </a>
       ) : null}
     </div>

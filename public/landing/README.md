@@ -1,32 +1,17 @@
 # Landing assets
 
-## `2.png`: the home share image backdrop
+## `media/`
 
-`components/og-frame.tsx` draws `2.png` inside the phone frame of the home
-Open Graph and Twitter image (`/opengraph-image`, `/twitter-image`). The
-signed-out home page itself doesn't show it: its chapters are live app
-components with sample data.
-
-How it was captured (Nov 2026):
-
-- **Screen:** Quick Comp (`/comp`) with a result, scrolled to the median,
-  the middle-half range, the sales chart, the stats, the "Sample prices, not
-  real sales" line and the first sold sales.
-- **Data:** a made-up card, "Sample Rookie", 2023 Prizm, Raw, entered with
-  "Can't find it? Enter player and year". `COMPS_SOURCE=sample` with
-  `NEXT_PUBLIC_QUICK_COMP=1`, so the prices are sample sales (the photo above
-  this frame is the neutral `public/quick-comp/sample-card.svg`). No Trawl
-  call.
-- **Account:** a local demo account (no Supabase) in a production build.
-  `/comp` needs a signed-in Supabase user, so the capture build stubbed the
-  server's user id. The stub was never committed.
-- **Size:** 390×823 CSS px at 2.2×, dark theme, saved as an 860×1815 PNG:
-  the same shape as the phone frame (252×532), so nothing is cropped.
+The real media slots for signed-out Home: one real card photo and real
+recordings of the app. See `media/README.md` for every slot, its exact file
+name and the encoding. An empty slot shows no media. The home Open Graph and
+Twitter image (`components/og-frame.tsx`) draws the logo and the headline on
+the purple galaxy, plus `media/hero-card.avif` in the slab when it exists.
 
 ## `kitchen-table-card.webp`
 
 A team member's own card photo, used with their OK, on the sample kitchen-table pickup
-(Jake's post) in the landing timeline and on intro screen 4. A raw card in a
+(Jake's post) on onboarding intro screen 4. The landing page does not use it. A raw card in a
 top-loader on a stand: LaBaron Philon, Origins Memorabilia patch, 06/10,
 Panini NIL. It's a real card, so it shows the Panini NIL and Nike marks, and
 no team or league logos.
@@ -38,22 +23,21 @@ no next/image, no AVIF, no re-encoding.
 ## `avatars/`
 
 Eight fictional, AI-generated demo personas and `personas.md` (handles,
-names, bios), added unchanged from the design team's zip. The landing timeline
-and the onboarding intro use them, always labelled as sample accounts and
-never linked to a profile.
+names, bios), added unchanged from the design team's zip. Only the onboarding
+intro uses them, always labelled as sample accounts and never linked to a
+profile. The landing page shows none of them: real cards and real pulls only.
 
 ## Rules for anything in this folder
 
-- No real users by name. The hero slabs, Quick Comp and the timeline pickup
+- No real users by name. The hero slab, the collection grid and Quick Comp
   can show real public card photos from a team account, but never its name,
-  handle or avatar.
+  handle or avatar. The one exception is `media/pulls.json`: approved public
+  pulls, shown with their handle.
 - No team, league or NFL logos, in captures, card photos, avatars or art.
-- No generated pictures of the app: real captures of the current app with
-  demo data, or the live components themselves.
+- No generated pictures of the app, and no demo data on the landing page:
+  real recordings of the current app only.
 - No "free" in text drawn inside an image.
 
-## `sample-raw-card.svg`
+## PR screenshots
 
-The made-up raw card the scanner showcase scans: a silver frame and a purple
-panel drawn in SVG (250×350, 5:7, about 1 KB). No player, no text, no logos.
 PR screenshots never go in this folder, so they are never served.

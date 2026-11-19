@@ -23,7 +23,9 @@ function withoutComments(source: string): string {
 describe("web fixes 2: no free copy", () => {
   for (const file of [
     "components/landing-page.tsx",
-    "components/landing/feature-panels.tsx",
+    "components/landing/glass-hero.tsx",
+    "components/landing/sections.tsx",
+    "components/landing/quick-comp-section.tsx",
     "components/public-card-comps.tsx",
   ]) {
     it(`${file} never says free`, () => {
@@ -32,10 +34,11 @@ describe("web fixes 2: no free copy", () => {
   }
 
   it("uses the new landing, panel and public card copy", () => {
-    const landing = read("components/landing-page.tsx");
-    assert.match(landing, /Recent sold prices for any card\. Then track your cards and share them with collectors who get it\./);
-    assert.match(landing, />Join Slabhold</);
-    assert.match(read("components/landing/feature-panels.tsx"), /line: "Recent sold prices, the median and the range\." \}/);
+    const hero = read("components/landing/glass-hero.tsx");
+    assert.match(hero, /reads it down to the edge serial, then you pick the exact version\s+and see what it sold for\./);
+    assert.doesNotMatch(hero, /any card/i);
+    assert.match(read("components/landing/sections.tsx"), />Join Slabhold</);
+    assert.match(read("components/landing/quick-comp-section.tsx"), />Recent sold prices, the median and the range\.</);
     const comps = read("components/public-card-comps.tsx");
     assert.match(comps, /Create an account to see full history and charts/);
     assert.doesNotMatch(comps, /alerts/i, "signed-in users don't get value alerts yet");

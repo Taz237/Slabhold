@@ -30,7 +30,7 @@ describe("signed-out Home route", () => {
 
   it("keeps the landing route out of the app's layout and its providers", () => {
     const page = read("app/welcome/page.tsx");
-    assert.match(page, /<LandingPage founder=\{founder\} \/>/);
+    assert.match(page, /<LandingPage founder=\{founder\} comp=\{comp\} pulls=\{pulls\} \/>/);
     assert.match(page, /canonical: "\/"/);
     assert.match(page, /export const revalidate = 1800;/);
     const root = read("app/layout.tsx");

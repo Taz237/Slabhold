@@ -5,8 +5,9 @@ import { LandingCompProvider } from "@/components/landing/landing-links";
 import { StandaloneRedirect } from "@/components/landing/standalone-redirect";
 import { WelcomeListeners } from "@/components/landing/welcome-listeners";
 import { landingCompDemo } from "@/lib/landing/founder-comp-load";
-import { landingFounderPickup } from "@/lib/landing/founder-pickup-load";
 import { welcomeFounderShowcase } from "@/lib/landing/founder-page";
+import { LANDING_DESCRIPTION, LANDING_OPEN_GRAPH, LANDING_TITLE, LANDING_TWITTER } from "@/lib/landing/seo";
+import { landingPullsWall } from "@/lib/landing/pulls-load";
 
 /**
  * Signed-out Home. proxy.ts serves this at / when there is no session cookie;
@@ -19,23 +20,27 @@ export const revalidate = 1800;
 // and the next request retries (see welcomeFounderShowcase).
 
 export const metadata: Metadata = {
+  title: LANDING_TITLE,
+  description: LANDING_DESCRIPTION,
   alternates: { canonical: "/" },
+  openGraph: { ...LANDING_OPEN_GRAPH, images: [...LANDING_OPEN_GRAPH.images] },
+  twitter: { ...LANDING_TWITTER, images: [...LANDING_TWITTER.images] },
 };
 
 export default async function Welcome() {
   // The cached reads run at once.
   const compRead = landingCompDemo();
-  const pickupRead = landingFounderPickup();
+  const pullsRead = landingPullsWall();
   const founder = await welcomeFounderShowcase();
   const comp = await compRead;
-  const pickup = await pickupRead;
+  const pulls = await pullsRead;
   return (
     <>
       <AccountDeletedToast />
       <StandaloneRedirect />
       <WelcomeListeners />
-      <LandingCompProvider comp={comp} pickup={pickup}>
-        <LandingPage founder={founder} />
+      <LandingCompProvider comp={comp}>
+        <LandingPage founder={founder} comp={comp} pulls={pulls} />
       </LandingCompProvider>
     </>
   );

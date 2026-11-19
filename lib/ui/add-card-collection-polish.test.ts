@@ -213,13 +213,11 @@ describe("collection screens", () => {
 });
 
 describe("signed-out landing overflow", () => {
-  it("keeps the feature panels inside the column without a visible scrollbar", () => {
-    const landing = (read("components/landing-page.tsx") + read("components/landing/landing-links.tsx"));
-    const panels = read("components/landing/feature-panels.tsx");
-    assert.match(landing, /overflow-x-clip/);
-    assert.match(panels, /flex min-w-0 snap-x snap-mandatory/);
-    assert.match(panels, /overflow-x-auto/);
-    assert.match(panels, /scrollbar-width:none/);
-    assert.match(panels, /w-full shrink-0 snap-start/);
+  it("clips the page sideways, so the slab's glow, the shards and the pulls row never widen it", () => {
+    assert.match(read("components/landing-page.tsx"), /className="lg"/);
+    const css = read("app/landing.css");
+    assert.match(css, /\.lg \{[^}]*overflow-x: clip;/);
+    // The pulls row is the one wide thing: it is clipped by its own section.
+    assert.match(css, /\.lg-wall \{\s*overflow: hidden;/);
   });
 });

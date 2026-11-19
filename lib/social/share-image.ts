@@ -195,9 +195,10 @@ export function homeShareImage(): ShareImage {
   return {
     ...blank(),
     kind: "home",
-    kicker: "FOR COLLECTORS",
-    title: "Comp any card.",
-    detail: "Recent sold prices, your collection and the collectors behind it.",
+    kicker: "",
+    // The landing page's headline, in its two lines.
+    title: "Scan it.",
+    detail: "Know the exact version.",
   };
 }
 

@@ -1,5 +1,7 @@
 /**
- * Static sample data for the landing showcase and the onboarding intro. No
+ * Static sample data for the onboarding intro, and the shapes the landing
+ * page's real data takes (CompDemo). The landing page draws none of the
+ * samples: real cards and real sold prices only. No
  * network, no real people. The personas are the fictional, AI-generated demo
  * accounts from public/landing/avatars/personas.md: handles and names are
  * copied from that file (a test checks), and every place that shows them
@@ -97,18 +99,12 @@ export const SAMPLE_POSTS: readonly SamplePost[] = [
   },
 ];
 
-/** The pickup that shows a real card (PickupDemo) when the page hands one over. */
-export const REAL_PICKUP_POST = "p6";
-
 /**
  * A real graded card from the founder's public collection, for the timeline's
  * pickup post. Only what the slab draws: the photo, the player, the year and
  * set (empty when missing) and the grade.
  */
 export type PickupDemo = { player: string; year: string; set: string; grader: string; grade: string; photoUrl: string };
-
-/** A made-up card. Its photo is the neutral sample slab, so no logos. */
-export const SAMPLE_QUERY = "2023 Sample Rookie Prizm Grade 10";
 
 /** Recent sold prices for the sample card, newest first, whole dollars. */
 export const SAMPLE_SALES: readonly { price: number; ago: string }[] = [
@@ -175,51 +171,4 @@ export const SAMPLE_ALERTS: readonly { id: string; kind: "follow" | "like" | "re
   { id: "a2", kind: "like", persona: PERSONAS.minh, text: "liked your pickup" },
   { id: "a3", kind: "reply", persona: PERSONAS.dev, text: "replied: Clean corners on that one" },
   { id: "a4", kind: "dm", persona: PERSONAS.femi, text: "sent you a message" },
-];
-
-/**
- * The scanner showcase's made-up card: what a scan reads off a raw card
- * (player, year and set, number, parallel, the rookie tag). No real player,
- * no cert. Typed loosely here so this file needs no scanner imports.
- */
-/** A made-up raw card drawn in SVG: a silver frame and a purple panel. No player, no logos. */
-export const SAMPLE_SCAN_PHOTO = "/landing/sample-raw-card.svg";
-
-export const SAMPLE_SCAN = {
-  catalogId: null,
-  playerName: "Sample Rookie",
-  sport: "Basketball",
-  yearLabel: "2023",
-  setBrand: "Prizm",
-  cardNumber: "101",
-  parallel: "Silver",
-  serialRun: null,
-  serialNo: "",
-  isRookie: true,
-  isAuto: false,
-  grade: null,
-  score: 100,
-  sureness: { player: "sure", year: "sure", set: "sure", number: "sure", parallel: "sure" },
-  parallelOptions: [{ name: "Silver", serialRun: null }],
-} as const;
-
-/** Sample sold sales for the scanned card, oldest first, whole dollars. */
-export const SAMPLE_SCAN_SALES: readonly { price: number; soldAt: string }[] = [
-  { price: 118, soldAt: "2026-10-12T12:00:00Z" },
-  { price: 124, soldAt: "2026-10-16T12:00:00Z" },
-  { price: 121, soldAt: "2026-10-21T12:00:00Z" },
-  { price: 131, soldAt: "2026-10-25T12:00:00Z" },
-  { price: 127, soldAt: "2026-10-29T12:00:00Z" },
-  { price: 136, soldAt: "2026-11-02T12:00:00Z" },
-  { price: 129, soldAt: "2026-11-06T12:00:00Z" },
-  { price: 138, soldAt: "2026-11-10T12:00:00Z" },
-];
-
-/** A sample weekly board: sample accounts and made-up scores, in the app's Rising collectors shape. */
-export const SAMPLE_BOARD: readonly { persona: Persona; score: number }[] = [
-  { persona: PERSONAS.femi, score: 14 },
-  { persona: PERSONAS.paolo, score: 11 },
-  { persona: PERSONAS.minh, score: 9 },
-  { persona: PERSONAS.andre, score: 6 },
-  { persona: PERSONAS.diego, score: 4 },
 ];

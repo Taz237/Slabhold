@@ -80,7 +80,8 @@ describe("App Store web fixes: Help & support", () => {
   });
 
   it("links Support from the landing footer", () => {
-    const landing = read("components/landing-page.tsx");
+    assert.match(read("components/landing-page.tsx"), /<LandingFooter \/>/);
+    const landing = read("components/landing/sections.tsx");
     const footer = landing.slice(landing.indexOf("<footer"), landing.indexOf("</footer>"));
     assert.match(footer, /href="\/support" prefetch=\{false\}/);
     assert.match(footer, />\s*Support\s*</);

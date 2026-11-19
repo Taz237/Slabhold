@@ -3,11 +3,16 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // Sharp is the self-hosted next/image optimizer (next start). On Vercel that
   // optimizer runs outside the function, and next/og uses bundled resvg when
-  // sharp is absent. No route imports it. The landing screenshot is read from
-  // disk at build time and otherwise fetched from the public production origin,
-  // so it is not part of any function bundle.
+  // sharp is absent. No route imports it at runtime: the home share image is
+  // prerendered at build and uses it there only.
   outputFileTracingExcludes: {
-    "*": ["node_modules/sharp/**", "node_modules/@img/**", "public/landing/2.png"],
+    "*": ["node_modules/sharp/**", "node_modules/@img/**"],
+  },
+  // Signed-out Home checks which real media files exist when it renders
+  // (lib/landing/media.ts), so they travel with the two routes that draw it.
+  outputFileTracingIncludes: {
+    "/": ["public/landing/media/**"],
+    "/welcome": ["public/landing/media/**"],
   },
   // Collection tile photos only. Card photos are uploaded under random UUID
   // paths and never change, so a long cache is safe. One quality and short
