@@ -26,14 +26,14 @@ describe("the chat stays pinned to the bottom", () => {
   it("jumps before paint, and re-pins when the keyboard moves or content grows", () => {
     const thread = read("components/message-thread.tsx");
     assert.match(thread, /useLayoutEffect\(\(\) => \{[\s\S]{0,260}?followsNewMessage\(/);
-    assert.match(thread, /if \(node && pinned\.current\) node\.scrollTop = node\.scrollHeight;[\s\S]{0,320}?\}, \[keyboardInset\]\);/);
+    assert.match(thread, /if \(node && pinned\.current\) node\.scrollTop = node\.scrollHeight;[\s\S]{0,320}?\}, \[keyboardInset, keyboardOpen\]\);/);
     assert.match(thread, /new MutationObserver\(repin\)/);
     assert.match(thread, /new ResizeObserver\(repin\)/);
     assert.match(thread, /addEventListener\("load", repin, true\)/);
   });
 
   it("puts the page back if iOS scrolled it to reveal the message box", () => {
-    assert.match(read("components/message-thread.tsx"), /if \(keyboardInset > 0 && window\.scrollY !== 0\) window\.scrollTo\(0, 0\);/);
+    assert.match(read("components/message-thread.tsx"), /if \(keyboardOpen && window\.scrollY !== 0\) window\.scrollTo\(0, 0\);/);
   });
 
   it("still rises new bubbles in, only when motion is allowed", () => {

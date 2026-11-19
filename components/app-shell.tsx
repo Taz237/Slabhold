@@ -17,6 +17,7 @@ import { useOnboardingBusy } from "@/components/onboarding/use-onboarding";
 import { preloadOnHint, sessionHinted } from "@/lib/auth/session-hint";
 import { afterFirstIdle } from "@/lib/ui/idle";
 import { isNativeApp } from "@/lib/ios/platform";
+import { useKeyboardOpen } from "@/lib/ui/use-keyboard-inset";
 import { lazyPart } from "@/lib/ui/lazy-part";
 import {
   isAuthPage,
@@ -252,6 +253,8 @@ function Shell({
   const router = useRouter();
   const { mode } = useSocial();
   const onboardingBusy = useOnboardingBusy();
+  /** Typing: the floating tab bar and the Post button step aside so the field sits on the keys. */
+  const keyboardOpen = useKeyboardOpen();
   const tabs = TABS;
   /** Collection needs a wider desktop column; feed/timeline stay max-w-lg. */
   const wideMain =
@@ -381,6 +384,9 @@ function Shell({
         <nav
           style={{ viewTransitionName: "app-nav" }}
           data-app-chrome=""
+          data-keyboard-hides=""
+          data-keyboard-open={keyboardOpen ? "" : undefined}
+          aria-hidden={keyboardOpen ? true : undefined}
           className="glass liquid-glass fixed inset-x-2 bottom-[var(--tabbar-bottom)] z-30 mx-auto max-w-[31rem] rounded-full max-[359px]:inset-x-1">
           <div className="relative flex h-[var(--tabbar-h)] items-stretch px-1">
             {/* One pill for the whole bar: it slides to the tab you pick. Scan is its own purple button. */}
@@ -447,7 +453,11 @@ function Shell({
         </nav>
       ) : null}
       {showJoin && !chromeless && !fullScreen ? <JoinBar /> : null}
-      {showNav && !chromeless && !fullScreen ? <CreateMenu key={pathname} /> : null}
+      {showNav && !chromeless && !fullScreen ? (
+        <div data-keyboard-hides="" data-keyboard-open={keyboardOpen ? "" : undefined} aria-hidden={keyboardOpen ? true : undefined}>
+          <CreateMenu key={pathname} />
+        </div>
+      ) : null}
       <AddCardSheetSlot />
       {user ? <FirstRunSetup /> : null}
       {user ? <YoureIn userId={user.id} username={user.username} /> : null}

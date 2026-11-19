@@ -55,10 +55,12 @@ describe("DM thread and the keyboard", () => {
   });
 
   it("ends right at the keyboard's top edge when it opens, so the composer stays in view", () => {
-    assert.equal(
-      threadHeight(336),
-      "calc(100dvh - 3.5rem - env(safe-area-inset-top) - max(336px, 6.15rem + env(safe-area-inset-bottom)))",
-    );
+    // Keys over a full-height web view: the thread stops 336px up. The tab bar is hidden, so no room for it.
+    assert.equal(threadHeight(336, true), "calc(100dvh - var(--app-header-h) - 336px)");
+    assert.equal(threadHeight(336), threadHeight(336, true));
+    // A web view that already shrank: 100dvh ends at the keys, so nothing more comes off.
+    assert.equal(threadHeight(0, true), "calc(100dvh - var(--app-header-h) - 0px)");
+    assert.doesNotMatch(threadHeight(336, true), /6\.15rem|safe-area-inset-bottom/);
   });
 
   it("follows the iOS app's keyboard events, like the post composer", async () => {

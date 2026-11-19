@@ -126,7 +126,7 @@ export function ComposeView() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const textRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const { frame, inset } = useVisualViewport();
+  const { frame, inset, keyboardOpen } = useVisualViewport();
   const toolbarRef = useRef<HTMLDivElement>(null);
   const [toolbarHeight, setToolbarHeight] = useState(48);
   // While the sheet slides in it is transformed, so a fixed toolbar would be
@@ -430,7 +430,7 @@ export function ComposeView() {
   useLayoutEffect(() => {
     const height = toolbarRef.current?.offsetHeight;
     if (height) setToolbarHeight(height);
-  }, [extrasOn, inset, loading, photosFull]);
+  }, [extrasOn, inset, keyboardOpen, loading, photosFull]);
 
   /** X-style: a tap anywhere in the empty part of the body goes to the text. */
   function focusFromBody(event: React.MouseEvent<HTMLDivElement>) {
@@ -677,10 +677,10 @@ export function ComposeView() {
           <div
             ref={toolbarRef}
             data-slot="compose-toolbar"
-            data-keyboard={inset > 0 ? "open" : "closed"}
+            data-keyboard={keyboardOpen ? "open" : "closed"}
             style={{ bottom: entered ? inset : 0 }}
             className={`${entered ? "fixed" : "absolute"} inset-x-0 z-[61] shrink-0 border-t-[0.5px] border-zinc-300 bg-white md:static md:z-auto md:border-t md:border-zinc-200 dark:border-white/15 dark:bg-[#09090B] md:dark:border-white/10 ${
-              inset > 0 ? "" : "pb-[env(safe-area-inset-bottom)]"
+              keyboardOpen ? "" : "pb-[env(safe-area-inset-bottom)]"
             }`}
           >
             {pickerOpen && showCardButton && cardsReady && !syncError ? (

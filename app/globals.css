@@ -383,6 +383,30 @@ textarea {
   }
 }
 
+/*
+ * The keyboard is up (lib/ui/use-keyboard-inset.ts): the floating tab bar and
+ * the Post button fade out fast, so a reply or comment box sits right on the
+ * keys. Both are fixed, so nothing in the page moves. Visibility flips after
+ * the fade going out and at once coming back.
+ */
+[data-keyboard-hides][data-keyboard-open] {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 120ms ease-out,
+    visibility 0s linear 120ms;
+}
+[data-keyboard-hides] {
+  transition: opacity 160ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-keyboard-hides],
+  [data-keyboard-hides][data-keyboard-open] {
+    transition: none;
+  }
+}
+
 /* The photo viewer is fullscreen: the header and tab bar fade out under it, and back as it closes. */
 [data-app-chrome] {
   transition: opacity 200ms ease-out;
