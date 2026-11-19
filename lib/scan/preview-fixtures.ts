@@ -474,6 +474,7 @@ export const PREVIEW_HIT_ONE_OF_ONE: ScanMatch = {
   playerName: "Fixture Player",
   parallel: "Gold Vinyl",
   serialRun: 1,
+  runRead: 1,
   serialNo: "1",
   parallelOptions: [{ name: "Gold Vinyl", serialRun: 1 }],
 };
@@ -497,6 +498,7 @@ export const PREVIEW_HIT_NUMBERED: ScanMatch = {
   playerName: "Fixture Player",
   parallel: "Orange",
   serialRun: 25,
+  runRead: 25,
   serialNo: "12",
   parallelOptions: [{ name: "Orange", serialRun: 25 }],
 };

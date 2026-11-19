@@ -11,16 +11,32 @@ import {
   hitPlan,
   hitTotalMs,
   matchedSaleCents,
+  readRun,
   shakeOffset,
   streakAfterScan,
   streakShown,
   streakWithLateHit,
   type Hit,
 } from "./hit";
-import type { ScanMatch } from "./match";
+import { INDEXED_DIRECTORY } from "@/lib/players/directory";
+import { rankScanMatches, type ScanMatch } from "./match";
 import { PREVIEW_SLAB } from "./preview-fixtures";
+import { scanReadFrom } from "./session";
+import { rowsWithVersion } from "./version-reread";
 
-const card = (over: Partial<ScanMatch> = {}): ScanMatch => ({ ...PREVIEW_SLAB, grade: null, parallel: "Silver", serialRun: null, serialNo: "", isAuto: false, isRelic: false, ...over });
+/** A card for the rule. A `serialRun` given here was read cleanly off the card, unless the test says otherwise. */
+const card = (over: Partial<ScanMatch> = {}): ScanMatch => ({
+  ...PREVIEW_SLAB,
+  grade: null,
+  parallel: "Silver",
+  serialRun: null,
+  serialNo: "",
+  isAuto: false,
+  isRelic: false,
+  runRead: over.serialRun ?? undefined,
+  runUnsure: undefined,
+  ...over,
+});
 
 const sold = (dollars: number, more: number[] = []): Extract<SoldsState, { status: "done" }> => ({
   status: "done",
@@ -108,6 +124,78 @@ describe("hitFor: is it a hit, which effect, how strong", () => {
     assert.equal(hitLabel(hitFor(card({ serialRun: 10 })) as Hit, card({ serialRun: 10 })), "Numbered /10");
     assert.equal(hitLabel(hitFor(card({ isAuto: true, isRelic: true })) as Hit, card()), "Patch auto");
     assert.equal(hitLabel(hitFor(card(), sold(100)) as Hit, card()), "Sold for $100 or more");
+  });
+});
+
+describe("hitFor: only a print run the card itself showed", () => {
+  const BACK = ["AIDAN MILLER", "TOPPS.COM", "BP-27"];
+  /** The real matcher on a raw front and back, with these sold listing titles. */
+  const scan = (serialLine: string, titles: string[]): ScanMatch => {
+    const read = scanReadFrom({ lines: ["3B", "1ST BOWMAN", "PHILADELPHIA PHILLIES", serialLine, "AIDAN MILLER"], backLines: BACK, image: null, kind: "card", border: null }, INDEXED_DIRECTORY);
+    return rankScanMatches(read, [], { directory: INDEXED_DIRECTORY, products: null, soldTitles: titles.map((title) => ({ title, price: 30, soldAt: null })) }).matches[0];
+  };
+  const listings = (run: number) => [`2024 Bowman 1st Aidan Miller Gold /${run} BP-27 Phillies`, `Aidan Miller 2024 Bowman Gold #'d 4/${run} BP-27`, `2024 Bowman Paper Prospects Aidan Miller Gold /${run} #BP-27`];
+
+  it("the phone read 3/12 and the sold listings say /10: the run is a guess, so no hit", () => {
+    const top = scan("3/12", listings(10));
+    // The matcher still fills the run in from the listings, marked unsure, for search and prices.
+    assert.equal(top.serialRun, 10);
+    assert.equal(top.runUnsure, true);
+    assert.equal(readRun(top), null);
+    assert.equal(hitFor(top), null);
+    assert.equal(hitFor(top, sold(40)), null);
+  });
+
+  it("the phone read 3/27 and the sold listings say /25: no hit", () => {
+    const top = scan("3/27", listings(25));
+    assert.equal(top.serialRun, 25);
+    assert.equal(top.runUnsure, true);
+    assert.equal(hitFor(top), null);
+  });
+
+  it("a clean 03/10 read is the crystal", () => {
+    const top = scan("03/10", listings(10));
+    assert.equal(top.serialRun, 10);
+    assert.equal(top.runUnsure, undefined);
+    assert.equal(readRun(top), 10);
+    assert.deepEqual(hitFor(top), { effect: "shatter", strength: 2, reasons: ["low-serial"] });
+    assert.equal(hitLabel(hitFor(top) as Hit, top), "Numbered /10");
+    // With no listings at all it is still the card's own read.
+    assert.equal(hitFor(scan("03/10", []))?.effect, "shatter");
+  });
+
+  it("a run filled in from the checklist or the sold listings never counts", () => {
+    // No serial read: the run came with the version (checklist or listings).
+    assert.equal(hitFor(card({ serialRun: 10, runRead: undefined })), null);
+    assert.equal(hitFor(card({ serialRun: 1, runRead: undefined })), null);
+    assert.equal(hitFor(card({ serialRun: 25, runRead: undefined })), null);
+    // A read marked unsure never counts, whatever else the match says.
+    assert.equal(hitFor(card({ serialRun: 10, runRead: 10, runUnsure: true })), null);
+  });
+
+  it("a version picked on the sheet with another run than the card showed never counts", () => {
+    const read = card({ serialRun: 99, runRead: 99, serialNo: "3", parallel: "" });
+    const [picked] = rowsWithVersion([read], { name: "Gold", serialRun: 10 }, "3");
+    assert.equal(picked.serialRun, 10);
+    assert.equal(hitFor(picked), null);
+  });
+
+  it("a guessed run doesn't make an auto or a $100 card bigger, but they still hit on their own", () => {
+    assert.deepEqual(hitFor(card({ isAuto: true, serialRun: 10, runRead: 12, runUnsure: true })), { effect: "storm", strength: 1, reasons: ["auto"] });
+    assert.deepEqual(hitFor(card({ serialRun: 10, runRead: undefined }), sold(150)), { effect: "pixel", strength: 1, reasons: ["sale"] });
+  });
+});
+
+describe("hitFor: an auto needs its player", () => {
+  it("an auto with no player named, or a player we are unsure of, is not a hit", () => {
+    assert.equal(hitFor(card({ isAuto: true, playerName: "" })), null);
+    assert.equal(hitFor(card({ isAuto: true, playerName: "  " })), null);
+    assert.equal(hitFor(card({ isAuto: true, isRelic: true, sureness: { ...PREVIEW_SLAB.sureness, player: "unsure" } })), null);
+    assert.equal(hitFor(card({ isAuto: true, sureness: { ...PREVIEW_SLAB.sureness, player: "likely" } }))?.effect, "storm");
+  });
+
+  it("a nameless auto with a clean low serial still hits for its serial, never as a storm", () => {
+    assert.deepEqual(hitFor(card({ isAuto: true, playerName: "", serialRun: 25 })), { effect: "pixel", strength: 1, reasons: ["serial"] });
   });
 });
 

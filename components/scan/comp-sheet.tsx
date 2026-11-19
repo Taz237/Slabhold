@@ -205,7 +205,7 @@ export function CardPrice({
   hit = null,
 }: {
   /** The scan was a big hit: its row, and a tap on the photo, replay and share it. */
-  hit?: { hit: Hit; onReplay: () => void; onShare: () => void } | null;
+  hit?: { hit: Hit; onReplay: () => void; onShare: () => void; /** Its sale came in after the sheet was up: the row lights once. */ glow?: boolean } | null;
   /** The reveal's card just landed in the photo's slot: everything else comes up under it, as one piece. */
   arrive?: boolean;
   photo: string | null;
@@ -364,7 +364,7 @@ export function CardPrice({
         onPhotoTap={hitShown ? hit?.onReplay : undefined}
         photoTapLabel={HIT_COPY.replayCard}
       />
-      {hitShown && hit ? <HitRow hit={hit.hit} match={scanMatch} onReplay={hit.onReplay} onShare={hit.onShare} /> : null}
+      {hitShown && hit ? <HitRow hit={hit.hit} match={scanMatch} onReplay={hit.onReplay} onShare={hit.onShare} glow={hit.glow} /> : null}
       <SetNotes match={top} onSapphire={matchesKey([top]) === matchesKey([scanMatch]) ? onSapphire : undefined} />
 
       {pickFromList && versionList ? (
@@ -556,10 +556,13 @@ export function ScanSteps({
   const [played, setPlayed] = useState<{ hit: Hit; plan: HitPlan } | null>(null);
   // How the hit effect ended. "failed": no WebGL after all, or it threw: the normal reveal takes over.
   const [outcome, setOutcome] = useState<"done" | "failed" | null>(null);
-  // The hit again, full screen: tapped ("replay"), to save its clip ("share"), or for a late sale ("auto").
-  const [replay, setReplay] = useState<"replay" | "share" | "auto" | null>(null);
+  // The hit again, full screen, only when asked: tapped ("replay"), or to save its clip ("share").
+  const [replay, setReplay] = useState<"replay" | "share" | null>(null);
+  // The sale that made this card a hit came in after the sheet was up: its row lights once, in place.
+  const [lateGlow, setLateGlow] = useState(false);
   // A new scan starts over.
-  if (!ready && (phase !== "reading" || arrived || played || outcome || replay)) {
+  if (!ready && (phase !== "reading" || arrived || played || outcome || replay || lateGlow)) {
+    setLateGlow(false);
     setPhase("reading");
     setArrived(false);
     setPlayed(null);
@@ -594,15 +597,17 @@ export function ScanSteps({
       // Reduce Motion: no effect and no shake, but the hit still counts and still buzzes.
       const draws = hit != null && !reduced && webglAvailable();
       const plan = hit && (draws || reduced) ? { hit, plan: hitPlan(hit, { first: firstHitPending() }) } : null;
-      if (plan) markFirstHit();
       recordScan(hit != null);
       decided.current = { plan, draws };
     }
     const { plan: hitPlay, draws } = decided.current;
     const lock = () => {
       // Reduce Motion on a hit: no effect played, so its one buzz is here.
-      if (hitPlay && reduced) haptic(hitPlay.plan.impactHaptic);
-      else haptic(sure ? "lockSure" : "lock");
+      // That buzz is all of the hit there is with Reduce Motion, so the first hit is used here.
+      if (hitPlay && reduced) {
+        haptic(hitPlay.plan.impactHaptic);
+        if (hitPlay.plan.first) markFirstHit();
+      } else haptic(sure ? "lockSure" : "lock");
       setArrived(true);
       reveal();
     };
@@ -655,7 +660,9 @@ export function ScanSteps({
   }, [view, reveal, sure, toCard, outcome]);
 
   // The scan landed as a normal card, then its sale came in at $100 or more: it is a hit after
-  // all. The effect plays once, full screen, and the streak counts it. Reduce Motion: one buzz.
+  // all. The sheet is already up, so nothing takes the screen over: the hit's row comes in with a
+  // small glow and one buzz, and the streak counts it. The effect itself plays on Replay. The
+  // "first hit" stays unused until an effect really plays.
   const late = view === "card" && index === 0 && !played && hitNow != null;
   useEffect(() => {
     const hit = hitRef.current;
@@ -665,11 +672,10 @@ export function ScanSteps({
     decided.current = { plan, draws: false };
     recordLateHit();
     if (!reduced && !webglAvailable()) return;
-    markFirstHit();
     window.setTimeout(() => {
       setPlayed(plan);
-      if (reduced) haptic(plan.plan.impactHaptic);
-      else setReplay("auto");
+      setLateGlow(true);
+      haptic(plan.plan.impactHaptic);
     }, 0);
   }, [late]);
 
@@ -682,7 +688,15 @@ export function ScanSteps({
   const replayed =
     replay && played && photo && ready && typeof document !== "undefined"
       ? createPortal(
-          <HitReplay hit={played.hit} match={ready.matches[0]} photo={photo} first={played.plan.first} mode={replay} onClose={() => setReplay(null)} />,
+          <HitReplay
+            hit={played.hit}
+            match={ready.matches[0]}
+            photo={photo}
+            first={played.plan.first}
+            mode={replay}
+            onPlayed={() => played.plan.first && markFirstHit()}
+            onClose={() => setReplay(null)}
+          />,
           document.body,
         )
       : null;
@@ -693,7 +707,7 @@ export function ScanSteps({
       <CardPrice
         key={`${key}#${index}`}
         arrive={arrived}
-        hit={played ? { hit: played.hit, onReplay: () => setReplay("replay"), onShare: () => setReplay("share") } : null}
+        hit={played ? { hit: played.hit, onReplay: () => setReplay("replay"), onShare: () => setReplay("share"), glow: lateGlow } : null}
         photo={photo}
         matches={promoteMatch(ready.matches, index)}
         scanMatch={ready.matches[0]}
@@ -733,7 +747,18 @@ export function ScanSteps({
         landing={landing}
         overlay={
           ready && phase === "hit" && played && photo ? (
-            <HitReveal hit={played.hit} plan={played.plan} photo={photo} onDone={() => setOutcome("done")} onFail={() => setOutcome("failed")} />
+            <HitReveal
+              hit={played.hit}
+              plan={played.plan}
+              photo={photo}
+              onDone={() => {
+                // The effect played to its end: only now is the one-time first hit used. A
+                // fallback to the normal reveal leaves it for the next hit.
+                if (played.plan.first) markFirstHit();
+                setOutcome("done");
+              }}
+              onFail={() => setOutcome("failed")}
+            />
           ) : null
         }
       />

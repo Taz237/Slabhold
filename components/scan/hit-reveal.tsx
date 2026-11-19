@@ -19,6 +19,14 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
+/**
+ * The effect's layer. Light mode: exactly the stage's dark backdrop, rounded like it, so the storm's
+ * haze, the pixels and the shards never drift onto the light sheet around it. Dark mode: the sheet
+ * is as dark as the stage's edge, so the layer runs a little past it, as before.
+ */
+const HIT_CANVAS =
+  "pointer-events-none absolute inset-0 z-20 h-full w-full rounded-2xl dark:-inset-x-5 dark:-top-6 dark:-bottom-28 dark:h-[calc(100%+8.5rem)] dark:w-[calc(100%+2.5rem)] dark:rounded-none";
+
 /** The renderer never holds a slow phone up: no first frame by now and the normal reveal plays. */
 const START_BY_MS = 450;
 
@@ -130,7 +138,7 @@ export function HitReveal({ hit, plan, photo, onDone, onFail }: { hit: Hit; plan
 
   return (
     <>
-      <canvas ref={canvas} aria-hidden data-hit={hit.effect} className="pointer-events-none absolute -inset-x-5 -top-6 -bottom-28 z-20 h-[calc(100%+8.5rem)] w-[calc(100%+2.5rem)]" />
+      <canvas ref={canvas} aria-hidden data-hit={hit.effect} className={HIT_CANVAS} />
       {plan.first ? (
         <p className="pointer-events-none absolute inset-x-0 top-3 z-30 text-center text-13 font-medium text-[#A78BFA] motion-safe:animate-[reveal-field_280ms_cubic-bezier(0.16,1,0.3,1)_both]">
           {HIT_COPY.first}
@@ -160,8 +168,8 @@ type ReplayStatus = "playing" | "idle" | "recording" | "ready" | "saved" | "fail
 /**
  * The hit, played again full screen: tap the card on the result sheet to show a friend. The same
  * 9:16 picture is what "Share this hit" saves: 4 seconds, the real card, the Slabhold logo.
- * `mode`: "replay" (opened by a tap), "share" (records at once), "auto" (a sale that came in after
- * the scan made the card a hit: plays once and closes itself).
+ * `mode`: "replay" (opened by a tap), "share" (records at once). Never opened on its own.
+ * `onPlayed`: the effect was shown to its end (or, with Reduce Motion, its still).
  */
 export function HitReplay({
   hit,
@@ -169,13 +177,15 @@ export function HitReplay({
   photo,
   first = false,
   mode,
+  onPlayed,
   onClose,
 }: {
   hit: Hit;
   match: ScanMatch;
   photo: string;
   first?: boolean;
-  mode: "replay" | "share" | "auto";
+  mode: "replay" | "share";
+  onPlayed?: () => void;
   onClose: () => void;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -186,8 +196,10 @@ export function HitReplay({
   const [run, setRun] = useState({ id: 0, record: mode === "share" });
   const clip = useRef<File | null>(null);
   const close = useRef(onClose);
+  const shown = useRef(onPlayed);
   useEffect(() => {
     close.current = onClose;
+    shown.current = onPlayed;
   });
   const canShare = useSyncExternalStore(
     () => () => {},
@@ -213,7 +225,6 @@ export function HitReplay({
     let live = true;
     let frame = 0;
     let dispose: (() => void) | null = null;
-    let closing = 0;
     const plan = hitPlan(hit, { first });
     const still = reducedMotion();
     const logo = loadImage("/logo.svg").catch(() => null);
@@ -239,7 +250,7 @@ export function HitReplay({
           stage.draw(fx.CLIP.ms);
           haptic(plan.impactHaptic);
           setStatus("idle");
-          if (mode === "auto") closing = window.setTimeout(() => close.current(), 1400);
+          shown.current?.();
           return;
         }
         stage.draw(0);
@@ -257,9 +268,9 @@ export function HitReplay({
             last = at;
           }
           if (recording ? ms >= fx.CLIP.ms + 120 : ms >= endMs + 600) {
+            shown.current?.();
             if (!recording) {
               setStatus("idle");
-              if (mode === "auto") closing = window.setTimeout(() => close.current(), 500);
               return;
             }
             recording
@@ -285,7 +296,6 @@ export function HitReplay({
     return () => {
       live = false;
       window.cancelAnimationFrame(frame);
-      window.clearTimeout(closing);
       dispose?.();
     };
     // One run per play: the card and the hit don't change while the replay is open.
@@ -328,7 +338,7 @@ export function HitReplay({
           height={1280}
           role="img"
           aria-label={`${match.playerName}, ${hitLabel(hit, match)}`}
-          onClick={() => (mode === "auto" ? onClose() : play(false))}
+          onClick={() => play(false)}
           className="aspect-[9/16] max-h-full max-w-full"
         />
         <button
@@ -341,8 +351,7 @@ export function HitReplay({
           <X className="size-5" aria-hidden />
         </button>
       </div>
-      {mode === "auto" ? null : (
-        <div className="flex min-h-[4.5rem] shrink-0 items-center justify-center gap-2 px-5">
+      <div className="flex min-h-[4.5rem] shrink-0 items-center justify-center gap-2 px-5">
           <p role="status" className={`text-sm text-zinc-300 ${busy || status === "saved" || status === "failed" ? "" : "sr-only"}`}>
             {busy ? HIT_COPY.saving : status === "saved" ? HIT_COPY.saved : status === "failed" ? HIT_COPY.shareFailed : ""}
           </p>
@@ -364,8 +373,7 @@ export function HitReplay({
               </button>
             </>
           )}
-        </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -374,14 +382,31 @@ export function HitReplay({
  * On the card's sheet once a hit has played: why it is a hit, and "Share this hit". The card's
  * photo beside it replays the effect on a tap.
  */
-export function HitRow({ hit, match, onShare, onReplay }: { hit: Hit; match: ScanMatch; onShare: () => void; onReplay: () => void }) {
+export function HitRow({
+  hit,
+  match,
+  onShare,
+  onReplay,
+  glow = false,
+}: {
+  hit: Hit;
+  match: ScanMatch;
+  onShare: () => void;
+  onReplay: () => void;
+  /** The hit's sale came in after the sheet was up: the row lights purple once, then rests. */
+  glow?: boolean;
+}) {
   const canShare = useSyncExternalStore(
     () => () => {},
     clipSupported,
     () => false,
   );
   return (
-    <div data-hit-row={hit.effect} className="flex min-h-12 items-center justify-between gap-3 rounded-2xl border border-zinc-200 pr-1 pl-4 dark:border-white/10">
+    <div
+      data-hit-row={hit.effect}
+      data-hit-glow={glow ? "" : undefined}
+      className={`flex min-h-12 items-center justify-between gap-3 rounded-2xl border border-zinc-200 pr-1 pl-4 dark:border-white/10 ${glow ? "motion-safe:animate-[hit-row-glow_1100ms_cubic-bezier(0.16,1,0.3,1)_both]" : ""}`}
+    >
       <p className="min-w-0 truncate font-mono text-13 font-medium text-violet-700 tabular-nums dark:text-[#A78BFA]">{hitLabel(hit, match)}</p>
       <div className="flex shrink-0 items-center">
         <button

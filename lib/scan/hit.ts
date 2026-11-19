@@ -32,16 +32,34 @@ export function matchedSaleCents(match: ScanMatch, solds: SoldsState | null | un
 }
 
 /**
+ * The card's print run, for the hit rule: only the run the card itself showed. Null when no serial
+ * was read, when the read is marked unsure (sold listings replaced a near-miss like 3/12 with /10),
+ * and when the match's run is anything else (filled in from the checklist, from sold listings, or
+ * with a version picked on the sheet). A guess never plays an effect.
+ */
+export function readRun(match: Pick<ScanMatch, "serialRun" | "runRead" | "runUnsure">): number | null {
+  if (match.runUnsure || match.runRead == null || !Number.isInteger(match.runRead) || match.runRead <= 0) return null;
+  return match.serialRun === match.runRead ? match.runRead : null;
+}
+
+/** An auto is a hit only on a card whose player we named: never a nameless Storm Strike. */
+function namedAuto(match: ScanMatch): boolean {
+  return match.isAuto && match.playerName.trim() !== "" && match.sureness.player !== "unsure";
+}
+
+/**
  * Is this scan a hit, which effect does it get, and how strong.
+ * The print run counts only when it was read off the card and isn't marked unsure (readRun).
  * - Crystal Shatter: a 1/1 (the full show) or a card numbered /10 or lower.
- * - Storm Strike: an auto or a patch auto. Bigger when it is also numbered /25 or lower, a patch
+ * - Storm Strike: an auto or a patch auto, on a card whose player we named. Bigger when it is also numbered /25 or lower, a patch
  *   auto, or sold for $100 or more.
  * - Pixel Rebuild: numbered /25 or lower, or a matched recent sale of $100 or more. Bigger with both.
  * Anything else is not a hit and gets the normal reveal.
  */
 export function hitFor(match: ScanMatch | null | undefined, solds?: SoldsState | null): Hit | null {
   if (!match) return null;
-  const run = match.serialRun != null && match.serialRun > 0 ? match.serialRun : null;
+  const run = readRun(match);
+  const auto = namedAuto(match);
   const sale = matchedSaleCents(match, solds);
   const numbered = run != null && run <= HIT_SERIAL_RUN;
   const bigSale = sale != null && sale >= HIT_SALE_CENTS;
@@ -49,13 +67,13 @@ export function hitFor(match: ScanMatch | null | undefined, solds?: SoldsState |
   if (run === 1) reasons.push("one-of-one");
   else if (run != null && run <= HIT_CRYSTAL_RUN) reasons.push("low-serial");
   else if (numbered) reasons.push("serial");
-  if (match.isAuto) reasons.push(match.isRelic ? "patch-auto" : "auto");
+  if (auto) reasons.push(match.isRelic ? "patch-auto" : "auto");
   if (bigSale) reasons.push("sale");
   if (reasons.length === 0) return null;
 
   if (run === 1) return { effect: "shatter", strength: 3, reasons };
   if (run != null && run <= HIT_CRYSTAL_RUN) return { effect: "shatter", strength: 2, reasons };
-  if (match.isAuto) return { effect: "storm", strength: numbered || bigSale || match.isRelic ? 2 : 1, reasons };
+  if (auto) return { effect: "storm", strength: numbered || bigSale || match.isRelic ? 2 : 1, reasons };
   return { effect: "pixel", strength: numbered && bigSale ? 2 : 1, reasons };
 }
 
@@ -163,7 +181,7 @@ export const HIT_COPY = {
 export function hitLabel(hit: Hit, match: ScanMatch): string {
   const reason = hit.reasons[0];
   if (reason === "one-of-one") return "1/1";
-  if (reason === "low-serial" || reason === "serial") return `Numbered /${match.serialRun}`;
+  if (reason === "low-serial" || reason === "serial") return `Numbered /${readRun(match) ?? match.serialRun}`;
   if (reason === "patch-auto") return "Patch auto";
   if (reason === "auto") return "Auto";
   return "Sold for $100 or more";
