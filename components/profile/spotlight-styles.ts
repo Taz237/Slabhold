@@ -18,8 +18,15 @@
  *    has no blur: a blur driven from script re-rasters on the main thread
  *    and halved the frame rate under a 4x CPU slowdown, so it leans on
  *    scale and dim alone.
- * Only transforms, opacity and (on at most the two neighbours in view, and
- * only on the scroll-timeline engine) a small blur ever animate.
+ * Only transforms, opacity and (only on the scroll-timeline engine) a small
+ * blur ever animate. The blur is declared on every mounted slide (up to three
+ * each side of center), not just the two neighbours: each slide's own view
+ * timeline drives it, so it only changes while that slide crosses the row.
+ * Cutting it to the two neighbours would need script to say which they are.
+ *
+ * A sideways card (the shape fit="hug" measures) is short in its 5:7 slot, so
+ * its label sits under the art instead of on it: .spot-under, by :has(), with
+ * no script. Browsers without :has() keep the label on the card.
  */
 export const SPOTLIGHT_CSS = `
 @property --spot-tint {
@@ -121,6 +128,19 @@ export const SPOTLIGHT_CSS = `
     opacity: 0;
     transform: translateY(4px);
   }
+}
+/*
+ * The space under a centered 7:5 card in the 5:7 slot is (1.4 - 5/7) / 2 of
+ * the slide's width. The holder fills it: pinned to the slot's bottom edge, the
+ * label at its top, 8px under the art. A label too tall for that space grows
+ * the holder upward, onto the art, never out of the slot.
+ */
+.spot-scale:has([data-fit="hug"][data-shape="landscape"]) .spot-under {
+  left: 0;
+  right: 0;
+  bottom: calc(var(--spot-w) * -0.342857);
+  min-height: calc(var(--spot-w) * 0.342857);
+  padding-top: 8px;
 }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .spot-label {

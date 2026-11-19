@@ -172,10 +172,12 @@ const Slide = memo(function Slide({
             <span aria-hidden className={`spot-veil pointer-events-none absolute inset-0 ${slab ? "rounded-[10px]" : "rounded-lg"}`} />
           </div>
           {label ? (
+            // On the card, along its bottom edge. Under a sideways card instead (spot-under, in the styles).
+            <div className="spot-under pointer-events-none absolute inset-x-1.5 bottom-1.5">
             <div
               data-spot-label=""
               data-on={labelOn ? "" : undefined}
-              className="spot-label pointer-events-none absolute inset-x-1.5 bottom-1.5 rounded border border-white/10 px-3 py-2 text-left text-white"
+              className="spot-label rounded border border-white/10 px-3 py-2 text-left text-white"
             >
               {/* Line 1 is the player alone and is never cut: a long name wraps. */}
               <p data-spot-name="" className="text-13 leading-[1.125rem] font-semibold break-words">{label.title}</p>
@@ -196,6 +198,7 @@ const Slide = memo(function Slide({
                   {OPEN_TO_OFFERS_LABEL}
                 </p>
               ) : null}
+            </div>
             </div>
           ) : null}
         </div>
