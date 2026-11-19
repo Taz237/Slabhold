@@ -106,11 +106,11 @@ describe("landingFounderPickup", () => {
     assert.doesNotMatch(source, /from\("cards"\)|lib\/comps|fetchTrawl|createSupabaseAdmin/);
   });
 
-  it("is read by / and /welcome and handed to the landing", () => {
+  it("is no longer read by / or /welcome: the landing has no timeline demo to hand it to", () => {
     for (const page of ["app/(app)/page.tsx", "app/welcome/page.tsx"]) {
       const source = readFileSync(join(process.cwd(), page), "utf8");
-      assert.match(source, /landingFounderPickup\(\)/, page);
-      assert.match(source, /<LandingCompProvider comp=\{comp\} pickup=\{pickup\}>/, page);
+      assert.doesNotMatch(source, /landingFounderPickup|pickup=/, page);
+      assert.match(source, /<LandingCompProvider comp=\{comp\}>/, page);
     }
   });
 });

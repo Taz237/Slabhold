@@ -7,20 +7,15 @@ import { describe, it } from "node:test";
 // about 3.7:1, under the 4.5:1 text minimum; zinc-400 clears it.
 const LANDING_TEXT_FILES = [
   "components/landing-page.tsx",
-  "components/landing/feature-panels.tsx",
-  "components/landing/hero-slabs.tsx",
-  "components/landing/founder-note.tsx",
+  "components/landing/glass-hero.tsx",
+  "components/landing/glass-island.tsx",
+  "components/landing/sections.tsx",
+  "components/landing/feature-clip.tsx",
+  "components/landing/feature-clip-player.tsx",
+  "components/landing/quick-comp-section.tsx",
   "components/landing/landing-links.tsx",
-  "components/landing/showcase/timeline-demo.tsx",
-  "components/landing/showcase/graphs-demo.tsx",
   "components/landing/showcase/quick-comp-demo.tsx",
-  "components/landing/showcase/badge-popup.tsx",
-  "components/landing/hero-phone.tsx",
   "components/landing/app-store-badge.tsx",
-  "components/landing/showcase/scan-demo.tsx",
-  "components/landing/showcase/scan-result-demo.tsx",
-  "components/landing/showcase/sold-panel.tsx",
-  "components/landing/showcase/leaderboard-demo.tsx",
 ];
 
 function textZinc500(source: string) {
@@ -32,6 +27,11 @@ function textZinc500(source: string) {
 }
 
 describe("landing label contrast", () => {
+  it("never sets text in the faintest ink: --ink-3 is under 4.5:1 on the galaxy", () => {
+    const css = readFileSync(join(process.cwd(), "app/landing.css"), "utf8");
+    assert.doesNotMatch(css, /(?<!-)color: var\(--ink-3\)/);
+  });
+
   for (const file of LANDING_TEXT_FILES) {
     it(`${file} has no zinc-500 text`, () => {
       const hits = textZinc500(readFileSync(join(process.cwd(), file), "utf8"));

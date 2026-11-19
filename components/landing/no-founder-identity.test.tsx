@@ -83,21 +83,25 @@ describe("logged-out surfaces carry no founder identity", () => {
         ),
       ),
     );
-    assert.match(html, /data-hero-slabs="founder"/, "the 3 real card photos stay");
+    assert.match(html, /data-glass-hero="card"/, "the real card photos stay");
     assert.equal((html.match(/card-photos%2Ff1%2F/g) ?? []).length >= 3, true);
     assert.doesNotMatch(text(html), IDENTITY);
     assert.doesNotMatch(html, /donnietaz|Donnie|avatar/i);
-    assert.match(text(html), /From a Slabhold collection/);
   });
 
-  it("the Quick Comp chapter tags a real card without naming anyone", async () => {
+  it("the Quick Comp section shows a real card without naming anyone", async () => {
     process.env.NEXT_PUBLIC_QUICK_COMP = "1";
     try {
-      const { FeaturePanels } = await import("@/components/landing/feature-panels");
-      const html = renderToStaticMarkup(createElement(FeaturePanels, { comp: REAL_COMP }));
+      const { QuickCompSection } = await import("@/components/landing/quick-comp-section");
+      const { LandingCompProvider } = await import("@/components/landing/landing-links");
+      const { default: QuickCompDemo } = await import("@/components/landing/showcase/quick-comp-demo");
+      const html =
+        renderToStaticMarkup(createElement(LandingCompProvider, { comp: REAL_COMP }, createElement(QuickCompSection))) +
+        renderToStaticMarkup(createElement(QuickCompDemo, { comp: REAL_COMP }));
+      assert.match(html, /data-section="quick-comp"/);
+      assert.match(html, /Fixture Maxey/);
       assert.doesNotMatch(text(html), IDENTITY);
       assert.doesNotMatch(html, /donnietaz|Donnie/i);
-      assert.match(text(html), /From a Slabhold collection/);
     } finally {
       delete process.env.NEXT_PUBLIC_QUICK_COMP;
     }

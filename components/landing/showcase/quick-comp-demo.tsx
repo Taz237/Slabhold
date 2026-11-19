@@ -2,25 +2,11 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { Search } from "lucide-react";
-import { compCaption, compHeroValue, compLabel } from "@/components/comp-basis";
+import { compHeroValue, compLabel } from "@/components/comp-basis";
 import { RangeBar, TrawlAttribution } from "@/components/sales-chart";
-import { SAMPLE_PHOTO_URL } from "@/lib/quick-comp/photo";
 import { EASE, cancelAll, canAnimate, countUp, dollars, prefersReducedMotion, onceVisible, rise } from "./motion";
-import { SAMPLE_QUERY, SAMPLE_SALES, sampleStats, type CompDemo } from "./sample-data";
+import type { CompDemo } from "./sample-data";
 
-const SAMPLE_STATS = sampleStats();
-
-/** The made-up card, played whenever the real one can't be shown. */
-const SAMPLE: CompDemo = {
-  query: SAMPLE_QUERY,
-  label: "2023 Sample Rookie Prizm · Grade 10",
-  photo: { src: SAMPLE_PHOTO_URL },
-  alt: "Sample card in a slab",
-  sales: SAMPLE_SALES.map((sale) => ({ price: sale.price, when: `${sale.ago} ago` })),
-  stats: SAMPLE_STATS,
-  basis: `Based on ${SAMPLE_STATS.count} sample sales`,
-  real: false,
-};
 const TYPE_MS = 34;
 const TYPE_START = 300;
 const CHIP_STAGGER = 90;
@@ -28,21 +14,19 @@ const CHIP_STAGGER = 90;
 /**
  * Quick Comp, played once: the search types itself, the photo settles in, the
  * sold prices fly into a row, and the median counts up while the middle-half
- * bar fills. `comp` is a real card's stored comps, read on the server; without
- * it the static sample plays. `onPhotoError` hands a failed real photo back to
- * the chapter, which then plays the sample. Real app parts: the comp hero
+ * bar fills. `comp` is a real card's stored comps, read on the server: there
+ * is no sample to fall back to. `onPhotoError` hands a failed photo back to
+ * the section, which then draws nothing. Real app parts: the comp hero
  * styles, RangeBar and the Trawl attribution. No lookup, no fetch.
  */
 export default function QuickCompDemo({
-  run,
-  comp = null,
+  comp,
   onPhotoError,
 }: {
-  run: number;
-  comp?: CompDemo | null;
+  comp: CompDemo;
   onPhotoError?: () => void;
 }) {
-  const demo = comp ?? SAMPLE;
+  const demo = comp;
   const { query, sales, stats } = demo;
   const img = useRef<HTMLImageElement>(null);
   const root = useRef<HTMLDivElement>(null);
@@ -144,14 +128,10 @@ export default function QuickCompDemo({
     };
   }, [play]);
 
-  useEffect(() => {
-    if (run > 0) play();
-  }, [run, play]);
-
   // A real photo that failed before hydration fired its error unheard.
   useEffect(() => {
     const node = img.current;
-    if (comp && onPhotoError && node?.complete && node.naturalWidth === 0) onPhotoError();
+    if (onPhotoError && node?.complete && node.naturalWidth === 0) onPhotoError();
   }, [comp, onPhotoError]);
 
   return (
@@ -181,7 +161,7 @@ export default function QuickCompDemo({
             srcSet={demo.photo.srcSet}
             sizes={demo.photo.sizes}
             alt={demo.alt}
-            onError={comp ? onPhotoError : undefined}
+            onError={onPhotoError}
             width={104}
             height={156}
             loading="lazy"
@@ -196,7 +176,6 @@ export default function QuickCompDemo({
           <p className={`${compHeroValue} text-white`}>
             <span ref={median}>{dollars(stats.median)}</span>
           </p>
-          <p className={`mt-1 tabular-nums ${compCaption}`}>{demo.basis}</p>
         </div>
       </div>
 

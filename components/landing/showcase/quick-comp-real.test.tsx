@@ -1,5 +1,7 @@
 import "@/lib/test/image-env";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, describe, it } from "node:test";
 import { act, createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -44,15 +46,15 @@ async function mount(element: ReactElement) {
 }
 
 describe("Quick Comp demo with a real card", () => {
-  it("draws the real card, its sold prices, the range and the sale count", async () => {
+  it("draws the real card, its sold prices and the range, with no count line", async () => {
     state.reducedMotion = true;
     const { default: QuickCompDemo } = await import("@/components/landing/showcase/quick-comp-demo");
-    const host = await mount(createElement(QuickCompDemo, { run: 0, comp: REAL }));
+    const host = await mount(createElement(QuickCompDemo, { comp: REAL }));
     const text = host.textContent ?? "";
     assert.match(text, /Search: Fixture Maxey 2021 Donruss Optic Downtown PSA 10/);
     assert.match(text, /Fixture Maxey · 2021 Donruss Optic Downtown · PSA 10/);
     assert.match(text, /\$300/);
-    assert.match(text, /Based on 9 sales/);
+    assert.doesNotMatch(text, /Based on|9 sales/, "no counts on the landing page");
     assert.match(text, /Low \$290/);
     assert.match(text, /High \$308/);
     assert.match(text, /Sold data via Trawl \(third-party, not affiliated with eBay\)/);
@@ -69,84 +71,52 @@ describe("Quick Comp demo with a real card", () => {
     assert.equal(img.getAttribute("width"), "104");
   });
 
-  it("tells the chapter when the real photo fails", async () => {
+  it("tells the section when the real photo fails", async () => {
     state.reducedMotion = true;
     const { default: QuickCompDemo } = await import("@/components/landing/showcase/quick-comp-demo");
     let failed = 0;
-    const host = await mount(createElement(QuickCompDemo, { run: 0, comp: REAL, onPhotoError: () => (failed += 1) }));
+    const host = await mount(createElement(QuickCompDemo, { comp: REAL, onPhotoError: () => (failed += 1) }));
     await act(async () => {
       host.querySelector("img")!.dispatchEvent(new win.Event("error"));
     });
     assert.equal(failed, 1);
   });
 
-  it("keeps the sample exactly as before without a real card", async () => {
-    state.reducedMotion = true;
-    const { default: QuickCompDemo } = await import("@/components/landing/showcase/quick-comp-demo");
-    const host = await mount(createElement(QuickCompDemo, { run: 0 }));
-    const text = host.textContent ?? "";
-    assert.match(text, /2023 Sample Rookie Prizm · Grade 10/);
-    assert.match(text, /Based on 5 sample sales/);
-    assert.equal(host.querySelector("img")?.getAttribute("src"), "/quick-comp/sample-card.svg");
-    assert.equal(host.querySelectorAll('[aria-label="Recent sold prices"] li')[0].getAttribute("aria-label"), "$418, sold 2d ago");
+  it("has no sample to fall back to: the panel needs a real card", () => {
+    const source = readFileSync(join(process.cwd(), "components/landing/showcase/quick-comp-demo.tsx"), "utf8");
+    assert.doesNotMatch(source, /SAMPLE|Sample Rookie|sample-card\.svg|sample sales/);
+    assert.match(source, /comp: CompDemo;/, "not optional");
+    assert.doesNotMatch(source, /\brun\b/, "no Replay");
   });
 });
 
-describe("Quick Comp chapter tag", () => {
-  it("tags a real card neutrally, in the hero caption's style, never naming the collector", async () => {
+describe("Quick Comp section", () => {
+  async function section(comp: CompDemo | null) {
+    const { QuickCompSection } = await import("@/components/landing/quick-comp-section");
+    const { LandingCompProvider } = await import("@/components/landing/landing-links");
+    return renderToStaticMarkup(createElement(LandingCompProvider, { comp }, createElement(QuickCompSection)));
+  }
+
+  it("draws for a real card, with one heading, one line and no Sample or Replay pill", async () => {
     process.env.NEXT_PUBLIC_QUICK_COMP = "1";
     try {
-      const { FeaturePanels } = await import("@/components/landing/feature-panels");
-      const html = renderToStaticMarkup(createElement(FeaturePanels, { comp: REAL }));
-      const quickComp = html.slice(html.indexOf('data-chapter="quick-comp"'), html.indexOf('data-chapter="graphs"'));
-      assert.match(quickComp, /class="truncate font-mono text-\[10px\] leading-4 text-zinc-400">From a Slabhold collection</);
-      assert.doesNotMatch(quickComp, /From @|donnietaz/);
-      assert.doesNotMatch(quickComp, />Sample</);
-      const timeline = html.slice(html.indexOf('data-chapter="timeline"'));
-      assert.match(timeline, />Sample</, "the other chapters keep their Sample tag");
-
-      const sample = renderToStaticMarkup(createElement(FeaturePanels));
-      const sampleQuickComp = sample.slice(sample.indexOf('data-chapter="quick-comp"'), sample.indexOf('data-chapter="graphs"'));
-      assert.match(sampleQuickComp, />Sample</);
-      assert.doesNotMatch(sampleQuickComp, /collection/);
+      const html = await section(REAL);
+      assert.match(html, /data-section="quick-comp"/);
+      assert.match(html, /<h2 class="lg-h2">Quick Comp<\/h2><p class="lg-lead">Recent sold prices, the median and the range\.<\/p>/);
+      assert.doesNotMatch(html, />Sample<|Replay|<button/);
+      assert.doesNotMatch(html, /From @|donnietaz/);
     } finally {
       delete process.env.NEXT_PUBLIC_QUICK_COMP;
     }
   });
 
-  it("swaps back to the sample when the real photo fails", async () => {
+  it("draws nothing without a real card: never a sample in its place", async () => {
     process.env.NEXT_PUBLIC_QUICK_COMP = "1";
-    state.reducedMotion = true;
-    const realObserver = globalThis.IntersectionObserver;
-    class NearObserver {
-      constructor(private readonly callback: IntersectionObserverCallback) {}
-      observe(target: Element) {
-        this.callback([{ isIntersecting: true, intersectionRatio: 1, target } as IntersectionObserverEntry], this as never);
-      }
-      unobserve() {}
-      disconnect() {}
-      takeRecords() {
-        return [];
-      }
-    }
-    Object.defineProperty(globalThis, "IntersectionObserver", { configurable: true, writable: true, value: NearObserver });
     try {
-      const { FeaturePanels } = await import("@/components/landing/feature-panels");
-      const host = await mount(createElement(FeaturePanels, { comp: REAL }));
-      for (let tries = 0; tries < 20 && !host.querySelector('[data-showcase-demo="quick-comp"]'); tries += 1) {
-        await act(async () => new Promise((resolve) => setTimeout(resolve, 10)));
-      }
-      const chapter = () => host.querySelector('[data-chapter="quick-comp"]')!;
-      assert.match(chapter().textContent ?? "", /From a Slabhold collection/);
-      await act(async () => {
-        chapter().querySelector("img")!.dispatchEvent(new win.Event("error"));
-      });
-      assert.match(chapter().textContent ?? "", /2023 Sample Rookie Prizm/);
-      assert.match(chapter().textContent ?? "", /Sample/);
-      assert.doesNotMatch(chapter().textContent ?? "", /From a Slabhold collection/);
+      assert.equal(await section(null), "");
+      assert.equal(await section({ ...REAL, real: false }), "");
     } finally {
       delete process.env.NEXT_PUBLIC_QUICK_COMP;
-      Object.defineProperty(globalThis, "IntersectionObserver", { configurable: true, writable: true, value: realObserver });
     }
   });
 });

@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { afterEach, describe, it } from "node:test";
 import { act, createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import type { CompDemo } from "@/components/landing/showcase/sample-data";
 import { installDom } from "@/lib/test/dom";
 
 const { win, state } = installDom();
@@ -22,8 +23,24 @@ function sources(dir: string): string[] {
 }
 
 const SHOWCASE = sources("components/landing/showcase");
+
+/** A made-up card standing in for the real one the page hands the panel. */
+const REAL: CompDemo = {
+  query: "Fixture Guard 2021 Fixture Set PSA 10",
+  label: "Fixture Guard · 2021 Fixture Set · PSA 10",
+  photo: { src: "/_next/image?url=fixture&w=128&q=75" },
+  alt: "Fixture Guard, 2021 Fixture Set, PSA 10",
+  sales: [
+    { price: 310, when: "2d ago" },
+    { price: 299.5, when: "4d ago" },
+    { price: 285, when: "today" },
+  ],
+  stats: { median: 300, p25: 290, p75: 308, min: 285, max: 310, count: 9 },
+  basis: "Based on 9 sales",
+  real: true,
+};
 const INTRO = sources("components/onboarding/intro");
-const ALL = [...SHOWCASE, ...INTRO, "components/landing/feature-panels.tsx"];
+const ALL = [...SHOWCASE, ...INTRO, "components/landing/quick-comp-section.tsx", "components/landing/sections.tsx", "components/landing/glass-hero.tsx"];
 
 const personasDoc = read("public/landing/avatars/personas.md");
 const personaRows = new Map(
@@ -119,107 +136,55 @@ describe("landing showcase and intro sources", () => {
       assert.match(avatarSrc(persona), /^\/landing\/avatars\/[a-z0-9_]+\.webp$/);
     }
     for (const item of [...SAMPLE_POSTS, ...SAMPLE_ALERTS]) assert.ok(personaRows.has(item.persona.handle));
-    for (const file of ALL) assert.doesNotMatch(read(file), /next\/image|avif/i, file);
+    for (const file of [...SHOWCASE, ...INTRO]) assert.doesNotMatch(read(file), /next\/image|avif/i, file);
+    // The personas are onboarding's only: the landing page draws none of them.
+    for (const file of sources("components/landing")) assert.doesNotMatch(read(file), /avatarSrc|PERSONAS|landing\/avatars/, file);
   });
 });
 
 describe("landing chapters", () => {
-  it("reserve a fixed height for every chapter's demo, drawn on the server", async () => {
-    const { CHAPTER_HEIGHTS, FeaturePanels } = await import("@/components/landing/feature-panels");
-    for (const height of Object.values(CHAPTER_HEIGHTS)) assert.match(height, /^h-\[\d+px\]( min-\[\d+px\]:h-\[\d+px\])?$/);
-    process.env.NEXT_PUBLIC_QUICK_COMP = "1";
-    try {
-      const html = renderToStaticMarkup(createElement(FeaturePanels));
-      for (const [id, height] of Object.entries(CHAPTER_HEIGHTS)) {
-        assert.ok(html.slice(html.indexOf(`data-chapter="${id}"`)).includes(height), id);
-      }
-      assert.match(html, /skeleton-shimmer/, "the demos load later, behind skeletons");
-    } finally {
-      delete process.env.NEXT_PUBLIC_QUICK_COMP;
-    }
+  it("are gone: the landing showcase folder holds only Quick Comp, its motion helpers and the shared shapes", () => {
+    assert.deepEqual(SHOWCASE.sort(), [
+      "components/landing/showcase/motion.ts",
+      "components/landing/showcase/quick-comp-demo.tsx",
+      "components/landing/showcase/sample-data.ts",
+    ]);
+    assert.equal(existsSync(join(ROOT, "components/landing/feature-panels.tsx")), false);
+  });
+
+  it("reserves a fixed height for the Quick Comp panel while its code loads, behind a skeleton", () => {
+    const source = read("components/landing/quick-comp-section.tsx");
+    assert.match(source, /<Suspense fallback=\{<div aria-hidden className="skeleton-shimmer h-\[\d+px\] rounded-2xl" \/>\}>/);
   });
 
   it("leaves Quick Comp out entirely with its flag off", async () => {
     delete process.env.NEXT_PUBLIC_QUICK_COMP;
-    const { FeaturePanels } = await import("@/components/landing/feature-panels");
-    const html = renderToStaticMarkup(createElement(FeaturePanels));
-    assert.doesNotMatch(html, /Quick Comp|comp any card|%2Fcomp/i);
+    const { QuickCompSection } = await import("@/components/landing/quick-comp-section");
+    const { LandingCompProvider } = await import("@/components/landing/landing-links");
+    const html = renderToStaticMarkup(createElement(LandingCompProvider, { comp: REAL }, createElement(QuickCompSection)));
+    assert.equal(html, "");
   });
 
-  it("labels the timeline as sample accounts, visibly and on the feed region", async () => {
-    const { FeaturePanels } = await import("@/components/landing/feature-panels");
-    const html = renderToStaticMarkup(createElement(FeaturePanels));
-    const timeline = html.slice(html.indexOf('data-chapter="timeline"'), html.indexOf('data-chapter="leaderboard"'));
-    assert.match(timeline, />Sample accounts</);
-    assert.match(timeline, /role="region" aria-label="Sample accounts, not real collectors"/);
-    assert.match(timeline, />Sample</);
-  });
-
-  it("draws the timeline from personas, handles as plain text, avatars from /landing/avatars/", async () => {
-    const { default: TimelineDemo } = await import("@/components/landing/showcase/timeline-demo");
-    const host = await mount(createElement(TimelineDemo, { run: 0 }));
-    const images = [...host.querySelectorAll("img")].map((img) => img.getAttribute("src") ?? "");
-    assert.ok(images.length > 0);
-    // Avatars, plus Donnie's own card photo on the kitchen-table pickup.
-    for (const src of images) assert.match(src, /^\/landing\/(avatars\/[a-z0-9_]+|kitchen-table-card)\.webp$/);
-    for (const img of host.querySelectorAll("img")) {
-      assert.equal(img.getAttribute("loading"), "lazy");
-      assert.equal(img.getAttribute("decoding"), "async");
-      assert.ok(img.getAttribute("width") && img.getAttribute("height"));
-    }
-    const handles = [...(host.textContent ?? "").matchAll(/@([a-z0-9_]+)/g)].map((match) => match[1]);
-    assert.ok(handles.length > 0);
-    for (const handle of handles) assert.ok(personaRows.has(handle), handle);
-    assert.equal(host.querySelectorAll("a").length, 0, "no handle is a link");
-  });
-
-  it("puts the real card photo on the kitchen-table pickup only, as a plain lazy image", async () => {
+  it("keeps the real card photo for onboarding's kitchen-table pickup only, as a plain lazy image", () => {
     assert.ok(existsSync(join(ROOT, "public/landing/kitchen-table-card.webp")));
     const photo = readFileSync(join(ROOT, "public/landing/kitchen-table-card.webp"));
     assert.equal(photo.subarray(8, 12).toString(), "WEBP");
-    const { default: TimelineDemo } = await import("@/components/landing/showcase/timeline-demo");
-    const host = await mount(createElement(TimelineDemo, { run: 0 }));
-    const kitchen = host.querySelector('[data-copy="0"] [data-post="p1"]');
-    const img = kitchen?.querySelector('img[src="/landing/kitchen-table-card.webp"]');
-    assert.ok(img, "p1 shows the photo");
-    assert.equal(img.getAttribute("alt"), "Numbered patch card in a top-loader");
-    assert.equal(img.getAttribute("width"), "300");
-    assert.equal(img.getAttribute("height"), "420");
-    assert.equal(img.getAttribute("loading"), "lazy");
-    assert.equal(img.getAttribute("decoding"), "async");
-    assert.match(img.getAttribute("class") ?? "", /aspect-\[5\/7\] w-16/);
-    assert.match(kitchen?.textContent ?? "", /Pickup/, "keeps the Pickup pill");
-    const others = host.querySelectorAll('[data-copy="0"] [data-post]:not([data-post="p1"]) img[src="/landing/kitchen-table-card.webp"]');
-    assert.equal(others.length, 0, "other pickups keep the sample slab");
-    for (const file of ["components/landing/showcase/timeline-demo.tsx", "components/onboarding/intro/screens.tsx"]) {
-      const source = read(file);
-      assert.match(source, /src="\/landing\/kitchen-table-card\.webp"/, file);
-      assert.doesNotMatch(source, /kitchen-table-card[^"]*\.(avif|png|jpe?g)|next\/image/, file);
-    }
-    assert.match(read("components/onboarding/intro/screens.tsx"), /kitchen-table-card\.webp"[^>]*className="aspect-\[5\/7\] w-11/);
+    const source = read("components/onboarding/intro/screens.tsx");
+    assert.match(source, /src="\/landing\/kitchen-table-card\.webp"/);
+    assert.doesNotMatch(source, /kitchen-table-card[^"]*\.(avif|png|jpe?g)|next\/image/);
+    assert.match(source, /kitchen-table-card\.webp"[^>]*className="aspect-\[5\/7\] w-11/);
+    for (const file of sources("components/landing")) assert.doesNotMatch(read(file), /kitchen-table-card/, file);
   });
 
-  it("shows final frames with reduced motion and runs no animations", async () => {
+  it("shows Quick Comp's final frame with reduced motion and runs no animations", async () => {
     state.reducedMotion = true;
     const spy = spyAnimate();
     try {
       const { default: QuickCompDemo } = await import("@/components/landing/showcase/quick-comp-demo");
-      const { SAMPLE_QUERY } = await import("@/components/landing/showcase/sample-data");
-      let host = await mount(createElement(QuickCompDemo, { run: 0 }));
-      assert.match(host.textContent ?? "", new RegExp(SAMPLE_QUERY));
-      assert.match(host.textContent ?? "", /\$412/);
+      const host = await mount(createElement(QuickCompDemo, { comp: REAL }));
+      assert.match(host.textContent ?? "", new RegExp(REAL.query));
+      assert.match(host.textContent ?? "", /\$300/);
       assert.match(host.textContent ?? "", /via Trawl/);
-      cleanup?.();
-
-      const { default: TimelineDemo } = await import("@/components/landing/showcase/timeline-demo");
-      host = await mount(createElement(TimelineDemo, { run: 0 }));
-      assert.equal(host.querySelectorAll("[data-post]").length, 3, "the first three posts, static");
-      assert.equal(host.querySelector("[data-copy='1']"), null, "no looping copy");
-      cleanup?.();
-
-      const { default: GraphsDemo } = await import("@/components/landing/showcase/graphs-demo");
-      host = await mount(createElement(GraphsDemo, { run: 1, gain: null }));
-      assert.match(host.textContent ?? "", /\$412/);
       assert.deepEqual(spy.calls, []);
     } finally {
       spy.restore();
@@ -228,14 +193,12 @@ describe("landing chapters", () => {
 });
 
 describe("landing assets", () => {
-  it("drops the old screenshots and keeps a fresh 2.png for the share image", () => {
-    assert.equal(existsSync(join(ROOT, "public/landing/1.png")), false);
-    assert.equal(existsSync(join(ROOT, "public/landing/3.png")), false);
-    assert.equal(existsSync(join(ROOT, "public/landing/2.png")), true);
-    const png = readFileSync(join(ROOT, "public/landing/2.png"));
-    assert.equal(png.readUInt32BE(16), 860, "860 px wide");
+  it("drops the old screenshots, 2.png with its sample screen included", () => {
+    for (const name of ["1.png", "2.png", "3.png", "sample-raw-card.svg"]) {
+      assert.equal(existsSync(join(ROOT, "public/landing", name)), false, name);
+    }
     for (const file of ["components/og-frame.tsx", "next.config.ts", "app/layout.tsx", "lib/social/share-image.ts"]) {
-      assert.doesNotMatch(read(file), /landing\/(1|3)\.png/, file);
+      assert.doesNotMatch(read(file), /landing\/(1|2|3)\.png|"2\.png"/, file);
     }
   });
 });

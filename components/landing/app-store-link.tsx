@@ -1,9 +1,10 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { APP_STORE_URL } from "@/lib/landing/app-store";
 import { isNativeApp } from "@/lib/ios/platform";
 
-export const APP_STORE_URL = "https://apps.apple.com/app/id6831357026";
+export { APP_STORE_URL };
 
 function subscribe() {
   return () => {};

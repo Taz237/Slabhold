@@ -372,7 +372,7 @@ describe("analytics wiring", () => {
     assert.match(layout, /<CaptureUtm \/>/);
 
     const landing = (read("components/landing-page.tsx") + read("components/landing/landing-links.tsx"));
-    assert.match(landing, /trackEvent\("landing_cta_clicked", \{ button: "signup" \}\)/);
+    assert.match(landing, /trackEvent\("landing_cta_clicked", \{ button: "open" \}\)/);
     assert.match(landing, /trackEvent\("landing_cta_clicked", \{ button: "login" \}\)/);
 
     const auth = read("components/auth-form.tsx");

@@ -5,7 +5,9 @@ import { describe, it } from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { PhotoPlaceholder, SlabFrame, type ArtCard } from "@/components/card-slab-frame";
-import { HeroSlabs, heroSlots } from "@/components/landing/hero-slabs";
+import { LandingPage } from "@/components/landing-page";
+import { EMPTY_MEDIA } from "@/lib/landing/media";
+import { withLandingContexts } from "@/lib/test/landing-fixtures";
 import { SAMPLE_SLABS } from "@/components/landing/sample-cards";
 
 const GRADERS = /\b(PSA|BGS|SGC|CGC|Beckett)\b/i;
@@ -26,17 +28,26 @@ describe("generic sample slabs", () => {
     assert.doesNotMatch(read("components/landing/sample-cards.ts"), GRADERS);
   });
 
-  it("draws the landing hero samples with a generic purple label: Grade, no grader, no barcode", () => {
-    const html = renderToStaticMarkup(createElement(HeroSlabs, { cards: [] }));
-    assert.match(html, /data-hero-slabs="sample"/);
-    assert.match(html, />Sample slabs</);
+  it("draws no sample slab on the landing page at all: an empty glass slab, no teal, no grader look", () => {
+    const html = renderToStaticMarkup(withLandingContexts(createElement(LandingPage, { media: EMPTY_MEDIA })));
+    assert.match(html, /data-glass-hero="empty"/);
+    assert.doesNotMatch(html, /data-hero-slabs|data-label="sample"|>Sample slabs</);
+    for (const title of ["Your grail", "Rookie auto", "Short print"]) assert.doesNotMatch(html, new RegExp(title));
     assert.doesNotMatch(html, GRADERS);
     assert.doesNotMatch(html, GRADER_LOOKS);
     assert.doesNotMatch(html, /teal/i);
-    assert.equal((html.match(/data-label="sample"/g) ?? []).length, 3);
-    assert.equal((html.match(/>Grade</g) ?? []).length, 3);
-    for (const grade of [">10<", ">9.5<"]) assert.ok(html.includes(grade), grade);
-    for (const title of ["Your grail", "Rookie auto", "Short print"]) assert.match(html, new RegExp(title));
+    // The made-up slabs are onboarding's now; the landing page never imports them.
+    for (const file of ["components/landing-page.tsx", "components/landing/glass-hero.tsx", "components/landing/sections.tsx"]) {
+      assert.doesNotMatch(read(file), /sample-cards|SAMPLE_SLABS/, file);
+    }
+  });
+
+  it("keeps the sample label generic and purple wherever a made-up slab is still drawn", () => {
+    const html = slab(SAMPLE_SLABS[0], "sample");
+    assert.match(html, /data-label="sample"/);
+    assert.match(html, />Grade</);
+    assert.doesNotMatch(html, GRADERS);
+    assert.doesNotMatch(html, GRADER_LOOKS);
     assert.match(html, /from-\[#7C3AED\]/);
     for (const label of html.match(/from-\[#7C3AED\] to-\[#5B21B6\][\s\S]*?h-\[9px\]/g) ?? []) {
       assert.doesNotMatch(label, /font-extrabold|font-bold/, "the label stays at Geist 600");
@@ -49,10 +60,6 @@ describe("generic sample slabs", () => {
     assert.match(html, /data-tone="psa"/);
     assert.match(html, />PSA</);
     assert.doesNotMatch(html, /data-label="sample"/);
-    // Founder cards in the hero keep their own label too.
-    const slots = heroSlots([{ id: "c1", photoUrl: "https://example.com/a.jpg", ...real }]);
-    assert.equal(slots[1].sample, false);
-    assert.equal(slots[0].sample, true);
   });
 
   it("gives onboarding's sample first card the generic label", () => {
@@ -62,8 +69,10 @@ describe("generic sample slabs", () => {
     assert.match(source, /card=\{SAMPLE_FIRST_CARD\}[\s\S]{0,200}label="sample"/);
   });
 
-  it("names no grader on the made-up Quick Comp card", () => {
-    assert.doesNotMatch(read("components/landing/showcase/quick-comp-demo.tsx"), /label: "[^"]*\b(PSA|BGS|SGC|CGC)\b/);
-    assert.doesNotMatch(read("components/landing/showcase/sample-data.ts").match(/SAMPLE_QUERY = "[^"]*"/)?.[0] ?? "", GRADERS);
+  it("has no made-up Quick Comp card left to name a grader on", () => {
+    const demo = read("components/landing/showcase/quick-comp-demo.tsx");
+    assert.doesNotMatch(demo, /label: "[^"]*\b(PSA|BGS|SGC|CGC)\b/);
+    assert.doesNotMatch(demo, /SAMPLE|Sample/);
+    assert.doesNotMatch(read("components/landing/showcase/sample-data.ts"), /SAMPLE_QUERY/);
   });
 });

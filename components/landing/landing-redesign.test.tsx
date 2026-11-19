@@ -1,23 +1,27 @@
 import "@/lib/test/image-env";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { createRequire } from "node:module";
 import { join } from "node:path";
 import { afterEach, describe, it } from "node:test";
-import { act, createElement, type ReactElement, type ReactNode } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { createElement } from "react";
 import { installDom } from "@/lib/test/dom";
+import {
+  ALL_MEDIA_FILES,
+  FIXTURE_COMP,
+  FIXTURE_FOUNDER,
+  FIXTURE_PULLS,
+  htmlWords,
+  mediaRoot,
+  renderLoaded,
+  withLandingContexts,
+} from "@/lib/test/landing-fixtures";
 
 const { win, state } = installDom();
-
-const require = createRequire(process.cwd() + "/package.json");
-const { SearchParamsContext } = require("next/dist/shared/lib/hooks-client-context.shared-runtime") as {
-  SearchParamsContext: { Provider: (props: { value: unknown; children?: ReactNode }) => ReactNode };
-};
+// The Quick Comp panel's code loads "once idle"; jsdom has no idle callback, so idle is now.
+(win as unknown as { requestIdleCallback: (run: () => void) => number }).requestIdleCallback = (run) => win.setTimeout(run, 0);
 
 const ROOT = process.cwd();
 const read = (path: string) => readFileSync(join(ROOT, path), "utf8");
-const text = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
 
 function sources(dir: string): string[] {
   return readdirSync(join(ROOT, dir))
@@ -25,133 +29,185 @@ function sources(dir: string): string[] {
     .map((name) => `${dir}/${name}`);
 }
 
-/** Every file the signed-out landing page is built from. */
-const LANDING_FILES = ["components/landing-page.tsx", ...sources("components/landing"), ...sources("components/landing/showcase")];
+/** Every file the signed-out landing page is built from, and its styles. */
+const LANDING_FILES = [
+  "components/landing-page.tsx",
+  ...sources("components/landing"),
+  ...sources("components/landing/showcase"),
+  ...sources("lib/landing"),
+  "app/landing.css",
+  "components/og-frame.tsx",
+];
 
-let cleanup: (() => void) | null = null;
+/** The new files this redesign added. */
+const NEW_FILES = [
+  "app/landing.css",
+  "components/landing/glass-hero.tsx",
+  "components/landing/glass-island.tsx",
+  "components/landing/feature-clip.tsx",
+  "components/landing/feature-clip-player.tsx",
+  "components/landing/sections.tsx",
+  "components/landing/quick-comp-section.tsx",
+  "lib/landing/media.ts",
+  "lib/landing/pulls.ts",
+  "lib/landing/pulls-load.ts",
+  "lib/landing/seo.ts",
+  "lib/landing/app-store.ts",
+  "public/landing/media/README.md",
+];
+
 afterEach(() => {
-  cleanup?.();
-  cleanup = null;
   state.reducedMotion = false;
   delete process.env.NEXT_PUBLIC_QUICK_COMP;
+  delete process.env.NEXT_PUBLIC_LANDING_HIT_REVEALS;
 });
 
-async function mount(element: ReactElement) {
-  const { createRoot } = await import("react-dom/client");
-  const host = win.document.createElement("div");
-  win.document.body.appendChild(host);
-  const root = createRoot(host);
-  await act(async () => root.render(element));
-  cleanup = () => {
-    act(() => root.unmount());
-    host.remove();
-  };
-  return host;
-}
-
-async function landingHtml() {
-  const { LandingPage } = await import("@/components/landing-page");
-  return renderToStaticMarkup(createElement(SearchParamsContext.Provider, { value: new URLSearchParams("") }, createElement(LandingPage)));
-}
-
-/** Every string a visitor can read: the page, the panels and each demo's last frame. */
+/**
+ * Every word a visitor can read or hear, with every section drawn: all the
+ * media slots filled, real cards, a real comp, pulls and the hit reveals card.
+ */
 async function everyWord(): Promise<string> {
   process.env.NEXT_PUBLIC_QUICK_COMP = "1";
+  process.env.NEXT_PUBLIC_LANDING_HIT_REVEALS = "1";
   state.reducedMotion = true;
-  const parts = [text(await landingHtml())];
-  const { FeaturePanels, CHAPTERS, CAROUSEL_TABS } = await import("@/components/landing/feature-panels");
-  parts.push(text(renderToStaticMarkup(createElement(FeaturePanels))));
-  parts.push(...CHAPTERS.flatMap((chapter) => [chapter.title, chapter.line]), ...CAROUSEL_TABS.map((tab) => tab.tab));
-  for (const file of ["scan-demo", "scan-result-demo", "quick-comp-demo", "timeline-demo", "graphs-demo", "leaderboard-demo"]) {
-    const { default: Demo } = (await import(`@/components/landing/showcase/${file}`)) as { default: (props: { run: number }) => ReactNode };
-    const host = await mount(createElement(Demo, { run: 0 }));
-    parts.push(host.textContent ?? "", ...[...host.querySelectorAll("[aria-label]")].map((node) => node.getAttribute("aria-label") ?? ""));
-    cleanup?.();
-    cleanup = null;
+  const { LandingPage } = await import("@/components/landing-page");
+  const { LandingCompProvider } = await import("@/components/landing/landing-links");
+  const fixture = mediaRoot(ALL_MEDIA_FILES);
+  try {
+    const page = createElement(LandingPage, { founder: FIXTURE_FOUNDER, comp: FIXTURE_COMP, pulls: FIXTURE_PULLS, media: fixture.media() });
+    const html = await renderLoaded(withLandingContexts(createElement(LandingCompProvider, { comp: FIXTURE_COMP }, page)));
+    const { LANDING_TITLE, LANDING_DESCRIPTION } = await import("@/lib/landing/seo");
+    const { homeShareImage } = await import("@/lib/social/share-image");
+    const share = homeShareImage();
+    return [htmlWords(html), LANDING_TITLE, LANDING_DESCRIPTION, share.kicker, share.title, share.detail].join("\n");
+  } finally {
+    fixture.remove();
   }
-  return parts.join("\n");
+}
+
+/** Hue in degrees and saturation (0 to 1) of an RGB color. */
+function hueOf(r: number, g: number, b: number): { hue: number; saturation: number; lightness: number } {
+  const [red, green, blue] = [r / 255, g / 255, b / 255];
+  const max = Math.max(red, green, blue);
+  const min = Math.min(red, green, blue);
+  const delta = max - min;
+  const lightness = (max + min) / 2;
+  if (delta === 0) return { hue: 0, saturation: 0, lightness };
+  const saturation = delta / (1 - Math.abs(2 * lightness - 1));
+  let hue = max === red ? ((green - blue) / delta) % 6 : max === green ? (blue - red) / delta + 2 : (red - green) / delta + 4;
+  hue *= 60;
+  return { hue: hue < 0 ? hue + 360 : hue, saturation, lightness };
+}
+
+/** Every color written in a source: #rgb, #rrggbb(aa) and rgb()/rgba(). */
+function colorsIn(source: string): { text: string; rgb: [number, number, number] }[] {
+  const found: { text: string; rgb: [number, number, number] }[] = [];
+  for (const match of source.matchAll(/#([0-9a-f]{8}|[0-9a-f]{6}|[0-9a-f]{3})\b/gi)) {
+    const hex = match[1].length === 3 ? [...match[1]].map((digit) => digit + digit).join("") : match[1].slice(0, 6);
+    found.push({ text: match[0], rgb: [0, 2, 4].map((at) => parseInt(hex.slice(at, at + 2), 16)) as [number, number, number] });
+  }
+  for (const match of source.matchAll(/rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/g)) {
+    found.push({ text: match[0], rgb: [Number(match[1]), Number(match[2]), Number(match[3])] });
+  }
+  return found;
 }
 
 describe("landing redesign: copy rules", () => {
-  it('never says "best", "AI", "free" or "number one" anywhere a visitor can read', async () => {
+  it("never uses a banned word anywhere a visitor can read or hear", async () => {
     const words = await everyWord();
-    assert.match(words, /Track your cards\. Comp them\. Show them off\./);
-    assert.match(words, /Sample Rookie/, "the demos were read too");
+    assert.match(words, /Scan it\. Know the exact version\./);
+    assert.match(words, /Crystal Shatter/, "every section was read, even the ones that are off by default");
+    assert.match(words, /Recent sold prices, the median and the range\./);
+    assert.match(words, /pulled by @fixture_puller/);
     assert.doesNotMatch(words, /\bbest\b/i);
     assert.doesNotMatch(words, /\bAI\b/);
     assert.doesNotMatch(words, /\bfree\b/i);
     assert.doesNotMatch(words, /number one|\bno\. ?1\b|#1\b/i);
+    assert.doesNotMatch(words, /\bflip(s|ped|ping)?\b/i);
+    assert.doesNotMatch(words, /\bdownload/i);
+    assert.doesNotMatch(words, /\bmail\b/i);
+    assert.doesNotMatch(words, /\bseconds?\b/i);
+    assert.doesNotMatch(words, /any card/i);
+    assert.doesNotMatch(words, /next upgrade/i);
+    assert.doesNotMatch(words, /(^|\s)#[a-z]\w+/i, "no hashtags");
+    assert.doesNotMatch(words, /Sample Rookie|\$128\.00|\$412|Sample accounts|Replay/);
   });
 
-  it("keeps the hobby rules: no marketplace, no TCG, no eBay data wording, no made-up counts", async () => {
+  it("claims nothing the app doesn't do: you pick the version, nothing is auto-detected", async () => {
     const words = await everyWord();
-    assert.doesNotMatch(words, /marketplace|buy now|for sale|sell your/i);
+    assert.match(words, /then you pick the exact version/);
+    assert.match(words, /Every parallel\. You pick\./);
+    assert.doesNotMatch(words, /auto-?detect|automatically|instantly|detects? (the|every|your) parallel|identif(y|ies) (the|every|any) parallel/i);
+    assert.doesNotMatch(words, /\b(we|I)'ve\b|\bmy\b/i, "team voice");
+  });
+
+  it("keeps the hobby rules: no marketplace, no TCG, no eBay data wording, no made-up counts, no rivals", async () => {
+    const words = await everyWord();
+    assert.doesNotMatch(words, /marketplace|buy now|for sale|sell your|asking price|\bask\b|\boffers?\b/i);
     assert.doesNotMatch(words, /pok[eé]mon|tcg|mail day/i);
     // The Trawl credit's "not affiliated with eBay" disclaimer is the one allowed mention.
     assert.doesNotMatch(words, /eBay (data|logo|sold|sales|solds)/i);
     assert.equal(words.split(/ebay/i).length - 1, 1);
     assert.doesNotMatch(words, /\d[\d,.]*\+?\s*(k\s*)?(collectors|users|members|people)\b/i);
     assert.doesNotMatch(words, /testimonial|trusted by|loved by/i);
+    assert.doesNotMatch(words, /CollX|Ludex|Card Ladder|Alt\b|130 ?point|Market Movers|unlike|better than|other apps/i);
+    assert.doesNotMatch(words, /\bNBA\b|\bNFL\b|\bMLB\b|\bNHL\b|Panini|Topps|Upper Deck/, "no league or maker names added by the page");
   });
 
-  it("has no teal in any landing file, its styles or its new asset", () => {
+  it("has no teal in any landing file, its styles, or the files this redesign added", () => {
     const teal = /teal|#(?:34C1AE|2dd4bf|14b8a6|0d9488|5eead4|1f9e8c|0f766e|99f6e4|ccfbf1)\b|cyan-|emerald-/i;
-    for (const file of [...LANDING_FILES, "public/landing/sample-raw-card.svg"]) assert.doesNotMatch(read(file), teal, file);
-    const css = read("app/globals.css");
-    const mine = css.slice(css.indexOf("Landing redesign."), css.indexOf("The landing showcase and the onboarding intro are dark"));
-    assert.ok(mine.length > 500);
-    assert.doesNotMatch(mine, teal);
+    for (const file of new Set([...LANDING_FILES, ...NEW_FILES])) assert.doesNotMatch(read(file), teal, file);
+    assert.equal(existsSync(join(ROOT, "public/landing/sample-raw-card.svg")), false);
   });
 
-  it("adds no motion or carousel library", () => {
-    for (const file of LANDING_FILES) assert.doesNotMatch(read(file), /from "(framer-motion|motion|gsap|lottie|swiper|embla)/, file);
+  it("uses no color with a hue between 160 and 200 degrees in the landing styles or the new files", () => {
+    const checked = new Set([...NEW_FILES, "components/landing-page.tsx", "components/landing/landing-galaxy.tsx", "components/landing/app-store-badge.tsx", "components/landing/landing-links.tsx"]);
+    let seen = 0;
+    for (const file of checked) {
+      for (const color of colorsIn(read(file))) {
+        seen += 1;
+        const { hue, saturation, lightness } = hueOf(...color.rgb);
+        // Greys, black and white have no hue to speak of.
+        if (saturation < 0.08 || lightness < 0.03 || lightness > 0.97) continue;
+        assert.ok(hue < 160 || hue > 200, `${file}: ${color.text} has hue ${Math.round(hue)}`);
+      }
+    }
+    assert.ok(seen > 40, "the colors were found");
+    assert.deepEqual(Math.round(hueOf(0x34, 0xc1, 0xae).hue), 172, "the check knows teal when it sees it");
+    assert.deepEqual(Math.round(hueOf(0x7c, 0x3a, 0xed).hue), 262);
+  });
+
+  it("adds no motion or carousel library, no canvas or WebGL, and no font files", () => {
+    for (const file of LANDING_FILES) {
+      assert.doesNotMatch(read(file), /from "(framer-motion|motion|gsap|lottie|swiper|embla|three)/, file);
+    }
+    for (const file of NEW_FILES) assert.doesNotMatch(read(file), /<canvas|getContext\(|WebGL|@font-face|next\/font/, file);
     const pkg = JSON.parse(read("package.json")) as { dependencies: Record<string, string> };
     for (const name of Object.keys(pkg.dependencies)) assert.doesNotMatch(name, /framer|gsap|lottie|swiper|embla|three/);
+    assert.match(read("app/landing.css"), /font-family: var\(--font-geist-mono\)/, "the fonts the layout already loads");
+  });
+
+  it("leaves the in-app hit reveal and scan sheet files alone: the landing imports none of them", () => {
+    for (const file of [...sources("components/landing"), ...sources("components/landing/showcase"), "components/landing-page.tsx"]) {
+      assert.doesNotMatch(read(file), /@\/components\/scan\/|@\/lib\/scan\/|lib\/ios\/(haptics|native)/, file);
+    }
   });
 });
 
 describe("landing redesign: hero", () => {
-  it("shows a phone with the sample collection value over the slabs, drawn on the server", async () => {
-    const html = await landingHtml();
-    const phone = html.slice(html.indexOf("data-phone-frame"), html.indexOf("data-hero-caption"));
-    assert.match(text(phone), /Collection Sample Collection value \$412 \+\$38 · 10\.2% Last 90 days/);
-    assert.match(phone, /role="img" aria-label="Sample collection value \$412, up \$38 in 90 days"/);
-    assert.match(phone, /data-hero-slabs="sample"/);
-    assert.match(html, /data-tilt=""/);
-    for (const file of ["components/landing/hero-phone.tsx", "components/landing/phone-frame.tsx"]) {
-      assert.doesNotMatch(read(file), /^"use client";/m, file);
-      assert.doesNotMatch(read(file), /\.png|\.jpe?g|next\/image/, `${file}: no screenshot, no optimizer`);
+  it("is the Glass Slab now: no phone mockup, no sample value, no sample slabs", async () => {
+    const words = await everyWord();
+    assert.doesNotMatch(words, /Collection value|Last 90 days|\+\$38|10\.2%/);
+    for (const gone of ["components/landing/hero-phone.tsx", "components/landing/hero-slabs.tsx"]) {
+      assert.equal(existsSync(join(ROOT, gone)), false, gone);
     }
+    assert.doesNotMatch(read("components/landing/glass-hero.tsx"), /HERO_VALUE|HERO_GAIN|SAMPLE_/);
+    assert.doesNotMatch(read("components/landing/glass-hero.tsx"), /^"use client";/m);
   });
 
-  it("holds the App Store buttons' rows on the server and links them on the web only", async () => {
-    const { AppStoreBadge } = await import("@/components/landing/app-store-badge");
-    const { APP_STORE_URL } = await import("@/components/landing/app-store-link");
-    for (const variant of ["button", "badge"] as const) {
-      const server = renderToStaticMarkup(createElement(AppStoreBadge, { variant }));
-      assert.match(server, new RegExp(`data-app-store-badge="${variant}"[^>]*class="[^"]*h-14`));
-      assert.doesNotMatch(server, /<a\b/);
-      const host = await mount(createElement(AppStoreBadge, { variant }));
-      const link = host.querySelector("a");
-      assert.equal(link?.getAttribute("href"), APP_STORE_URL);
-      assert.match(link?.className ?? "", /h-14/, "a 56px tap target");
-      assert.match(variant === "button" ? (link?.textContent ?? "") : (link?.getAttribute("aria-label") ?? ""), variant === "button" ? /^Get the app$/ : /^Download Slabhold on the App Store$/);
-      cleanup?.();
-      cleanup = null;
-    }
-    const native = win as unknown as { Capacitor?: { isNativePlatform: () => boolean } };
-    native.Capacitor = { isNativePlatform: () => true };
-    try {
-      const host = await mount(createElement(AppStoreBadge, { variant: "badge" }));
-      assert.equal(host.querySelector("a"), null);
-    } finally {
-      delete native.Capacitor;
-    }
-  });
-
-  it("keeps the legal links and the page's canonical", async () => {
-    const html = await landingHtml();
-    for (const href of ["/privacy", "/terms", "/support"]) assert.match(html, new RegExp(`href="${href}"`));
+  it("keeps the legal links and the page's canonical", () => {
+    const footer = read("components/landing/sections.tsx");
+    for (const href of ["/privacy", "/terms", "/support"]) assert.match(footer, new RegExp(`href="${href}" prefetch=\\{false\\}`));
     assert.match(read("app/welcome/page.tsx"), /alternates: \{ canonical: "\/" \}/);
   });
 });
@@ -164,240 +220,59 @@ describe("landing redesign: tilt", () => {
     assert.deepEqual(tiltFor(200, 400, 200, 400), { x: -TILT_MAX_DEG, y: TILT_MAX_DEG });
     assert.deepEqual(tiltFor(900, -50, 200, 400), { x: TILT_MAX_DEG, y: TILT_MAX_DEG }, "clamped outside the box");
     assert.deepEqual(tiltFor(10, 10, 0, 0), { x: 0, y: 0 });
+    // The glass slab leans a degree further.
+    const { SLAB_TILT_MAX } = await import("@/components/landing/glass-island");
+    assert.equal(SLAB_TILT_MAX, 8);
+    assert.deepEqual(tiltFor(0, 0, 200, 400, SLAB_TILT_MAX), { x: 8, y: -8 });
   });
 
-  it("stays flat for reduced motion and settles when the pointer leaves", async () => {
-    const { Tilt } = await import("@/components/landing/tilt");
-    const frames: (() => void)[] = [];
-    const raf = win.requestAnimationFrame;
-    win.requestAnimationFrame = ((run: () => void) => frames.push(run)) as unknown as typeof win.requestAnimationFrame;
-    try {
-      const host = await mount(createElement(Tilt, null, createElement("p", null, "card")));
-      const node = host.querySelector<HTMLElement>("[data-tilt]")!;
-      node.getBoundingClientRect = () => ({ left: 0, top: 0, width: 200, height: 400 }) as DOMRect;
-      const move = () => act(() => void node.dispatchEvent(new win.MouseEvent("pointermove", { bubbles: true, clientX: 200, clientY: 0 })));
-
-      state.reducedMotion = true;
-      move();
-      assert.equal(frames.length, 0);
-      assert.equal(node.style.getPropertyValue("--tilt-y"), "");
-
-      state.reducedMotion = false;
-      move();
-      frames.splice(0).forEach((run) => run());
-      assert.equal(node.style.getPropertyValue("--tilt-y"), "7deg");
-      assert.equal(node.style.getPropertyValue("--tilt-x"), "7deg");
-      assert.ok(node.hasAttribute("data-tilting"));
-
-      act(() => void node.dispatchEvent(new win.MouseEvent("pointerout", { bubbles: true })));
-      assert.equal(node.style.getPropertyValue("--tilt-y"), "");
-      assert.ok(!node.hasAttribute("data-tilting"));
-    } finally {
-      win.requestAnimationFrame = raf;
-    }
-    const css = read("app/globals.css");
-    assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{\s*\.landing-tilt \{\s*transform: none;/);
+  it("is flat for reduced motion in CSS too, whatever the script set", () => {
+    const css = read("app/landing.css");
+    const reduced = css.slice(css.lastIndexOf("@media (prefers-reduced-motion: reduce) {"));
+    assert.match(reduced, /\.lg-tilt \{\s*transform: none;/);
+    assert.doesNotMatch(read("components/landing/tilt.tsx"), /^"use client";|useRef/m, "only the maths is left here");
   });
 });
 
 describe("landing redesign: scroll reveals", () => {
   it("are CSS view timelines, only with motion allowed and where the browser has them", () => {
-    const css = read("app/globals.css");
+    const css = read("app/landing.css");
     assert.match(
       css,
-      /@media \(prefers-reduced-motion: no-preference\) \{\s*@supports \(animation-timeline: view\(\)\) \{\s*\.landing-reveal \{[^}]*animation-timeline: view\(\);/,
+      /@supports \(animation-timeline: view\(\)\) \{\s*@media \(prefers-reduced-motion: no-preference\) \{\s*\.lg-rise \{[^}]*animation-timeline: view\(\);/,
     );
     // Outside that block the class sets nothing, so content is never hidden without it.
-    assert.equal(css.split(".landing-reveal {").length - 1, 1);
+    assert.equal(css.split(".lg-rise {").length - 1, 1);
+    assert.ok((read("components/landing/sections.tsx").match(/lg-rise/g) ?? []).length >= 3);
     // Transform only: a part that is half way in never has faded, low-contrast text.
-    const frames = css.slice(css.indexOf("@keyframes landing-reveal"), css.indexOf("@media", css.indexOf("@keyframes landing-reveal")));
-    assert.match(frames, /from \{\s*transform: translateY\(40px\) scale\(0\.96\);/);
+    const frames = css.slice(css.indexOf("@keyframes lg-rise"), css.indexOf("@keyframes lg-loupe"));
+    assert.match(frames, /from \{\s*transform: translateY\(32px\) scale\(0\.97\);/);
     assert.doesNotMatch(frames, /opacity/);
-    assert.ok((read("components/landing/feature-panels.tsx").match(/landing-reveal/g) ?? []).length >= 3);
   });
 });
 
-describe("landing redesign: scanner showcase", () => {
-  it("scans a made-up raw card: no real player, no grader, no cert, a plain drawn photo", async () => {
-    const { SAMPLE_SCAN, SAMPLE_SCAN_PHOTO } = await import("@/components/landing/showcase/sample-data");
-    assert.equal(SAMPLE_SCAN.playerName, "Sample Rookie");
-    assert.equal(SAMPLE_SCAN.grade, null);
-    assert.equal(SAMPLE_SCAN_PHOTO, "/landing/sample-raw-card.svg");
-    const svg = read("public/landing/sample-raw-card.svg");
-    assert.doesNotMatch(svg, /<image|<text|href=|PSA|BGS|SGC|CGC|NBA|NFL|MLB|NHL/);
-    assert.ok(svg.length < 2500);
+describe("landing redesign: layout and type", () => {
+  const css = read("app/landing.css");
+  const desktop = css.slice(css.indexOf("@media (min-width: 1024px) {"), css.indexOf("/* ---------- Fallbacks"));
+
+  it("pads sections 96px on a phone and 160px on desktop, on a 12-column grid capped at 1200px", () => {
+    assert.match(css, /\.lg-section \{[^}]*max-width: 1200px;[^}]*padding: 96px 24px;/);
+    assert.match(desktop, /\.lg-section \{\s*padding: 160px 32px;/);
+    assert.match(desktop, /\.lg-grid \{\s*grid-template-columns: repeat\(12, minmax\(0, 1fr\)\);/);
+    assert.match(css, /\.lg-hero \{[^}]*max-width: 1200px;/);
   });
 
-  it("prices the sample sales with the scanner's own maths and draws one dot per sale", async () => {
-    const { SAMPLE_SCAN_COMP, scanValue } = await import("@/components/landing/showcase/sold-panel");
-    const { SAMPLE_SCAN_SALES } = await import("@/components/landing/showcase/sample-data");
-    assert.equal(SAMPLE_SCAN_COMP.status, "ok");
-    assert.equal(SAMPLE_SCAN_COMP.nSales, SAMPLE_SCAN_SALES.length);
-    assert.equal(scanValue(), "$128.00");
-    state.reducedMotion = true;
-    const { default: ScanResultDemo } = await import("@/components/landing/showcase/scan-result-demo");
-    const host = await mount(createElement(ScanResultDemo, { run: 0 }));
-    assert.equal(host.querySelectorAll("[data-sold-panel] [role='img'] > span.rounded-full").length, SAMPLE_SCAN_SALES.length);
-    assert.match(host.textContent ?? "", /8 sample sales · Recent sold prices via Trawl/);
+  it("sizes the phones 78vw on a phone and 320px on desktop", () => {
+    assert.match(css, /\.lg-phone \{[^}]*width: 78vw;\s*max-width: 320px;/);
+    assert.match(desktop, /\.lg-phone,\s*\.lg-media-pair \.lg-phone \{\s*width: 320px;/);
   });
 
-  it("plays camera, sheet, name, then price, with the scanner's own parts", async () => {
-    const { default: ScanDemo, SCAN_BEATS, SCAN_STAGES } = await import("@/components/landing/showcase/scan-demo");
-    assert.deepEqual([...SCAN_STAGES], ["camera", "sheet", "name", "price"]);
-    assert.ok(SCAN_BEATS.sheet < SCAN_BEATS.name && SCAN_BEATS.name < SCAN_BEATS.price);
-    const source = read("components/landing/showcase/scan-demo.tsx");
-    assert.match(source, /import \{ RevealCard, RevealName, RevealNameSkeleton \} from "@\/components\/scan\/sheet-parts";/);
-    assert.match(read("components/landing/showcase/sold-panel.tsx"), /import \{ SalesDots \} from "@\/components\/scan\/sales-dots";/);
-
-    // No IntersectionObserver here, so it plays at once. Timers are stepped by hand.
-    const realObserver = globalThis.IntersectionObserver;
-    const realSet = win.setTimeout;
-    const realClear = win.clearTimeout;
-    const queue: { at: number; run: () => void }[] = [];
-    Object.defineProperty(globalThis, "IntersectionObserver", { configurable: true, writable: true, value: undefined });
-    win.setTimeout = ((run: () => void, at = 0) => queue.push({ at, run })) as unknown as typeof win.setTimeout;
-    win.clearTimeout = (() => {}) as typeof win.clearTimeout;
-    try {
-      const host = await mount(createElement(ScanDemo));
-      const demo = host.querySelector<HTMLElement>("[data-scan-demo]")!;
-      const stage = () => demo.getAttribute("data-scan-stage");
-      assert.equal(stage(), "camera");
-      assert.equal(host.querySelector("[data-reveal]"), null, "no sheet yet");
-      assert.match(host.textContent ?? "", /Point your camera at a card or slab/);
-      const step = async (at: number) => {
-        const due = queue.filter((timer) => timer.at === at);
-        assert.ok(due.length > 0, `a timer at ${at}ms`);
-        await act(async () => due.forEach((timer) => timer.run()));
-      };
-      await step(SCAN_BEATS.sheet);
-      assert.equal(stage(), "sheet");
-      assert.ok(host.querySelector('[data-reveal="scan-card"]'), "the card flips in");
-      assert.ok(host.querySelector('[data-reveal="name-skeleton"]'), "a skeleton while it reads");
-      await step(SCAN_BEATS.name);
-      assert.equal(stage(), "name");
-      assert.deepEqual(
-        [...host.querySelectorAll("[data-stage]")].map((node) => [node.getAttribute("data-stage"), node.textContent?.trim()]),
-        [
-          ["player", "Sample Rookie"],
-          ["set", "2023 Prizm"],
-          ["number", "#101"],
-          ["parallel", "Silver"],
-          ["tags", "RC"],
-        ],
-      );
-      assert.equal(host.querySelector("[data-sold-panel]"), null, "the price comes last");
-      await step(SCAN_BEATS.price);
-      assert.equal(stage(), "price");
-      assert.ok(host.querySelector("[data-sold-panel]"));
-    } finally {
-      win.setTimeout = realSet;
-      win.clearTimeout = realClear;
-      Object.defineProperty(globalThis, "IntersectionObserver", { configurable: true, writable: true, value: realObserver });
-    }
-  });
-
-  it("shows the last frame with reduced motion: the name, the value and the dots, nothing timed", async () => {
-    state.reducedMotion = true;
-    const { default: ScanDemo } = await import("@/components/landing/showcase/scan-demo");
-    const host = await mount(createElement(ScanDemo));
-    const demo = host.querySelector<HTMLElement>("[data-scan-demo]")!;
-    assert.equal(demo.getAttribute("data-scan-stage"), "price");
-    assert.equal(demo.getAttribute("role"), "img");
-    assert.equal(
-      demo.getAttribute("aria-label"),
-      "Sample scan: Sample Rookie, 2023 Prizm #101, Silver. Value $128.00 from 8 sample sales.",
-    );
-    assert.match(host.textContent ?? "", /Sample Rookie/);
-    assert.match(host.textContent ?? "", /\$128\.00/);
-    assert.equal(host.querySelectorAll("[data-sold-panel] [role='img'] > span.rounded-full").length, 8);
-    const css = read("app/globals.css");
-    assert.match(css, /@media \(prefers-reduced-motion: no-preference\) \{[^@]*\[data-scan-demo\] \[data-stage="set"\]/);
-    assert.match(read("components/landing/showcase/scan-demo.tsx"), /motion-safe:animate-\[scan-card-in/);
-  });
-});
-
-describe("landing redesign: feature carousel", () => {
-  async function carousel(flag: boolean) {
-    if (flag) process.env.NEXT_PUBLIC_QUICK_COMP = "1";
-    const { FeaturePanels } = await import("@/components/landing/feature-panels");
-    const host = await mount(createElement(FeaturePanels));
-    const tabs = [...host.querySelectorAll<HTMLButtonElement>('[role="tablist"] [role="tab"]')];
-    const scroller = host.querySelector<HTMLElement>("[data-carousel-panels]")!;
-    const calls: ScrollToOptions[] = [];
-    scroller.scrollTo = ((options: ScrollToOptions) => calls.push(options)) as typeof scroller.scrollTo;
-    return { host, tabs, scroller, calls };
-  }
-
-  it("has a tab and a panel for Scan, Comp, Collection, Feed and Leaderboard; Comp needs its flag", async () => {
-    const { host, tabs } = await carousel(true);
-    assert.deepEqual(
-      tabs.map((tab) => tab.firstChild?.textContent),
-      ["Scan", "Comp", "Collection", "Feed", "Leaderboard"],
-    );
-    for (const tab of tabs) {
-      assert.match(tab.className, /min-h-11/, "a 44px tap target");
-      const panel = host.querySelector(`#${win.CSS.escape(tab.getAttribute("aria-controls")!)}`);
-      assert.equal(panel?.getAttribute("role"), "tabpanel");
-      assert.equal(panel?.getAttribute("aria-labelledby"), tab.id);
-    }
-    cleanup?.();
-    cleanup = null;
-    delete process.env.NEXT_PUBLIC_QUICK_COMP;
-    const off = await carousel(false);
-    assert.deepEqual(
-      off.tabs.map((tab) => tab.firstChild?.textContent),
-      ["Scan", "Collection", "Feed", "Leaderboard"],
-    );
-  });
-
-  it("selects the tapped tab and scrolls to its panel; a jump with reduced motion; arrows move too", async () => {
-    const { host, tabs, calls } = await carousel(true);
-    const selected = () => tabs.map((tab) => tab.getAttribute("aria-selected"));
-    const panels = () => [...host.querySelectorAll('[role="tabpanel"]')].map((panel) => panel.hasAttribute("inert"));
-    assert.deepEqual(selected(), ["true", "false", "false", "false", "false"]);
-    assert.deepEqual(panels(), [false, true, true, true, true], "only the shown panel can be tabbed into");
-
-    await act(async () => tabs[3].click());
-    assert.deepEqual(selected(), ["false", "false", "false", "true", "false"]);
-    assert.equal(calls.at(-1)?.behavior, "smooth");
-    assert.deepEqual(panels(), [true, true, true, false, true]);
-    assert.deepEqual(tabs.map((tab) => tab.tabIndex), [-1, -1, -1, 0, -1]);
-
-    state.reducedMotion = true;
-    await act(async () => void tabs[3].dispatchEvent(new win.KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })));
-    assert.equal(tabs[4].getAttribute("aria-selected"), "true");
-    assert.equal(calls.at(-1)?.behavior, "auto");
-    await act(async () => void tabs[4].dispatchEvent(new win.KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })));
-    assert.equal(tabs[0].getAttribute("aria-selected"), "true", "wraps around");
-  });
-
-  it("gives the collection chart the room its slide has, and keeps the old height elsewhere", async () => {
-    state.reducedMotion = true;
-    const { default: GraphsDemo } = await import("@/components/landing/showcase/graphs-demo");
-    let host = await mount(createElement(GraphsDemo, { run: 0, gain: null }));
-    assert.equal(host.querySelector<HTMLElement>(".chart-surface")?.style.height, "176px");
-    cleanup?.();
-    cleanup = null;
-    host = await mount(createElement(GraphsDemo, { run: 0, gain: null, chartHeight: 300 }));
-    assert.equal(host.querySelector<HTMLElement>(".chart-surface")?.style.height, "300px");
-  });
-
-  it("marks the leaderboard as sample accounts, with names as plain text", async () => {
-    const { FeaturePanels } = await import("@/components/landing/feature-panels");
-    const html = renderToStaticMarkup(createElement(FeaturePanels));
-    const board = html.slice(html.indexOf('data-chapter="leaderboard"'), html.indexOf('data-chapter="achievements"'));
-    assert.match(board, />Sample accounts</);
-    assert.match(board, /role="region" aria-label="Sample accounts, not real collectors"/);
-    const { default: LeaderboardDemo } = await import("@/components/landing/showcase/leaderboard-demo");
-    const { SAMPLE_BOARD } = await import("@/components/landing/showcase/sample-data");
-    const host = await mount(createElement(LeaderboardDemo, { run: 0 }));
-    assert.equal(host.querySelectorAll("a").length, 0);
-    assert.equal(host.querySelectorAll("[data-place]").length, SAMPLE_BOARD.length);
-    for (const img of host.querySelectorAll("img")) {
-      assert.match(img.getAttribute("src") ?? "", /^\/landing\/avatars\/[a-z0-9_]+\.webp$/);
-      assert.equal(img.getAttribute("loading"), "lazy");
-      assert.ok(img.getAttribute("width") && img.getAttribute("height"), "sized, so nothing shifts");
-    }
-    assert.ok(existsSync(join(ROOT, "public/landing/sample-raw-card.svg")));
+  it("sets headings 34/1.08 then 56/1.04, the lead 22 then 28, and keeps the measures", () => {
+    assert.match(css, /\.lg-h2 \{[^}]*max-width: 34ch;[^}]*font-size: 34px;[^}]*line-height: 1\.08;/);
+    assert.match(desktop, /\.lg-h2 \{\s*font-size: 56px;\s*line-height: 1\.04;/);
+    assert.match(css, /\.lg-lead \{[^}]*max-width: 56ch;[^}]*font-size: 22px;/);
+    assert.match(desktop, /\.lg-lead \{[^}]*font-size: 28px;/);
+    assert.match(css, /\.lg-sub \{[^}]*max-width: 56ch;[^}]*font-size: 16px;\s*font-weight: 500;\s*line-height: 1\.5;/);
+    assert.match(desktop, /\.lg-sub \{[^}]*font-size: 18px;\s*line-height: 1\.55;/);
   });
 });

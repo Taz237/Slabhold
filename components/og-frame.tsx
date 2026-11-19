@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { ImageResponse } from "next/og";
 import type { ReactNode } from "react";
 import { LANDSCAPE, shareNode, type Canvas } from "@/components/og-share";
-import { siteUrlFrom } from "@/lib/site-url";
+import { landingMedia } from "@/lib/landing/media";
 import { cleanImageUrl, type LinkPreview } from "@/lib/social/link-preview";
 import { leaderboardCacheControl } from "@/lib/leaderboard/cache";
 import type { LeaderboardShareModel, RankShareModel } from "@/lib/leaderboard/share";
@@ -61,83 +61,43 @@ const iconSrc = dataUrl(
   "image/png",
 );
 
-/**
- * Home preview screenshot. The ignore comment keeps the tracer from copying
- * `public/landing/2.png` into every page. The fetch fallback uses the public
- * production origin. Preview hosts are behind Deployment Protection.
- */
-function readHomeShotFile(): Buffer | null {
-  // Tests turn the local file off so the fetch fallback runs without renaming it.
-  if (process.env.SLABHOLD_HOME_SHOT_DISK === "off") return null;
-  try {
-    return readFileSync(
-      join(/* turbopackIgnore: true */ process.cwd(), "public", "landing", "2.png"),
-    );
-  } catch {
-    return null;
-  }
-}
-
 function isPng(bytes: Buffer): boolean {
   return bytes.length >= 4 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
 }
 
-/** Public production domain. Preview `VERCEL_URL` is not fetched. */
-function deploymentOrigin(): string {
-  const raw = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
-  const host = raw?.replace(/^https?:\/\//, "").replace(/\/$/, "");
-  if (host) return `https://${host}`;
-  return siteUrlFrom(process.env.NEXT_PUBLIC_SITE_URL);
-}
-
-let homeShotPromise: Promise<string | null> | null = null;
-
-async function loadHomeShot(): Promise<string | null> {
-  const local = readHomeShotFile();
-  if (local && isPng(local)) return dataUrl(local, "image/png");
-  let response: Response;
+/**
+ * The home image's card: the real hero photo in public/landing/media, when
+ * there is one. Read from disk and turned into a PNG the renderer can draw
+ * (it has no AVIF decoder). Nothing is fetched. No file, or no sharp in a
+ * function bundle (next.config.ts leaves it out), means the image is drawn
+ * without a card. /opengraph-image is prerendered at build, where both exist.
+ */
+async function loadHomeCard(root: string): Promise<string | null> {
+  const card = landingMedia(root).heroCard;
+  if (!card) return null;
   try {
-    response = await fetch(`${deploymentOrigin()}/landing/2.png`, {
-      redirect: "manual",
-      signal: AbortSignal.timeout(5000),
-    });
+    const bytes = readFileSync(join(/* turbopackIgnore: true */ root, "public", card.src));
+    const { default: sharp } = await import("sharp");
+    const png = await sharp(bytes).resize({ height: 900, withoutEnlargement: true }).png().toBuffer();
+    return isPng(png) ? dataUrl(png, "image/png") : null;
   } catch {
     return null;
   }
-  let consumed = false;
-  try {
-    if (response.status !== 200) return null;
-    const type = (response.headers.get("content-type") ?? "").toLowerCase();
-    if (!type.startsWith("image/png")) return null;
-    const lengthHeader = response.headers.get("content-length");
-    if (lengthHeader != null) {
-      const length = Number(lengthHeader);
-      if (!Number.isFinite(length) || length > MAX_FETCH_BYTES) return null;
-    }
-    const bytes = Buffer.from(await response.arrayBuffer());
-    consumed = true;
-    if (bytes.length === 0 || bytes.length > MAX_FETCH_BYTES || !isPng(bytes)) return null;
-    return dataUrl(bytes, "image/png");
-  } catch {
-    return null;
-  } finally {
-    if (!consumed) await response.body?.cancel().catch(() => undefined);
-  }
 }
 
-function homeShotSrc(): Promise<string | null> {
-  if (homeShotPromise) return homeShotPromise;
-  const attempt = loadHomeShot().then((src) => {
-    if (!src && homeShotPromise === attempt) homeShotPromise = null;
-    return src;
-  });
-  homeShotPromise = attempt;
-  return attempt;
+let homeCardPromise: Promise<string | null> | null = null;
+
+function homeCardSrc(): Promise<string | null> {
+  homeCardPromise ??= loadHomeCard(homeCardRoot ?? process.cwd());
+  return homeCardPromise;
 }
 
-/** Drops a cached screenshot so the next render reads disk or fetches again. */
-export function resetHomeShotCache(): void {
-  homeShotPromise = null;
+let homeCardRoot: string | null = null;
+
+/** Tests point the home image at another project root (null puts it back) and drop the cached card. */
+export function resetHomeCardCache(root: string | null = null): void {
+  homeCardRoot = root;
+  homeCardPromise = null;
 }
 
 /**
@@ -310,42 +270,41 @@ function Left({ children }: { children: ReactNode }) {
   );
 }
 
-function PhoneShot({ src }: { src: string }) {
+/** The glass slab with the real hero card in it. */
+function HomeSlab({ src }: { src: string }) {
   return (
     <div
       style={{
         display: "flex",
-        width: 360,
+        width: 420,
         height: "100%",
         alignItems: "center",
         justifyContent: "center",
-        paddingRight: 52,
+        paddingRight: 72,
       }}
     >
       <div
         style={{
           display: "flex",
-          width: 268,
-          height: 548,
-          padding: 8,
-          borderRadius: 36,
-          background: "#1b1530",
-          border: "2px solid rgba(196,181,253,0.55)",
-          boxShadow: "0 22px 48px rgba(0,0,0,0.5)",
+          width: 332,
+          height: 470,
+          padding: 20,
+          borderRadius: 40,
+          background: "rgba(167,139,250,0.10)",
+          border: "5px solid rgba(255,255,255,0.22)",
+          boxShadow: "0 30px 80px rgba(20,8,48,0.6)",
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={src}
-          alt=""
-          width={252}
-          height={532}
-          style={{ objectFit: "cover", borderRadius: 28 }}
-        />
+        <img src={src} alt="" width={282} height={420} style={{ objectFit: "contain", borderRadius: 20 }} />
       </div>
     </div>
   );
 }
+
+/** The landing page's galaxy: three soft purple lights on near-black. */
+const HOME_GALAXY =
+  "radial-gradient(circle at 8% 0%, rgba(91,33,182,0.85) 0%, rgba(91,33,182,0) 55%), radial-gradient(circle at 100% 18%, rgba(124,58,237,0.55) 0%, rgba(124,58,237,0) 50%), radial-gradient(circle at 55% 125%, rgba(42,18,96,1) 0%, rgba(42,18,96,0) 62%)";
 
 function lines(text: string, size: number, weight: number, color: string, clamp: number) {
   return (
@@ -378,7 +337,7 @@ function respond(node: ReactNode, cacheControl = PUBLIC_OG_CACHE_CONTROL) {
 function paint(
   model: ShareImage,
   cacheControl: string,
-  homeShot: string | null,
+  homeCard: string | null,
   canvas: Canvas = LANDSCAPE,
 ): ImageResponse {
   const forced = nextOgPaintErrors.shift();
@@ -394,23 +353,17 @@ function paint(
   const send = (node: ReactNode) => respond(node, cacheControl);
 
   if (model.kind === "home") {
+    // The logo and the headline on the purple galaxy, and the real hero card in its slab when there is one.
     return send(
-      <div style={{ display: "flex", width: "100%", height: "100%" }}>
+      <div style={{ display: "flex", width: "100%", height: "100%", backgroundColor: "#07050D", backgroundImage: HOME_GALAXY }}>
         <Left>
           <Brand />
           <div style={{ display: "flex", flexDirection: "column" }}>
-            <div style={{ display: "flex", fontSize: 22, color: "#a1a1aa", marginBottom: 18 }}>
-              {model.kicker}
-            </div>
-            {lines(model.title, 76, 700, "#fafafa", 3)}
-            {model.detail ? (
-              <div style={{ display: "flex", marginTop: 22, fontSize: 30, color: "#e4e4e7" }}>
-                {model.detail}
-              </div>
-            ) : null}
+            {lines(model.title, homeCard ? 76 : 92, 700, "#fafafa", 2)}
+            {model.detail ? lines(model.detail, homeCard ? 76 : 92, 700, "#A78BFA", 2) : null}
           </div>
         </Left>
-        {homeShot ? <PhoneShot src={homeShot} /> : null}
+        {homeCard ? <HomeSlab src={homeCard} /> : null}
       </div>,
     );
   }
@@ -485,13 +438,13 @@ function packOg(bytes: Buffer, response: ImageResponse): ImageResponse {
 async function paintWithinBudget(
   model: ShareImage,
   cacheControl: string,
-  homeShot: string | null,
+  homeCard: string | null,
   canvas: Canvas,
 ): Promise<ImageResponse> {
-  const first = paint(model, cacheControl, homeShot, canvas);
+  const first = paint(model, cacheControl, homeCard, canvas);
   const bytes = await ogBytes(first);
   if (bytes.length <= OG_BYTE_BUDGET || canvas.compact || canvas.height > canvas.width) return packOg(bytes, first);
-  const smaller = paint(model, cacheControl, homeShot, { ...canvas, compact: true });
+  const smaller = paint(model, cacheControl, homeCard, { ...canvas, compact: true });
   const compact = await ogBytes(smaller);
   return compact.length < bytes.length ? packOg(compact, smaller) : packOg(bytes, first);
 }
@@ -522,15 +475,15 @@ export async function renderOg(
 ): Promise<ImageResponse> {
   const isShapingError = (e: unknown) =>
     e instanceof Error && /lookupType: \d+ - substFormat: \d+ is not yet supported/.test(e.message);
-  const homeShot = model.kind === "home" ? await homeShotSrc() : null;
+  const homeCard = model.kind === "home" ? await homeCardSrc() : null;
   try {
-    return await paintWithinBudget(model, cacheControl, homeShot, canvas);
+    return await paintWithinBudget(model, cacheControl, homeCard, canvas);
   } catch (error) {
     console.error("[og] share image render failed", { kind: model.kind, stage: "render" }, error);
     if (isShapingError(error)) {
       try {
         const stripped = readableShareImage(model);
-        const shot = stripped.kind === "home" ? (homeShot ?? (await homeShotSrc())) : null;
+        const shot = stripped.kind === "home" ? (homeCard ?? (await homeCardSrc())) : null;
         return await paintWithinBudget(stripped, cacheControl, shot, canvas);
       } catch (stripError) {
         console.error(
@@ -540,7 +493,7 @@ export async function renderOg(
         );
       }
     }
-    return consumeOg(paint(homeShareImage(), ogFailureCache(cacheControl), await homeShotSrc()));
+    return consumeOg(paint(homeShareImage(), ogFailureCache(cacheControl), await homeCardSrc()));
   }
 }
 
@@ -554,12 +507,12 @@ export async function renderProfileOg(
     return await renderOg(profileShareImage(preview, kicker, extra), cacheControl);
   } catch (error) {
     console.error("[og] share image render failed", { kind: "profile", stage: "render" }, error);
-    return consumeOg(paint(homeShareImage(), ogFailureCache(cacheControl), await homeShotSrc()));
+    return consumeOg(paint(homeShareImage(), ogFailureCache(cacheControl), await homeCardSrc()));
   }
 }
 
 export async function renderHomeOg() {
-  return paint(homeShareImage(), PUBLIC_OG_CACHE_CONTROL, await homeShotSrc());
+  return paint(homeShareImage(), PUBLIC_OG_CACHE_CONTROL, await homeCardSrc());
 }
 
 /** Catalog share image. Same frame, fonts, and brand as the other Open Graph cards. */

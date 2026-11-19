@@ -2,17 +2,16 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, createContext, lazy, useEffect, type ReactNode } from "react";
-import type { CompDemo, PickupDemo } from "@/components/landing/showcase/sample-data";
+import { Suspense, createContext, useEffect, type ReactNode } from "react";
+import type { CompDemo } from "@/components/landing/showcase/sample-data";
 import { trackEvent } from "@/lib/analytics";
 import { landingLoginHref, landingSignupHref, safeNext } from "@/lib/auth/safe-next";
 import { prefetchOnce, warmOnFirstInteraction } from "@/lib/landing/warm-routes";
-import { afterFirstIdle } from "@/lib/ui/idle";
 
 /*
  * The landing page is drawn on the server. These are its only client parts:
- * links that carry ?next= and count taps, the panels below the hero, the App
- * Store button and the hero phone's tilt.
+ * links that carry ?next= and count taps, the App Store button, the slab's
+ * tilt, the pause controls and the Quick Comp panel.
  */
 
 /**
@@ -66,47 +65,12 @@ function IntentLink({
   return <Link {...props} href={href} prefetch={false} onPointerEnter={warm} onTouchStart={warm} onFocus={warm} />;
 }
 
-/**
- * Below the hero. The server HTML has the panels; their code loads once the
- * page is idle and they hydrate then, so it is never in the way of the first
- * paint (next/dynamic would preload it from the head). Scrolling works before
- * that; the dots answer once hydrated.
- */
-const LazyPanels = lazy(() =>
-  (typeof window === "undefined" ? Promise.resolve() : new Promise<void>((resolve) => afterFirstIdle(resolve))).then(
-    () => import("@/components/landing/feature-panels").then((mod) => ({ default: mod.FeaturePanels })),
-  ),
-);
-
-export function FeaturePanels() {
-  return (
-    <Suspense fallback={<PanelsSkeleton />}>
-      <LazyPanels />
-    </Suspense>
-  );
-}
-
-/** The founder's real card for the Quick Comp demo. Null plays the sample. */
+/** One real card's stored sold prices for Quick Comp and the hero's sold-price line. Null draws neither. */
 export const LandingCompContext = createContext<CompDemo | null>(null);
 
-/** The founder's real card for the timeline's pickup post. Null keeps the sample slab. */
-export const LandingPickupContext = createContext<PickupDemo | null>(null);
-
-/** Set by the page around the landing, so the lazy panels get the real cards. */
-export function LandingCompProvider({
-  comp,
-  pickup = null,
-  children,
-}: {
-  comp: CompDemo | null;
-  pickup?: PickupDemo | null;
-  children: ReactNode;
-}) {
-  return (
-    <LandingCompContext value={comp}>
-      <LandingPickupContext value={pickup}>{children}</LandingPickupContext>
-    </LandingCompContext>
-  );
+/** Set by the page around the landing, so the Quick Comp panel gets the real card. */
+export function LandingCompProvider({ comp, children }: { comp: CompDemo | null; children?: ReactNode }) {
+  return <LandingCompContext value={comp}>{children}</LandingCompContext>;
 }
 
 function FromSearch({ render }: { render: (next: string) => ReactNode }) {
@@ -130,16 +94,11 @@ export function LandingLogin() {
   );
 }
 
-/** Create account and Log in, carrying ?next=. */
-export function LandingCta() {
-  return (
-    <Suspense fallback={<LandingActions next="/" />}>
-      <FromSearch render={(next) => <LandingActions next={next} />} />
-    </Suspense>
-  );
-}
-
-/** The hero's primary action, carrying ?next=. Its secondary (the App Store) sits beside it on the page. */
+/**
+ * Open Slabhold, carrying ?next=. On the web it is the glass button beside
+ * the App Store one; inside the iOS app, where that one is hidden, it is the
+ * only action.
+ */
 export function LandingOpen() {
   return (
     <Suspense fallback={<OpenLink next="/" />}>
@@ -153,19 +112,11 @@ function OpenLink({ next }: { next: string }) {
     <IntentLink
       href={landingSignupHref(next)}
       onClick={() => trackEvent("landing_cta_clicked", { button: "open" })}
-      className="flex h-14 w-full items-center justify-center rounded-full bg-[#7C3AED] text-[17px] font-semibold text-white transition-transform duration-150 active:scale-[0.98] motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-[#A78BFA] focus-visible:ring-offset-2 focus-visible:ring-offset-[#09090b] focus-visible:outline-none"
+      className="lg-btn lg-btn-glass lg-glass"
     >
       Open Slabhold
     </IntentLink>
   );
-}
-
-/** A link that counts its tap as a landing call to action. */
-export function LandingLink({
-  button,
-  ...props
-}: React.ComponentProps<typeof IntentLink> & { button: string }) {
-  return <IntentLink {...props} onClick={() => trackEvent("landing_cta_clicked", { button })} />;
 }
 
 function LoginLink({ next }: { next: string }) {
@@ -177,38 +128,5 @@ function LoginLink({ next }: { next: string }) {
     >
       Log in
     </IntentLink>
-  );
-}
-
-export function LandingActions({ next }: { next: string }) {
-  return (
-    <div className="mt-7 space-y-2">
-      <IntentLink
-        href={landingSignupHref(next)}
-        onClick={() => trackEvent("landing_cta_clicked", { button: "signup" })}
-        className="flex h-14 w-full items-center justify-center rounded-full bg-[#7C3AED] text-[17px] font-semibold text-white transition-transform duration-150 active:scale-[0.98] motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-[#A78BFA] focus-visible:ring-offset-2 focus-visible:ring-offset-[#09090b] focus-visible:outline-none lg:max-w-sm"
-      >
-        Create account
-      </IntentLink>
-      <p className="text-center text-[15px] text-zinc-400 lg:max-w-sm">
-        Have an account?{" "}
-        <IntentLink
-          href={landingLoginHref(next)}
-          onClick={() => trackEvent("landing_cta_clicked", { button: "login" })}
-          className="hit-44 inline-flex items-center font-semibold text-white underline underline-offset-4"
-        >
-          Log in
-        </IntentLink>
-      </p>
-    </div>
-  );
-}
-
-function PanelsSkeleton() {
-  return (
-    <div aria-hidden className="mt-14">
-      <div className="skeleton-shimmer mx-auto h-[660px] w-[300px] rounded-[44px]" />
-      <div className="mt-4 h-11" />
-    </div>
   );
 }
