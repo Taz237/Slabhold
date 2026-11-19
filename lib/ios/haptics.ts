@@ -8,6 +8,8 @@ export type HapticMoment =
   | "send"
   | "refresh"
   | "tick"
+  /** A new card reaches the center of the profile carousel: the picker-wheel tick, lighter than "tick". */
+  | "select"
   | "add"
   /** The scan reveal (components/scan/scan-reveal.tsx): the cropped card snaps onto the stage. */
   | "snap"

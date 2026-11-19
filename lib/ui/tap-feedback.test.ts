@@ -143,6 +143,9 @@ describe("tap feedback", () => {
     assert.equal(pendingSkeletonFor(`${CARD}?from=moving`), "card");
     assert.equal(pendingSkeletonFor("/u/maya"), "profile");
     assert.equal(pendingSkeletonFor("/u/maya?tab=cards"), "profile");
+    // The cards page has its own loading file: it must not borrow the profile or the card skeleton.
+    assert.equal(pendingSkeletonFor("/u/maya/cards"), null);
+    assert.equal(pendingSkeletonFor("/u/maya/cards/abc"), "card");
     assert.equal(pendingSkeletonFor("/u/maya/followers"), null);
     assert.equal(pendingSkeletonFor("/posts/abc"), "post");
     assert.equal(pendingSkeletonFor("/posts/abc#reply"), "post");

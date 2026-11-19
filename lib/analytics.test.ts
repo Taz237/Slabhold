@@ -226,11 +226,13 @@ describe("scrubAnalyticsUrl", () => {
     assert.equal(scrubAnalyticsUrl({ type: "pageview", url: "http://[" }), null);
     assert.equal(routePattern("/U/DonnieTaz"), "/u/[username]");
     assert.equal(scrubbed("/U/DonnieTaz"), "/u/[username]");
-    assert.equal(routePattern("/u/x/cards"), "/[unknown]");
+    // /u/<handle>/cards is a page now: the full grid behind the profile's "See all".
+    assert.equal(routePattern("/u/x/cards"), "/u/[username]/cards");
+    assert.equal(routePattern("/u/x/nope"), "/[unknown]");
     assert.equal(routePattern("/u//cards/x"), "/[unknown]");
     assert.equal(routePattern("/u/a/cards/b/extra"), "/[unknown]");
     assert.equal(routePattern("/nope/secret"), "/[unknown]");
-    assert.equal(scrubbed("/u/x/cards"), "/[unknown]");
+    assert.equal(scrubbed("/u/x/cards"), "/u/[username]/cards");
     assert.equal(scrubbed("/u//cards/x"), "/[unknown]");
     assert.equal(scrubbed("/u/a/cards/b/extra"), "/[unknown]");
     assert.equal(scrubbed("/nope/secret"), "/[unknown]");

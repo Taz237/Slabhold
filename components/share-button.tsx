@@ -48,7 +48,8 @@ async function shareLink(path: string, title: string, text: string) {
   });
 }
 
-function useShare(path: string, title: string, text: string) {
+/** Share a link through the share sheet, or copy it. `copied` is true for a moment after a copy. */
+export function useShare(path: string, title: string, text: string) {
   const [copied, setCopied] = useState(false);
   const timer = useRef(0);
 
@@ -73,7 +74,7 @@ function useShare(path: string, title: string, text: string) {
   return { copied, share };
 }
 
-function CopiedToast() {
+export function CopiedToast() {
   return (
     <p
       role="status"

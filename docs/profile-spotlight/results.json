@@ -1,0 +1,663 @@
+{
+  "screens": [
+    {
+      "scheme": "dark",
+      "who": "other",
+      "count": 0,
+      "carousel": false,
+      "prompt": false,
+      "skeleton": false,
+      "slides": 0,
+      "live": 0,
+      "seeAll": null,
+      "tabs": [
+        "Posts",
+        "Replies",
+        "Media"
+      ],
+      "badges": false,
+      "shareBox": false
+    },
+    {
+      "scheme": "dark",
+      "who": "other",
+      "count": 1,
+      "carousel": true,
+      "prompt": false,
+      "skeleton": false,
+      "slides": 1,
+      "live": 1,
+      "seeAll": null,
+      "tabs": [
+        "Posts",
+        "Replies",
+        "Media"
+      ],
+      "badges": false,
+      "shareBox": false
+    },
+    {
+      "scheme": "dark",
+      "who": "other",
+      "count": 2,
+      "carousel": true,
+      "prompt": false,
+      "skeleton": false,
+      "slides": 3,
+      "live": 3,
+      "seeAll": "See all 2 cards",
+      "tabs": [
+        "Posts",
+        "Replies",
+        "Media"
+      ],
+      "badges": false,
+      "shareBox": false
+    },
+    {
+      "scheme": "dark",
+      "who": "other",
+      "count": 15,
+      "carousel": true,
+      "prompt": false,
+      "skeleton": false,
+      "slides": 16,
+      "live": 5,
+      "seeAll": "See all 15 cards",
+      "tabs": [
+        "Posts",
+        "Replies",
+        "Media"
+      ],
+      "badges": false,
+      "shareBox": false
+    },
+    {
+      "scheme": "dark",
+      "who": "other",
+      "count": 200,
+      "carousel": true,
+      "prompt": false,
+      "skeleton": false,
+      "slides": 201,
+      "live": 5,
+      "seeAll": "See all 200 cards",
+      "tabs": [
+        "Posts",
+        "Replies",
+        "Media"
+      ],
+      "badges": false,
+      "shareBox": false
+    },
+    {
+      "scheme": "dark",
+      "who": "own",
+      "count": 0,
+      "carousel": false,
+      "prompt": true,
+      "skeleton": false,
+      "slides": 0,
+      "live": 0,
+      "seeAll": null,
+      "tabs": [
+        "Posts",
+        "Replies",
+        "Media"
+      ],
+      "badges": false,
+      "shareBox": false
+    },
+    {
+      "scheme": "dark",
+      "who": "own",
+      "count": 1,
+      "carousel": true,
+      "prompt": false,
+      "skeleton": false,
+      "slides": 1,
+      "live": 1,
+      "seeAll": null,
+      "tabs": [
+        "Posts",
+        "Replies",
+        "Media"
+      ],
+      "badges": false,
+      "shareBox": false
+    },
+    {
+      "scheme": "dark",
+      "who": "own",
+      "count": 2,
+      "carousel": true,
+      "prompt": false,
+      "skeleton": false,
+      "slides": 3,
+      "live": 3,
+      "seeAll": "See all 2 cards",
+      "tabs": [
+        "Posts",
+        "Replies",
+        "Media"
+      ],
+      "badges": false,
+      "shareBox": false
+    },
+    {
+      "scheme": "dark",
+      "who": "own",
+      "count": 15,
+      "carousel": true,
+      "prompt": false,
+      "skeleton": false,
+      "slides": 16,
+      "live": 5,
+      "seeAll": "See all 15 cards",
+      "tabs": [
+        "Posts",
+        "Replies",
+        "Media"
+      ],
+      "badges": false,
+      "shareBox": false
+    },
+    {
+      "scheme": "dark",
+      "who": "own",
+      "count": 200,
+      "carousel": true,
+      "prompt": false,
+      "skeleton": false,
+      "slides": 201,
+      "live": 5,
+      "seeAll": "See all 200 cards",
+      "tabs": [
+        "Posts",
+        "Replies",
+        "Media"
+      ],
+      "badges": false,
+      "shareBox": false
+    },
+    {
+      "scheme": "light",
+      "who": "other",
+      "count": 0,
+      "carousel": false,
+      "prompt": false,
+      "skeleton": false,
+      "slides": 0,
+      "live": 0,
+      "seeAll": null,
+      "tabs": [
+        "Posts",
+        "Replies",
+        "Media"
+      ],
+      "badges": false,
+      "shareBox": false
+    },
+    {
+      "scheme": "light",
+      "who": "other",
+      "count": 1,
+      "carousel": true,
+      "prompt": false,
+      "skeleton": false,
+      "slides": 1,
+      "live": 1,
+      "seeAll": null,
+      "tabs": [
+        "Posts",
+        "Replies",
+        "Media"
+      ],
+      "badges": false,
+      "shareBox": false
+    },
+    {
+      "scheme": "light",
+      "who": "other",
+      "count": 2,
+      "carousel": true,
+      "prompt": false,
+      "skeleton": false,
+      "slides": 3,
+      "live": 3,
+      "seeAll": "See all 2 cards",
+      "tabs": [
+        "Posts",
+        "Replies",
+        "Media"
+      ],
+      "badges": false,
+      "shareBox": false
+    },
+    {
+      "scheme": "light",
+      "who": "other",
+      "count": 15,
+      "carousel": true,
+      "prompt": false,
+      "skeleton": false,
+      "slides": 16,
+      "live": 5,
+      "seeAll": "See all 15 cards",
+      "tabs": [
+        "Posts",
+        "Replies",
+        "Media"
+      ],
+      "badges": false,
+      "shareBox": false
+    },
+    {
+      "scheme": "light",
+      "who": "other",
+      "count": 200,
+      "carousel": true,
+      "prompt": false,
+      "skeleton": false,
+      "slides": 201,
+      "live": 5,
+      "seeAll": "See all 200 cards",
+      "tabs": [
+        "Posts",
+        "Replies",
+        "Media"
+      ],
+      "badges": false,
+      "shareBox": false
+    },
+    {
+      "scheme": "light",
+      "who": "own",
+      "count": 0,
+      "carousel": false,
+      "prompt": true,
+      "skeleton": false,
+      "slides": 0,
+      "live": 0,
+      "seeAll": null,
+      "tabs": [
+        "Posts",
+        "Replies",
+        "Media"
+      ],
+      "badges": false,
+      "shareBox": false
+    },
+    {
+      "scheme": "light",
+      "who": "own",
+      "count": 1,
+      "carousel": true,
+      "prompt": false,
+      "skeleton": false,
+      "slides": 1,
+      "live": 1,
+      "seeAll": null,
+      "tabs": [
+        "Posts",
+        "Replies",
+        "Media"
+      ],
+      "badges": false,
+      "shareBox": false
+    },
+    {
+      "scheme": "light",
+      "who": "own",
+      "count": 2,
+      "carousel": true,
+      "prompt": false,
+      "skeleton": false,
+      "slides": 3,
+      "live": 3,
+      "seeAll": "See all 2 cards",
+      "tabs": [
+        "Posts",
+        "Replies",
+        "Media"
+      ],
+      "badges": false,
+      "shareBox": false
+    },
+    {
+      "scheme": "light",
+      "who": "own",
+      "count": 15,
+      "carousel": true,
+      "prompt": false,
+      "skeleton": false,
+      "slides": 16,
+      "live": 5,
+      "seeAll": "See all 15 cards",
+      "tabs": [
+        "Posts",
+        "Replies",
+        "Media"
+      ],
+      "badges": false,
+      "shareBox": false
+    },
+    {
+      "scheme": "light",
+      "who": "own",
+      "count": 200,
+      "carousel": true,
+      "prompt": false,
+      "skeleton": false,
+      "slides": 201,
+      "live": 5,
+      "seeAll": "See all 200 cards",
+      "tabs": [
+        "Posts",
+        "Replies",
+        "Media"
+      ],
+      "badges": false,
+      "shareBox": false
+    }
+  ],
+  "mixed": {
+    "reducedMotion": {
+      "fx": false,
+      "sideTransform": "none",
+      "sideFilter": "none",
+      "glowAnimation": "none"
+    }
+  },
+  "flow": {
+    "slowDrag": {
+      "moved": 1
+    },
+    "lightFlick": {
+      "moved": 1
+    },
+    "hardFling": {
+      "frames": 73,
+      "p50": 16.7,
+      "p95": 16.8,
+      "p99": 33.3,
+      "max": 33.3,
+      "over20ms": 2,
+      "longTasks": 0,
+      "longest": 0,
+      "moved": 3
+    },
+    "backSameCard": true,
+    "verticalDragScrollsPage": 249,
+    "grid": {
+      "title": "@waxroom's cards",
+      "tiles": 200,
+      "filter": true,
+      "price": "Est. $2,412.00",
+      "width": 390
+    },
+    "oldLinksRedirect": true,
+    "ownShareSheet": true
+  },
+  "perf": [
+    {
+      "variant": "shipped (blur on), 1x CPU",
+      "engine": "scroll-driven CSS",
+      "cardsPerRun": [
+        15,
+        15,
+        15
+      ],
+      "p50": [
+        16.7,
+        16.7,
+        16.7
+      ],
+      "p95": [
+        16.8,
+        16.8,
+        16.8
+      ],
+      "p99": [
+        16.8,
+        16.8,
+        16.8
+      ],
+      "max": [
+        16.8,
+        16.8,
+        33.3
+      ],
+      "framesOver20ms": [
+        0,
+        0,
+        1
+      ],
+      "frames": [
+        215,
+        214,
+        217
+      ],
+      "longTasks": [
+        0,
+        0,
+        0
+      ],
+      "longest": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "variant": "shipped (blur on), 4x CPU slowdown",
+      "engine": "scroll-driven CSS",
+      "cardsPerRun": [
+        13,
+        14,
+        14
+      ],
+      "p50": [
+        16.7,
+        16.7,
+        16.7
+      ],
+      "p95": [
+        33.4,
+        33.4,
+        33.4
+      ],
+      "p99": [
+        50.1,
+        50,
+        66.7
+      ],
+      "max": [
+        66.5,
+        50,
+        83.3
+      ],
+      "framesOver20ms": [
+        43,
+        60,
+        41
+      ],
+      "frames": [
+        172,
+        188,
+        182
+      ],
+      "longTasks": [
+        1,
+        0,
+        0
+      ],
+      "longest": [
+        58,
+        0,
+        0
+      ]
+    },
+    {
+      "variant": "blur off, 4x CPU slowdown",
+      "engine": "scroll-driven CSS",
+      "cardsPerRun": [
+        14,
+        13,
+        13
+      ],
+      "p50": [
+        16.7,
+        16.7,
+        16.7
+      ],
+      "p95": [
+        49.9,
+        50,
+        50
+      ],
+      "p99": [
+        66.7,
+        66.7,
+        66.6
+      ],
+      "max": [
+        83.3,
+        66.7,
+        66.7
+      ],
+      "framesOver20ms": [
+        68,
+        73,
+        62
+      ],
+      "frames": [
+        177,
+        151,
+        159
+      ],
+      "longTasks": [
+        1,
+        1,
+        0
+      ],
+      "longest": [
+        55,
+        52,
+        0
+      ]
+    },
+    {
+      "variant": "fallback engine (no scroll timelines), 1x CPU",
+      "engine": "script: one custom property per visible slide",
+      "cardsPerRun": [
+        16,
+        15,
+        15
+      ],
+      "p50": [
+        16.7,
+        16.7,
+        16.7
+      ],
+      "p95": [
+        16.7,
+        16.8,
+        16.8
+      ],
+      "p99": [
+        16.8,
+        16.8,
+        33.4
+      ],
+      "max": [
+        33.4,
+        33.3,
+        33.4
+      ],
+      "framesOver20ms": [
+        2,
+        2,
+        9
+      ],
+      "frames": [
+        240,
+        216,
+        226
+      ],
+      "longTasks": [
+        0,
+        0,
+        0
+      ],
+      "longest": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "variant": "fallback engine (no scroll timelines), 4x CPU slowdown",
+      "engine": "script: one custom property per visible slide",
+      "cardsPerRun": [
+        12,
+        12,
+        12
+      ],
+      "p50": [
+        33.3,
+        33.3,
+        33.3
+      ],
+      "p95": [
+        50,
+        50.1,
+        50
+      ],
+      "p99": [
+        66.7,
+        66.7,
+        50.1
+      ],
+      "max": [
+        83.3,
+        66.7,
+        66.7
+      ],
+      "framesOver20ms": [
+        91,
+        91,
+        100
+      ],
+      "frames": [
+        124,
+        113,
+        128
+      ],
+      "longTasks": [
+        1,
+        0,
+        0
+      ],
+      "longest": [
+        55,
+        0,
+        0
+      ]
+    }
+  ],
+  "firstScreen": {
+    "other": {
+      "cardTop": 409,
+      "cardBottom": 748,
+      "tabBarTop": 776,
+      "banner": 112
+    },
+    "own": {
+      "cardTop": 367,
+      "cardBottom": 706,
+      "tabBarTop": 776,
+      "banner": 112
+    }
+  }
+}

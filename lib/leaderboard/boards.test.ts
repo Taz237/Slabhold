@@ -180,7 +180,7 @@ describe("rows", () => {
     for (let rank = 4; rank <= 10; rank += 1) {
       assert.doesNotMatch(rowHtml(rank), /lb-banner|place<|data-crown/);
     }
-    assert.match(rowHtml(1), /href="\/u\/u0\?tab=cards"/);
+    assert.match(rowHtml(1), /href="\/u\/u0"/);
     assert.match(rowHtml(1), /Name u0/);
     assert.match(rowHtml(1), /30<\/span>/);
     // The unit is written once, on 1st. Every other score is its number, with the unit for screen readers.
@@ -212,7 +212,7 @@ describe("rows", () => {
     assert.doesNotMatch(oddRow, /<a /);
     assert.match(oddRow, /<div/);
     assert.doesNotMatch(markup, /href="\/posts\//);
-    assert.match(markup, /href="\/u\/fine\?tab=cards"/);
+    assert.match(markup, /href="\/u\/fine"/);
   });
 
   it("matches the viewer row by user id, not by rank", () => {

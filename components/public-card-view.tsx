@@ -35,6 +35,7 @@ import { useChartSales } from "@/lib/chart/use-chart-sales";
 import type { ChartSale } from "@/lib/chart/sales";
 import { isCardOwner } from "@/lib/comps/ownership";
 import { messageOwnerHref, showOpenToOffersBadge } from "@/lib/offers/open-to-offers";
+import { profileCardsPath } from "@/lib/social/profile-tabs";
 import { userHref } from "@/lib/social/user-href";
 import { basedOnSalesLabel, countForSalesLabel, valueFromShownSales } from "@/lib/comps/shared-value";
 import { soldNotice, soldNoticeTitle } from "@/lib/comps/sold-response";
@@ -151,7 +152,8 @@ export function PublicCardView({
   const profile = social.profileByUsername(username);
   const ownerRead = useProfiles(profile ? null : { usernames: [username] });
   const isOwn = Boolean(profile && social.user && profile.id === social.user.id);
-  const backHref = `${userHref(username)}?tab=collection`;
+  // Back goes back in history first (the profile, on the card you came from). Opened cold, it is this collector's cards.
+  const backHref = profileCardsPath(username);
   const serverCard = initialCard && initialCard.id === id ? initialCard : null;
   // The live public row decides. The server's copy only stands in until it is read.
   const cardRead = usePublicCards({ ids: [id] });
@@ -214,7 +216,7 @@ export function PublicCardView({
       <Missing
         title="This card isn't public"
         detail="Only cards the collector has shared on their profile can be opened here."
-        href={backHref}
+        href={userHref(username)}
         label={`Back to ${profile.displayName}`}
       />
     );
@@ -286,6 +288,8 @@ function PublicCardAnalytics({
   manageHref: string | null;
 }) {
   const pathname = usePathname() || "/";
+  // The pages a card opens from: the grid, the profile's carousel, and your own Profile tab.
+  const backPages = [backHref, userHref(owner.username), "/profile"];
   const specs = [
     card.sport ? { label: "Sport", value: card.sport } : null,
     card.cardNumber.trim() && card.cardNumber.trim() !== "—"
@@ -404,7 +408,8 @@ function PublicCardAnalytics({
       <Link
         href={backHref}
         data-nav-back=""
-        onClick={(event) => backLinkClick(event, backHref)}
+        // From the profile's carousel or the grid, back is back: the row is still on this card.
+        onClick={(event) => backLinkClick(event, backPages)}
         className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-zinc-600 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-white"
       >
         <ArrowLeft className="h-4 w-4" />

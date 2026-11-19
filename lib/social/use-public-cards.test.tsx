@@ -169,7 +169,10 @@ describe("public cards a screen asks for", () => {
     assert.match(read("components/message-thread.tsx"), /usePublicCards\(\{ ids: \[cardParam\] \}\)/);
     assert.match(read("components/card-posts-list.tsx"), /usePublicCards\(owned \? null : \{ ids: \[cardId\] \}\)/);
     assert.match(read("components/public-card-view.tsx"), /usePublicCards\(\{ ids: \[id\] \}\)/);
-    assert.match(read("components/profile-view.tsx"), /requestPublicCards\(publicCardKeys\(\{ ownerId \}\)\)/);
+    // The profile's carousel and the cards page share one read (use-profile-cards.ts).
+    assert.match(read("components/profile/use-profile-cards.ts"), /requestPublicCards\(publicCardKeys\(\{ ownerId \}\)\)/);
+    assert.match(read("components/profile-view.tsx"), /useProfileCards\(profile\)/);
+    assert.match(read("components/profile/profile-cards-view.tsx"), /useProfileCards\(profile\)/);
     assert.match(read("components/message-attachments.tsx"), /usePublicCards\(\{\n\s+ids: \[last\.cardPreview\?\.cardId/);
   });
 });

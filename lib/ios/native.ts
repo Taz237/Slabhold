@@ -300,8 +300,18 @@ async function playSweep(): Promise<void> {
   await Haptics.selectionEnd();
 }
 
+/**
+ * One selection tick, the lightest haptic iOS has. The plugin only ticks
+ * after selectionStart, and the sweep ends its own run, so each tick starts one.
+ */
+async function playSelect(): Promise<void> {
+  await Haptics.selectionStart();
+  await Haptics.selectionChanged();
+}
+
 export function playHaptic(moment: HapticMoment): Promise<void> {
   if (moment === "sweep") return playSweep();
+  if (moment === "select") return playSelect();
   if (moment === "lock") return Haptics.impact({ style: ImpactStyle.Medium });
   if (moment === "lockSure") return Haptics.notification({ type: NotificationType.Success });
   return SUCCESS_MOMENTS.has(moment)

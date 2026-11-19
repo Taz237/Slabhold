@@ -875,7 +875,10 @@ describe("open to offers polish", () => {
     assert.doesNotMatch(thread, /\/(?:u|messages)\/\$\{(?!userHref\()/);
 
     const profile = readFileSync(join(process.cwd(), "components/profile-view.tsx"), "utf8");
-    assert.match(profile, /<ProfileCardGrid[\s\S]*?username=\{profile\.username\}/);
+    // The grid moved with the Cards tab to /u/<handle>/cards.
+    const cardsPage = readFileSync(join(process.cwd(), "components/profile/profile-cards-view.tsx"), "utf8");
+    assert.match(cardsPage, /<ProfileCardGrid[\s\S]*?username=\{profile\.username\}/);
+    assert.doesNotMatch(cardsPage, /\/u\/\$\{/);
     const cardGrid = readFileSync(join(process.cwd(), "components/profile-card-grid.tsx"), "utf8");
     assert.match(
       cardGrid,
@@ -888,7 +891,10 @@ describe("open to offers polish", () => {
     assert.doesNotMatch(profile, /\/u\/\$\{nextUsername\}/);
 
     const cardPage = readFileSync(join(process.cwd(), "components/public-card-view.tsx"), "utf8");
-    assert.match(cardPage, /\$\{userHref\(username\)\}\?tab=collection/);
+    // Back from a card is that collector's cards (or back in history to the profile it opened from).
+    assert.match(cardPage, /const backHref = profileCardsPath\(username\);/);
+    assert.doesNotMatch(cardPage, /tab=collection|tab=cards/);
+    assert.match(cardPage, /const backPages = \[backHref, userHref\(owner\.username\), "\/profile"\];/);
 
     const people = readFileSync(join(process.cwd(), "components/card-people-view.tsx"), "utf8");
     assert.match(people, /href=\{userHref\(person\.handle\)\}/);

@@ -289,11 +289,11 @@ describe("leaderboard page", () => {
     assert.match(html, /data-rank="4"/);
     assert.match(html, /data-rank="10"/);
     assert.doesNotMatch(html, /data-rank="11"/);
-    assert.match(html, /href="\/u\/u0\?tab=cards"/);
-    assert.match(html, /href="\/u\/u10\?tab=cards"/);
+    assert.match(html, /href="\/u\/u0"/);
+    assert.match(html, /href="\/u\/u10"/);
     assert.doesNotMatch(html, /href="\/posts\//);
-    assert.doesNotMatch(html, /href="\/u\/u1(?:\?tab=cards)?"/);
-    assert.doesNotMatch(html, /href="\/u\/zero(?:\?tab=cards)?"/);
+    assert.doesNotMatch(html, /href="\/u\/u1(?:\/cards)?"/);
+    assert.doesNotMatch(html, /href="\/u\/zero(?:\/cards)?"/);
     assert.match(html, /data-viewer-row=""/);
     assert.match(html, />New</);
     const rankRows = html.match(/<ol [^>]*data-rank-rows="">([\s\S]*?)<\/ol>/)?.[1] ?? "";
@@ -311,7 +311,7 @@ describe("leaderboard page", () => {
     });
     const lastHtml = renderToStaticMarkup(withRouter(createElement(LeaderboardView, { model: last })));
     assert.match(lastHtml, /data-rank="4"/);
-    assert.match(lastHtml, /href="\/u\/u4\?tab=cards"/);
+    assert.match(lastHtml, /href="\/u\/u4"/);
     assert.doesNotMatch(lastHtml, /href="\/posts\//);
 
     snap.current.boards["rising-collectors"] = {
@@ -332,7 +332,7 @@ describe("leaderboard page", () => {
     const risingHtml = renderToStaticMarkup(withRouter(createElement(LeaderboardView, { model: rising })));
     assert.match(risingHtml, /data-rank="4"/);
     assert.match(risingHtml, /Dee Collector/);
-    assert.match(risingHtml, /href="\/u\/dee\?tab=cards"/);
+    assert.match(risingHtml, /href="\/u\/dee"/);
     assert.match(risingHtml, /new follower/);
   });
 

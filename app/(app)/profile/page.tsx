@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { ProfileView } from "@/components/profile-view";
 import { ProfileSkeleton } from "@/components/status";
-import { loadProfileBadges } from "@/lib/badges/load";
 import { previewMetadata } from "@/lib/social/link-preview";
 import { loadOwnProfilePreview } from "@/lib/social/link-preview-load";
 import { loadProfileCardCount } from "@/lib/social/profile-card-count";
@@ -14,13 +13,11 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function ProfilePage() {
   const viewerId = await getAuthUserId();
-  const [badges, cardCount] = await Promise.all([
-    loadProfileBadges({ own: true }, viewerId),
-    loadProfileCardCount({ own: true }, viewerId),
-  ]);
+  // Badges are still earned, but the profile no longer shows them, so it no longer reads them.
+  const cardCount = await loadProfileCardCount({ own: true }, viewerId);
   return (
     <Suspense fallback={<ProfileSkeleton />}>
-      <ProfileView badges={badges} cardCount={cardCount} />
+      <ProfileView cardCount={cardCount} />
     </Suspense>
   );
 }

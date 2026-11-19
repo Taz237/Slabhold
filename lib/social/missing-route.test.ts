@@ -19,6 +19,8 @@ describe("missingCheckForPath", () => {
     assert.deepEqual(missingCheckForPath(`/posts/${CARD}`), { kind: "post", id: CARD });
     assert.deepEqual(missingCheckForPath("/u/Maya"), { kind: "profile", username: "Maya" });
     assert.deepEqual(missingCheckForPath("/u/maya/followers"), { kind: "profile", username: "maya" });
+    // The cards page 404s for a handle that isn't a collector, like the profile does.
+    assert.deepEqual(missingCheckForPath("/u/maya/cards"), { kind: "profile", username: "maya" });
     assert.deepEqual(missingCheckForPath(`/u/maya/cards/${CARD}`), {
       kind: "public-card",
       username: "maya",

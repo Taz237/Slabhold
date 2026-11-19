@@ -33,7 +33,7 @@ export function missingCheckForPath(pathname: string): MissingCheck | null {
   if (
     parts[0] === "u" &&
     parts.length === 3 &&
-    (parts[2] === "followers" || parts[2] === "following")
+    (parts[2] === "followers" || parts[2] === "following" || parts[2] === "cards")
   ) {
     return { kind: "profile", username: parts[1] };
   }
