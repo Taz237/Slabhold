@@ -303,7 +303,7 @@ describe("invite a collector", () => {
     const dash = readFileSync(join(process.cwd(), "components/dashboard.tsx"), "utf8");
     assert.doesNotMatch(dash, /ShareCollectionCard/);
     assert.match(dash, /<CollectionShareButton chart=\{chart\} \/>/);
-    const actions = readFileSync(join(process.cwd(), "components/collection-actions.tsx"), "utf8");
+    const actions = readFileSync(join(process.cwd(), "components/collection-share-sheet-view.tsx"), "utf8");
     assert.match(actions, /<ShareCollectionActions \/>/);
   });
 });

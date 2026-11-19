@@ -66,9 +66,11 @@ export function TopMovers({ week, paid }: { week: MoverRow<HeroCard>[]; paid: Mo
           </div>
         ) : null}
       </div>
+      {/* `relative`: the row holds its own screen-reader words (absolute, 1px). Without it
+          the ones in cards scrolled off to the right widen the whole page, which then pans sideways. */}
       <ul
         data-no-pull
-        className="-mx-4 mt-1 flex snap-x gap-2 overflow-x-auto overscroll-x-contain scroll-px-4 px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="relative -mx-4 mt-1 flex snap-x gap-2 overflow-x-auto overscroll-x-contain scroll-px-4 px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {rows.map((row) => (
           <MoverItem key={row.card.id} row={row} basis={basis} />

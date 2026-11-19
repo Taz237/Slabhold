@@ -16,6 +16,7 @@ const FILES = [
   "components/want-button.tsx",
   "components/hunter-setting.tsx",
   "components/leaderboard-opt-in.tsx",
+  "components/leaderboard-nudge.ts",
   "components/value-board.tsx",
   "lib/collection/use-value-history.ts",
   "components/invite/invite-button.tsx",

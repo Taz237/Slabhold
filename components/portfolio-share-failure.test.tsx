@@ -84,6 +84,8 @@ describe("Share collection when its code fails to load", () => {
     // The chart share is not on the page until the share sheet is open.
     assert.equal(document.querySelector('button[aria-label="Share your collection chart"]'), null);
     act(() => host.querySelector<HTMLButtonElement>('button[aria-label="Share my collection"]')!.click());
+    // The sheet is its own chunk: let it load.
+    for (let i = 0; i < 5; i += 1) await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));
     const sheet = () => document.querySelector<HTMLElement>("[data-collection-sheet]")!;
     const button = () => sheet().querySelector<HTMLButtonElement>('button[aria-label="Share your collection chart"]')!;
     assert.ok(button());

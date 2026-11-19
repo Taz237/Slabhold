@@ -212,6 +212,8 @@ describe("Collection redesign: what is on the page", () => {
       "components/portfolio-hero.tsx",
       "components/collection-movers.tsx",
       "components/collection-actions.tsx",
+      "components/collection-share-sheet-view.tsx",
+      "components/collection-leaderboard-sheet-view.tsx",
       "components/collection-sheet.tsx",
       "components/collection-tile-actions.tsx",
       "components/collection-grid.tsx",

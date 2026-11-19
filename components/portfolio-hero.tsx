@@ -713,7 +713,8 @@ function StatRow({
     <div
       data-slot="collection-stats"
       data-no-pull
-      className="-mx-4 flex items-center gap-2 overflow-x-auto overscroll-x-contain px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      // `relative`: keeps the chips' screen-reader words inside this row, so they never widen the page.
+      className="relative -mx-4 flex items-center gap-2 overflow-x-auto overscroll-x-contain px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       <p className={chip} data-stat-tile="Cards">
         <Layers className={chipIcon} strokeWidth={1.5} aria-hidden />

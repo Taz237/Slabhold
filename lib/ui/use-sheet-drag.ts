@@ -106,6 +106,10 @@ export function useSheetDrag(
       tracking = false;
       claimed = false;
       if (event.touches.length !== 1 || closing.current || typing(event.target)) return;
+      // Measured once, here. While the content under the finger is scrolled the
+      // list owns the touch (sheetDragClaims would release it), so nothing
+      // watches the moves and the scroll stays on the compositor.
+      if (!panel || scrollTopUnder(event.target, panel) > 0) return;
       const touch = event.touches[0];
       tracking = true;
       startX = touch.clientX;
@@ -121,7 +125,7 @@ export function useSheetDrag(
       const dx = touch.clientX - startX;
       const dy = touch.clientY - startY;
       if (!claimed) {
-        const decision = sheetDragClaims({ deltaX: dx, deltaY: dy, scrollTop: scrollTopUnder(event.target, panel) });
+        const decision = sheetDragClaims({ deltaX: dx, deltaY: dy, scrollTop: 0 });
         if (decision === "release") {
           tracking = false;
           stopWatching();

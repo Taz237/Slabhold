@@ -74,11 +74,21 @@ export function CoachTour({ userId }: { userId: string }) {
     }
     const measure = () => setBox(boxFor(node));
     measure();
+    // A scroll fires many times a frame: measure once per frame at most.
+    let frame = 0;
+    const onScroll = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        measure();
+      });
+    };
     window.addEventListener("resize", measure);
-    window.addEventListener("scroll", measure, true);
+    window.addEventListener("scroll", onScroll, { capture: true, passive: true });
     return () => {
+      if (frame) window.cancelAnimationFrame(frame);
       window.removeEventListener("resize", measure);
-      window.removeEventListener("scroll", measure, true);
+      window.removeEventListener("scroll", onScroll, true);
     };
   }, [tourIndex, move]);
 
