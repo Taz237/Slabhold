@@ -112,7 +112,7 @@ export function CardSearch({
       setOpen(false);
     }
     document.addEventListener("mousedown", onPointer);
-    document.addEventListener("touchstart", onPointer);
+    document.addEventListener("touchstart", onPointer, { passive: true });
     return () => {
       document.removeEventListener("mousedown", onPointer);
       document.removeEventListener("touchstart", onPointer);

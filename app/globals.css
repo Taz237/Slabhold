@@ -97,6 +97,18 @@
   font-size: 1.0625rem;
 }
 
+/*
+ * The page never pans sideways. In the iOS app a slightly diagonal swipe used
+ * to drag the whole document (sticky header included) off to one side.
+ * `clip`, not `hidden`: hidden would make these scroll containers and break
+ * the sticky headers. No touch-action here, so the swipe rows still scroll.
+ */
+html,
+body {
+  overflow-x: clip;
+  overscroll-behavior-x: none;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

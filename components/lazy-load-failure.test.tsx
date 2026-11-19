@@ -136,14 +136,23 @@ describe("screens when supabase-js fails to load", () => {
   it("the prompts stay hidden", async () => {
     await withoutUnhandled(async () => {
       const { HunterPrompt } = await import("@/components/hunter-setting");
-      const { LeaderboardPrompt } = await import("@/components/leaderboard-opt-in");
+      // The live nudge: the dot on Collection's trophy.
+      const { LeaderboardSettingsButton } = await import("@/components/collection-actions");
+      const { leaderboardMinimums } = await import("@/lib/leaderboard/eligibility");
       const hunter = await render(createElement(HunterPrompt));
       assert.equal(hunter.host.textContent, "");
       hunter.unmount();
       const board = await render(
-        createElement(LeaderboardPrompt, { valuedCards: 99, value: 99999, publicCollection: true, ready: true }),
+        createElement(LeaderboardSettingsButton, {
+          minimums: leaderboardMinimums(),
+          valuedCards: 99,
+          value: 99999,
+          publicCollection: true,
+          ready: true,
+        }),
       );
-      assert.equal(board.host.textContent, "");
+      assert.ok(board.host.querySelector('button[aria-label="Leaderboard settings"]'), "the trophy still draws");
+      assert.equal(board.host.querySelector('[data-slot="leaderboard-dot"]'), null);
       board.unmount();
     });
   });

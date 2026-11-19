@@ -290,7 +290,7 @@ function AddPhotoHint({ href, playerName }: { href: string; playerName: string }
         className={`group/hint pointer-events-auto absolute right-0 bottom-0 rounded-full p-2.5 ${tileFocusRing}`}
       >
         {/* Padding makes the tap target 44px. The pill stays small. */}
-        <span className="inline-flex items-center gap-1 rounded-full bg-black/45 px-2 py-1 text-11 font-semibold text-white/90 backdrop-blur-sm transition group-hover/hint:bg-black/60">
+        <span className="inline-flex items-center gap-1 rounded-full bg-black/60 px-2 py-1 text-11 font-semibold text-white/90 transition group-hover/hint:bg-black/70">
           <Camera className="h-3 w-3" aria-hidden />
           Add photo
         </span>
