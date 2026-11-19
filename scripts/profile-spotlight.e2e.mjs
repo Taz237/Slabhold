@@ -372,6 +372,30 @@ async function mixedAndReduced(browser) {
         assert.equal(shape.landscape, "landscape", "a sideways card is measured as landscape");
         assert.ok(shape.wide && shape.inside, "it is shown whole, inside the portrait slot");
         assert.ok(Math.abs(shape.slot - 1.4) < 0.02, "the slot stays 5:7");
+        // A sideways card's label sits under the art, as wide as the art, and still inside the slot.
+        const under = await page.evaluate(() => {
+          const slide = document.querySelector("[data-center]");
+          const slot = slide.getBoundingClientRect();
+          const art = slide.querySelector("[data-kind]").getBoundingClientRect();
+          const label = slide.querySelector("[data-spot-label][data-on]").getBoundingClientRect();
+          const list = document.querySelector("[data-spot-row]");
+          return {
+            labelTop: label.top,
+            artBottom: art.bottom,
+            sameWidth: Math.abs(label.left - art.left) < 0.5 && Math.abs(label.right - art.right) < 0.5,
+            insideSlot: label.bottom <= slot.bottom + 0.5 && label.left >= slot.left - 0.5 && label.right <= slot.right + 0.5,
+            rowHeight: list.clientHeight,
+            slotHeight: slot.height,
+            noRowScroll: list.scrollHeight <= list.clientHeight,
+            width: document.documentElement.scrollWidth,
+          };
+        });
+        assert.ok(under.labelTop >= under.artBottom, `the label sits under the card art (${JSON.stringify(under)})`);
+        assert.ok(under.sameWidth, "the label is as wide as the card art");
+        assert.ok(under.insideSlot, `the label stays inside the 5:7 slot (${JSON.stringify(under)})`);
+        // pt-3 + the slot + pb-5: the row is no taller for it.
+        assert.ok(Math.abs(under.rowHeight - (under.slotHeight + 32)) < 1 && under.noRowScroll, `the row height is unchanged (${JSON.stringify(under)})`);
+        assert.equal(under.width, 390);
       }
       if (OUT) await page.screenshot({ path: join(OUT, `mixed-${name}-390-${scheme}.jpg`), quality: 82 });
     }

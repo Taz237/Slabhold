@@ -24,7 +24,6 @@ export type SheetPerson = {
   /** Top card post only: the card the post is about. */
   card: string;
   profileHref: string;
-  /** The profile's Cards tab. Each photo opens it. */
   /** Public photos of this period's counted cards, at most 4. Most cards added only. */
   photos: { src: string; srcSet?: string; sizes?: string }[];
   /** The viewer's own row: what is next, the board's step, and their rank to share. */

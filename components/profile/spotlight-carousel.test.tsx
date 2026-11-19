@@ -314,6 +314,43 @@ describe("SpotlightCarousel: the label", () => {
   });
 });
 
+describe("SpotlightCarousel: the label on a sideways card", () => {
+  const css = readFileSync(join(process.cwd(), "components/profile/spotlight-styles.ts"), "utf8");
+  const rule = css.match(/\.spot-scale:has\(\[data-fit="hug"\]\[data-shape="landscape"\]\) \.spot-under \{[^}]*\}/)?.[0] ?? "";
+
+  it("keeps the label in one holder, on the card by default", () => {
+    const el = spotlight([card("a"), card("b")]);
+    const label = el.querySelector("[data-spot-label]")!;
+    const holder = label.parentElement!;
+    assert.match(holder.className, /spot-under/);
+    assert.match(holder.className, /absolute inset-x-1\.5 bottom-1\.5/);
+    // The label itself only fades and rises. Where it sits is the holder's job.
+    assert.doesNotMatch(label.className, /absolute|inset-|bottom-/);
+  });
+
+  it("moves the holder under the card art for a landscape card, the full width of the art, with CSS alone", () => {
+    assert.ok(rule, "a :has() rule keyed on the shape fit=hug measures");
+    assert.match(rule, /left: 0;/);
+    assert.match(rule, /right: 0;/);
+    assert.match(rule, /padding-top: 8px;/);
+    // No script learns the shape for this: the carousel never reads it.
+    const view = readFileSync(join(process.cwd(), "components/profile/spotlight-carousel.tsx"), "utf8");
+    assert.doesNotMatch(view, /landscape|useCardShape|measureShape/);
+  });
+
+  it("holds the label inside the 5:7 slot: the holder ends at the slot's bottom edge and grows upward", () => {
+    // Space under a centered 7:5 card in a 5:7 slot: (1.4 - 5/7) / 2 of the slide's width.
+    assert.match(rule, /bottom: calc\(var\(--spot-w\) \* -0\.342857\);/);
+    assert.match(rule, /min-height: calc\(var\(--spot-w\) \* 0\.342857\);/);
+    assert.doesNotMatch(rule, /\stop:/);
+  });
+
+  it("keeps the same glass, fade and 4px rise", () => {
+    assert.match(css, /\.spot-label \{[^}]*background: rgba\(9, 9, 11, 0\.62\);[^}]*backdrop-filter: blur\(12px\);[^}]*transform: translateY\(4px\);/);
+    assert.doesNotMatch(rule, /background|backdrop-filter|opacity|transform|transition/);
+  });
+});
+
 describe("SpotlightCarousel: motion", () => {
   it("turns the spotlight effect on by default", () => {
     const el = spotlight([card("a"), card("b")]);
