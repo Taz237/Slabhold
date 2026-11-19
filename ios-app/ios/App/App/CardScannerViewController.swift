@@ -10,6 +10,9 @@ import UIKit
 /// tap targets, a light tap of haptics on the shutter, and no flash or snap animation when
 /// Reduce Motion is on.
 ///
+/// Right after the shutter the photo holds on screen and the card is cropped flat in front of
+/// the collector (CropRevealView), while the read runs. It never adds a wait of its own.
+///
 /// Front, then back: after the front of a raw card, "Now flip it over", then a second tap (or a
 /// photo) for the back, or Skip. The back's photo comes back too, for the reveal on the web side.
 /// Slabs never ask: the label carries everything.
@@ -92,6 +95,23 @@ final class CardScannerViewController: UIViewController {
 
     private let captureHaptic = UIImpactFeedbackGenerator(style: .light)
     private let doneHaptic = UINotificationFeedbackGenerator()
+    /// One firm tap when the cropped card lands flat.
+    private let lockHaptic = UIImpactFeedbackGenerator(style: .rigid)
+
+    /// The photo held on screen while it is read, with the card cropped flat. Main thread only.
+    private var reveal: CropRevealView?
+    /// True once the crop animation is over (or was never shown). Main thread only.
+    private var revealDone = true
+    /// A read that came back while the crop animation was still playing. Main thread only.
+    private var waitingRead: CardRead?
+    /// Counts the shots, so a late callback from an earlier one is ignored. Main thread only.
+    private var revealShot = 0
+    /// The card moves from where it sat in the photo to flat and centered in this long.
+    static let cropSeconds: TimeInterval = 0.45
+    /// The back's crop is shorter.
+    static let backCropSeconds: TimeInterval = 0.3
+    /// A read that is already in waits for the animation no longer than this.
+    static let revealWaitSeconds: TimeInterval = 0.5
 
     init(finish: @escaping (Outcome) -> Void) {
         self.finish = finish
@@ -464,6 +484,7 @@ final class CardScannerViewController: UIViewController {
         front = read
         capturing = false
         skipButton.isHidden = false
+        clearReveal()
         doneHaptic.notificationOccurred(.success)
         guides.flipped()
         show(.flip)
@@ -522,9 +543,11 @@ final class CardScannerViewController: UIViewController {
         voteFrames = []
         // The sideways serial pass is for a card's front only.
         let isFront = front == nil
+        // The crop animation plays beside the read, never before it.
+        beginReveal(of: image, seconds: isFront ? Self.cropSeconds : Self.backCropSeconds)
         DispatchQueue.global(qos: .userInitiated).async {
             let read = CardTextReader.read(image: image, frames: frames, edges: isFront)
-            DispatchQueue.main.async { self.finishRead(read) }
+            DispatchQueue.main.async { self.readArrived(read) }
         }
     }
 
@@ -553,6 +576,7 @@ final class CardScannerViewController: UIViewController {
 
     private func couldNotRead() {
         resumeFrames()
+        clearReveal()
         capturing = false
         doneHaptic.notificationOccurred(.warning)
         noticeUntil = Date().addingTimeInterval(Self.noticeSeconds)
@@ -566,9 +590,106 @@ final class CardScannerViewController: UIViewController {
     private func end(_ outcome: Outcome) {
         guard !finished else { return }
         finished = true
-        dismiss(animated: !UIAccessibility.isReduceMotionEnabled) { [finish] in
+        // A card on screen cross-fades into the web's reveal instead of sliding away.
+        var crossFade = false
+        if case .captured = outcome, reveal != nil {
+            crossFade = true
+            modalTransitionStyle = .crossDissolve
+        }
+        dismiss(animated: crossFade || !UIAccessibility.isReduceMotionEnabled) { [finish] in
             finish(outcome)
         }
+    }
+
+    // MARK: Crop reveal
+
+    /// Holds the photo on screen and crops the card flat, off the main thread first: the
+    /// small upright copy and the card's corners are found beside the read.
+    private func beginReveal(of image: UIImage, seconds: TimeInterval) {
+        revealShot += 1
+        let shot = revealShot
+        revealDone = false
+        waitingRead = nil
+        lockHaptic.prepare()
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let preview = CardTextReader.cropPreview(of: image)
+            DispatchQueue.main.async {
+                guard let self, shot == self.revealShot, !self.finished, !self.revealDone else { return }
+                guard let preview else {
+                    self.revealEnded(shot)
+                    return
+                }
+                self.playReveal(preview, seconds: seconds, shot: shot)
+            }
+        }
+    }
+
+    private func playReveal(_ preview: CardCropPreview, seconds: TimeInterval, shot: Int) {
+        reveal?.removeFromSuperview()
+        let cover = CropRevealView(still: preview.still)
+        cover.frame = view.bounds
+        cover.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        // Over the live preview and the guides, under the hint and the buttons.
+        view.insertSubview(cover, aboveSubview: guides)
+        reveal = cover
+        let found = preview.corners != nil && preview.flat != nil
+        cover.play(
+            corners: preview.corners,
+            flat: preview.flat,
+            cardBox: guides.frame,
+            seconds: seconds,
+            reduceMotion: UIAccessibility.isReduceMotionEnabled,
+            lock: { [weak self] in
+                guard let self, shot == self.revealShot, self.reveal != nil, !self.finished else { return }
+                // Flat and centered: one firm tap. No card edge: a light one, as the shutter's.
+                if found {
+                    self.lockHaptic.impactOccurred()
+                } else {
+                    self.captureHaptic.impactOccurred()
+                }
+            },
+            done: { [weak self] in
+                self?.revealEnded(shot)
+            }
+        )
+    }
+
+    /// The read is in. It goes on at once when the animation is over; otherwise it waits for
+    /// the animation, and never longer than revealWaitSeconds.
+    private func readArrived(_ read: CardRead) {
+        if revealDone {
+            finishRead(read)
+            return
+        }
+        waitingRead = read
+        let shot = revealShot
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.revealWaitSeconds) { [weak self] in
+            self?.revealEnded(shot)
+        }
+    }
+
+    /// The animation is over (or its time is up): a read that was waiting goes on. Once per shot.
+    private func revealEnded(_ shot: Int) {
+        guard shot == revealShot, !revealDone else { return }
+        revealDone = true
+        guard let read = waitingRead else { return }
+        waitingRead = nil
+        finishRead(read)
+    }
+
+    /// Back to the live camera: for the back's turn, or after a photo that couldn't be read.
+    private func clearReveal() {
+        guard let cover = reveal else { return }
+        reveal = nil
+        guard !UIAccessibility.isReduceMotionEnabled else {
+            cover.removeFromSuperview()
+            return
+        }
+        UIView.animate(withDuration: 0.2, delay: 0, options: [.curveEaseOut], animations: {
+            cover.alpha = 0
+        }, completion: { _ in
+            cover.removeFromSuperview()
+        })
     }
 }
 
@@ -775,5 +896,234 @@ final class CardGuideView: UIView {
         spin.duration = 0.45
         spin.timingFunction = CAMediaTimingFunction(controlPoints: 0.2, 0.7, 0.2, 1)
         layer.add(spin, forKey: "flipped")
+    }
+}
+
+/// The photo held full screen right after the shutter, and the card cropped out of it: the
+/// rest dims, the card's four corners move from where they sat in the photo to a flat, centered
+/// card with rounded corners and a soft shadow, then one white glare crosses it. Drawn only: it
+/// reads nothing and takes nothing. With no card edge the photo simply scales in; with Reduce
+/// Motion on, everything fades in at once and nothing moves.
+final class CropRevealView: UIView {
+    /// How dark the photo around the card gets.
+    static let shade: CGFloat = 0.85
+    /// A real card's corner: this share of its width.
+    static let cornerShare: CGFloat = 0.035
+    static let glareSeconds: TimeInterval = 0.35
+    static let quickSeconds: TimeInterval = 0.2
+    /// The crop is drawn as this many small moves, so each corner travels a straight line.
+    static let steps = 18
+
+    private let stillView = UIImageView()
+    private let shadeView = UIView()
+    private let cardHolder = UIView()
+    private let cardView = UIImageView()
+    private let glare = CAGradientLayer()
+
+    init(still: CGImage) {
+        super.init(frame: .zero)
+        isUserInteractionEnabled = false
+        isAccessibilityElement = false
+        clipsToBounds = true
+        backgroundColor = .clear
+
+        stillView.image = UIImage(cgImage: still)
+        // The same fill as the live preview, so the photo sits where the preview was.
+        stillView.contentMode = .scaleAspectFill
+        stillView.clipsToBounds = true
+        addSubview(stillView)
+
+        shadeView.backgroundColor = .black
+        shadeView.alpha = 0
+        addSubview(shadeView)
+
+        cardHolder.isHidden = true
+        cardHolder.layer.shadowColor = UIColor.black.cgColor
+        cardHolder.layer.shadowOpacity = 0
+        cardHolder.layer.shadowRadius = 18
+        cardHolder.layer.shadowOffset = CGSize(width: 0, height: 10)
+        addSubview(cardHolder)
+
+        cardView.contentMode = .scaleToFill
+        cardView.clipsToBounds = true
+        cardHolder.addSubview(cardView)
+
+        // A soft white band, tilted, parked off the card until the card is flat.
+        let clear = UIColor.white.withAlphaComponent(0).cgColor
+        glare.colors = [clear, UIColor.white.withAlphaComponent(0.55).cgColor, clear]
+        glare.startPoint = CGPoint(x: 0, y: 0.35)
+        glare.endPoint = CGPoint(x: 1, y: 0.65)
+        glare.locations = [-0.5, -0.25, 0.0]
+        cardView.layer.addSublayer(glare)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        // Bounds and center, not frame: the photo may be mid scale-in.
+        stillView.bounds = bounds
+        stillView.center = CGPoint(x: bounds.midX, y: bounds.midY)
+        shadeView.frame = bounds
+    }
+
+    /// `size` scaled to cover `box`, centered: where an aspect-fill picture sits.
+    static func filling(_ size: CGSize, in box: CGRect) -> CGRect {
+        guard size.width > 0, size.height > 0 else { return box }
+        let scale = max(box.width / size.width, box.height / size.height)
+        let width = size.width * scale, height = size.height * scale
+        return CGRect(x: box.midX - width / 2, y: box.midY - height / 2, width: width, height: height)
+    }
+
+    /// `size` scaled to sit inside `box`, centered.
+    static func fitting(_ size: CGSize, in box: CGRect) -> CGRect {
+        guard size.width > 0, size.height > 0 else { return box }
+        let scale = min(box.width / size.width, box.height / size.height)
+        let width = size.width * scale, height = size.height * scale
+        return CGRect(x: box.midX - width / 2, y: box.midY - height / 2, width: width, height: height)
+    }
+
+    /// The transform that puts a layer of this size (anchored at its top left corner) onto the
+    /// four points: top left, top right, bottom right, bottom left, measured from the layer's own
+    /// resting top left corner. The unit square to a quadrilateral, as a projective map.
+    static func homography(width: CGFloat, height: CGFloat, onto quad: [CGPoint]) -> CATransform3D {
+        guard quad.count == 4, width > 0, height > 0 else { return CATransform3DIdentity }
+        let x0 = quad[0].x, y0 = quad[0].y
+        let x1 = quad[1].x, y1 = quad[1].y
+        let x2 = quad[2].x, y2 = quad[2].y
+        let x3 = quad[3].x, y3 = quad[3].y
+        let dx1 = x1 - x2, dx2 = x3 - x2, dx3 = x0 - x1 + x2 - x3
+        let dy1 = y1 - y2, dy2 = y3 - y2, dy3 = y0 - y1 + y2 - y3
+        let bottom = dx1 * dy2 - dx2 * dy1
+        guard abs(bottom) > 0.000001 else { return CATransform3DIdentity }
+        let g = (dx3 * dy2 - dx2 * dy3) / bottom
+        let h = (dx1 * dy3 - dx3 * dy1) / bottom
+        let a = x1 - x0 + g * x1
+        let b = x3 - x0 + h * x3
+        let d = y1 - y0 + g * y1
+        let e = y3 - y0 + h * y3
+        var out = CATransform3DIdentity
+        out.m11 = a / width
+        out.m12 = d / width
+        out.m14 = g / width
+        out.m21 = b / height
+        out.m22 = e / height
+        out.m24 = h / height
+        out.m41 = x0
+        out.m42 = y0
+        return out
+    }
+
+    /// Plays once. `corners` are 0...1 of the photo (origin top left) and `flat` is the card
+    /// straightened; with either missing the photo only scales in. `cardBox` is where the flat
+    /// card lands. `lock` runs when the card is flat (or the photo is in), `done` when it's all over.
+    func play(corners: [CGPoint]?, flat: CGImage?, cardBox: CGRect, seconds: TimeInterval, reduceMotion: Bool, lock: @escaping () -> Void, done: @escaping () -> Void) {
+        layoutIfNeeded()
+        guard let corners, corners.count == 4, let flat, let still = stillView.image else {
+            // No card edge: the whole photo comes in, and that's all.
+            alpha = 0
+            if !reduceMotion { stillView.transform = CGAffineTransform(scaleX: 1.05, y: 1.05) }
+            UIView.animate(withDuration: Self.quickSeconds, delay: 0, options: [.curveEaseOut], animations: {
+                self.alpha = 1
+                self.stillView.transform = .identity
+            }, completion: { _ in
+                lock()
+                done()
+            })
+            return
+        }
+
+        // Where the card sits in the photo on screen, and where it lands.
+        let photo = Self.filling(still.size, in: bounds)
+        let start = corners.map { CGPoint(x: photo.minX + $0.x * photo.width, y: photo.minY + $0.y * photo.height) }
+        let target = Self.fitting(CGSize(width: flat.width, height: flat.height), in: cardBox).integral
+        let radius = target.width * Self.cornerShare
+
+        cardView.image = UIImage(cgImage: flat)
+        cardHolder.layer.anchorPoint = .zero
+        cardHolder.layer.bounds = CGRect(origin: .zero, size: target.size)
+        cardHolder.layer.position = target.origin
+        cardView.frame = cardHolder.bounds
+        glare.frame = cardView.bounds
+        cardView.layer.cornerRadius = radius
+        cardHolder.layer.shadowPath = UIBezierPath(roundedRect: cardHolder.bounds, cornerRadius: radius).cgPath
+        cardHolder.layer.shadowOpacity = 0.45
+        cardHolder.isHidden = false
+
+        guard !reduceMotion else {
+            // Nothing moves: the photo, the shade and the flat card fade in together.
+            alpha = 0
+            shadeView.alpha = Self.shade
+            UIView.animate(withDuration: Self.quickSeconds, delay: 0, options: [.curveEaseOut], animations: {
+                self.alpha = 1
+            }, completion: { _ in
+                lock()
+                done()
+            })
+            return
+        }
+
+        // Each corner eases out along a straight line from the photo to the flat card. No bounce.
+        let rest = [CGPoint(x: 0, y: 0), CGPoint(x: target.width, y: 0), CGPoint(x: target.width, y: target.height), CGPoint(x: 0, y: target.height)]
+        let from = start.map { CGPoint(x: $0.x - target.minX, y: $0.y - target.minY) }
+        var values: [NSValue] = []
+        for step in 0...Self.steps {
+            let time = CGFloat(step) / CGFloat(Self.steps)
+            let eased = 1 - pow(1 - time, 3)
+            var quad: [CGPoint] = []
+            for index in 0..<4 {
+                quad.append(CGPoint(x: from[index].x + (rest[index].x - from[index].x) * eased, y: from[index].y + (rest[index].y - from[index].y) * eased))
+            }
+            values.append(NSValue(caTransform3D: Self.homography(width: target.width, height: target.height, onto: quad)))
+        }
+
+        CATransaction.begin()
+        CATransaction.setCompletionBlock { [weak self] in
+            lock()
+            if let self {
+                self.sweep(done: done)
+            } else {
+                done()
+            }
+        }
+        let morph = CAKeyframeAnimation(keyPath: "transform")
+        morph.values = values
+        morph.duration = seconds
+        morph.calculationMode = .linear
+        cardHolder.layer.add(morph, forKey: "crop")
+
+        let rounding = CABasicAnimation(keyPath: "cornerRadius")
+        rounding.fromValue = 0
+        rounding.toValue = radius
+        rounding.duration = seconds
+        rounding.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        cardView.layer.add(rounding, forKey: "round")
+
+        let lift = CABasicAnimation(keyPath: "shadowOpacity")
+        lift.fromValue = 0
+        lift.toValue = 0.45
+        lift.duration = seconds
+        lift.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        cardHolder.layer.add(lift, forKey: "lift")
+        CATransaction.commit()
+
+        UIView.animate(withDuration: seconds * 0.7, delay: 0, options: [.curveEaseOut]) {
+            self.shadeView.alpha = Self.shade
+        }
+    }
+
+    /// One white glare across the flat card: it reads as taken.
+    private func sweep(done: @escaping () -> Void) {
+        CATransaction.begin()
+        CATransaction.setCompletionBlock(done)
+        let pass = CABasicAnimation(keyPath: "locations")
+        pass.fromValue = [-0.5, -0.25, 0.0]
+        pass.toValue = [1.0, 1.25, 1.5]
+        pass.duration = Self.glareSeconds
+        pass.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        glare.add(pass, forKey: "glare")
+        CATransaction.commit()
     }
 }
