@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
-import { profileCardsLinkFor } from "@/lib/leaderboard/profile-link";
 import { missingCheckForPath } from "@/lib/social/missing-route";
 import { routePattern } from "@/lib/analytics";
 
@@ -55,7 +54,9 @@ describe("/u/<handle>/cards: the full grid behind See all", () => {
     assert.doesNotMatch(hook, /from\("cards"\)/);
   });
 
-  it("is where the leaderboard's card links go", () => {
-    assert.equal(profileCardsLinkFor({ subtitle: "@maya", href: "/u/maya" }), "/u/maya/cards");
+  it("is not where leaderboard rows go: they open the profile", () => {
+    const view = read("components/leaderboard-view.tsx");
+    assert.doesNotMatch(view, /profileCardsLinkFor|\/cards`/);
+    assert.match(view, /const href = profileLinkFor\(entry\);/);
   });
 });

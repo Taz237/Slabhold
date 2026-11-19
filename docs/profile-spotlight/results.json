@@ -645,5 +645,19 @@
         0
       ]
     }
-  ]
+  ],
+  "firstScreen": {
+    "other": {
+      "cardTop": 409,
+      "cardBottom": 748,
+      "tabBarTop": 776,
+      "banner": 112
+    },
+    "own": {
+      "cardTop": 367,
+      "cardBottom": 706,
+      "tabBarTop": 776,
+      "banner": 112
+    }
+  }
 }

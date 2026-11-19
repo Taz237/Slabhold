@@ -31,7 +31,7 @@ import type {
   RankMove,
   YouRow,
 } from "@/lib/leaderboard/present";
-import { profileCardsLinkFor, profileLinkFor } from "@/lib/leaderboard/profile-link";
+import { profileLinkFor } from "@/lib/leaderboard/profile-link";
 import {
   FINAL_LABEL,
   LAST_WEEK_LABEL,
@@ -285,7 +285,8 @@ function RowShell({
   style?: CSSProperties;
   children: ReactNode;
 }) {
-  const href = profileCardsLinkFor(entry);
+  // The profile, not the cards grid: the carousel at its top is the front door.
+  const href = profileLinkFor(entry);
   if (!href) {
     return (
       <div className={className} style={style}>
@@ -803,8 +804,7 @@ function sheetPeople(model: LeaderboardPageModel): Record<string, SheetPerson> {
   for (const board of model.boards) {
     for (const entry of board.entries) {
       const profileHref = profileLinkFor(entry);
-      const cardsHref = profileCardsLinkFor(entry);
-      if (!profileHref || !cardsHref) continue;
+      if (!profileHref) continue;
       const labels = person(entry, board.id);
       const photos =
         board.id === "most-cards-added"
@@ -826,7 +826,6 @@ function sheetPeople(model: LeaderboardPageModel): Record<string, SheetPerson> {
         boardLabel: board.label,
         card: labels.card,
         profileHref,
-        cardsHref,
         photos,
         you: you
           ? {

@@ -378,6 +378,13 @@ describe("SpotlightCarousel: source rules", () => {
     assert.match(view, /data-no-pull\s+data-spot-row=""[\s\S]{0,200}className="spot-row relative flex overflow-x-auto/);
   });
 
+  it("keeps the banner short so the centered card clears the tab bar, with a skeleton of the same height", () => {
+    // scripts/profile-spotlight.e2e.mjs measures the card against the tab bar at 390x844.
+    assert.match(read("components/profile-view.tsx"), /data-profile-banner="" className="relative h-28 /);
+    assert.match(read("components/status.tsx"), /<div className="h-28 skeleton-shimmer" \/>/);
+    assert.doesNotMatch(read("components/profile-view.tsx"), /relative h-40 /);
+  });
+
   it("ticks with a selection haptic only from the reader's own swipe", () => {
     const view = read("components/profile/spotlight-carousel.tsx");
     assert.equal(view.match(/haptic\(/g)?.length, 1);

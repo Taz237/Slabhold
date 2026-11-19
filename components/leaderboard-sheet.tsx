@@ -25,7 +25,6 @@ export type SheetPerson = {
   card: string;
   profileHref: string;
   /** The profile's Cards tab. Each photo opens it. */
-  cardsHref: string;
   /** Public photos of this period's counted cards, at most 4. Most cards added only. */
   photos: { src: string; srcSet?: string; sizes?: string }[];
   /** The viewer's own row: what is next, the board's step, and their rank to share. */
@@ -169,7 +168,7 @@ export function LeaderboardSheet({ person, onClose }: { person: SheetPerson; onC
             {person.photos.map((photo, index) => (
               <li key={photo.src} className="min-w-0 flex-1">
                 <Link
-                  href={person.cardsHref}
+                  href={person.profileHref}
                   onClick={onClose}
                   aria-label={`${person.name}'s cards, photo ${index + 1}`}
                   className="tap relative block aspect-[5/7] w-full overflow-hidden rounded-lg bg-white/[0.06] ring-1 ring-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-400"

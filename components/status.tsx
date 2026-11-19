@@ -78,7 +78,8 @@ export function ProfileSkeleton() {
   return (
     <div className="-mx-4 -mt-5" aria-busy="true" aria-live="polite">
       <span className="sr-only">Loading profile</span>
-      <div className="h-40 skeleton-shimmer" />
+      {/* The same height as the profile banner, so nothing moves when the profile draws. */}
+      <div className="h-28 skeleton-shimmer" />
       <div className="px-4">
         <div className="-mt-10 h-20 w-20 skeleton-shimmer rounded-full ring-4 ring-[var(--background)]" />
         <div className="mt-4 h-4 w-36 skeleton-shimmer rounded-full" />

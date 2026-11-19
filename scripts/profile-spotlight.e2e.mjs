@@ -237,6 +237,44 @@ async function screens(browser) {
   return report;
 }
 
+/**
+ * The first screen at 390x844, before any scroll: the whole centered card sits
+ * above the tab bar, on someone else's profile (the taller header) and your own.
+ */
+async function firstScreen(browser) {
+  const out = {};
+  for (const scheme of ["dark", "light"]) {
+    for (const who of [OTHER, ME]) {
+      const { context, page } = await open(browser, { scheme, who, count: 15 });
+      await page.goto(`${BASE}/u/${who}`);
+      await page.waitForSelector(row);
+      await page.waitForTimeout(1600);
+      const fold = await page.evaluate(() => {
+        const card = document.querySelector("[data-center] .spot-scale").getBoundingClientRect();
+        const bar = document.querySelector('nav a[href="/collection"]').closest("nav").getBoundingClientRect();
+        const rect = (selector) => document.querySelector(selector)?.getBoundingClientRect();
+        return {
+          scrollY: window.scrollY,
+          cardTop: Math.round(card.top),
+          cardBottom: Math.round(card.bottom),
+          tabBarTop: Math.round(bar.top),
+          banner: Math.round(rect("[data-profile-banner]").height),
+          nameBelowBanner: rect("h1").top >= rect("[data-profile-banner]").bottom,
+          width: document.documentElement.scrollWidth,
+        };
+      });
+      assert.equal(fold.scrollY, 0);
+      assert.ok(fold.cardBottom <= fold.tabBarTop, `${who} ${scheme}: the whole centered card is above the tab bar (${fold.cardBottom} vs ${fold.tabBarTop})`);
+      assert.ok(fold.nameBelowBanner, "the name is clear of the banner");
+      assert.equal(fold.width, 390);
+      out[`${who === ME ? "own" : "other"}-${scheme}`] = fold;
+      if (OUT) await page.screenshot({ path: join(OUT, `first-screen-${who === ME ? "own" : "other"}-390-${scheme}.jpg`), quality: 82 });
+      await context.close();
+    }
+  }
+  return out;
+}
+
 async function mixedAndReduced(browser) {
   // Sideways cards, an old uncropped photo and a card with no photo, side by side.
   for (const scheme of ["dark", "light"]) {
@@ -543,6 +581,7 @@ async function perf(variant) {
 const results = {};
 const browser = await chromium.launch();
 if (ONLY === "all" || ONLY === "screens") results.screens = await screens(browser);
+if (ONLY === "all" || ONLY === "first") results.firstScreen = await firstScreen(browser);
 if (ONLY === "all" || ONLY === "mixed") results.mixed = await mixedAndReduced(browser);
 if (ONLY === "all" || ONLY === "flow") results.flow = await behaviour(browser);
 await browser.close();

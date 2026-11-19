@@ -215,7 +215,7 @@ describe("collector sheet", () => {
     for (const [index, item] of all.entries()) {
       assert.match(
         item.body,
-        new RegExp(`<a data-collector="most-cards-added:u${index}" aria-haspopup="dialog"[^>]*href="/u/u${index}/cards"`),
+        new RegExp(`<a data-collector="most-cards-added:u${index}" aria-haspopup="dialog"[^>]*href="/u/u${index}"`),
       );
       assert.match(item.body, /class="tap /, "press feedback");
     }
@@ -243,10 +243,12 @@ describe("collector sheet", () => {
     assert.match(stage, /clearPendingNav\(document\)/);
   });
 
-  it("shows photos only when the row has them, each one a link to the collector's cards", () => {
+  it("shows photos only when the row has them, each one a link to the collector's profile", () => {
     const sheet = read("components/leaderboard-sheet.tsx");
     assert.match(sheet, /person\.photos\.length > 0 \?/);
-    assert.match(sheet, /<Link\s+href=\{person\.cardsHref\}/);
+    // The profile's carousel is where a collector's cards are shown now.
+    assert.match(sheet, /<Link\s+href=\{person\.profileHref\}/);
+    assert.doesNotMatch(sheet, /cardsHref/);
     const view = read("components/leaderboard-view.tsx");
     assert.match(view, /board\.id === "most-cards-added"\s*\? \(entry\.photos \?\? \[\]\)/, "only Most cards added has photos");
   });

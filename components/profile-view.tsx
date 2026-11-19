@@ -328,7 +328,8 @@ export function ProfileView({
       className="-mx-4 -mt-5"
     >
     <div inert={editing ? true : undefined} className="min-w-0 overflow-x-hidden">
-      <div className="relative h-40 overflow-hidden bg-zinc-200 dark:bg-zinc-800">
+      {/* Short on purpose: on an 844px-tall phone the whole centered card of the carousel clears the tab bar. */}
+      <div data-profile-banner="" className="relative h-28 overflow-hidden bg-zinc-200 dark:bg-zinc-800">
         {!isOwn ? (
           <button
             type="button"
