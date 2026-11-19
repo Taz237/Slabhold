@@ -267,6 +267,36 @@ describe("SpotlightCarousel: the label", () => {
     assert.equal(el.querySelectorAll("[data-spot-label]").length, 1);
   });
 
+  it("never cuts the player name: line 1 is the name alone, the value sits on line 2 and the set line truncates", () => {
+    const el = spotlight(
+      [
+        card("a", {
+          playerName: "Maximilian Featherstonehaugh-Okonkwo",
+          parallel: "Gold Vinyl Prizm",
+          grade: "PSA 10",
+          conditionType: "graded",
+        }),
+        card("b"),
+      ],
+      { values: new Map([["a", ok(124812.5)]]) },
+    );
+    const label = el.querySelector("[data-spot-label]")!;
+    const name = label.querySelector("[data-spot-name]")!;
+    assert.equal(name.textContent, "Maximilian Featherstonehaugh-Okonkwo");
+    // It wraps instead: no truncate, no line clamp, and nothing shares its line.
+    assert.doesNotMatch(name.className, /truncate|line-clamp|whitespace-nowrap/);
+    assert.match(name.className, /break-words/);
+    assert.equal(name.parentElement, label);
+    const price = label.querySelector("[data-spot-price]")!;
+    const line = label.querySelector("[data-spot-line]")!;
+    assert.equal(price.textContent, "Est. $124,812.50");
+    assert.equal(price.parentElement, line.parentElement, "the value is on the set line");
+    assert.match(line.className, /truncate/);
+    assert.match(line.className, /flex-1/);
+    assert.match(price.className, /shrink-0/);
+    assert.doesNotMatch(price.className, /truncate/);
+  });
+
   it("shows no value for a card without one, never $0", () => {
     const el = spotlight([card("a", { createdAt: "2020-01-01T00:00:00.000Z" }), card("b")]);
     const label = el.querySelector("[data-spot-label]")!;

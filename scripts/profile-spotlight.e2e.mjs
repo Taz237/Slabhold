@@ -26,7 +26,7 @@ const ME = "flipcity";
 const OTHER = "waxroom";
 if (OUT) mkdirSync(OUT, { recursive: true });
 
-async function open(browser, { scheme = "dark", who = OTHER, count = 15, reduced = false, video = false, scale = 2 } = {}) {
+async function open(browser, { scheme = "dark", who = OTHER, count = 15, reduced = false, video = false, scale = 2, edit = null } = {}) {
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: scale,
@@ -38,6 +38,8 @@ async function open(browser, { scheme = "dark", who = OTHER, count = 15, reduced
   });
   const cards = fixtureCards(count);
   const values = fixtureValues(cards);
+  // A test can change the made-up cards and values before they are seeded.
+  edit?.(cards, values);
   await context.route("**/api/card-values*", (route) => route.fulfill({ json: { values } }));
   await context.route("**/_vercel/**", (route) => route.fulfill({ status: 204, body: "" }));
   const seed = await context.newPage();
@@ -271,6 +273,73 @@ async function firstScreen(browser) {
       if (OUT) await page.screenshot({ path: join(OUT, `first-screen-${who === ME ? "own" : "other"}-390-${scheme}.jpg`), quality: 82 });
       await context.close();
     }
+  }
+  return out;
+}
+
+/**
+ * The label on slab cards (the narrowest label) with long names and long values:
+ * the player name is never cut, the value is whole, and only the set line gives way.
+ */
+async function longLabels(browser) {
+  const names = ["Dax Holmes", "Maximilian Featherstonehaugh", "Christopher Vanderbilt-Okonkwo Jr."];
+  const out = [];
+  for (const scheme of ["dark", "light"]) {
+    const { context, page } = await open(browser, {
+      scheme,
+      count: 6,
+      edit(cards, values) {
+        names.forEach((name, index) => {
+          Object.assign(cards[index], { playerName: name, grade: "PSA 10", conditionType: "graded", parallel: "Gold Vinyl Prizm", setBrand: "Panini Prizm Draft Picks", openToOffers: index === 1 });
+          const median = 124812.5 - index;
+          values[cards[index].id] = { status: "ok", median, low: median, high: median, nSales: 6, matchedAt: null };
+        });
+      },
+    });
+    await page.goto(`${BASE}/u/${OTHER}`);
+    await page.waitForSelector(row);
+    await page.waitForTimeout(1400);
+    await rowCenter(page);
+    for (const [index, name] of names.entries()) {
+      await page.evaluate(([selector, at]) => {
+        const el = document.querySelector(selector);
+        const first = el.querySelector('[data-slide="0"]');
+        const second = el.querySelector('[data-slide="1"]');
+        el.scrollTo({ left: at * (second.getBoundingClientRect().left - first.getBoundingClientRect().left) });
+      }, [row, index]);
+      await settle(page);
+      await page.waitForTimeout(600);
+      const label = await page.evaluate(() => {
+        const box = document.querySelector("[data-center] [data-spot-label][data-on]");
+        const name = box.querySelector("[data-spot-name]");
+        const line = box.querySelector("[data-spot-line]");
+        const price = box.querySelector("[data-spot-price]");
+        const card = document.querySelector("[data-center] .spot-scale").getBoundingClientRect();
+        const rect = box.getBoundingClientRect();
+        return {
+          kind: document.querySelector("[data-center] [data-kind]").getAttribute("data-kind"),
+          name: name.textContent,
+          nameCut: name.scrollWidth > name.clientWidth + 1 || name.scrollHeight > name.clientHeight + 1,
+          nameLines: Math.round(name.getBoundingClientRect().height / parseFloat(getComputedStyle(name).lineHeight)),
+          price: price.textContent,
+          priceCut: price.scrollWidth > price.clientWidth + 1,
+          sameLine: Math.abs(price.getBoundingClientRect().bottom - line.getBoundingClientRect().bottom) < 3,
+          setLineCut: line.scrollWidth > line.clientWidth,
+          insideCard: rect.left >= card.left && rect.right <= card.right && rect.bottom <= card.bottom && rect.top >= card.top,
+          width: document.documentElement.scrollWidth,
+        };
+      });
+      assert.equal(label.kind, "slab");
+      assert.equal(label.name, name);
+      assert.equal(label.nameCut, false, `"${name}" is never cut`);
+      assert.equal(label.priceCut, false, "the value is whole");
+      assert.equal(label.sameLine, true, "the value sits on the set line");
+      assert.equal(label.insideCard, true, "the label stays on the card");
+      assert.equal(label.width, 390);
+      out.push({ scheme, ...label });
+      if (OUT) await page.screenshot({ path: join(OUT, `label-long-${index + 1}-390-${scheme}.jpg`), quality: 82 });
+    }
+    await context.close();
   }
   return out;
 }
@@ -582,6 +651,7 @@ const results = {};
 const browser = await chromium.launch();
 if (ONLY === "all" || ONLY === "screens") results.screens = await screens(browser);
 if (ONLY === "all" || ONLY === "first") results.firstScreen = await firstScreen(browser);
+if (ONLY === "all" || ONLY === "label") results.longLabels = await longLabels(browser);
 if (ONLY === "all" || ONLY === "mixed") results.mixed = await mixedAndReduced(browser);
 if (ONLY === "all" || ONLY === "flow") results.flow = await behaviour(browser);
 await browser.close();

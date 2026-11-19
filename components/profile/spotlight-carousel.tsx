@@ -177,15 +177,19 @@ const Slide = memo(function Slide({
               data-on={labelOn ? "" : undefined}
               className="spot-label pointer-events-none absolute inset-x-1.5 bottom-1.5 rounded border border-white/10 px-3 py-2 text-left text-white"
             >
-              <div className="flex min-w-0 items-center gap-1.5">
-                <p className="min-w-0 flex-1 truncate text-13 leading-5 font-semibold">{label.title}</p>
-                {label.price ? (
-                  <p data-spot-price="" className="shrink-0 font-mono text-12 leading-5 font-medium tabular-nums">
-                    {label.price}
-                  </p>
-                ) : null}
-              </div>
-              {label.line ? <p className="mt-0.5 truncate text-11 leading-4 text-white/70">{label.line}</p> : null}
+              {/* Line 1 is the player alone and is never cut: a long name wraps. */}
+              <p data-spot-name="" className="text-13 leading-[1.125rem] font-semibold break-words">{label.title}</p>
+              {/* Line 2: the set line gives way (it truncates), the value never does. */}
+              {label.line || label.price ? (
+                <div className="mt-0.5 flex min-w-0 items-baseline gap-2">
+                  <p data-spot-line="" className="min-w-0 flex-1 truncate text-11 leading-4 text-white/70">{label.line}</p>
+                  {label.price ? (
+                    <p data-spot-price="" className="shrink-0 font-mono text-11 leading-4 font-medium text-white tabular-nums">
+                      {label.price}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
               {label.openToOffers ? (
                 <p data-spot-offers="" className="mt-1 flex items-center gap-1.5 text-11 leading-4 font-medium text-[#C4B5FD]">
                   <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#A78BFA]" />
