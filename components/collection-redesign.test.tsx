@@ -64,7 +64,7 @@ function row(id: string, partial: Partial<CardRow> = {}): CardRow {
   };
 }
 
-/** Six cards: a, b, c are Personal, d, e, f are Flipping. Newest last. Values fall from a ($105) to f ($100). */
+/** Six cards: a, b, c are Personal, d, e, f are Open to offers. Newest last. Values fall from a ($105) to f ($100). */
 const rows = ["a", "b", "c", "d", "e", "f"].map((id, index) =>
   row(id, {
     category: index < 3 ? "pc" : "flipping",
@@ -317,7 +317,7 @@ describe("Collection redesign: tools bar", () => {
     await mount();
     const tabs = () => [...host.querySelectorAll<HTMLElement>('[role="tab"]')];
     const panel = () => host.querySelector<HTMLElement>('[role="tabpanel"]')!;
-    assert.deepEqual(tabs().map((tab) => tab.textContent), ["All", "Flipping", "Personal", "Want list"]);
+    assert.deepEqual(tabs().map((tab) => tab.textContent), ["All", "Open to offers", "Personal", "Want list"]);
     assert.equal(panel().getAttribute("aria-label"), "All");
     assert.equal(panel().id, tabs()[0].getAttribute("aria-controls"));
     assert.doesNotMatch(panel().className, /lane-in/, "no fade on first load: the tiles stagger in instead");
@@ -327,7 +327,7 @@ describe("Collection redesign: tools bar", () => {
     assert.equal(tabs()[1].tabIndex, 0);
     assert.equal(tabs()[0].tabIndex, -1);
     assert.ok(document.activeElement === tabs()[1]);
-    assert.equal(panel().getAttribute("aria-label"), "Flipping");
+    assert.equal(panel().getAttribute("aria-label"), "Open to offers");
     assert.deepEqual(tileIds(), ["d", "e", "f"]);
     assert.match(panel().className, /lane-in-a/);
     await click(tabs()[2]);
@@ -373,7 +373,7 @@ describe("Collection redesign: a tile's quick actions", () => {
     assert.equal(sheetTitle(), "Player d");
   });
 
-  it("shares the card, moves it between Flipping and Personal, or edits it: the card page's own actions", async () => {
+  it("shares the card, moves it between Open to offers and Personal, or edits it: the card page's own actions", async () => {
     await mount();
     pointer(link("d"), "pointerdown");
     await wait(LONG_PRESS_MS + 60);
@@ -391,7 +391,7 @@ describe("Collection redesign: a tile's quick actions", () => {
     act(() => void link("a").dispatchEvent(menu));
     assert.equal(menu.defaultPrevented, true);
     assert.equal(sheetTitle(), "Player a");
-    named(sheet()!, /^Move to Flipping$/);
+    named(sheet()!, /^Move to Open to offers$/);
     key("Escape");
 
     const more = named(host.querySelector('[data-tile="b"]')!, /^More actions for Player b$/);

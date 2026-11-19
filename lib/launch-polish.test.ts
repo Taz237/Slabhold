@@ -35,9 +35,9 @@ const complete = {
 };
 
 describe("label mapping", () => {
-  it("shows Personal and Flipping while storing pc and flipping", () => {
+  it("shows Personal and Open to offers while storing pc and flipping", () => {
     assert.equal(categoryLabel("pc"), "Personal");
-    assert.equal(categoryLabel("flipping"), "Flipping");
+    assert.equal(categoryLabel("flipping"), "Open to offers");
     assert.equal(cardCategory({ category: "pc" }), "pc");
     assert.equal(cardCategory({ category: "flipping" }), "flipping");
     assert.equal(cardCategory({ category: null }), "flipping");

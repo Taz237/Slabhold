@@ -8,7 +8,7 @@ import { useCollection } from "@/components/collection-provider";
 import { useSocial } from "@/components/social-provider";
 import { cardCategory, categoryLabel } from "@/lib/card-category";
 import { cardTitle, isSold } from "@/lib/format";
-import { publicTogglePatch } from "@/lib/offers/open-to-offers";
+import { categoryMovePatch, publicTogglePatch } from "@/lib/offers/open-to-offers";
 import type { SportsCard } from "@/lib/types";
 
 const row =
@@ -16,7 +16,7 @@ const row =
 
 /**
  * A tile's quick actions, from a long press: share the card, move it between
- * Flipping and Personal, or edit it. Each one is the card page's own action;
+ * Open to offers and Personal, or edit it. Each one is the card page's own action;
  * nothing here is new.
  */
 export function CollectionTileActions({ card, onClose }: { card: SportsCard; onClose: () => void }) {
@@ -39,7 +39,8 @@ export function CollectionTileActions({ card, onClose }: { card: SportsCard; onC
             className={row}
             onClick={() => {
               // A failed save puts the card back; the Collection's own error line says so.
-              void updateCard(card.id, { category: other }).saved.catch(() => {});
+              // The pile and the badge move together.
+              void updateCard(card.id, categoryMovePatch(card, other)).saved.catch(() => {});
               onClose();
             }}
           >

@@ -122,7 +122,7 @@ export function matchesQuery(card: SportsCard, query: string) {
     card.parallel,
     card.sport,
     card.notes,
-    cardCategory(card) === "pc" ? "pc personal collection" : "flipping for sale",
+    cardCategory(card) === "pc" ? "pc personal collection" : "flipping for sale open to offers",
   ]
     .join(" ")
     .toLowerCase()
