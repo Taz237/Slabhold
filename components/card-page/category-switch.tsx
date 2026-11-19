@@ -4,7 +4,7 @@ import type { CardCategory } from "@/lib/types";
 
 /** Stored values stay `flipping` and `pc`. These are the words on screen. */
 const OPTIONS: { id: CardCategory; label: string }[] = [
-  { id: "flipping", label: "For sale" },
+  { id: "flipping", label: "Open to offers" },
   { id: "pc", label: "Personal collection" },
 ];
 

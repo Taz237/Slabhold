@@ -6,7 +6,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { DeltaChip, RangeBar, SalesChart, TRAWL_ATTRIBUTION } from "@/components/sales-chart";
 import { CompsList } from "@/components/comps-list";
-import { CompEmpty } from "@/components/comp-basis";
+import { CompCardSkeleton, CompEmpty } from "@/components/comp-basis";
 import { SalesChartPending } from "@/components/card-detail-shell";
 import { addDays } from "@/lib/chart/range";
 import type { ChartSale } from "@/lib/chart/sales";
@@ -116,10 +116,6 @@ describe("quick comp: one comp card", () => {
     assert.match(estimate, /Low \$33\.00/);
     assert.match(estimate, /High \$37\.00/);
     assert.doesNotMatch(chart({ p25: null, p75: null }), /data-range-bar/);
-    assert.doesNotMatch(
-      chart({ headlineIsEstimate: false, headlineLabel: "Last sold $36.00 on Oct 9" }),
-      /data-range-bar/,
-    );
     const bar = renderToStaticMarkup(createElement(RangeBar, { low: 10, high: 20, median: 15 }));
     assert.match(bar, /bg-violet-600\/25/);
     assert.match(bar, /bg-violet-600/);
@@ -226,7 +222,8 @@ describe("quick comp: brand and motion", () => {
 
 describe("quick comp: Trawl attribution never drops with live rows on screen", () => {
   it("leaves the comp card's skeleton without the Trawl line", () => {
-    const html = chart({ loading: true });
+    // Quick Comp draws the skeleton itself while the chart's chunk loads.
+    const html = renderToStaticMarkup(createElement(CompCardSkeleton, {}));
     assert.equal(html.includes(TRAWL_ATTRIBUTION), false);
   });
 

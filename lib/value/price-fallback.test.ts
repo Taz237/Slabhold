@@ -516,7 +516,8 @@ describe("fallback is not drawn as the estimate", () => {
     assert.match(detail, /asEstimate=\{priceRead\?\.kind === "estimate" \|\| priceRead == null\}/);
     assert.match(publicView, /read=\{priceRead\}/);
     assert.match(publicView, /amount=\{priceRead\?\.kind === "estimate" \? storedAmount : null\}/);
-    assert.match(chart, /headlineIsEstimate !== false/);
+    // Quick Comp's chart only ever draws a median, so it takes no fallback headline at all.
+    assert.doesNotMatch(chart, /headlineIsEstimate|headlineLabel/);
     assert.match(chart, /text-lg font-semibold tracking-tight/);
     assert.match(chip, /soldHref: chip\.showEbaySold \? ebayHref : null/);
     assert.match(source("components/tweet.tsx"), /useAttachedChip/);

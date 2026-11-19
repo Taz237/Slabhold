@@ -6,7 +6,8 @@ import { STAGE_HEIGHT } from "@/components/card-page/section-styles";
  * the same look as the profile's Spotlight carousel. The height never changes
  * with the card, so the page never moves. The glow is three still radial
  * gradients that fade out before the stage's edges: no blur, no animation,
- * nothing to repaint on scroll. No imports beyond React, so the shell's
+ * nothing to repaint on scroll. Only the sides are clipped, so the card's
+ * shadow is never cut off in a line under it. No imports beyond React, so the shell's
  * tap-time skeleton can draw it without the card page's code.
  */
 
@@ -22,8 +23,8 @@ export const CARD_ART = "rounded-xl shadow-[0_20px_36px_-20px_rgb(0_0_0/0.6)] ri
 
 export function CardStageFrame({ children, busy = false }: { children?: ReactNode; busy?: boolean }) {
   return (
-    <section data-slot="card-hero" data-card-stage="" className="relative -mx-4 overflow-clip py-5" aria-busy={busy || undefined}>
-      <div aria-hidden="true" data-card-glow="" className="pointer-events-none absolute inset-0 opacity-45 dark:opacity-65" style={{ background: GLOW }} />
+    <section data-slot="card-hero" data-card-stage="" className="relative -mx-4 overflow-x-clip py-5" aria-busy={busy || undefined}>
+      <div aria-hidden="true" data-card-glow="" className="pointer-events-none absolute inset-0 opacity-60 dark:opacity-65" style={{ background: GLOW }} />
       <div className="relative flex items-center justify-center px-4" style={{ height: STAGE_HEIGHT }}>
         {children}
       </div>

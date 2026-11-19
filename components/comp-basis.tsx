@@ -1,36 +1,5 @@
 import type { ReactNode } from "react";
 import { snapshotDateInNewYork } from "@/lib/collection/totals-shared";
-import { formatDate, money } from "@/lib/format";
-import { basedOnSalesLabel } from "@/lib/comps/sales-label";
-import type { SaleBasis } from "@/lib/comps/shared-value";
-
-/** "Based on N sales" plus the date, price, and grade of each sale in that count. */
-export function CompBasis({
-  count,
-  basis,
-}: {
-  count: number;
-  basis: SaleBasis[];
-}) {
-  if (count < 1) return null;
-  return (
-    <div className="mt-1">
-      <p className="text-11 text-zinc-500">{basedOnSalesLabel(count)}</p>
-      {basis.length > 0 ? (
-        <ul className="mt-1 max-h-40 space-y-0.5 overflow-y-auto">
-          {basis.map((sale, index) => (
-            <li
-              key={`${sale.date}-${sale.price}-${sale.grade}-${index}`}
-              className="text-11 tabular-nums text-zinc-500"
-            >
-              {formatDate(sale.date)} · {money(sale.price, true)} · {sale.grade}
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </div>
-  );
-}
 
 /* Quick Comp design tokens, shared by the card page's comp card, its skeleton and the sales rows. */
 
@@ -46,14 +15,6 @@ export const compSectionValue = "text-xl leading-[1.625rem] font-semibold tabula
 export const compRowPrice = "text-15 leading-5 font-semibold tabular-nums";
 /** Plot tile height. The chart inside is 152px. */
 export const COMP_PLOT_HEIGHT = 152;
-
-/** The eyebrow over the hero, from the kind of price read. */
-export function compEyebrow(kind: string | null | undefined, similarLabel = "Similar cards"): string {
-  if (kind === "last_sale") return "Last sale";
-  if (kind === "estimate") return "Estimated value";
-  if (kind === "similar") return similarLabel;
-  return "Recent sales";
-}
 
 /** "Oct 9", with the year only when it is not this year. */
 export function saleDate(ymd: string, today = snapshotDateInNewYork()): string {
@@ -191,32 +152,5 @@ export function PlotSkeleton({ note }: { note?: string | null }) {
     >
       {note ? <p className="px-4 text-center text-sm text-zinc-500">{note}</p> : null}
     </div>
-  );
-}
-
-/** Four sales rows while they load: price and meta bars, the row height of the real thing. */
-export function CompRowsSkeleton({ rows = 4 }: { rows?: number }) {
-  return (
-    <ul className="mt-3 divide-y divide-zinc-950/5 dark:divide-white/[0.06]" aria-hidden="true">
-      {Array.from({ length: rows }, (_, i) => (
-        <li key={i} className="flex min-h-14 items-start justify-between gap-3 py-3">
-          {/* 48px: price (20) + meta (16) + title (12), as in a loaded row. */}
-          <div className="h-12 min-w-0 flex-1">
-            <div className="flex h-5 items-center">
-              <Bar className="h-4 w-20" />
-            </div>
-            <div className="flex h-4 items-center">
-              <Bar className="h-3 w-28" />
-            </div>
-            <div className="flex h-3 items-center">
-              <Bar className="h-2 w-48" />
-            </div>
-          </div>
-          <div className="flex h-5 items-center">
-            <Bar className="h-3 w-6" />
-          </div>
-        </li>
-      ))}
-    </ul>
   );
 }

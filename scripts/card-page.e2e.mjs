@@ -251,6 +251,20 @@ for (const scheme of ["dark", "light"]) {
   const { context, page, cases, errors } = await open(browser, { scheme, who: ME });
   await show(page, `/cards/${cases.vertical.id}`);
   await shot(page, "own", scheme);
+  // The owner's controls under the card: who sees it, and the pile picker.
+  if (OUT) {
+    await page.evaluate(() => {
+      const controls = document.querySelector('[data-slot="owner-controls"]');
+      if (controls) window.scrollTo(0, window.scrollY + controls.getBoundingClientRect().top - 320);
+    });
+    await page.waitForTimeout(200);
+    await page.screenshot({ path: join(OUT, `${TAG}-own-controls-390-${scheme}.jpg`), type: "jpeg", quality: 82 });
+    await page.evaluate(() => window.scrollTo(0, 0));
+  }
+  if (CHECK) {
+    const piles = await page.locator('[data-slot="owner-controls"] [role="radio"]').allInnerTexts();
+    assert.deepEqual(piles, ["Open to offers", "Personal collection"], "the pile picker's two labels");
+  }
   if (CHECK) await checkPage(page, `own (${scheme})`, SALES.vertical.length);
   assert.deepEqual(errors, [], "no page errors");
   await context.close();

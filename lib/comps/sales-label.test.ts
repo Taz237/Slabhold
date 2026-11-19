@@ -12,11 +12,12 @@ describe("basedOnSalesLabel has one home", () => {
     assert.doesNotMatch(read("lib/comps/sales-label.ts"), /^\s*import\b|\bimport\s*\(|\brequire\s*\(/m);
   });
 
-  it("is not copied into comp-basis.tsx, which imports it from sales-label", () => {
+  it("is not copied into comp-basis.tsx, and the card page imports it from sales-label", () => {
     const basis = read("components/comp-basis.tsx");
     assert.doesNotMatch(basis, /function basedOnSalesLabel/);
-    assert.match(basis, /import \{ basedOnSalesLabel \} from "@\/lib\/comps\/sales-label";/);
     assert.doesNotMatch(basis, /import (?!type )[^;]*from "@\/lib\/comps\/shared-value"/);
+    // Its one user on the card page (the Est. sell tile) takes it straight from its home.
+    assert.match(read("components/card-detail.tsx"), /import \{ basedOnSalesLabel \} from "@\/lib\/comps\/sales-label";/);
   });
 
   it("reads 1 sale and 12 sales, and shared-value still exports it", async () => {

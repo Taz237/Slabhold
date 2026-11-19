@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import Link from "next/link";
+import { useMemo, useState, type ReactNode } from "react";
 import { SalePlot } from "@/components/card-page/sale-plot";
 import { PriceInfo } from "@/components/card-page/price-info";
 import {
@@ -28,42 +29,6 @@ import { middleFifty } from "@/lib/comps/stats";
 import { money } from "@/lib/format";
 import type { PriceRead } from "@/lib/value/price-fallback";
 
-/** The price counts up once, about this long. */
-const COUNT_UP_MS = 500;
-
-const useClientLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
-
-/** The big dollar. It counts up once from 60%, so it never reads "$0". Static under reduced motion. */
-function CountUp({ value }: { value: number }) {
-  const [shown, setShown] = useState<number | null>(null);
-  const ran = useRef(false);
-  useClientLayoutEffect(() => {
-    if (ran.current) return;
-    ran.current = true;
-    if (!window.requestAnimationFrame || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
-    const from = value * 0.6;
-    let frame = 0;
-    let start = 0;
-    setShown(from);
-    const step = (time: number) => {
-      start ||= time;
-      const progress = Math.min(1, (time - start) / COUNT_UP_MS);
-      if (progress < 1) {
-        setShown(from + (value - from) * (1 - (1 - progress) ** 3));
-        frame = window.requestAnimationFrame(step);
-      } else {
-        setShown(null);
-      }
-    };
-    frame = window.requestAnimationFrame(step);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      setShown(null);
-    };
-  }, [value]);
-  return <>{money(shown ?? value)}</>;
-}
-
 /** "▲ 4.2% · 30d": the change and what it compares to, in one pill. */
 export function ChangePill({ pct }: { pct: number }) {
   const tone = pctTone(pct);
@@ -72,7 +37,7 @@ export function ChangePill({ pct }: { pct: number }) {
   return (
     <span
       data-change-pill={tone}
-      className={`comp-chip-in shrink-0 rounded-full px-2 py-0.5 text-xs leading-5 font-semibold whitespace-nowrap tabular-nums ${MOVE_PILL[tone]}`}
+      className={`comp-fade shrink-0 rounded-full px-2 py-0.5 text-xs leading-5 font-semibold whitespace-nowrap tabular-nums ${MOVE_PILL[tone]}`}
     >
       <span aria-hidden="true">{text} · 30d</span>
       <span className="sr-only">{said} vs 30 days ago</span>
@@ -83,8 +48,8 @@ export function ChangePill({ pct }: { pct: number }) {
 /**
  * The card page's value section: the head (one price, one pill, one line, ⓘ)
  * over the sales chart. The price is the median the page worked out from the
- * sales on screen; nothing here changes that math. A shorter range reads its
- * own median, as before.
+ * sales on screen, shown at once with no count-up; nothing here changes that
+ * math. A shorter range reads its own median, as before.
  */
 export function CardValue({
   read,
@@ -145,7 +110,19 @@ export function CardValue({
   const vs = estimateShown && median != null ? vsDaysAgo(trend, median, 30, today) : null;
   const isRough = rough ?? (n > 0 && n < 5);
 
-  const base = valueHeadline(read, similarLabel);
+  const plain = valueHeadline(read, similarLabel);
+  // A similar card reads as a link to that card, as it does on the pages' own paths.
+  const base =
+    read?.kind === "similar" && plain
+      ? {
+          ...plain,
+          text: (
+            <Link href={read.href} className="text-violet-700 underline-offset-2 hover:underline dark:text-violet-300">
+              {read.detail}
+            </Link>
+          ),
+        }
+      : plain;
   const phrase = COMP_RANGES.find((item) => item.id === range)?.phrase ?? "";
   const line = sample
     ? "Sample estimate"
@@ -170,7 +147,8 @@ export function CardValue({
     <section data-comp-card="" data-slot="sales-chart" className={`comp-reveal ${cardSection}`}>
       <ValueHead
         headline={base}
-        price={estimateShown && median != null ? <CountUp value={median} /> : undefined}
+        // The real figure, right away. A shorter range shows its own median.
+        price={estimateShown && median != null ? money(median) : undefined}
         chip={vs != null ? <ChangePill pct={vs} /> : null}
         line={line}
         info={info.length ? <PriceInfo lines={info} /> : null}
