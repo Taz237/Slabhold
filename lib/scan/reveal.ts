@@ -1,5 +1,5 @@
 import { gradeLabel, maskCert, setWithInsert } from "./confirm";
-import type { ScanMatch } from "./match";
+import type { ScanMatch, ScanRead } from "./match";
 
 /**
  * The scan reveal (components/scan/scan-reveal.tsx): the collector's own card spins from its back to
@@ -54,6 +54,85 @@ export function revealLines(match: ScanMatch): RevealLine[] {
     );
   }
   return [year, set, number, player, version].filter((line): line is RevealLine => line !== null);
+}
+
+/**
+ * What the phone's own read of the photos gave, before the card is matched: the reveal shows each
+ * as soon as it is known. Only real reads: a field nothing read is left out.
+ */
+export type RevealRead = { player?: string; set?: string; number?: string };
+
+/** One line under the reveal's card. Never more than these three: the card is the hero. */
+export type RevealFieldLine = { field: "player" | "set" | "number"; text: string };
+
+const fieldLines = (player: string, set: string, number: string): RevealFieldLine[] =>
+  (
+    [
+      { field: "player", text: player.trim() },
+      { field: "set", text: set.trim() },
+      { field: "number", text: number.trim() },
+    ] as RevealFieldLine[]
+  ).filter((line) => line.text);
+
+/** "#131 · 03/10": the card # and the serial, whichever were read. */
+function numberLine(cardNumber: string, serial: { number: string; run: string | number } | null): string {
+  const stamped = serial ? (serial.number ? `${serial.number}/${serial.run}` : `/${serial.run}`) : "";
+  return [cardNumber ? `#${cardNumber}` : "", stamped].filter(Boolean).join(" · ");
+}
+
+/** The lines under the card while it is still being matched, from the phone's own read. */
+export function revealFieldsFromRead(read: RevealRead | null | undefined): RevealFieldLine[] {
+  return read ? fieldLines(read.player ?? "", read.set ?? "", read.number ?? "") : [];
+}
+
+/** The lines under the card once it is matched: the player, the year and set, then the # and the serial. */
+export function revealFields(match: ScanMatch): RevealFieldLine[] {
+  return fieldLines(
+    match.playerName,
+    [match.yearLabel, setWithInsert(match)].filter(Boolean).join(" "),
+    numberLine(match.cardNumber, match.serialRun ? { number: match.serialNo, run: match.serialRun } : null),
+  );
+}
+
+/** What the phone read off the photos, as the reveal's early lines. `player`: the name the read settled on. */
+export function revealReadFromScan(read: ScanRead, player: string): RevealRead {
+  const sides = read.kind === "raw" ? [read.front, read.back ?? null].filter((side) => side !== null) : [];
+  const first = <T,>(pick: (side: (typeof sides)[number]) => T | null | undefined | ""): T | null => {
+    for (const side of sides) {
+      const value = pick(side);
+      if (value) return value;
+    }
+    return null;
+  };
+  const yearLabel = read.kind === "slab" ? read.label.yearLabel : (first((side) => side.yearLabel) ?? "");
+  const setName = read.kind === "slab" ? read.label.setName : (first((side) => side.setNames[0]) ?? first((side) => side.productText) ?? "");
+  // A raw card prints its # on the back; a slab's label prints it.
+  const cardNumber = read.kind === "slab" ? read.label.cardNumber : (read.back?.cardNumber || read.front.cardNumber);
+  const serial = read.kind === "slab" ? read.label.serial : first((side) => side.serial);
+  // A year alone names no set: the line waits for the set.
+  const set = setName ? [yearLabel, setName].filter(Boolean).join(" ") : "";
+  const number = numberLine(cardNumber, serial);
+  return { ...(player ? { player } : {}), ...(set ? { set } : {}), ...(number ? { number } : {}) };
+}
+
+/**
+ * The reveal's clock (components/scan/comp-sheet.tsx). The light crosses the card in SWEEP_MS and
+ * loops with a short rest. A read that is already in still gets one snap, one sweep and the
+ * landing: about 1.6s. A slow read keeps the sweep looping, then gets one last brighter pass.
+ */
+export const REVEAL_SWEEP_MS = 900;
+export const REVEAL_FINAL_SWEEP_MS = 520;
+export const REVEAL_LAND_MS = 650;
+/** Reduced motion: no sweep and no turn. The lines show, then the card's sheet fades in. */
+export const REVEAL_REDUCED_MS = 600;
+
+/**
+ * How long after the match is in before the card starts its landing. Inside the first sweep: the
+ * rest of that sweep (it is the only one). After it: one last brighter pass.
+ */
+export function landingDelayMs(elapsedMs: number): { finalSweep: boolean; delayMs: number } {
+  if (elapsedMs < REVEAL_SWEEP_MS) return { finalSweep: false, delayMs: Math.max(0, REVEAL_SWEEP_MS - elapsedMs) };
+  return { finalSweep: true, delayMs: REVEAL_FINAL_SWEEP_MS };
 }
 
 /** Typing speed: a character this long, a line never longer than the cap, a beat between lines. */

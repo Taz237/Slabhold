@@ -318,3 +318,25 @@ Only once the card's own year, set and card # are read. Then, in order:
    majority of them agree.
 
 When no source agrees, the player stays open. A slab is always read off its label.
+
+## Versions kept on a checklist section
+
+Some products number each insert and autograph section on its own ladder (Red is /199 in one
+section and /99 in the next), so one list per product would be wrong. For those, the section in
+`checklists/<file>.json` carries its own `versions` (name and print run) and, when the runs change
+card to card, `versionCards` (the card #s the list is for). The scanner only uses them to fill
+"Pick your version": they never name a card's parallel.
+
+| Product | Section | Source | Read |
+| --- | --- | --- | --- |
+| 2023 Panini Illusions Football | First Impressions Autographed Memorabilia | Checklist Insider: https://www.checklistinsider.com/2023-panini-illusions-football ("Versions: Base /399; Red /199; Blue /99; Black /50; FOTL Black Ice /50; Gold /25; FOTL Green /10; Green /10; FOTL Purple 1/1; Purple 1/1") | 2026-11-19 |
+
+Notes:
+
+- The page's Downloads tab lists each card's base print run. The ladder above is kept only for the
+  21 cards whose base is /399 (`versionCards`). A card whose base is /199, /99, /50 or 1/1 has a
+  shorter ladder the page doesn't spell out, so it gets no list and stays open.
+- `scripts/import-checklist.ts` rewrites a checklist's sections from the page and does not carry
+  `versions` over. After a re-import of this file, add them back (lib/scan/version-list.test.ts
+  fails if they go missing).
+

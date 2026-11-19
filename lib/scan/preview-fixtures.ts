@@ -423,3 +423,47 @@ export const PREVIEW_SOLDS_NAMES_BLACK: SoldsState = {
   comp: { status: "split", groups: [{ label: "Black", nSales: 1, lastPriceCents: 4000, lastSoldAt: "2026-11-08T18:00:00.000Z" }] },
   query: "preview",
 };
+
+/**
+ * A patch auto whose sideways serial didn't read (the 2023 Illusions First Impressions #131, /10):
+ * the version is open, and "Pick your version" lists every version on the checklist.
+ */
+export const PREVIEW_VERSIONS: ScanMatch = {
+  ...PREVIEW_UNNUMBERED,
+  catalogId: null,
+  playerName: "Sam LaPorta",
+  sport: "Football",
+  yearLabel: "2023",
+  setBrand: "Panini Illusions",
+  cardNumber: "131",
+  insertName: "First Impressions",
+  isRookie: true,
+  isAuto: true,
+  isRelic: true,
+  grade: null,
+  versions: [
+    { name: "Base", serialRun: 399 },
+    { name: "Red", serialRun: 199 },
+    { name: "Blue", serialRun: 99 },
+    { name: "Black", serialRun: 50 },
+    { name: "FOTL Black Ice", serialRun: 50 },
+    { name: "Gold", serialRun: 25 },
+    { name: "FOTL Green", serialRun: 10 },
+    { name: "Green", serialRun: 10 },
+    { name: "FOTL Purple", serialRun: 1 },
+    { name: "Purple", serialRun: 1 },
+  ],
+};
+
+/** Its recent sales: two versions named, the rest not. */
+export const PREVIEW_SOLDS_VERSIONS: SoldsState = {
+  status: "done",
+  comp: {
+    status: "split",
+    groups: [
+      { label: "Base", nSales: 3, lastPriceCents: 4200, lastSoldAt: "2026-11-10T12:00:00Z" },
+      { label: "Red", nSales: 2, lastPriceCents: 6100, lastSoldAt: "2026-11-08T12:00:00Z" },
+    ],
+  },
+  query: "preview",
+};

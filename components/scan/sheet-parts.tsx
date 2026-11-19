@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { ChevronRight, ScanLine, X } from "lucide-react";
 import { Chip, PrimaryButton, QuietButton, RunBadge, SectionLabel, SwatchDot, focusRing } from "@/components/add-card/flow-ui";
 import { BACK_COPY, missingFields } from "@/lib/scan/back-step";
@@ -11,6 +11,7 @@ import { CONFIRM_COPY, gradeLabel, maskCert, matchLine, setWithInsert, versionLa
 import type { FieldSureness, ScanMatch } from "@/lib/scan/match";
 import type { ProductParallel } from "@/lib/cards/product-data";
 import { isUnnamedLabel } from "@/lib/scan/scan-sales";
+import { VERSION_COPY, versionRowsShown, type VersionRow } from "@/lib/scan/version-list";
 import { ListingThumb } from "@/components/scan/listing-photo";
 
 /** The scanner's bottom sheet: a labelled modal dialog with a grabber, a title and Close. */
@@ -134,13 +135,13 @@ export function CardPhoto({ photo, name }: { photo: string | null; name: string 
 }
 
 /** The scan photo next to the player, card line, grade and the last 4 of the cert. */
-export function MatchSummary({ photo, match }: { photo: string | null; match: ScanMatch }) {
+export function MatchSummary({ photo, match, rise }: { photo: string | null; match: ScanMatch; /** The text's entrance when the reveal's card has just landed in the photo's slot. */ rise?: string }) {
   const grade = gradeLabel(match.grade);
   const cert = maskCert(match.grade?.certNumber ?? "");
   return (
     <div className="grid grid-cols-[80px_1fr] items-start gap-4">
       <CardPhoto photo={photo} name={match.playerName} />
-      <div className="min-w-0 pt-1">
+      <div className={`min-w-0 pt-1 ${rise ?? ""}`}>
         <p className="text-17 leading-6 font-semibold">
           <Field sureness={match.sureness.player}>{match.playerName || CONFIRM_COPY.playerOpen}</Field>
         </p>
@@ -390,6 +391,101 @@ export function ParallelStrip({
         ) : null}
       </div>
     </div>
+  );
+}
+
+/**
+ * "Pick your version": every version the card can be, one row each, while its version is open. The
+ * ones recent sales name lead with their newest price; the rest say "No recent sales". Nothing is
+ * preselected. A long list opens on its closest rows, the rest one tap away.
+ */
+export function VersionList({
+  rows,
+  unnamed = [],
+  looking = false,
+  note = null,
+  insertName,
+  onChoose,
+}: {
+  /** One quiet line under the title: "No recent Base sales". */
+  note?: string | null;
+  rows: readonly VersionRow[];
+  /** Sales whose titles name no version: shown under the list, never a row to pick. */
+  unnamed?: readonly GroupRow[];
+  /** The sold search is still running: prices wait as skeletons, never "No recent sales". */
+  looking?: boolean;
+  /** The card is this insert: its plain version reads as the insert, never "Base". */
+  insertName?: string;
+  onChoose: (next: ParallelPick) => void;
+}) {
+  const [all, setAll] = useState(false);
+  const shown = all ? rows : versionRowsShown(rows);
+  const id = useId();
+  return (
+    <section data-slot="pick-version" aria-labelledby={`${id}-title`} className="rounded-2xl border border-zinc-200 px-4 pt-4 pb-2 dark:border-white/10">
+      <h3 id={`${id}-title`} className="text-15 font-semibold">
+        {VERSION_COPY.title}
+      </h3>
+      {note ? <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{note}</p> : null}
+      {looking ? (
+        <p className="sr-only" role="status">
+          {COMP_COPY.looking}
+        </p>
+      ) : null}
+      <ul className="mt-2 divide-y divide-zinc-200 dark:divide-white/10">
+        {shown.map((row, index) => {
+          const name = versionLabel(row.name, insertName);
+          const salesId = `${id}-sales-${index}`;
+          return (
+            <li key={row.name}>
+              {/* Named like its chip ("Green, numbered to 10"); its sales are its description. Never preselected. */}
+              <button
+                type="button"
+                data-version={row.name}
+                aria-pressed={false}
+                onClick={() => onChoose({ name: row.name, serialRun: row.serialRun })}
+                aria-label={row.serialRun ? `${name}, numbered to ${row.serialRun}` : name}
+                aria-describedby={looking && row.nSales === 0 ? undefined : salesId}
+                className={`-mx-2 flex min-h-12 w-[calc(100%+1rem)] items-center justify-between gap-3 rounded-lg px-2 text-left hover:bg-zinc-900/[0.03] dark:hover:bg-white/[0.04] ${focusRing}`}
+              >
+                <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
+                  <SwatchDot name={row.name} size="sm" />
+                  <span className="truncate">{name}</span>
+                  {row.serialRun ? <RunBadge run={row.serialRun} /> : null}
+                </span>
+                <span className="flex shrink-0 items-center gap-1 text-right">
+                  {row.nSales > 0 ? (
+                    <span id={salesId}>
+                      {row.lastPriceCents != null ? <span className="block font-mono text-sm font-medium tabular-nums">{money(row.lastPriceCents / 100)}</span> : null}
+                      <span className="block font-mono text-xs text-zinc-500 tabular-nums dark:text-zinc-400">{soldCount(row.nSales)}</span>
+                    </span>
+                  ) : looking ? (
+                    <span aria-hidden className={`h-4 w-12 ${skeletonBar}`} />
+                  ) : (
+                    <span id={salesId} className="text-xs text-zinc-500 dark:text-zinc-400">
+                      {VERSION_COPY.noSales}
+                    </span>
+                  )}
+                  <ChevronRight aria-hidden className="size-4 text-zinc-400" />
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      {shown.length < rows.length ? (
+        <QuietButton onClick={() => setAll(true)} className="-ml-3">
+          Show all {rows.length} versions
+        </QuietButton>
+      ) : null}
+      {unnamed.length > 0 ? (
+        <div className="mt-2 border-t border-zinc-200 pt-3 pb-2 dark:border-white/10">
+          <p className="text-13 font-medium text-zinc-500 dark:text-zinc-400">{VERSION_COPY.unnamed}</p>
+          <GroupRows groups={unnamed} />
+        </div>
+      ) : null}
+      {rows.some((row) => row.nSales > 0) || unnamed.length > 0 ? <p className="pt-1 pb-2 text-xs text-zinc-500 dark:text-zinc-400">{COMP_COPY.credit}</p> : null}
+    </section>
   );
 }
 

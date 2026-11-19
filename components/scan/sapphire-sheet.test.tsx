@@ -96,17 +96,18 @@ const click = async (button: HTMLButtonElement | undefined) => {
   });
 };
 
-describe("a parallel the sales box names is also a chip", () => {
-  it("Black shows in the Parallel row, not only Something else, and is selectable", async () => {
+describe("a parallel recent sales name is a version to pick", () => {
+  it("Black is on the list with its sales and price, never preselected, and picking it selects its chip", async () => {
     const view = await mount({ kind: "ready", matches: [fixtures.PREVIEW_SAPPHIRE_ASK], solds: fixtures.PREVIEW_SOLDS_NAMES_BLACK });
     try {
-      const group = view.host.querySelector('[role="group"][aria-label="Parallel"]');
-      assert.ok(group);
-      const black = [...group.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.getAttribute("aria-label")?.startsWith("Black"));
-      assert.ok(black, "a Black chip in the Parallel row");
-      assert.equal(black.getAttribute("aria-pressed") ?? black.getAttribute("aria-checked"), "false");
-      // The sales box names it: "Black · 1 sale $40.00".
-      assert.match(view.host.textContent ?? "", /Black · 1 sale\s*\$40\.00/);
+      const list = view.host.querySelector('[data-slot="pick-version"]');
+      assert.ok(list, "Pick your version");
+      const black = list.querySelector<HTMLButtonElement>('button[data-version="Black"]');
+      assert.ok(black, "a Black row on the list");
+      assert.equal(black.getAttribute("aria-pressed"), "false");
+      // Its row carries its sales: "$40.00, 1 sold". It leads: it is the one recent sales name.
+      assert.match(black.textContent ?? "", /\$40\.00\s*1 sold/);
+      assert.equal(list.querySelector<HTMLElement>("button[data-version]")?.dataset.version, "Black");
       await click(black);
       const picked = [...view.host.querySelectorAll<HTMLButtonElement>('[role="group"][aria-label="Parallel"] button')].find((button) => button.getAttribute("aria-label")?.startsWith("Black"));
       assert.equal(picked?.getAttribute("aria-pressed") ?? picked?.getAttribute("aria-checked"), "true");
@@ -116,11 +117,12 @@ describe("a parallel the sales box names is also a chip", () => {
     }
   });
 
-  it("tapping the sales row selects the same chip", async () => {
+  it("no box of sold groups stands in front of the list: the sales sit on the version's own row", async () => {
     const view = await mount({ kind: "ready", matches: [fixtures.PREVIEW_SAPPHIRE_ASK], solds: fixtures.PREVIEW_SOLDS_NAMES_BLACK });
     try {
-      assert.match(view.host.textContent ?? "", /Black · 1 sale\s*\$40\.00/, "the sales row names it, with its price");
-      await click(buttons(view.host).find((button) => button.getAttribute("aria-label") === "Show Black sales, 1 sale"));
+      assert.doesNotMatch(view.host.textContent ?? "", /Recent sales name/);
+      assert.equal(buttons(view.host).find((button) => button.getAttribute("aria-label") === "Show Black sales, 1 sale"), undefined);
+      await click(chip(view.host.querySelector('[data-slot="pick-version"]') as HTMLElement, "Black"));
       const picked = chip(view.host.querySelector('[role="group"][aria-label="Parallel"]') as HTMLElement, "Black");
       assert.equal(picked?.getAttribute("aria-pressed") ?? picked?.getAttribute("aria-checked"), "true");
     } finally {

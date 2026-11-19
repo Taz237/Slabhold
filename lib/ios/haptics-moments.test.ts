@@ -53,4 +53,33 @@ describe("haptics: moments", () => {
       save: SUCCESS,
     });
   });
+
+  it("the scan reveal: a light snap, a soft purr of ticks across the sweep, a firmer lock, and a success on a sure match", async () => {
+    const played: Record<string, number[][]> = {};
+    for (const moment of ["snap", "sweep", "lock", "lockSure"] as const) {
+      const calls: number[][] = [];
+      nav.vibrate = (pattern) => {
+        calls.push(pattern);
+        return true;
+      };
+      await playHaptic(moment);
+      played[moment] = calls;
+    }
+    // Capacitor's web patterns: [20] light, [43] medium, [70] a selection tick.
+    assert.deepEqual(played.snap, [LIGHT]);
+    assert.deepEqual(played.sweep, [[70], [70], [70], [70]], "four soft ticks, never one long buzz");
+    assert.deepEqual(played.lock, [[43]]);
+    assert.deepEqual(played.lockSure, [SUCCESS]);
+  });
+
+  it("the reveal's haptics are a no-op in a browser, like every other moment", () => {
+    g.window = {};
+    const calls: number[][] = [];
+    nav.vibrate = (pattern) => {
+      calls.push(pattern);
+      return true;
+    };
+    for (const moment of ["snap", "sweep", "lock", "lockSure"] as const) assert.doesNotThrow(() => haptic(moment));
+    assert.deepEqual(calls, []);
+  });
 });

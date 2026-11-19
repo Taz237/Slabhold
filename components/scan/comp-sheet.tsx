@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { rowsWithVersion, versionReadKey } from "@/lib/scan/version-reread";
 import { Chip, PrimaryButton, QuietButton, SectionLabel } from "@/components/add-card/flow-ui";
 import { MoveArrow } from "@/components/move-arrow";
@@ -17,7 +17,7 @@ import {
   SheetFrame,
   SplitGroups,
   OtherGroups,
-  parallelOptionsFor,
+  VersionList,
   skeletonBar,
 } from "@/components/scan/sheet-parts";
 import { MOVE_PILL } from "@/lib/chart/theme";
@@ -38,10 +38,12 @@ import { CONFIRM_COPY, confirmMatch, initialChoice, matchesKey, promoteMatch, re
 import type { ScanEstimate } from "@/lib/scan/estimate";
 import type { ScanMatch } from "@/lib/scan/match";
 import { isUnnamedRunLabel } from "@/lib/scan/scan-sales";
-import { REVEAL_COPY, matchIsSure, revealLines, typingPlan } from "@/lib/scan/reveal";
+import { versionChoicesFor, versionFromSerial, versionRows } from "@/lib/scan/version-list";
+import { REVEAL_COPY, REVEAL_LAND_MS, REVEAL_REDUCED_MS, landingDelayMs, matchIsSure, revealFields, revealFieldsFromRead } from "@/lib/scan/reveal";
+import { haptic } from "@/lib/ios/haptics";
 import { QUICK_ADD_COPY } from "@/lib/scan/quick-add";
 import { PickCard } from "@/components/scan/pick-card";
-import { RevealLabel, RevealSpinCard } from "@/components/scan/scan-reveal";
+import { RevealFields, RevealSpinCard, type RevealLanding } from "@/components/scan/scan-reveal";
 
 /**
  * Sold prices for another parallel or grade on this sheet. GET /api/scan/comp
@@ -166,6 +168,12 @@ function SimilarEstimate({ estimate }: { estimate: ScanEstimate }) {
 }
 
 
+/** A long row of chips: the picked one moves to the front, so it is never off screen. */
+function pickedInView<T extends { name: string }>(options: T[], pick: ParallelPick): T[] {
+  const at = pick ? options.findIndex((option) => option.name === pick.name) : -1;
+  return at > 3 ? [options[at], ...options.slice(0, at), ...options.slice(at + 1)] : options;
+}
+
 function gradeChoices(scanned: string): string[] {
   const presets: string[] = [...QUICK_GRADES];
   return presets.includes(scanned) ? presets : [scanned, ...presets];
@@ -189,7 +197,10 @@ export function CardPrice({
   onSapphire,
   onVersion,
   onBack,
+  arrive = false,
 }: {
+  /** The reveal's card just landed in the photo's slot: everything else comes up under it, as one piece. */
+  arrive?: boolean;
   photo: string | null;
   matches: ScanMatch[];
   scanMatch?: ScanMatch;
@@ -204,7 +215,8 @@ export function CardPrice({
 }) {
   const [rows, setRows] = useState(matches);
   const top = rows[0];
-  const [pick, setPick] = useState<ParallelPick>(() => (top ? initialChoice(top) : null));
+  // A read serial that exactly one checklist version fits picks it; anything less stays open.
+  const [pick, setPick] = useState<ParallelPick>(() => (top ? (initialChoice(top) ?? versionFromSerial(top)) : null));
   const [grade, setGrade] = useState(() => (top ? scanCompGrade(top) : "Raw"));
   // Every card, parallel and grade looked up on this sheet, so switching back is instant.
   const [results, setResults] = useState<ReadonlyMap<string, ScanCompResult>>(new Map());
@@ -317,14 +329,36 @@ export function CardPrice({
       : undefined;
   // No list of ours for this card: Base alone, to say it in one tap. Never on a card that can't be Base.
   const canBeBase = top.serialRun == null && !top.isAuto && !top.subset;
-  const versionChoices = parallelOptionsFor(top).length > 0 ? parallelOptionsFor(top) : canBeBase ? [{ name: "Base", serialRun: null }] : [];
+  // Every version on the checklist for this card (only those at its print run, once a serial is read).
+  const listed = versionChoicesFor(top);
+  const versionChoices = listed.length > 0 ? listed : canBeBase ? [{ name: "Base", serialRun: null }] : [];
+  // "Pick your version": the whole list, one row each, while the version is open. The sales that
+  // name a version sit on its row, so no box of sold groups stands in front of the list.
+  const versionList = versionOpen && target ? versionRows(versionChoices, top, solds) : null;
+  const pickFromList = versionList != null && versionList.rows.length > 0;
+  const choose = (next: ParallelPick) => {
+    setPicked(next !== null);
+    if (next) setTaps((count) => count + 1);
+    setPick(next);
+    setAddError(null);
+  };
 
   return (
-    <div className="space-y-6">
-      <MatchSummary photo={photo} match={top} />
+    <div className={`space-y-6 ${arrive ? SHEET_RISE_REST : ""}`} data-arrive={arrive ? "" : undefined}>
+      <MatchSummary photo={photo} match={top} rise={arrive ? SHEET_RISE : undefined} />
       <SetNotes match={top} onSapphire={matchesKey([top]) === matchesKey([scanMatch]) ? onSapphire : undefined} />
 
-      {target ? (
+      {pickFromList && versionList ? (
+        <VersionList
+          rows={versionList.rows}
+          unnamed={versionList.unnamed}
+          looking={looking}
+          // An unnumbered card whose sales were all another parallel: said plainly, never a Base price.
+          note={fromScan?.status === "split" && fromScan.missing ? COMP_COPY.noBase : null}
+          insertName={top.insertName}
+          onChoose={choose}
+        />
+      ) : target ? (
         <ValuePanel
           result={result}
           looking={looking}
@@ -343,8 +377,9 @@ export function CardPrice({
         <p className="text-sm text-zinc-600 dark:text-zinc-400">{top.playerName ? COMP_COPY.needYear : COMP_COPY.needPlayer}</p>
       )}
 
-      <ParallelStrip
-        options={withSoldGroups(versionChoices, solds, top.serialRun, assumedBase)}
+      {pickFromList ? null : (
+        <ParallelStrip
+        options={pickedInView(withSoldGroups(versionChoices, solds, top.serialRun, assumedBase), pick)}
         pick={pick}
         somethingElse={false}
         insertName={top.insertName}
@@ -360,13 +395,9 @@ export function CardPrice({
                 ? COMP_COPY.yearAgoParallels
                 : null
         }
-        onChoose={(next) => {
-          setPicked(next !== null);
-          if (next) setTaps((count) => count + 1);
-          setPick(next);
-          setAddError(null);
-        }}
-      />
+        onChoose={choose}
+        />
+      )}
 
       <div>
         <SectionLabel>{COMP_COPY.grade}</SectionLabel>
@@ -418,7 +449,7 @@ export function CardPrice({
   );
 }
 
-/** Where the scan is: being read, its reveal typing in, the list to pick from, or one card's price. */
+/** Where the scan is: being read, its reveal landing, the list to pick from, or one card's price. */
 export type ScanView = "reading" | "reveal" | "list" | "card";
 
 /**
@@ -440,6 +471,7 @@ export function useScanSteps(state: ConfirmSheetState) {
     setPicked(null);
     setListAsked(false);
   }
+  const reveal = useCallback(() => setRevealed(true), []);
   const at = picked && matches ? matches.findIndex((match) => cardIdentity(match) === picked) : -1;
   const sure = matches ? matchIsSure(matches) : false;
   const index = at >= 0 ? at : sure && !listAsked ? 0 : null;
@@ -449,7 +481,9 @@ export function useScanSteps(state: ConfirmSheetState) {
     index,
     /** Only a card shown from the list, or one of several, can go back to the list. */
     canPickAnother: Boolean(matches && matches.length > 1),
-    reveal: () => setRevealed(true),
+    reveal,
+    /** The card view comes next (not the list): where the reveal's card lands. */
+    toCard: sure && !listAsked,
     pick: (next: number) => {
       if (matches?.[next]) setPicked(cardIdentity(matches[next]));
     },
@@ -491,21 +525,64 @@ export function ScanSteps({
   const ready = state.kind === "ready" ? state : null;
   const key = ready ? matchesKey(ready.matches) : "";
   const top = ready?.matches[0] ?? null;
-  const { view, index, reveal } = steps;
+  const { view, index, reveal, toCard } = steps;
+  const root = useRef<HTMLDivElement>(null);
+  // When this scan's card came onto the stage. Null: the sheet opened on a card already read.
+  const startedAt = useRef<number | null>(null);
+  const [phase, setPhase] = useState<"reading" | "final" | "landing">("reading");
+  const [landing, setLanding] = useState<RevealLanding | null>(null);
+  // The card just landed: the sheet under it comes up once.
+  const [arrived, setArrived] = useState(false);
+  // A new scan starts over.
+  if (!ready && (phase !== "reading" || arrived)) {
+    setPhase("reading");
+    setArrived(false);
+  }
+  const reading = !ready;
+  useEffect(() => {
+    if (reading) startedAt.current = performance.now();
+  }, [reading, photo]);
 
-  // The reveal types in, then the next step comes on its own; a tap on the label skips ahead.
-  const typing = useMemo(() => (top ? typingPlan(revealLines(top)).totalMs : 0), [top]);
+  // The match is in. A read that beat the first sweep lets it finish (the one sweep it gets); a
+  // slower one gets a last brighter pass. Then the card turns and glides to its slot, locks in with
+  // a firmer haptic, and the sheet comes up under it. Never a wait beyond that.
+  const sure = ready ? matchIsSure(ready.matches) : false;
   useEffect(() => {
     if (view !== "reveal") return;
-    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-    const timer = window.setTimeout(reveal, reduce ? REVEAL_REDUCED_MS : typing + REVEAL_HOLD_MS);
+    const lock = () => {
+      haptic(sure ? "lockSure" : "lock");
+      setArrived(true);
+      reveal();
+    };
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches) {
+      const timer = window.setTimeout(lock, REVEAL_REDUCED_MS);
+      return () => window.clearTimeout(timer);
+    }
+    const { finalSweep, delayMs } = landingDelayMs(startedAt.current == null ? 0 : performance.now() - startedAt.current);
+    const timers = [
+      window.setTimeout(() => {
+        if (finalSweep) setPhase("final");
+      }, 0),
+      window.setTimeout(() => {
+        setLanding(landingFor(root.current, toCard));
+        setPhase("landing");
+      }, delayMs),
+      window.setTimeout(lock, delayMs + REVEAL_LAND_MS),
+    ];
+    return () => timers.forEach((timer) => window.clearTimeout(timer));
+  }, [view, reveal, sure, toCard]);
+
+  useEffect(() => {
+    if (!arrived) return;
+    const timer = window.setTimeout(() => setArrived(false), 800);
     return () => window.clearTimeout(timer);
-  }, [view, typing, reveal]);
+  }, [arrived]);
 
   if (ready && view === "card" && index != null && ready.matches[index]) {
     return (
       <CardPrice
         key={`${key}#${index}`}
+        arrive={arrived}
         photo={photo}
         matches={promoteMatch(ready.matches, index)}
         scanMatch={ready.matches[0]}
@@ -522,7 +599,7 @@ export function ScanSteps({
   }
   if (ready && view === "list") {
     return (
-      <div className="space-y-6">
+      <div className={`space-y-6 ${arrived ? `${SHEET_RISE_REST} ${SCENE_HEIGHT}` : ""}`}>
         <RevealSpinCard photo={photo} backPhoto={backPhoto} motion="rest" size="small" />
         <PickCard matches={ready.matches} onPick={steps.pick} photo={photo} />
         <div className="flex justify-center">
@@ -531,18 +608,46 @@ export function ScanSteps({
       </div>
     );
   }
+  // What was read so far: the phone's own read while the card is matched, then the match itself.
+  const lines = top ? revealFields(top) : revealFieldsFromRead(state.kind === "matching" ? state.read : null);
   return (
-    <div className="space-y-4">
-      <RevealSpinCard photo={photo} backPhoto={backPhoto} motion={ready ? "landing" : "reading"} />
-      <RevealLabel match={top} onDone={ready ? reveal : undefined} />
+    <div ref={root} onClick={ready ? reveal : undefined} className={`flex flex-col ${SCENE_HEIGHT}`}>
+      <RevealSpinCard key={photo ?? "none"} photo={photo} backPhoto={backPhoto} motion={ready ? phase : "reading"} landing={landing} />
+      <div className="pt-4">
+        <RevealFields lines={lines} leaving={phase === "landing"} />
+      </div>
     </div>
   );
 }
 
-/** After the label has typed in, it holds a beat before the next step. */
-const REVEAL_HOLD_MS = 500;
-/** With reduced motion the label shows at once: a short beat to read it. */
-const REVEAL_REDUCED_MS = 900;
+/**
+ * The reveal fills the sheet to its full height (the scene sheet's 94dvh, less its grabber, title
+ * row and padding), so the sheet is already as tall as the card's own sheet: the card lands in its
+ * slot and nothing under it jumps.
+ */
+const SCENE_HEIGHT = "min-h-[calc(94dvh-5.625rem-env(safe-area-inset-bottom))]";
+
+/** The sheet under the landed card: one fade and slide up, the whole piece together. Reduced motion: a fade. */
+const SHEET_RISE = "motion-safe:animate-[reveal-sheet-rise_320ms_cubic-bezier(0.16,1,0.3,1)_both] motion-reduce:animate-[add-fade_200ms_ease-out_both]";
+/** The same, for everything on the sheet but the card's own row (its photo is where the card landed). */
+const SHEET_RISE_REST =
+  "motion-safe:[&>*:not(:first-child)]:animate-[reveal-sheet-rise_320ms_cubic-bezier(0.16,1,0.3,1)_both] motion-reduce:[&>*:not(:first-child)]:animate-[add-fade_200ms_ease-out_both]";
+
+/**
+ * Where the reveal's card lands: the photo's slot on the card's sheet (top left, 80 wide), or the
+ * small card above "Pick your card" (centered, 96 wide). Null when the page has no layout (tests).
+ */
+function landingFor(root: HTMLElement | null, toCard: boolean): RevealLanding | null {
+  const card = root?.querySelector<HTMLElement>('[data-reveal="scan-card"] > div');
+  if (!root || !card) return null;
+  const box = root.getBoundingClientRect();
+  const from = card.getBoundingClientRect();
+  if (!from.width) return null;
+  const width = toCard ? 80 : 96;
+  const left = toCard ? box.left : box.left + (box.width - width) / 2;
+  const top = toCard ? box.top : box.top + 4;
+  return { x: left - from.left, y: top - from.top, scale: width / from.width };
+}
 
 const TREND_TEXT = { up: "Trending up", down: "Trending down", flat: "Steady" } as const;
 
