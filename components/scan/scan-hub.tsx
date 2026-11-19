@@ -8,6 +8,7 @@ import { PrimaryButton, QuietButton, focusRing } from "@/components/add-card/flo
 import { PhotoFileInputs } from "@/components/photo-file-inputs";
 import type { CompLookup } from "@/components/scan/comp-sheet";
 import { ConfirmSheet, type ConfirmSheetState } from "@/components/scan/confirm-sheet";
+import { HitRevealsSetting, HitStreakBadge } from "@/components/scan/hit-reveal";
 import { AddedPop } from "@/components/scan/added-pop";
 import { CollectionContext } from "@/components/collection-provider";
 import { haptic } from "@/lib/ios/haptics";
@@ -585,7 +586,10 @@ export function ScanHub({
 
   return (
     <div className="flex flex-col">
-      <h1 className="text-2xl font-semibold tracking-tight">{HUB_COPY.title}</h1>
+      <div className="flex min-h-8 items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold tracking-tight">{HUB_COPY.title}</h1>
+        <HitStreakBadge />
+      </div>
       <p className="mt-1 text-sm leading-5 text-zinc-600 dark:text-zinc-400">{HUB_COPY.body}</p>
       <p className="mt-3 text-13 text-zinc-500 dark:text-zinc-400">{HUB_COPY.unlimited}</p>
 
@@ -670,6 +674,10 @@ export function ScanHub({
           <div className="mt-3">{search}</div>
         </section>
       ) : null}
+
+      <div className="mt-8 border-t border-zinc-200 pt-5 dark:border-white/10">
+        <HitRevealsSetting />
+      </div>
 
       {added ? <AddedPop photo={photo} /> : null}
       {sheet ? (

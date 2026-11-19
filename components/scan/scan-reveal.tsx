@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { haptic } from "@/lib/ios/haptics";
 import { REVEAL_COPY, REVEAL_SWEEP_MS, type RevealFieldLine } from "@/lib/scan/reveal";
 
@@ -25,10 +25,12 @@ function EmptyFace({ label }: { label: string }) {
 /**
  * "reading": the card sits on the stage, floating a little, while a band of white light crosses it
  * again and again. "final": the match is in, one last brighter pass. "landing": the card turns on
- * its Y axis and glides to its slot on the sheet. "rest": it sits on its front.
+ * its Y axis and glides to its slot on the sheet. "rest": it sits on its front. "hit": the card is
+ * a big hit and its effect plays over the stage (components/scan/hit-reveal.tsx): the card holds
+ * still, flat, under it.
  * Reduced motion: no light, no float, no turn. The card simply fades in.
  */
-export type RevealMotion = "reading" | "final" | "landing" | "rest";
+export type RevealMotion = "reading" | "final" | "hit" | "landing" | "rest";
 
 /** Where the landing card goes: an offset and a scale from where it sits on the stage. */
 export type RevealLanding = { x: number; y: number; scale: number };
@@ -78,6 +80,7 @@ export function RevealSpinCard({
   motion,
   size = "large",
   landing = null,
+  overlay = null,
 }: {
   photo: string | null;
   backPhoto?: string | null;
@@ -85,6 +88,8 @@ export function RevealSpinCard({
   size?: "large" | "small";
   /** Set for "landing": where the card glides to. */
   landing?: RevealLanding | null;
+  /** The hit effect's layer, drawn over the stage and the card. */
+  overlay?: ReactNode;
 }) {
   const stage = size === "large";
   const reading = motion === "reading";
@@ -149,8 +154,9 @@ export function RevealSpinCard({
       >
         {stage ? <span aria-hidden className={`reveal-floor pointer-events-none absolute inset-x-[-12%] -bottom-5 h-8 ${landingNow ? "motion-safe:animate-[reveal-stage-out_200ms_ease-out_both]" : ""}`} /> : null}
         <div
+          data-reveal-body=""
           className={`[transform-style:preserve-3d] ${
-            stage && motion !== "rest" ? "motion-safe:animate-[reveal-float_2600ms_ease-in-out_infinite_alternate]" : ""
+            stage && motion !== "rest" && motion !== "hit" ? "motion-safe:animate-[reveal-float_2600ms_ease-in-out_infinite_alternate]" : ""
           } ${motion === "final" || landingNow ? "[animation-play-state:paused]" : ""}`}
         >
           <div
@@ -184,6 +190,7 @@ export function RevealSpinCard({
           </div>
         </div>
       </div>
+      {overlay}
     </div>
   );
 }

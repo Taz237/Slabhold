@@ -102,17 +102,23 @@ function Field({ sureness, children }: { sureness: FieldSureness; children: stri
   );
 }
 
-export function CardPhoto({ photo, name }: { photo: string | null; name: string }) {
+export function CardPhoto({ photo, name, onTap, tapLabel }: { photo: string | null; name: string; /** A hit: the photo replays its effect. */ onTap?: () => void; tapLabel?: string }) {
   if (photo) {
-    return (
+    const image = (
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={photo}
         alt={`Your scan of ${name}`}
         width={80}
         height={112}
-        className="aspect-[5/7] w-20 rounded-lg object-cover shadow-[0_6px_16px_rgba(9,9,11,0.18)] ring-1 ring-zinc-900/10 dark:ring-white/10"
+        className={`aspect-[5/7] w-20 rounded-lg object-cover shadow-[0_6px_16px_rgba(9,9,11,0.18)] ring-1 ${onTap ? "ring-violet-500/70" : "ring-zinc-900/10 dark:ring-white/10"}`}
       />
+    );
+    if (!onTap) return image;
+    return (
+      <button type="button" onClick={onTap} aria-label={tapLabel} className={`block rounded-lg ${focusRing}`}>
+        {image}
+      </button>
     );
   }
   const initials = name
@@ -135,12 +141,26 @@ export function CardPhoto({ photo, name }: { photo: string | null; name: string 
 }
 
 /** The scan photo next to the player, card line, grade and the last 4 of the cert. */
-export function MatchSummary({ photo, match, rise }: { photo: string | null; match: ScanMatch; /** The text's entrance when the reveal's card has just landed in the photo's slot. */ rise?: string }) {
+export function MatchSummary({
+  photo,
+  match,
+  rise,
+  onPhotoTap,
+  photoTapLabel,
+}: {
+  photo: string | null;
+  match: ScanMatch;
+  /** The text's entrance when the reveal's card has just landed in the photo's slot. */
+  rise?: string;
+  /** A hit: tapping the photo replays its effect. */
+  onPhotoTap?: () => void;
+  photoTapLabel?: string;
+}) {
   const grade = gradeLabel(match.grade);
   const cert = maskCert(match.grade?.certNumber ?? "");
   return (
     <div className="grid grid-cols-[80px_1fr] items-start gap-4">
-      <CardPhoto photo={photo} name={match.playerName} />
+      <CardPhoto photo={photo} name={match.playerName} onTap={onPhotoTap} tapLabel={photoTapLabel} />
       <div className={`min-w-0 pt-1 ${rise ?? ""}`}>
         <p className="text-17 leading-6 font-semibold">
           <Field sureness={match.sureness.player}>{match.playerName || CONFIRM_COPY.playerOpen}</Field>

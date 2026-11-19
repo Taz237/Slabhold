@@ -290,6 +290,13 @@ const SUCCESS_MOMENTS: ReadonlySet<HapticMoment> = new Set<HapticMoment>(["post"
 const SWEEP_TICKS = 4;
 const SWEEP_TICK_GAP_MS = 190;
 
+/** A hit reveal's big moment: a heavy thump, then a second beat right behind it. */
+async function playHit(second: () => Promise<void>, gapMs: number): Promise<void> {
+  await Haptics.impact({ style: ImpactStyle.Heavy });
+  await new Promise((resolve) => setTimeout(resolve, gapMs));
+  await second();
+}
+
 /** A soft purr: selection ticks (the lightest haptic iOS has), spaced across the sweep. */
 async function playSweep(): Promise<void> {
   await Haptics.selectionStart();
@@ -314,6 +321,9 @@ export function playHaptic(moment: HapticMoment): Promise<void> {
   if (moment === "select") return playSelect();
   if (moment === "lock") return Haptics.impact({ style: ImpactStyle.Medium });
   if (moment === "lockSure") return Haptics.notification({ type: NotificationType.Success });
+  if (moment === "hit") return Haptics.impact({ style: ImpactStyle.Heavy });
+  if (moment === "hitBig") return playHit(() => Haptics.impact({ style: ImpactStyle.Heavy }), 90);
+  if (moment === "hitFull") return playHit(() => Haptics.notification({ type: NotificationType.Success }), 140);
   return SUCCESS_MOMENTS.has(moment)
     ? Haptics.notification({ type: NotificationType.Success })
     : Haptics.impact({ style: ImpactStyle.Light });
