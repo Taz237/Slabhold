@@ -1,10 +1,12 @@
 import "@/lib/test/image-env";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, it } from "node:test";
 import { act, createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import "@/lib/test/server-only-stub";
+import { accumulateMetadata } from "next/dist/lib/metadata/resolve-metadata";
 import { installDom } from "@/lib/test/dom";
 import { EMPTY_MEDIA, type LandingMedia } from "@/lib/landing/media";
 import {
@@ -762,14 +764,47 @@ describe("landing: App Store call to action", () => {
     assert.doesNotMatch(htmlText(html), /download/i);
   });
 
-  it("holds its space on the server, so nothing jumps when the link arrives", async () => {
+  it("is in the server HTML, so the main button paints with the page and nothing jumps", async () => {
     const { AppStoreBadge } = await import("@/components/landing/app-store-badge");
     const primary = renderToStaticMarkup(createElement(AppStoreBadge, { variant: "primary" }));
-    assert.match(primary, /data-app-store-badge="primary" class="h-14"/);
-    assert.doesNotMatch(primary, /<a\b/);
+    assert.match(primary, /^<div data-app-store-badge="primary" class="h-14"><a href="https:\/\/apps\.apple\.com\/app\/id6831357026" class="lg-btn lg-btn-primary">/);
+    assert.match(primary, />Get the app<\/a><\/div>$/);
     const nav = renderToStaticMarkup(createElement(AppStoreBadge, { variant: "nav" }));
-    assert.match(nav, /data-app-store-badge="nav" class="h-11 min-w-\[126px\]"/);
-    assert.doesNotMatch(nav, /<a\b/);
+    assert.match(nav, /^<div data-app-store-badge="nav" class="h-11"><a href="https:\/\/apps\.apple\.com\/app\/id6831357026" class="lg-nav-cta">/);
+    // No reserved guess at its width: the real link is there from the first byte.
+    assert.doesNotMatch(nav, /min-w-/);
+    const html = await page();
+    assert.equal((html.match(/<a href="https:\/\/apps\.apple\.com\/app\/id6831357026"/g) ?? []).length, 3, "nav, hero and closing slab");
+    const hero = html.slice(html.indexOf("data-glass-hero"), html.indexOf("data-section"));
+    assert.ok(hero.indexOf(">Get the app<") > 0 && hero.indexOf(">Get the app<") < hero.indexOf(">Open Slabhold<"));
+  });
+
+  it("is hidden inside the iOS app before the first paint, by a head script and one CSS rule", async () => {
+    const { NATIVE_HINT_SCRIPT } = await import("@/lib/ios/native-hint");
+    const run = (capacitor: unknown) => {
+      const root = { dataset: {} as Record<string, string> };
+      new Function("window", "document", NATIVE_HINT_SCRIPT)({ Capacitor: capacitor }, { documentElement: root });
+      return root.dataset;
+    };
+    assert.deepEqual(run({ isNativePlatform: () => true }), { native: "" });
+    assert.deepEqual(run({ isNativePlatform: () => false }), {}, "Capacitor on the web is not the app");
+    assert.deepEqual(run(undefined), {}, "a plain browser");
+    assert.deepEqual(run({}), {});
+    assert.deepEqual(
+      run({
+        isNativePlatform: () => {
+          throw new Error("bridge not ready");
+        },
+      }),
+      {},
+      "never throws",
+    );
+    assert.doesNotMatch(NATIVE_HINT_SCRIPT, /fetch|import|cookie/);
+    assert.ok(NATIVE_HINT_SCRIPT.length < 220, "tiny");
+    const layout = read("app/layout.tsx");
+    assert.match(layout, /<script dangerouslySetInnerHTML=\{\{ __html: SESSION_HINT_SCRIPT \}\} \/>\s*<script dangerouslySetInnerHTML=\{\{ __html: NATIVE_HINT_SCRIPT \}\} \/>/);
+    assert.match(layout, /suppressHydrationWarning/);
+    assert.match(CSS, /html\[data-native\] \[data-app-store-badge\] \{\s*display: none;\s*\}/);
   });
 
   it("is hidden inside the iOS app, where Open Slabhold is the only action", async () => {
@@ -792,7 +827,7 @@ describe("landing: App Store call to action", () => {
     } finally {
       delete native.Capacitor;
     }
-    assert.match(read("components/landing/app-store-badge.tsx"), /useSyncExternalStore\(subscribe, \(\) => !isNativeApp\(\), \(\) => false\)/);
+    assert.match(read("components/landing/app-store-badge.tsx"), /useSyncExternalStore\(subscribe, \(\) => !isNativeApp\(\), \(\) => true\)/);
     assert.match(read("app/layout.tsx"), /itunes: \{ appId: "6831357026" \}/, "the apple-itunes-app banner stays");
   });
 
@@ -819,10 +854,41 @@ describe("landing: search and share", () => {
     for (const route of ["app/welcome/page.tsx", "app/(app)/page.tsx"]) {
       const source = read(route);
       assert.match(source, /export const metadata: Metadata = \{\s*title: LANDING_TITLE,\s*description: LANDING_DESCRIPTION,/, route);
-      assert.match(source, /openGraph: \{ title: LANDING_TITLE, description: LANDING_DESCRIPTION,/, route);
-      assert.match(source, /twitter: \{ card: "summary_large_image", title: LANDING_TITLE, description: LANDING_DESCRIPTION \}/, route);
+      assert.match(source, /openGraph: \{ \.\.\.LANDING_OPEN_GRAPH, images: \[\.\.\.LANDING_OPEN_GRAPH\.images\] \},/, route);
+      assert.match(source, /twitter: \{ \.\.\.LANDING_TWITTER, images: \[\.\.\.LANDING_TWITTER\.images\] \},/, route);
     }
     assert.match(read("app/welcome/page.tsx"), /alternates: \{ canonical: "\/" \}/);
+  });
+
+  it("keeps the share image: both routes' metadata render og:image and twitter:image", async () => {
+    // A page's own openGraph or twitter replaces the root layout's, file-based images included.
+    const routes = {
+      "/welcome": (await import("@/app/welcome/page")).metadata,
+      "/": (await import("@/app/(app)/page")).metadata,
+    };
+    for (const [route, metadata] of Object.entries(routes)) {
+      // Resolved by Next's own metadata code, under the root layout's metadataBase: what the head is built from.
+      const head = await accumulateMetadata(route, [[{ metadataBase: new URL("https://slabhold.app") }, null], [metadata, null]], Promise.resolve(route), {
+        trailingSlash: false,
+        isStaticMetadataRouteFile: false,
+      });
+      const og = head.openGraph?.images?.[0] as { url: URL; width?: number; height?: number; alt?: string } | undefined;
+      assert.equal(String(og?.url), "https://slabhold.app/opengraph-image", `${route}: og:image`);
+      assert.deepEqual([og?.width, og?.height, og?.alt], [1200, 630, "Slabhold"], route);
+      assert.equal(String((head.twitter?.images?.[0] as { url: URL } | undefined)?.url), "https://slabhold.app/twitter-image", `${route}: twitter:image`);
+      assert.equal(head.twitter?.card, "summary_large_image", route);
+      assert.equal(head.openGraph?.title?.absolute, "Slabhold: Sports card scanner and collection tracker", route);
+      assert.equal(head.twitter?.title?.absolute, head.openGraph?.title?.absolute, route);
+      assert.equal(head.openGraph?.description, head.twitter?.description, route);
+      assert.equal(head.openGraph?.siteName, "Slabhold", route);
+    }
+    // The same code drops the image when a page sets openGraph without one: the bug this pins.
+    const bare = await accumulateMetadata("/", [[{ metadataBase: new URL("https://slabhold.app") }, null], [{ openGraph: { title: "x" } }, null]], Promise.resolve("/"), {
+      trailingSlash: false,
+      isStaticMetadataRouteFile: false,
+    });
+    assert.equal(bare.openGraph?.images, undefined);
+    assert.ok(existsSync(join(process.cwd(), "app/opengraph-image.tsx")) && existsSync(join(process.cwd(), "app/twitter-image.tsx")));
   });
 
   it("adds MobileApplication JSON-LD with the App Store link and no rating", async () => {

@@ -224,6 +224,11 @@
   background: var(--cta-hover);
 }
 
+/* Inside the iOS app the App Store button is hidden before the first paint. */
+html[data-native] [data-app-store-badge] {
+  display: none;
+}
+
 .lg-ctas {
   display: grid;
   gap: 12px;

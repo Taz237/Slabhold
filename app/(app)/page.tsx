@@ -6,7 +6,7 @@ import { LandingCompProvider } from "@/components/landing/landing-links";
 import { landingCompDemo } from "@/lib/landing/founder-comp-load";
 import { founderShowcase } from "@/lib/landing/founder-page";
 import { landingPullsWall } from "@/lib/landing/pulls-load";
-import { LANDING_DESCRIPTION, LANDING_TITLE } from "@/lib/landing/seo";
+import { LANDING_DESCRIPTION, LANDING_OPEN_GRAPH, LANDING_TITLE, LANDING_TWITTER } from "@/lib/landing/seo";
 import { requestHomeSeed } from "@/lib/social/request-home-seed";
 import { isRouterRequest } from "@/lib/supabase/router-request";
 
@@ -14,8 +14,8 @@ import { isRouterRequest } from "@/lib/supabase/router-request";
 export const metadata: Metadata = {
   title: LANDING_TITLE,
   description: LANDING_DESCRIPTION,
-  openGraph: { title: LANDING_TITLE, description: LANDING_DESCRIPTION, siteName: "Slabhold", type: "website" },
-  twitter: { card: "summary_large_image", title: LANDING_TITLE, description: LANDING_DESCRIPTION },
+  openGraph: { ...LANDING_OPEN_GRAPH, images: [...LANDING_OPEN_GRAPH.images] },
+  twitter: { ...LANDING_TWITTER, images: [...LANDING_TWITTER.images] },
 };
 
 /**

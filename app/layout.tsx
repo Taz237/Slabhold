@@ -6,6 +6,7 @@ import { NativeBoot } from "@/components/native/native-boot";
 import { WebAnalytics } from "@/components/web-analytics-lazy";
 import { SITE_URL } from "@/lib/site-url";
 import { SESSION_HINT_SCRIPT } from "@/lib/auth/session-hint";
+import { NATIVE_HINT_SCRIPT } from "@/lib/ios/native-hint";
 import { TEXT_SCALE_SCRIPT } from "@/lib/ui/text-scale";
 import "./globals.css";
 
@@ -71,6 +72,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: SESSION_HINT_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: NATIVE_HINT_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: TEXT_SCALE_SCRIPT }} />
       </head>
       <body className="min-h-full font-sans">

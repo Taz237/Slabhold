@@ -20,15 +20,18 @@ function AppleMark({ className }: { className: string }) {
 /**
  * The App Store link, for web visitors. "primary" is the page's main action
  * ("Get the app") in the hero and the closing slab; "nav" is the slim one in
- * the sticky header. Hidden inside the iOS app. The row keeps its size either
- * way, so nothing jumps when the link appears after hydration.
+ * the sticky header. It is in the server HTML, so it paints with the page and
+ * nothing moves when React arrives. Inside the iOS app it is never shown: a
+ * head script tags <html data-native> before the first paint and CSS hides
+ * [data-app-store-badge] there (app/landing.css), and this check then takes
+ * the link out of the page.
  */
 export function AppStoreBadge({ variant }: { variant: "primary" | "nav" }) {
-  const web = useSyncExternalStore(subscribe, () => !isNativeApp(), () => false);
+  const web = useSyncExternalStore(subscribe, () => !isNativeApp(), () => true);
   const track = () => trackEvent("landing_cta_clicked", { button: "app_store" });
   if (variant === "nav") {
     return (
-      <div data-app-store-badge="nav" className="h-11 min-w-[126px]">
+      <div data-app-store-badge="nav" className="h-11">
         {web ? (
           <a href={APP_STORE_URL} onClick={track} className="lg-nav-cta">
             <AppleMark className="-mt-0.5 h-4 w-4" />

@@ -6,7 +6,7 @@ import { StandaloneRedirect } from "@/components/landing/standalone-redirect";
 import { WelcomeListeners } from "@/components/landing/welcome-listeners";
 import { landingCompDemo } from "@/lib/landing/founder-comp-load";
 import { welcomeFounderShowcase } from "@/lib/landing/founder-page";
-import { LANDING_DESCRIPTION, LANDING_TITLE } from "@/lib/landing/seo";
+import { LANDING_DESCRIPTION, LANDING_OPEN_GRAPH, LANDING_TITLE, LANDING_TWITTER } from "@/lib/landing/seo";
 import { landingPullsWall } from "@/lib/landing/pulls-load";
 
 /**
@@ -23,8 +23,8 @@ export const metadata: Metadata = {
   title: LANDING_TITLE,
   description: LANDING_DESCRIPTION,
   alternates: { canonical: "/" },
-  openGraph: { title: LANDING_TITLE, description: LANDING_DESCRIPTION, siteName: "Slabhold", type: "website" },
-  twitter: { card: "summary_large_image", title: LANDING_TITLE, description: LANDING_DESCRIPTION },
+  openGraph: { ...LANDING_OPEN_GRAPH, images: [...LANDING_OPEN_GRAPH.images] },
+  twitter: { ...LANDING_TWITTER, images: [...LANDING_TWITTER.images] },
 };
 
 export default async function Welcome() {
