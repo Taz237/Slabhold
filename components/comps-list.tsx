@@ -28,7 +28,10 @@ export function CompsList({
   onUndo,
   selectedId = null,
   onSelect,
+  compact = false,
 }: {
+  /** The card page's rows: price, grade and a short date on one line, no listing title. */
+  compact?: boolean;
   comps: CompListing[];
   cardId?: string;
   userId?: string | null;
@@ -85,7 +88,15 @@ export function CompsList({
           {rows.map((comp, index) => {
             const picked = comp.id === selectedId;
             const grade = comp.condition && comp.condition !== "—" ? comp.condition : null;
-            const body = (
+            const body = compact ? (
+              <>
+                <span className={`shrink-0 ${compRowPrice}`}>{money(comp.soldPrice, true)}</span>
+                <span className="min-w-0 flex-1 truncate text-13 leading-5 text-zinc-500 dark:text-zinc-400">{grade}</span>
+                <span className="shrink-0 text-13 leading-5 text-zinc-500 tabular-nums dark:text-zinc-400">
+                  {saleDate(comp.soldDate, today)}
+                </span>
+              </>
+            ) : (
               <>
                 <span className="min-w-0 flex-1">
                   <span className={`block ${compRowPrice}`}>{money(comp.soldPrice, true)}</span>
@@ -103,7 +114,8 @@ export function CompsList({
               <li
                 key={comp.id}
                 data-selected={picked ? "" : undefined}
-                className={`comp-row-in -mx-2 flex items-start gap-1 rounded-md pr-1 transition-colors duration-150 motion-reduce:transition-none ${
+                data-sale-row={compact ? "" : undefined}
+                className={`comp-row-in flex ${compact ? `items-center ${picked ? "-mx-2 rounded-md px-2" : ""}` : "-mx-2 items-start rounded-md pr-1"} gap-1 transition-colors duration-150 motion-reduce:transition-none ${
                   picked
                     ? "bg-violet-500/10 shadow-[inset_2px_0_0_var(--color-violet-600)] dark:bg-violet-400/10"
                     : ""
@@ -116,14 +128,18 @@ export function CompsList({
                     aria-pressed={picked}
                     aria-label={`Show the ${money(comp.soldPrice, true)} sale from ${formatDate(comp.soldDate)} on the chart`}
                     onClick={() => onSelect(picked ? null : comp.id)}
-                    className="flex min-h-14 min-w-0 flex-1 items-start gap-3 rounded-md py-3 pl-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-violet-600"
+                    className={`flex min-w-0 flex-1 gap-3 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-violet-600 ${
+                      compact ? "min-h-12 items-center pr-2" : "min-h-14 items-start py-3 pl-2"
+                    }`}
                   >
                     {body}
                   </button>
                 ) : (
-                  <div className="flex min-h-14 min-w-0 flex-1 items-start gap-3 py-3 pl-2">{body}</div>
+                  <div className={`flex min-w-0 flex-1 gap-3 ${compact ? "min-h-12 items-center pr-2" : "min-h-14 items-start py-3 pl-2"}`}>
+                    {body}
+                  </div>
                 )}
-                <div className="flex shrink-0 items-center gap-5 pt-3">
+                <div className={`flex shrink-0 items-center gap-5 ${compact ? "" : "pt-3"}`}>
                   {comp.url ? (
                     <a
                       href={comp.url}

@@ -31,8 +31,9 @@ describe("opening a card from the collection", () => {
     assert.doesNotMatch(loading, /getAuthUserId|loadCardPeople/);
     assert.match(shell, /useCollection/);
     assert.match(shell, /Edit card/);
-    assert.match(shell, /aspect-\[2\/3\] w-48/);
-    assert.match(shell, /h-44/);
+    // The card's stage and the value read are reserved while it loads.
+    assert.match(shell, /<CardStageSkeleton \/>/);
+    assert.match(shell, /<ValuePending/);
   });
 
   it("keeps photo, sales graph, sales list, then posts in that order", () => {
@@ -41,9 +42,10 @@ describe("opening a card from the collection", () => {
     const list = detail.indexOf("<SalesListPending");
     const talk = detail.indexOf('heading="Who\'s talking about this card"');
     assert.ok(hero > 0 && chart > hero && list > chart && talk > list);
-    assert.match(detail, /<SalesChart/);
+    assert.match(detail, /<CardValueView/);
     assert.match(detail, /<LazyCompsList/);
-    assert.match(detail, /import\("@\/components\/sales-chart"\)/);
+    assert.match(detail, /import\("@\/components\/card-page\/card-value"\)/);
+    assert.doesNotMatch(detail, /from "@\/components\/card-page\/card-value"/);
     assert.doesNotMatch(detail, /from "@\/components\/sales-chart"/);
     assert.doesNotMatch(detail, /from "@\/components\/charts\/value-chart"/);
   });
@@ -75,35 +77,38 @@ describe("opening a card from the collection", () => {
       assert.doesNotMatch(source, /<FairPriceCheck|<CardOwnersSection|<CardPeopleSections/);
     }
     assert.match(detail, /grid min-w-0 grid-cols-1 gap-3">\s*<EstSellMetric/);
-    assert.match(view, /<section className="grid grid-cols-1 gap-3">/);
+    assert.match(view, /<section data-value-read="" className=\{cardSection\}>/);
     assert.doesNotMatch(read("app/(app)/u/[username]/cards/[id]/page.tsx"), /loadCardPeople/);
   });
 
-  it("shows visibility at the top and move for the owner without opening the menu", () => {
+  it("shows visibility and move for the owner right under the card, without opening the menu", () => {
     const menuAt = detail.indexOf("{menuOpen ? (");
-    const moveAt = detail.indexOf("Move this card");
+    const moveAt = detail.indexOf("<CategorySwitch");
     const topBarAt = detail.indexOf("<CardTopBar");
     const publicAt = detail.indexOf("<CardVisibilitySwitch");
     const heroAt = detail.indexOf("<CardHero");
-    assert.ok(topBarAt < publicAt && publicAt < heroAt, "the switch sits above the card photo");
-    assert.ok(menuAt > moveAt && menuAt > publicAt);
-    assert.equal(detail.indexOf("Move this card", menuAt), -1);
+    const valueAt = detail.indexOf("<CardValueView\n");
+    // The card is the hero, so the switch sits just under it, well above the sales.
+    assert.ok(topBarAt < heroAt && heroAt < publicAt && publicAt < valueAt, "the switch sits right under the card");
+    assert.ok(moveAt > 0 && menuAt > moveAt && menuAt > publicAt);
+    assert.equal(detail.indexOf("<CategorySwitch", menuAt), -1);
     assert.equal(detail.indexOf("<CardVisibilitySwitch", menuAt), -1);
     assert.match(detail, /updateCard\(card\.id, publicTogglePatch\(card, next\)\)/);
     assert.match(detail, /aria-label="Collection"/);
-    assert.match(detail, /min-w-0 space-y-3/);
+    assert.match(detail, /data-slot="owner-controls"/);
     const visible = detail.slice(0, menuAt);
     assert.match(visible, /editing \? null : \(/);
-    assert.doesNotMatch(read("components/public-card-view.tsx"), /Move this card/);
+    assert.doesNotMatch(read("components/public-card-view.tsx"), /CategorySwitch|CategoryPicker/);
     assert.doesNotMatch(read("components/public-card-view.tsx"), /CardVisibilitySwitch/);
   });
 
   it("reserves the sales graph and list so they do not pop in from zero height", () => {
     const chart = renderToStaticMarkup(createElement(SalesChartPending, { priceLabel: "$120.00" }));
-    assert.match(chart, /Recent sales/);
+    assert.match(chart, /Estimated value/);
     assert.match(chart, /\$120\.00/);
-    assert.match(chart, /h-44/);
-    assert.match(chart, /min-h-9/);
+    // The price row and the plot keep their final heights.
+    assert.match(chart, /min-h-11/);
+    assert.match(chart, /height:208px/);
     const list = renderToStaticMarkup(createElement(SalesListPending));
     assert.match(list, /Recent sales/);
     assert.match(list, /h-12/);

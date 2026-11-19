@@ -5,11 +5,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { ArrowLeft, Ellipsis, Pencil } from "lucide-react";
-import { CardThumb } from "@/components/card-thumb";
-import { useCardShape } from "@/lib/ui/card-shape";
+import { CardStage } from "@/components/card-page/card-stage";
+import { CardStageSkeleton } from "@/components/card-page/card-stage-frame";
+import { CardHeading, cardSpecs } from "@/components/card-page/card-heading";
+import {
+  SaleRowsSkeleton,
+  ValuePending,
+  cardSection,
+  cardSectionTitle,
+  headlineFromLabel,
+} from "@/components/card-page/value-head";
 import { LazyResolvedPlayerName } from "@/components/player-name-lazy";
-import { PriceFallbackText } from "@/components/price-readout";
-import { CompCardSkeleton, CompRowsSkeleton, compCard, compTile } from "@/components/comp-basis";
 import { useCollection } from "@/components/collection-provider";
 import { cardTitle } from "@/lib/format";
 import { needsDetails, needsDetailsLabel } from "@/lib/types";
@@ -92,45 +98,39 @@ export function CardTopBar({
 export function CardHero({
   card,
   onFixDetails,
+  parallelName,
 }: {
   card: HeroCard;
   onFixDetails?: () => void;
+  /** The parallel's checklist name. The loading shell shows it as saved. */
+  parallelName?: (setBrand: string, parallel: string) => string;
 }) {
-  // A landscape card shows whole and wide; a portrait one keeps its 2:3 slot.
-  const [shape, onShape] = useCardShape(card.photoDataUrl);
   return (
-    <section data-slot="card-hero">
-      <div className={shape === "landscape" ? "mx-auto aspect-[7/5] w-full max-w-[22rem]" : "mx-auto aspect-[2/3] w-48 max-w-full"}>
-        <CardThumb
-          card={card}
-          priority
-          onShape={onShape}
-          className="h-full w-full rounded-2xl shadow-xl shadow-black/20 ring-1 ring-black/10 dark:ring-white/10"
+    <>
+      <CardStage card={card} />
+      <div>
+        <CardHeading
+          eyebrow={`${cardTitle(card)}${card.isRookie ? " · Rookie" : ""}`}
+          name={<LazyResolvedPlayerName name={card.playerName} sport={card.sport} className="hover:underline" />}
+          specs={cardSpecs({ ...card, sport: null }, parallelName)}
         />
+        {needsDetails(card) ? (
+          <p className="mt-3 rounded-2xl bg-amber-500/10 px-4 py-3 text-sm leading-5 text-amber-900 dark:text-amber-200">
+            {onFixDetails ? (
+              <button
+                type="button"
+                onClick={onFixDetails}
+                className="hit-44 text-left underline underline-offset-2 hover:text-amber-950 dark:hover:text-amber-100"
+              >
+                {needsDetailsLabel(card)}. Add them for accurate prices
+              </button>
+            ) : (
+              <span>{needsDetailsLabel(card)}. Add them for accurate prices</span>
+            )}
+          </p>
+        ) : null}
       </div>
-      <h1 className="mt-4 text-center text-3xl font-semibold tracking-tight">
-        <LazyResolvedPlayerName name={card.playerName} sport={card.sport} className="hover:underline" />
-      </h1>
-      <p className="mt-1 text-center text-sm text-zinc-500">
-        {cardTitle(card)}
-        {card.isRookie ? " · Rookie" : ""}
-      </p>
-      {needsDetails(card) ? (
-        <p className="mx-auto mt-3 max-w-sm rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-center text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
-          {onFixDetails ? (
-            <button
-              type="button"
-              onClick={onFixDetails}
-              className="underline underline-offset-2 hover:text-amber-950 dark:hover:text-amber-100"
-            >
-              {needsDetailsLabel(card)}. Add them for accurate prices
-            </button>
-          ) : (
-            <span>{needsDetailsLabel(card)}. Add them for accurate prices</span>
-          )}
-        </p>
-      ) : null}
-    </section>
+    </>
   );
 }
 
@@ -150,27 +150,17 @@ export function SalesChartPending({
     Boolean(priceLabel) &&
     (priceIsEstimate || /^\$[\d,]+\.\d{2}$/.test(priceLabel ?? ""));
   return (
-    <CompCardSkeleton
+    <ValuePending
       slot="sales-chart"
       busy={busy}
-      plot={
-        <div
-          data-skeleton="plot"
-          className={`mt-4 flex h-44 items-center justify-center ${compTile} ${note ? "" : "skeleton-shimmer"}`}
-        >
-          {note ? <p className="px-4 text-center text-sm text-zinc-500">{note}</p> : null}
-        </div>
-      }
-      range={!priceLabel || bareEstimate}
-      chip={!priceLabel || bareEstimate}
-      hero={
-        bareEstimate && priceLabel ? (
-          <p className="text-3xl leading-10 font-semibold tracking-tight tabular-nums">{priceLabel}</p>
-        ) : priceLabel ? (
-          <p className="max-w-full text-xl leading-[1.625rem] font-semibold tracking-tight">
-            <PriceFallbackText text={priceLabel} />
-          </p>
-        ) : undefined
+      note={note}
+      line={note ? "" : undefined}
+      headline={
+        priceLabel
+          ? bareEstimate
+            ? { label: "Estimated value", price: priceLabel, estimate: true }
+            : headlineFromLabel(priceLabel)
+          : null
       }
     />
   );
@@ -178,12 +168,10 @@ export function SalesChartPending({
 
 export function SalesListPending() {
   return (
-    <section data-slot="sales-list" className={compCard} aria-busy="true">
-      <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-sm font-semibold">Recent sales</h2>
-        <span className="sr-only">Loading sold listings…</span>
-      </div>
-      <CompRowsSkeleton />
+    <section data-slot="sales-list" className={cardSection} aria-busy="true">
+      <h2 className={cardSectionTitle}>Recent sales</h2>
+      <span className="sr-only">Loading sold listings…</span>
+      <SaleRowsSkeleton />
     </section>
   );
 }
@@ -194,9 +182,8 @@ export function CardTalkSkeleton({
   heading?: string;
 }) {
   return (
-    <section data-slot="card-talk" className={cardPanelClass} aria-busy="true">
-      <h2 className="font-semibold">{heading}</h2>
-      <p className="text-xs text-zinc-500">Posts about this card</p>
+    <section data-slot="card-talk" className={cardSection} aria-busy="true">
+      <h2 className={cardSectionTitle}>{heading}</h2>
       <div className="mt-3 space-y-3">
         {Array.from({ length: 2 }, (_, i) => (
           <div
@@ -214,10 +201,17 @@ function CardDetailFallback() {
     <div className="space-y-6" aria-busy="true">
       <span className="sr-only">Loading card</span>
       <CardTopBar disabled />
-      <div data-slot="card-hero">
-        <div className="skeleton-shimmer mx-auto aspect-[2/3] w-48 max-w-full rounded-2xl" />
-        <div className="mx-auto mt-4 h-8 w-48 skeleton-shimmer rounded-lg" />
-        <div className="mx-auto mt-2 h-4 w-36 skeleton-shimmer rounded" />
+      <CardStageSkeleton />
+      <div aria-hidden="true">
+        <div className="flex h-5 items-center">
+          <div className="h-3 w-36 skeleton-shimmer rounded" />
+        </div>
+        <div className="flex h-9 items-center">
+          <div className="h-7 w-52 skeleton-shimmer rounded-lg" />
+        </div>
+        <div className="mt-1 flex h-5 items-center">
+          <div className="h-3 w-44 skeleton-shimmer rounded" />
+        </div>
       </div>
       <SalesChartPending />
       <SalesListPending />

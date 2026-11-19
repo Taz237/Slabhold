@@ -272,11 +272,12 @@ describe("reveal fits one phone screen", () => {
     }
   });
 
-  it("puts the reveal above the Private switch on the card page", () => {
+  it("puts the reveal above the card and the Private switch on the card page", () => {
     const detail = read("components/card-detail.tsx");
     const panelAt = detail.indexOf("<LazyCardAddedPanel");
     const switchAt = detail.indexOf("<CardVisibilitySwitch");
-    assert.ok(detail.indexOf("<CardTopBar") < panelAt && panelAt < switchAt && switchAt < detail.indexOf("<CardHero"));
+    // The card is the page's hero, so the switch now sits under it. The reveal still comes first.
+    assert.ok(detail.indexOf("<CardTopBar") < panelAt && panelAt < detail.indexOf("<CardHero") && detail.indexOf("<CardHero") < switchAt);
   });
 
   it("sizes the card by screen height on phones, never cropped, and flips it in only with motion allowed", () => {
@@ -299,7 +300,7 @@ describe("card page value line", () => {
     assert.match(detail, /const pricedAmount = heldCopy \? null : storedAmount/);
     assert.match(detail, /heldCopy\s*\? \{ kind: "status", text: heldCopy\.text/);
     // A held price reads as a status, so the chart's median (estimate only) stays empty.
-    assert.match(detail, /median=\{priceRead\?\.kind === "estimate" \? storedAmount : null\}/);
+    assert.match(detail, /amount=\{priceRead\?\.kind === "estimate" \? storedAmount : null\}/);
     // Paid vs estimate is off the card page, so nothing else reads the held amount.
     assert.doesNotMatch(detail, /const estSell = /);
     assert.doesNotMatch(detail, /estimatedSellPrice: storedAmount/);

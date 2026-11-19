@@ -104,11 +104,11 @@ describe("posts section on the card pages", () => {
     reactRoot = createRoot(host);
     act(() => reactRoot!.render(withSocial(createElement(NearCardCollectorsSaying, props))));
     await settle();
-    assert.doesNotMatch(host.innerHTML, /No posts yet/);
+    assert.doesNotMatch(host.innerHTML, /Nobody has posted/);
     assert.match(host.innerHTML, /skeleton-shimmer/);
     act(() => scrollNear());
     await settle();
-    assert.match(host.innerHTML, /No posts yet\. Be the first\./);
+    assert.match(host.innerHTML, /Nobody has posted about this card yet/);
   });
 
   it("its one early tap target, Post about this card, is a real link before it loads", () => {

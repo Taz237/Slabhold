@@ -1,5 +1,6 @@
 import "@/lib/test/server-only-stub";
 import assert from "node:assert/strict";
+import { priceInfoLines } from "@/components/card-page/value-head";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
@@ -96,9 +97,12 @@ describe("launch copy: USD price basis", () => {
     );
   });
 
-  it("reaches the card page, the public card page and Quick Comp through SalesChart", () => {
-    assert.match(read("components/card-detail.tsx"), /<SalesChart\b/);
-    assert.match(read("components/public-card-view.tsx"), /<SalesChart\b/);
+  it("reaches the card page and the public card page behind ⓘ, and Quick Comp through SalesChart", () => {
+    // Both card pages draw the value section, whose ⓘ always carries the USD basis with live prices.
+    assert.match(read("components/card-detail.tsx"), /<CardValueView\b/);
+    assert.match(read("components/public-card-view.tsx"), /<CardValueView\b/);
+    assert.match(read("components/card-page/card-value.tsx"), /<PriceInfo lines=\{info\}/);
+    assert.ok(priceInfoLines().includes(PRICE_BASIS_LINE));
     assert.match(read("components/quick-comp/quick-comp-result.tsx"), /<Chart\b[\s\S]*heading="Median sold price"/);
   });
 });

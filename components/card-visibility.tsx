@@ -52,7 +52,7 @@ export function CardVisibilitySwitch({
         aria-checked={isPublic}
         aria-label="Public on profile"
         onClick={() => toggle(!isPublic)}
-        className="flex min-h-14 w-full items-center gap-3 rounded-2xl border border-zinc-200 bg-white px-4 py-2 text-left transition-colors duration-150 hover:border-violet-400/60 focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:outline-none dark:border-white/10 dark:bg-white/[0.03]"
+        className="flex min-h-14 w-full items-center gap-3 rounded-2xl bg-zinc-950/[0.04] px-3 py-2 text-left transition-colors duration-150 hover:bg-zinc-950/[0.06] focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:outline-none dark:bg-white/[0.05] dark:hover:bg-white/[0.08]"
       >
         <span
           className={`grid h-9 w-9 shrink-0 place-items-center rounded-full big:hidden ${
@@ -83,7 +83,7 @@ export function CardVisibilitySwitch({
       </button>
       <p
         aria-live="polite"
-        className={`mt-1 min-h-4 px-1 text-xs ${state === "failed" ? "text-rose-600 dark:text-rose-400" : "text-zinc-500"}`}
+        className={`mt-1 px-1 text-xs empty:hidden ${state === "failed" ? "text-rose-600 dark:text-rose-400" : "text-zinc-500"}`}
       >
         {status}
       </p>
