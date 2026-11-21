@@ -117,15 +117,32 @@ export function filterOpenToOffers<T extends { openToOffers?: boolean | null }>(
   return cards.filter((card) => card.openToOffers === true);
 }
 
-/** Keep the flag off when the card is private. Omit it when the column is unknown. */
+/**
+ * Keep the flag off when the card is private. Making a card Public turns the
+ * badge on when it sits in the Open to offers pile (saved as `flipping`), the
+ * same rule as a move into that pile. A Personal card keeps its own switch.
+ * The flag is left out when the column is unknown.
+ */
 export function publicTogglePatch(
-  card: { openToOffers?: boolean | null },
+  card: { category?: string | null; openToOffers?: boolean | null },
   isPublic: boolean,
 ): { isPublic: boolean; openToOffers?: boolean } {
-  if (card.openToOffers != null && !isPublic) {
-    return { isPublic, openToOffers: false };
-  }
+  if (card.openToOffers == null) return { isPublic };
+  if (!isPublic) return { isPublic, openToOffers: false };
+  if (card.category === "flipping") return { isPublic, openToOffers: true };
   return { isPublic };
+}
+
+/**
+ * A new card added straight to the Open to offers pile (saved as `flipping`)
+ * carries the badge when it is Public. A Personal card sends no flag at all.
+ */
+export function newCardOffersPatch(card: {
+  category: CardCategory;
+  isPublic: boolean;
+}): { openToOffers?: boolean } {
+  if (card.category !== "flipping") return {};
+  return { openToOffers: Boolean(card.isPublic) };
 }
 
 /**

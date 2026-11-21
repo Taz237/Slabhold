@@ -129,7 +129,7 @@ import {
 import { OpenToOffersToggle } from "@/components/open-to-offers";
 import { VisibilityChoice } from "@/components/visibility-choice";
 import { cardCategory, categoryLabel } from "@/lib/card-category";
-import { showOpenToOffersToggle } from "@/lib/offers/open-to-offers";
+import { newCardOffersPatch, showOpenToOffersToggle } from "@/lib/offers/open-to-offers";
 import {
   PRIVATE_VISIBILITY_HINT,
   readBrowserVisibilityChoice,
@@ -926,6 +926,8 @@ export function CardForm({
       category,
       isPublic: share,
       ...(offersKnown ? { openToOffers: Boolean(share && openToOffers) } : {}),
+      // A new card has no switch: the Open to offers pile brings the badge when the card is Public.
+      ...(existing ? {} : newCardOffersPatch({ category, isPublic: share })),
       // A scanned card keeps the insert the scan placed it in ("Rookie Code"), while its set and # are the scan's.
       ...insertNamePatch,
     };

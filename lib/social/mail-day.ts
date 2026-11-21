@@ -408,7 +408,7 @@ export function validateMailDayDraft(
     if (!isMailDaySport(card.sport)) return { ok: false, error: `Choose a sport for ${label}` };
     if (!source) return { ok: false, error: `Choose a source for ${label}` };
     if (card.category !== "pc" && card.category !== "flipping") {
-      return { ok: false, error: `Choose PC or Flipping for ${label}` };
+      return { ok: false, error: `Choose Personal or Open to offers for ${label}` };
     }
     const paid = parsePaid(card.paid ?? "");
     if (!paid.ok) return { ok: false, error: `${paid.error.replace(/\.$/, "")} for ${label}.` };
