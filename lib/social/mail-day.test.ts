@@ -396,6 +396,16 @@ describe("mail day form rules", () => {
     assert.equal(validateMailDayDraft({ caption: "", acquiredAt: "2026-10-19", cards: [draft({ sport: "" })] }).ok, false);
   });
 
+  it("names the piles Personal and Open to offers when the pile is bad", () => {
+    const bad = validateMailDayDraft({
+      caption: "",
+      acquiredAt: "2026-10-19",
+      cards: [draft({ category: "other" as MailDayDraftCard["category"] })],
+    });
+    assert.deepEqual(bad, { ok: false, error: "Choose Personal or Open to offers for card 1" });
+    assert.doesNotMatch(JSON.stringify(bad), /Flipping|\bPC\b/);
+  });
+
   it("keeps a chosen sport when search returns a different sport", () => {
     assert.deepEqual(sportAfterCatalogPick("Football", "Baseball"), {
       sport: "Football",

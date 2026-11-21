@@ -8,7 +8,7 @@ import { CategorySwitch } from "@/components/card-page/category-switch";
 import { CategoryPicker } from "@/components/category-picker";
 import { cardCategory, categoryLabel } from "@/lib/card-category";
 import { collectionFilterEmpty } from "@/lib/collection/lane-empty";
-import { OPEN_TO_OFFERS_LABEL, categoryMovePatch, publicTogglePatch, withOpenToOffersColumn } from "@/lib/offers/open-to-offers";
+import { OPEN_TO_OFFERS_LABEL, categoryMovePatch, newCardOffersPatch, publicTogglePatch, withOpenToOffersColumn } from "@/lib/offers/open-to-offers";
 
 const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
 const text = (html: string) => html.replace(/<[^>]+>/g, " ");
@@ -108,6 +108,71 @@ describe("the pile and the badge move together", () => {
 
   it("still clears the badge when a card goes private, as before", () => {
     assert.deepEqual(publicTogglePatch({ openToOffers: true }, false), { isPublic: false, openToOffers: false });
+    assert.deepEqual(publicTogglePatch({ category: "flipping", openToOffers: true }, false), {
+      isPublic: false,
+      openToOffers: false,
+    });
+    assert.deepEqual(publicTogglePatch({ category: "pc", openToOffers: false }, false), {
+      isPublic: false,
+      openToOffers: false,
+    });
+  });
+
+  it("turns the badge on when a private card in the Open to offers pile is made Public", () => {
+    assert.deepEqual(publicTogglePatch({ category: "flipping", openToOffers: false }, true), {
+      isPublic: true,
+      openToOffers: true,
+    });
+    // A Personal card going Public is unchanged: no badge, and its own switch is left alone.
+    assert.deepEqual(publicTogglePatch({ category: "pc", openToOffers: false }, true), { isPublic: true });
+    assert.deepEqual(publicTogglePatch({ category: "pc", openToOffers: true }, true), { isPublic: true });
+    // A card with no saved pile is not treated as a pick of Open to offers.
+    assert.deepEqual(publicTogglePatch({ openToOffers: false }, true), { isPublic: true });
+    assert.deepEqual(publicTogglePatch({ category: null, openToOffers: false }, true), { isPublic: true });
+  });
+
+  it("leaves the flag out of a Public toggle when the column is not on the card", () => {
+    assert.deepEqual(publicTogglePatch({ category: "flipping" }, true), { isPublic: true });
+    assert.deepEqual(publicTogglePatch({ category: "flipping", openToOffers: null }, true), { isPublic: true });
+    assert.deepEqual(publicTogglePatch({ category: "flipping", openToOffers: null }, false), { isPublic: false });
+  });
+
+  it("gives a new Public card added to the Open to offers pile the badge", () => {
+    assert.deepEqual(newCardOffersPatch({ category: "flipping", isPublic: true }), { openToOffers: true });
+    // The row that gets saved carries it.
+    assert.equal(
+      withOpenToOffersColumn({}, { isPublic: true, ...newCardOffersPatch({ category: "flipping", isPublic: true }) })
+        .open_to_offers,
+      true,
+    );
+  });
+
+  it("gives no badge to a new Personal card or a new private card in that pile", () => {
+    assert.deepEqual(newCardOffersPatch({ category: "pc", isPublic: true }), {});
+    assert.deepEqual(newCardOffersPatch({ category: "pc", isPublic: false }), {});
+    assert.deepEqual(newCardOffersPatch({ category: "flipping", isPublic: false }), { openToOffers: false });
+    assert.notEqual(
+      withOpenToOffersColumn({}, { isPublic: false, ...newCardOffersPatch({ category: "flipping", isPublic: false }) })
+        .open_to_offers,
+      true,
+    );
+    assert.equal(
+      "open_to_offers" in
+        withOpenToOffersColumn({}, { isPublic: true, ...newCardOffersPatch({ category: "pc", isPublic: true }) }),
+      false,
+    );
+  });
+
+  it("sends the new card's badge from the add form, and keeps the switch off the add form", () => {
+    const form = read("components/card-form.tsx");
+    assert.match(form, /\.\.\.\(existing \? \{\} : newCardOffersPatch\(\{ category, isPublic: share \}\)\)/);
+    assert.match(form, /visible=\{showOpenToOffersToggle\(\{\s*isEdit: Boolean\(existing\),/);
+  });
+
+  it("sends every Public toggle through the one helper", () => {
+    assert.match(read("components/card-detail.tsx"), /updateCard\(card\.id, publicTogglePatch\(card, next\)\)/);
+    assert.match(read("components/collection-tile-actions.tsx"), /updateCard\(card\.id, publicTogglePatch\(card, next\)\)/);
+    assert.match(read("components/dashboard.tsx"), /updateCard\(card\.id, publicTogglePatch\(card, isPublic\)\)/);
   });
 
   it("uses the existing field and the existing save path in every place a pile is moved", () => {

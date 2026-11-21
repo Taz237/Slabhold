@@ -152,6 +152,12 @@ describe("open to offers toggle", () => {
       isPublic: false,
       openToOffers: false,
     });
+    assert.deepEqual(publicTogglePatch({ category: "flipping", openToOffers: false }, true), {
+      isPublic: true,
+      openToOffers: true,
+    });
+    assert.deepEqual(publicTogglePatch({ category: "pc", openToOffers: false }, true), { isPublic: true });
+    assert.deepEqual(publicTogglePatch({ category: "flipping", openToOffers: null }, true), { isPublic: true });
     assert.deepEqual(withOpenToOffersColumn({ id: CARD }, { isPublic: false, openToOffers: true }), {
       id: CARD,
       open_to_offers: false,
