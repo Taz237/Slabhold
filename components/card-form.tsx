@@ -129,7 +129,7 @@ import {
 import { OpenToOffersToggle } from "@/components/open-to-offers";
 import { VisibilityChoice } from "@/components/visibility-choice";
 import { cardCategory, categoryLabel } from "@/lib/card-category";
-import { newCardOffersPatch, showOpenToOffersToggle } from "@/lib/offers/open-to-offers";
+import { editFormPublicTurnsOffersOn, newCardOffersPatch, showOpenToOffersToggle } from "@/lib/offers/open-to-offers";
 import {
   PRIVATE_VISIBILITY_HINT,
   readBrowserVisibilityChoice,
@@ -784,6 +784,19 @@ export function CardForm({
     if (!next) {
       setOpenToOffers(false);
       setShareToFeed(false);
+    }
+    // Public and the badge go together for a card in the Open to offers pile:
+    // the switch turns on, and can still be flipped by hand before saving.
+    if (
+      editFormPublicTurnsOffersOn({
+        isEdit: Boolean(existing),
+        columnKnown: offersKnown,
+        category,
+        wasPublic: share,
+        isPublic: next,
+      })
+    ) {
+      setOpenToOffers(true);
     }
     // Guided Add: public turns "Also post to my feed" on (they can turn it off); private locks it off.
     if (guidedAdd) setFeedTouched(false);

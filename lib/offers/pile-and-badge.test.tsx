@@ -8,7 +8,14 @@ import { CategorySwitch } from "@/components/card-page/category-switch";
 import { CategoryPicker } from "@/components/category-picker";
 import { cardCategory, categoryLabel } from "@/lib/card-category";
 import { collectionFilterEmpty } from "@/lib/collection/lane-empty";
-import { OPEN_TO_OFFERS_LABEL, categoryMovePatch, newCardOffersPatch, publicTogglePatch, withOpenToOffersColumn } from "@/lib/offers/open-to-offers";
+import {
+  OPEN_TO_OFFERS_LABEL,
+  categoryMovePatch,
+  editFormPublicTurnsOffersOn,
+  newCardOffersPatch,
+  publicTogglePatch,
+  withOpenToOffersColumn,
+} from "@/lib/offers/open-to-offers";
 
 const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
 const text = (html: string) => html.replace(/<[^>]+>/g, " ");
@@ -173,6 +180,35 @@ describe("the pile and the badge move together", () => {
     assert.match(read("components/card-detail.tsx"), /updateCard\(card\.id, publicTogglePatch\(card, next\)\)/);
     assert.match(read("components/collection-tile-actions.tsx"), /updateCard\(card\.id, publicTogglePatch\(card, next\)\)/);
     assert.match(read("components/dashboard.tsx"), /updateCard\(card\.id, publicTogglePatch\(card, isPublic\)\)/);
+  });
+
+  it("turns the edit form's switch on when a card in the Open to offers pile is made Public", () => {
+    const pile = { isEdit: true, columnKnown: true, wasPublic: false, isPublic: true } as const;
+    assert.equal(editFormPublicTurnsOffersOn({ ...pile, category: "flipping" }), true);
+    // A Personal card going Public keeps its own switch.
+    assert.equal(editFormPublicTurnsOffersOn({ ...pile, category: "pc" }), false);
+    // Not on the add form, and not while the column is unknown.
+    assert.equal(editFormPublicTurnsOffersOn({ ...pile, category: "flipping", isEdit: false }), false);
+    assert.equal(editFormPublicTurnsOffersOn({ ...pile, category: "flipping", columnKnown: false }), false);
+    // Going private never turns it on.
+    assert.equal(editFormPublicTurnsOffersOn({ ...pile, category: "flipping", wasPublic: true, isPublic: false }), false);
+    // Tapping Public on a card that is already Public leaves a switch the owner turned off by hand alone.
+    assert.equal(editFormPublicTurnsOffersOn({ ...pile, category: "flipping", wasPublic: true }), false);
+  });
+
+  it("wires the edit form's Public choice to the switch, and still lets the owner flip it by hand", () => {
+    const form = read("components/card-form.tsx");
+    const choose = form.split("function chooseVisibility(next: boolean) {")[1].split("\n  }\n")[0];
+    // Going private still clears the switch and "Also post to my feed".
+    assert.match(choose, /if \(!next\) \{\s*setOpenToOffers\(false\);\s*setShareToFeed\(false\);\s*\}/);
+    // Going Public turns the switch on for a card in the Open to offers pile.
+    assert.match(
+      choose,
+      /editFormPublicTurnsOffersOn\(\{\s*isEdit: Boolean\(existing\),\s*columnKnown: offersKnown,\s*category,\s*wasPublic: share,\s*isPublic: next,\s*\}\)\s*\) \{\s*setOpenToOffers\(true\);/,
+    );
+    // The switch is still the owner's to flip before saving, and save still sends its value.
+    assert.match(form, /checked=\{openToOffers\}\s*onChange=\{setOpenToOffers\}/);
+    assert.match(form, /\.\.\.\(offersKnown \? \{ openToOffers: Boolean\(share && openToOffers\) \} : \{\}\)/);
   });
 
   it("uses the existing field and the existing save path in every place a pile is moved", () => {
