@@ -134,6 +134,24 @@ export function publicTogglePatch(
 }
 
 /**
+ * Edit form only. Turning Public on for a card you already have in the Open
+ * to offers pile (saved as `flipping`) turns the switch on, the same rule as
+ * `publicTogglePatch`. Only a real change to Public does it, so a switch the
+ * owner turned off by hand stays off. A Personal card keeps its own switch,
+ * and nothing happens while the column is unknown.
+ */
+export function editFormPublicTurnsOffersOn(input: {
+  isEdit: boolean;
+  columnKnown: boolean;
+  category: CardCategory;
+  wasPublic: boolean;
+  isPublic: boolean;
+}): boolean {
+  if (!input.isEdit || !input.columnKnown) return false;
+  return input.isPublic && !input.wasPublic && input.category === "flipping";
+}
+
+/**
  * A new card added straight to the Open to offers pile (saved as `flipping`)
  * carries the badge when it is Public. A Personal card sends no flag at all.
  */
