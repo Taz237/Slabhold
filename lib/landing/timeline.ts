@@ -1,3 +1,4 @@
+import { landingTextBlocked } from "@/lib/landing/blocked-words";
 import { FOUNDER_USERNAME } from "@/lib/landing/founder";
 import { isRenderablePostPhoto } from "@/lib/social/post-photos";
 import { scrubPublicText } from "@/lib/social/share-image";
@@ -6,12 +7,15 @@ import { scrubPublicText } from "@/lib/social/share-image";
  * The landing page's timeline: a few real, recent, public posts, shaped for
  * one small presentational card. Plain data in, plain data out, so the rules
  * are easy to test: hidden posts never show, nothing is padded with samples,
- * and only a post with a photo makes the cut.
+ * only a post with a card photo makes the cut, and a post with a word from
+ * the blocked list is skipped.
  */
 
 export const LANDING_POST_LIMIT = 3;
-/** How many recent posts to look through for three that fit. */
+/** How many posts one read looks through, newest first. */
 export const LANDING_POST_SCAN = 40;
+/** How many reads back in time to make while fewer than three posts fit. */
+export const LANDING_POST_PAGES = 6;
 
 export const LANDING_POST_SELECT = "id, user_id, content, image_url, card, quoted_post_id, created_at, hidden_at, post_type";
 export const LANDING_PROFILE_SELECT = "id, username, display_name, avatar_url, is_test";
@@ -127,6 +131,9 @@ export function landingTimeline(
     if (author.is_test === true) continue;
     // The team account's cards and posts are shown without its name, so its posts stay off this list.
     if (handle.toLowerCase() === FOUNDER_USERNAME) continue;
+
+    // Words that don't belong on the front page (lib/landing/blocked-words.ts).
+    if (landingTextBlocked(post.content ?? "") || landingTextBlocked(author.display_name ?? "")) continue;
 
     const own = remotePhoto(post.image_url);
     const cardId = attachedCardId(post.card);

@@ -4,7 +4,7 @@ import { LandingPage } from "@/components/landing-page";
 import { StandaloneRedirect } from "@/components/landing/standalone-redirect";
 import { WelcomeListeners } from "@/components/landing/welcome-listeners";
 import { LANDING_DESCRIPTION, LANDING_OPEN_GRAPH, LANDING_TITLE, LANDING_TWITTER } from "@/lib/landing/seo";
-import { landingTimelinePosts } from "@/lib/landing/timeline-load";
+import { welcomeTimelinePosts } from "@/lib/landing/timeline-load";
 
 /**
  * Signed-out Home. proxy.ts serves this at / when there is no session cookie;
@@ -23,8 +23,9 @@ export const metadata: Metadata = {
 };
 
 export default async function Welcome() {
-  // A few recent public posts, cached. A failed read draws the page without them.
-  const posts = await landingTimelinePosts();
+  // A few recent public posts, cached. A failed read throws at runtime, so
+  // the last good page stays up and the next request retries.
+  const posts = await welcomeTimelinePosts();
   return (
     <>
       <AccountDeletedToast />

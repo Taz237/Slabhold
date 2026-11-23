@@ -141,7 +141,7 @@ describe("landing page", () => {
     }
     const welcome = read("app/welcome/page.tsx");
     assert.match(welcome, /export const revalidate = 1800;/);
-    assert.match(welcome, /const posts = await landingTimelinePosts\(\);/);
+    assert.match(welcome, /const posts = await welcomeTimelinePosts\(\);/);
     assert.match(read("app/(app)/page.tsx"), /const landing = <LandingPage posts=\{posts\} \/>;/);
   });
 });

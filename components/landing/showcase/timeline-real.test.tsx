@@ -118,6 +118,7 @@ describe("the landing timeline is real posts only", () => {
     // And the read itself asks only for posts that are not hidden, as a logged-out visitor.
     const load = read("lib/landing/timeline-load.ts");
     assert.match(load, /\.from\("posts"\)\s*\.select\(LANDING_POST_SELECT\)\s*\.is\("hidden_at", null\)/);
+    assert.match(load, /\.or\("image_url\.not\.is\.null,card\.not\.is\.null"\)/, "only posts that can have a card photo");
     assert.match(load, /const supabase = anonClient\(\);/);
     assert.doesNotMatch(load, /service_role|SERVICE_ROLE|createServiceClient/);
   });
@@ -163,7 +164,7 @@ describe("the landing timeline is real posts only", () => {
       from(table: string) {
         asked.push(table);
         const chain: Record<string, unknown> = {};
-        for (const name of ["select", "is", "in", "order", "limit"]) chain[name] = () => chain;
+        for (const name of ["select", "is", "in", "or", "lt", "order", "limit"]) chain[name] = () => chain;
         chain.returns = async () => ({ data: answers[table], error: null });
         return chain;
       },
@@ -174,7 +175,7 @@ describe("the landing timeline is real posts only", () => {
     const broken = {
       from() {
         const chain: Record<string, unknown> = {};
-        for (const name of ["select", "is", "in", "order", "limit"]) chain[name] = () => chain;
+        for (const name of ["select", "is", "in", "or", "lt", "order", "limit"]) chain[name] = () => chain;
         chain.returns = async () => ({ data: null, error: { message: "down" } });
         return chain;
       },
@@ -190,6 +191,108 @@ describe("the landing timeline is real posts only", () => {
     const load = read("lib/landing/timeline-load.ts");
     assert.match(load, /unstable_cache\(loadLandingTimeline, \["landing-timeline"\], \{ revalidate: 1800 \}\)/);
     assert.match(load, /^import "server-only";/);
+  });
+
+  it("fills from older posts when fewer than three of the newest fit, and stops once three do", async () => {
+    const { readLandingTimeline } = await import("@/lib/landing/timeline-load");
+    const { LANDING_POST_SCAN } = await import("@/lib/landing/timeline");
+    // Page 1: a full page where only one post fits. Page 2: older posts, two of which fit. Page 3 is never read.
+    const day = (n: number) => new Date(Date.UTC(2026, 10, 20) - n * 3_600_000).toISOString();
+    const pageOne = Array.from({ length: LANDING_POST_SCAN }, (_, i) => post(`new${i}`, i === 0 ? "u1" : "u4", day(i)));
+    const pageTwo = [post("old1", "u2", day(100)), post("old2", "u3", day(101)), post("old3", "u2", day(102))];
+    const pages = [pageOne, pageTwo, [post("older", "u1", day(500))]];
+    const cursors: (string | null)[] = [];
+    let reads = 0;
+    const client = {
+      from(table: string) {
+        let cursor: string | null = null;
+        const chain: Record<string, unknown> = {};
+        for (const name of ["select", "is", "in", "or", "order", "limit"]) chain[name] = () => chain;
+        chain.lt = (_column: string, value: string) => {
+          cursor = value;
+          return chain;
+        };
+        chain.returns = async () => {
+          if (table !== "posts") return { data: table === "profiles" ? PROFILES : [], error: null };
+          cursors.push(cursor);
+          return { data: pages[reads++] ?? [], error: null };
+        };
+        return chain;
+      },
+    } as unknown as SupabaseClient;
+    const picked = await readLandingTimeline(client);
+    assert.deepEqual(picked.map((item) => item.id), ["new0", "old1", "old2"]);
+    assert.equal(reads, 2, "it stops as soon as three fit");
+    assert.deepEqual(cursors, [null, pageOne[pageOne.length - 1].created_at], "the second read starts where the first ended");
+  });
+
+  it("keeps reading back only so far, and returns what is real when the posts run out", async () => {
+    const { readLandingTimeline } = await import("@/lib/landing/timeline-load");
+    const { LANDING_POST_PAGES, LANDING_POST_SCAN } = await import("@/lib/landing/timeline");
+    let reads = 0;
+    const client = {
+      from(table: string) {
+        const chain: Record<string, unknown> = {};
+        for (const name of ["select", "is", "in", "or", "lt", "order", "limit"]) chain[name] = () => chain;
+        chain.returns = async () => {
+          if (table !== "posts") return { data: table === "profiles" ? PROFILES : [], error: null };
+          reads += 1;
+          // Every page is full of a test account's posts: nothing ever fits.
+          return { data: Array.from({ length: LANDING_POST_SCAN }, (_, i) => post(`p${reads}-${i}`, "u4", new Date(Date.UTC(2026, 0, 1) - (reads * 100 + i) * 60_000).toISOString())), error: null };
+        };
+        return chain;
+      },
+    } as unknown as SupabaseClient;
+    assert.deepEqual(await readLandingTimeline(client), []);
+    assert.equal(reads, LANDING_POST_PAGES);
+  });
+
+  it("on /welcome a failed read throws in production, so the last good timeline stays up; a build or a laptop draws no posts", async () => {
+    const { welcomeTimelinePosts } = await import("@/lib/landing/timeline-load");
+    const fail = () => Promise.reject(new Error("down"));
+    const warn = console.warn;
+    console.warn = () => {};
+    try {
+      await assert.rejects(() => welcomeTimelinePosts(fail, undefined, "production"), /down/);
+      assert.deepEqual(await welcomeTimelinePosts(fail, "phase-production-build", "production"), []);
+      assert.deepEqual(await welcomeTimelinePosts(fail, undefined, "development"), []);
+      assert.deepEqual(await welcomeTimelinePosts(async () => FIXTURE_POSTS, undefined, "production"), FIXTURE_POSTS);
+    } finally {
+      console.warn = warn;
+    }
+  });
+
+  it("skips a post whose text has a word from the landing list, and keeps card names that only look like one", async () => {
+    const { landingTimeline } = await import("@/lib/landing/timeline");
+    const { LANDING_BLOCKED_WORDS, landingTextBlocked } = await import("@/lib/landing/blocked-words");
+    assert.ok(LANDING_BLOCKED_WORDS.length >= 20);
+    for (const word of LANDING_BLOCKED_WORDS) {
+      assert.equal(word, word.toLowerCase().trim(), word);
+      assert.equal(landingTextBlocked(`Look at this ${word} card`), true, word);
+    }
+    for (const text of ["What the F*CK", "this is sh1t", "Total BULLSHIT.", "a$$hole seller"]) {
+      assert.equal(landingTextBlocked(text.replace("F*CK", "FUCK")), true, text);
+    }
+    for (const fine of ["Eric Dickerson rookie", "Matt Cassel auto", "Dick Butkus PSA 8", "Hancock 1/1", "Classic set, glass case", "Assists leader", ""]) {
+      assert.equal(landingTextBlocked(fine), false, fine);
+    }
+    // The app's own filter (slurs, explicit terms, threats) counts too.
+    const { BLOCKED_ENTRIES } = await import("@/lib/safety/content-filter");
+    const first = BLOCKED_ENTRIES[0];
+    assert.equal(landingTextBlocked(`a ${typeof first === "string" ? first : first.word} post`), true);
+
+    const rows = [
+      post("rude", "u1", "2026-11-21T10:00:00Z", { content: "this pack was shit" }),
+      post("clean", "u2", "2026-11-20T10:00:00Z", { content: "Eric Dickerson rookie, finally" }),
+    ];
+    assert.deepEqual(landingTimeline(rows, PROFILES, []).map((item) => item.id), ["clean"]);
+    // A rude display name keeps the post off too.
+    const rudeName = PROFILES.map((profile) => (profile.id === "u2" ? { ...profile, display_name: "Shit Poster" } : profile));
+    assert.deepEqual(landingTimeline(rows, rudeName, []), []);
+    // One file holds the list.
+    const source = read("lib/landing/blocked-words.ts");
+    assert.match(source, /export const LANDING_BLOCKED_WORDS: readonly string\[\] = \[/);
+    assert.doesNotMatch(read("lib/landing/timeline.ts"), /"fuck"|"shit"/);
   });
 
   it("draws no made-up account: no persona name, handle or avatar, and no sample post", async () => {
