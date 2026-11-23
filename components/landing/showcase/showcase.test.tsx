@@ -2,13 +2,10 @@ import "@/lib/test/image-env";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { afterEach, describe, it } from "node:test";
-import { act, createElement, type ReactElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
-import type { CompDemo } from "@/components/landing/showcase/sample-data";
+import { describe, it } from "node:test";
 import { installDom } from "@/lib/test/dom";
 
-const { win, state } = installDom();
+installDom();
 
 const ROOT = process.cwd();
 function read(path: string) {
@@ -24,66 +21,13 @@ function sources(dir: string): string[] {
 
 const SHOWCASE = sources("components/landing/showcase");
 
-/** A made-up card standing in for the real one the page hands the panel. */
-const REAL: CompDemo = {
-  query: "Fixture Guard 2021 Fixture Set PSA 10",
-  label: "Fixture Guard · 2021 Fixture Set · PSA 10",
-  photo: { src: "/_next/image?url=fixture&w=128&q=75" },
-  alt: "Fixture Guard, 2021 Fixture Set, PSA 10",
-  sales: [
-    { price: 310, when: "2d ago" },
-    { price: 299.5, when: "4d ago" },
-    { price: 285, when: "today" },
-  ],
-  stats: { median: 300, p25: 290, p75: 308, min: 285, max: 310, count: 9 },
-  basis: "Based on 9 sales",
-  real: true,
-};
 const INTRO = sources("components/onboarding/intro");
-const ALL = [...SHOWCASE, ...INTRO, "components/landing/quick-comp-section.tsx", "components/landing/sections.tsx", "components/landing/glass-hero.tsx"];
+const ALL = [...SHOWCASE, ...INTRO, "components/landing/sections.tsx", "components/landing/landing-timeline.tsx", "components/landing/screen-clip.tsx"];
 
 const personasDoc = read("public/landing/avatars/personas.md");
 const personaRows = new Map(
   [...personasDoc.matchAll(/^\| @([a-z0-9_]+) \| ([^|]+?) \|/gm)].map((match) => [match[1], match[2].trim()]),
 );
-
-let cleanup: (() => void) | null = null;
-afterEach(() => {
-  cleanup?.();
-  cleanup = null;
-  state.reducedMotion = false;
-});
-
-/** Counts element.animate() calls. jsdom has none of its own. */
-function spyAnimate() {
-  const calls: string[] = [];
-  const proto = win.Element.prototype as unknown as { animate?: unknown };
-  const had = Object.getOwnPropertyDescriptor(proto, "animate");
-  proto.animate = function (this: Element) {
-    calls.push(this.tagName);
-    return { cancel() {}, pause() {}, play() {}, finished: Promise.resolve(), playState: "finished" };
-  };
-  return {
-    calls,
-    restore() {
-      if (had) Object.defineProperty(proto, "animate", had);
-      else delete proto.animate;
-    },
-  };
-}
-
-async function mount(element: ReactElement) {
-  const { createRoot } = await import("react-dom/client");
-  const host = win.document.createElement("div");
-  win.document.body.appendChild(host);
-  const root = createRoot(host);
-  await act(async () => root.render(element));
-  cleanup = () => {
-    act(() => root.unmount());
-    host.remove();
-  };
-  return host;
-}
 
 describe("landing showcase and intro sources", () => {
   it("make no made-up claims, don't sell, and keep \"free\" off the visuals", () => {
@@ -143,26 +87,10 @@ describe("landing showcase and intro sources", () => {
 });
 
 describe("landing chapters", () => {
-  it("are gone: the landing showcase folder holds only Quick Comp, its motion helpers and the shared shapes", () => {
-    assert.deepEqual(SHOWCASE.sort(), [
-      "components/landing/showcase/motion.ts",
-      "components/landing/showcase/quick-comp-demo.tsx",
-      "components/landing/showcase/sample-data.ts",
-    ]);
+  it("are gone, and so is Quick Comp: the showcase folder holds only onboarding's motion helpers and shared shapes", () => {
+    assert.deepEqual(SHOWCASE.sort(), ["components/landing/showcase/motion.ts", "components/landing/showcase/sample-data.ts"]);
     assert.equal(existsSync(join(ROOT, "components/landing/feature-panels.tsx")), false);
-  });
-
-  it("reserves a fixed height for the Quick Comp panel while its code loads, behind a skeleton", () => {
-    const source = read("components/landing/quick-comp-section.tsx");
-    assert.match(source, /<Suspense fallback=\{<div aria-hidden className="skeleton-shimmer h-\[\d+px\] rounded-2xl" \/>\}>/);
-  });
-
-  it("leaves Quick Comp out entirely with its flag off", async () => {
-    delete process.env.NEXT_PUBLIC_QUICK_COMP;
-    const { QuickCompSection } = await import("@/components/landing/quick-comp-section");
-    const { LandingCompProvider } = await import("@/components/landing/landing-links");
-    const html = renderToStaticMarkup(createElement(LandingCompProvider, { comp: REAL }, createElement(QuickCompSection)));
-    assert.equal(html, "");
+    assert.equal(existsSync(join(ROOT, "components/landing/quick-comp-section.tsx")), false);
   });
 
   it("keeps the real card photo for onboarding's kitchen-table pickup only, as a plain lazy image", () => {
@@ -174,21 +102,6 @@ describe("landing chapters", () => {
     assert.doesNotMatch(source, /kitchen-table-card[^"]*\.(avif|png|jpe?g)|next\/image/);
     assert.match(source, /kitchen-table-card\.webp"[^>]*className="aspect-\[5\/7\] w-11/);
     for (const file of sources("components/landing")) assert.doesNotMatch(read(file), /kitchen-table-card/, file);
-  });
-
-  it("shows Quick Comp's final frame with reduced motion and runs no animations", async () => {
-    state.reducedMotion = true;
-    const spy = spyAnimate();
-    try {
-      const { default: QuickCompDemo } = await import("@/components/landing/showcase/quick-comp-demo");
-      const host = await mount(createElement(QuickCompDemo, { comp: REAL }));
-      assert.match(host.textContent ?? "", new RegExp(REAL.query));
-      assert.match(host.textContent ?? "", /\$300/);
-      assert.match(host.textContent ?? "", /via Trawl/);
-      assert.deepEqual(spy.calls, []);
-    } finally {
-      spy.restore();
-    }
   });
 });
 

@@ -11,7 +11,8 @@ import { installDom } from "@/lib/test/dom";
 import { PRICE_BASIS_LINE, SalesChart, TRAWL_ATTRIBUTION } from "@/components/sales-chart";
 import { CompEmpty, compCaption } from "@/components/comp-basis";
 import { COLLECTION_LOAD_ERROR } from "@/components/collection-provider";
-import { APP_STORE_URL, AppStoreLink } from "@/components/landing/app-store-link";
+import { AppStoreBadge } from "@/components/landing/app-store-badge";
+import { APP_STORE_URL } from "@/lib/landing/app-store";
 import { addDays } from "@/lib/chart/range";
 import type { ChartSale } from "@/lib/chart/sales";
 import { snapshotDateInNewYork } from "@/lib/collection/totals-shared";
@@ -173,44 +174,39 @@ describe("launch copy: about, privacy and metadata", () => {
 describe("launch copy: App Store link", () => {
   it("links to the App Store listing without saying free", () => {
     assert.equal(APP_STORE_URL, "https://apps.apple.com/app/id6831357026");
-    const source = read("components/landing/app-store-link.tsx");
+    const source = read("components/landing/app-store-badge.tsx");
     assert.doesNotMatch(source, /free/i);
     assert.match(source, /^"use client";/);
   });
 
-  it("holds its row but draws no link on the server, so the landing page stays server-rendered", () => {
-    const server = renderToStaticMarkup(createElement(AppStoreLink));
-    assert.match(server, /data-app-store-link=""[^>]*class="[^"]*min-h-11/);
-    assert.doesNotMatch(server, /<a\b/);
+  it("draws Apple's official badge in the nav, the hero and the close, ahead of Open Slabhold", () => {
     assert.doesNotMatch(read("components/landing-page.tsx"), /"use client"/);
-    // The landing page draws it as buttons now: "Get the app" in the sticky nav, the hero and the closing slab.
     const landing = read("components/landing-page.tsx");
     assert.equal(count(landing, '<AppStoreBadge variant="nav" />'), 1);
-    assert.equal(count(read("components/landing/glass-hero.tsx"), '<AppStoreBadge variant="primary" />'), 1);
-    assert.equal(count(read("components/landing/sections.tsx"), '<AppStoreBadge variant="primary" />'), 1);
-    for (const file of ["components/landing/glass-hero.tsx", "components/landing/sections.tsx"]) {
-      const source = read(file);
-      assert.ok(source.indexOf('<AppStoreBadge variant="primary" />') < source.indexOf("<LandingOpen"), `${file}: the App Store comes first`);
+    const sections = read("components/landing/sections.tsx");
+    assert.equal(count(sections, '<AppStoreBadge variant="primary" />'), 2);
+    for (const group of sections.split('<div className="lp-ctas">').slice(1)) {
+      assert.ok(group.indexOf('<AppStoreBadge variant="primary" />') < group.indexOf("<LandingOpen"), "the App Store comes first");
     }
   });
 
-  it("shows the link on the web and hides it inside the iOS app", () => {
+  it("shows the badge on the web and hides it inside the iOS app", () => {
     const host = document.createElement("div");
     document.body.append(host);
     const root = createRoot(host);
-    act(() => root.render(createElement(AppStoreLink)));
+    act(() => root.render(createElement(AppStoreBadge, { variant: "primary" })));
     const link = host.querySelector("a");
     assert.ok(link);
-    assert.match(link.className, /min-h-11/);
-    assert.equal(link.textContent, "Get Slabhold on the App Store");
     assert.equal(link.getAttribute("href"), APP_STORE_URL);
+    assert.equal(link.querySelector("img")?.getAttribute("src"), "/landing/app-store-badge.svg");
+    assert.equal(link.textContent, "", "the official artwork, with no label of our own");
     act(() => root.unmount());
 
     const win = window as Window & { Capacitor?: { isNativePlatform: () => boolean } };
     win.Capacitor = { isNativePlatform: () => true };
     try {
       const native = createRoot(host);
-      act(() => native.render(createElement(AppStoreLink)));
+      act(() => native.render(createElement(AppStoreBadge, { variant: "primary" })));
       assert.equal(host.querySelector("a"), null);
       act(() => native.unmount());
     } finally {

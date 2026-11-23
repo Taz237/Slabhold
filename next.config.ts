@@ -1,21 +1,39 @@
+import { readdirSync } from "node:fs";
+import { join } from "node:path";
 import type { NextConfig } from "next";
 
+const LANDING_STILLS = ["public/landing/screens/*.png", "public/landing/screens/*.webp", "public/landing/hero-card.jpg"];
+
+/** The recordings in public/landing/screens, by file name, read once at build. */
+function landingClips(): string {
+  try {
+    return readdirSync(join(process.cwd(), "public/landing/screens"))
+      .filter((name) => name.endsWith(".mp4"))
+      .sort()
+      .join(",");
+  } catch {
+    return "";
+  }
+}
+
 const nextConfig: NextConfig = {
+  // Signed-out Home checks which real pictures exist, and reads their size,
+  // when it renders (lib/landing/media.ts), so the stills travel with the two
+  // routes that draw it. The recordings do not: the server never opens an
+  // .mp4, it only needs to know which ones exist, and LANDING_CLIPS says so.
+  outputFileTracingIncludes: {
+    "/": LANDING_STILLS,
+    "/welcome": LANDING_STILLS,
+  },
   // Sharp is the self-hosted next/image optimizer (next start). On Vercel that
   // optimizer runs outside the function, and next/og uses bundled resvg when
-  // sharp is absent. No route imports it at runtime: the home share image is
-  // prerendered at build and uses it there only.
+  // sharp is absent. No route imports it at runtime.
   outputFileTracingExcludes: {
-    "*": ["node_modules/sharp/**", "node_modules/@img/**"],
+    "*": ["node_modules/sharp/**", "node_modules/@img/**", "public/landing/screens/*.mp4"],
   },
-  // Signed-out Home checks which real media files exist when it renders
-  // (lib/landing/media.ts), so they travel with the two routes that draw it.
-  outputFileTracingIncludes: {
-    "/": ["public/landing/media/**"],
-    "/welcome": ["public/landing/media/**"],
-  },
-  // Collection tile photos only. Card photos are uploaded under random UUID
-  // paths and never change, so a long cache is safe. One quality and short
+  // Collection tile photos, and the post photos on the signed-out landing
+  // timeline. Both are uploaded under random UUID paths and never change, so
+  // a long cache is safe. One quality and short
   // size lists keep the number of transformations small.
   images: {
     remotePatterns: [
@@ -24,6 +42,13 @@ const nextConfig: NextConfig = {
         hostname: "knuwflptobyutrauxblj.supabase.co",
         port: "",
         pathname: "/storage/v1/object/public/card-photos/**",
+        search: "",
+      },
+      {
+        protocol: "https",
+        hostname: "knuwflptobyutrauxblj.supabase.co",
+        port: "",
+        pathname: "/storage/v1/object/public/post-images/**",
         search: "",
       },
     ],
@@ -92,6 +117,8 @@ const nextConfig: NextConfig = {
     ];
   },
   env: {
+    // Which recordings exist in public/landing/screens (lib/landing/media.ts).
+    LANDING_CLIPS: landingClips(),
     NEXT_PUBLIC_VERCEL_ENV: process.env.NEXT_PUBLIC_VERCEL_ENV || process.env.VERCEL_ENV || "",
     // Always inlined. Unset, Next leaves a runtime process.env read in the
     // client; "" lets a build with Quick Comp off drop its nav code.

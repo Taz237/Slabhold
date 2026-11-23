@@ -72,13 +72,11 @@ describe("founder showcase read errors", () => {
     assert.match(FOUNDER_CACHE_CONTROL, /s-maxage=3600/);
   });
 
-  it("Home catches the throw and falls back to sample slabs", () => {
-    // /welcome uses welcomeFounderShowcase instead (see welcome-founder.test.ts).
-    assert.match(readFileSync(join(process.cwd(), "app/(app)/page.tsx"), "utf8"), /const founder = await founderShowcase\(\);/);
-    const page = readFileSync(join(process.cwd(), "lib/landing/founder-page.ts"), "utf8");
-    assert.match(page, /try \{\s*return await cachedFounderShowcase\(\);\s*\} catch/);
-    assert.match(page, /return EMPTY_FOUNDER_SHOWCASE;/);
+  it("keeps the route on the hour cache, and the landing pages no longer read the showcase", () => {
     const route = readFileSync(join(process.cwd(), "app/api/landing/founder/route.ts"), "utf8");
     assert.match(route, /founderResponse\(cachedFounderShowcase\)/);
+    for (const page of ["app/(app)/page.tsx", "app/welcome/page.tsx"]) {
+      assert.doesNotMatch(readFileSync(join(process.cwd(), page), "utf8"), /founderShowcase|founder-page|founder-load/, page);
+    }
   });
 });

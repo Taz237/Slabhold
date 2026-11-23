@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import {
@@ -11,7 +10,6 @@ import {
   failNextOgPaint,
   renderOg,
   renderProfileOg,
-  resetHomeCardCache,
   resetOgPaintFailures,
 } from "../../components/og-frame";
 import { clipText, profileLinkPreview } from "./link-preview";
@@ -385,9 +383,9 @@ describe("home share image", () => {
   it("keeps the headline and the subline", () => {
     const image = homeShareImage();
     assert.equal(image.kind, "home");
-    // The landing page's headline, one line each.
-    assert.equal(image.title, "Scan it.");
-    assert.equal(image.detail, "Know the exact version.");
+    // The landing page's headline.
+    assert.equal(image.title, "Talk cards here.");
+    assert.equal(image.detail, "");
     assert.doesNotMatch(`${image.kicker} ${image.title} ${image.detail}`, /any card|\bbest\b|\bAI\b|\bfree\b/i);
   });
 });
@@ -835,8 +833,8 @@ describe("share image renderer", () => {
     const frame = readFileSync(join(process.cwd(), "components/og-frame.tsx"), "utf8");
     assert.doesNotMatch(frame, /2\.png/, "the Sample Rookie screenshot is gone");
     assert.equal(existsSync(join(process.cwd(), "public/landing/2.png")), false);
-    assert.match(frame, /landingMedia\(root\)\.heroCard/);
-    assert.match(frame, /join\(\/\* turbopackIgnore: true \*\/ root, "public", card\.src\)/);
+    assert.doesNotMatch(frame, /landingMedia|HOME_GALAXY|HomeSlab/, "the logo and the headline on a solid field: no card, no galaxy");
+    assert.match(frame, /backgroundColor: "#0E0A1A"/);
     const config = readFileSync(join(process.cwd(), "next.config.ts"), "utf8");
     assert.match(config, /node_modules\/sharp\/\*\*/);
     assert.match(config, /node_modules\/@img\/\*\*/);
@@ -913,62 +911,15 @@ describe("home image card", () => {
     return bytes;
   }
 
-  /** A project root whose landing media folder holds `files`. */
-  function mediaRoot(files: Record<string, Buffer>): string {
-    const root = mkdtempSync(join(tmpdir(), "slabhold-og-"));
-    const dir = join(root, "public", "landing", "media");
-    mkdirSync(dir, { recursive: true });
-    for (const [name, bytes] of Object.entries(files)) writeFileSync(join(dir, name), bytes);
-    return root;
-  }
-
-  it("draws the logo and headline with no card, and fetches nothing, while the hero slot is empty", async () => {
+  it("draws the logo and headline on a solid field, and fetches nothing", async () => {
     const net = stubFetch();
-    resetHomeCardCache();
     try {
       const bytes = await homePng();
       assert.ok(bytes.length > 5000);
       assert.deepEqual(net.calls, [], "the home image reads no URL");
+      assert.equal(pngHash(await homePng()), pngHash(bytes), "the same picture every time");
     } finally {
       net.restore();
-      resetHomeCardCache();
-    }
-  });
-
-  it("draws the real hero card in the slab once hero-card.avif is there", async () => {
-    const { default: sharp } = await import("sharp");
-    // A stand-in file for the slot, made here and never committed: stripes, so it adds detail to the image.
-    const stripes = Buffer.alloc(250 * 350 * 3);
-    for (let i = 0; i < 250 * 350; i += 1) stripes.fill(i % 7 < 3 ? 0xee : 0x33, i * 3, i * 3 + 3);
-    const avif = await sharp(stripes, { raw: { width: 250, height: 350, channels: 3 } }).avif().toBuffer();
-    const net = stubFetch();
-    const root = mediaRoot({ "hero-card.avif": avif });
-    try {
-      resetHomeCardCache();
-      const plain = await homePng();
-      resetHomeCardCache(root);
-      const withCard = await homePng();
-      assert.notEqual(pngHash(withCard), pngHash(plain));
-      assert.ok(withCard.length > plain.length, "the card adds detail");
-      assert.deepEqual(net.calls, []);
-    } finally {
-      net.restore();
-      resetHomeCardCache();
-      rmSync(root, { recursive: true, force: true });
-    }
-  });
-
-  it("still renders the home image when the hero file can't be read as a picture", async () => {
-    const root = mediaRoot({ "hero-card.avif": Buffer.from("not a picture") });
-    try {
-      resetHomeCardCache();
-      const plain = await homePng();
-      resetHomeCardCache(root);
-      const broken = await homePng();
-      assert.equal(pngHash(broken), pngHash(plain));
-    } finally {
-      resetHomeCardCache();
-      rmSync(root, { recursive: true, force: true });
     }
   });
 });

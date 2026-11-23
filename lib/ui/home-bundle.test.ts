@@ -15,7 +15,7 @@ describe("signed-out Home bundle", () => {
   it("renders the timeline only for a reader, from its own chunk", () => {
     const page = read("app/(app)/page.tsx");
     assert.doesNotMatch(page, /feed-view|moving-today-slot|"@\/components\/moving-today"|<FeedView|<MovingToday[ />]/);
-    assert.match(page, /const landing = <LandingPage founder=\{founder\} comp=\{comp\} pulls=\{pulls\} \/>;/);
+    assert.match(page, /const landing = <LandingPage posts=\{posts\} \/>;/);
     assert.match(page, /<HomeGate landing=\{landing\} \/>/);
 
     const gate = read("components/home-gate.tsx");
@@ -94,9 +94,8 @@ describe("signed-out Home bundle", () => {
   it("draws the landing page on the server, so it ships no code and never redraws", () => {
     for (const path of [
       "components/landing-page.tsx",
-      "components/landing/glass-hero.tsx",
       "components/landing/sections.tsx",
-      "components/landing/landing-galaxy.tsx",
+      "components/landing/landing-timeline.tsx",
       "components/card-slab-frame.tsx",
     ]) {
       assert.doesNotMatch(read(path), /^"use client";/m, path);
@@ -104,10 +103,10 @@ describe("signed-out Home bundle", () => {
     const gate = read("components/home-gate.tsx");
     assert.ok(!staticImports(gate).includes("@/components/landing-page"));
     assert.match(gate, /<StandaloneLoginGate>\s*\{landing\}\s*<\/StandaloneLoginGate>/);
-    // The hero's LCP photo is a plain <img> from next/image's getImageProps, preloaded from the head.
-    const hero = read("components/landing/glass-hero.tsx");
+    // The hero's photo is a plain <img> from next/image's getImageProps, the one high-priority image.
+    const hero = read("components/landing/sections.tsx");
     assert.match(hero, /getImageProps\(/);
-    assert.match(hero, /preload\(props\.src, \{/);
+    assert.match(hero, /fetchPriority: "high"/);
     assert.ok(!staticImports(hero).includes("@/components/card-slab-art"));
   });
 });

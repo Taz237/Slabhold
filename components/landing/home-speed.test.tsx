@@ -10,14 +10,12 @@ import { ImageConfigContext } from "next/dist/shared/lib/image-config-context.sh
 import { imageConfigDefault } from "next/dist/shared/lib/image-config";
 import nextConfig from "@/next.config";
 import { installDom } from "@/lib/test/dom";
-import type { FounderShowcase } from "@/lib/landing/founder";
-import { EMPTY_MEDIA } from "@/lib/landing/media";
-import { ALL_MEDIA_FILES, mediaRoot, renderLoaded } from "@/lib/test/landing-fixtures";
+import { ALL_SCREEN_FILES, FIXTURE_POSTS, mediaRoot } from "@/lib/test/landing-fixtures";
 
 /*
  * Signed-out Home speed pins: the calls to action warm their route on intent,
- * not on sight; the head preloads one photo, the hero card; the h1 is the first
- * big paint; and clips download nothing until they are on screen.
+ * not on sight; the head preloads one photo, the hero card; the h1 is opaque
+ * from the first paint; and no video or screenshot is in the head.
  */
 
 const { win } = installDom();
@@ -31,29 +29,6 @@ const { SearchParamsContext } = require("next/dist/shared/lib/hooks-client-conte
 };
 
 const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
-
-const HOST = "https://knuwflptobyutrauxblj.supabase.co";
-
-function card(id: string, playerName: string) {
-  return {
-    id,
-    photoUrl: `${HOST}/storage/v1/object/public/card-photos/owner/${id}.jpg`,
-    playerName,
-    year: 2020,
-    yearLabel: "",
-    setBrand: "Fixture Set",
-    grade: "10",
-    gradeQualifier: "",
-    certNumber: "",
-    accent: "violet",
-    conditionType: "graded",
-    grader: "PSA",
-  } as FounderShowcase["cards"][number];
-}
-
-const FOUNDER: FounderShowcase = {
-  cards: [card("center", "Top Card"), card("left", "Second Card"), card("right", "Third Card")],
-};
 
 let cleanup: (() => void) | null = null;
 afterEach(() => {
@@ -118,7 +93,7 @@ describe("signed-out Home: calls to action warm on intent", () => {
 
     const links = (href: string) => [...host.querySelectorAll("a")].filter((a) => a.getAttribute("href") === href);
     const opens = links("/signup?next=%2Fleaderboard");
-    assert.equal(opens.length, 2, "the hero and the closing slab");
+    assert.equal(opens.length, 2, "the hero and the close");
     const logins = links("/login?next=%2Fleaderboard");
     assert.equal(logins.length, 1, "the nav's Log in");
 
@@ -207,78 +182,64 @@ describe("signed-out Home: calls to action warm on intent", () => {
 });
 
 describe("signed-out Home: one hero photo in the head", () => {
-  it("preloads only the hero card's photo, at high priority, before any other image", async () => {
+  it("preloads only the hero card's photo, at high priority: no screenshot, post photo or badge", async () => {
     const { LandingPage } = await import("@/components/landing-page");
-    const html = await documentHtml(createElement(LandingPage, { founder: FOUNDER, media: EMPTY_MEDIA }));
-    const head = html.slice(0, html.indexOf("</head>"));
-    const imagePreloads = [...head.matchAll(/<link[^>]*rel="preload"[^>]*as="image"[^>]*>/g)].map((match) => match[0]);
-    const hero = imagePreloads.filter((link) => link.includes("card-photos"));
-    assert.equal(hero.length, 1, hero.join("\n"));
-    assert.match(hero[0], /fetchPriority="high"/);
-    assert.match(decodeURIComponent(hero[0]), /owner\/center\.jpg/);
-    assert.equal(imagePreloads[0], hero[0], "the hero photo is the first image preload");
-    // The logo is the first thing in the body; the browser finds it without a preload.
-    assert.deepEqual(imagePreloads, hero, imagePreloads.join("\n"));
+    const fixture = mediaRoot(ALL_SCREEN_FILES, { hero: true });
+    try {
+      const html = await documentHtml(createElement(LandingPage, { posts: FIXTURE_POSTS, media: fixture.media() }));
+      const head = html.slice(0, html.indexOf("</head>"));
+      const imagePreloads = [...head.matchAll(/<link[^>]*rel="preload"[^>]*as="image"[^>]*>/g)].map((match) => match[0]);
+      assert.equal(imagePreloads.length, 1, imagePreloads.join("\n"));
+      assert.match(imagePreloads[0], /fetchPriority="high"/);
+      assert.match(decodeURIComponent(imagePreloads[0]), /landing\/hero-card\.jpg/);
 
-    // Only the hero card is high priority. Every other card photo waits until it is near the screen.
-    const body = html.slice(html.indexOf("<body"));
-    const photos = [...body.matchAll(/<img[^>]+>/g)].map((m) => m[0]).filter((img) => img.includes("card-photos"));
-    assert.equal(photos.length, 4, "the hero card and the three in the collection grid");
-    assert.deepEqual(
-      photos.map((img) => /fetchPriority="high"/i.test(img)),
-      [true, false, false, false],
-    );
-    assert.match(photos[0], /data-hero-card/);
-    assert.doesNotMatch(photos[0], /loading="lazy"/);
-    assert.ok(photos.slice(1).every((img) => /loading="lazy"/.test(img)));
-    assert.equal((body.match(/fetchPriority="high"/gi) ?? []).length, 1, "one high-priority image on the page");
+      const body = html.slice(html.indexOf("<body"));
+      const high = [...body.matchAll(/<img[^>]+>/g)].map((m) => m[0]).filter((img) => /fetchPriority="high"/i.test(img));
+      assert.equal(high.length, 1, "one high-priority image on the page");
+      assert.match(high[0], /class="lp-hero-card"/);
+      assert.doesNotMatch(high[0], /loading="lazy"/);
+      // Every screenshot, post photo and avatar waits until it is near the screen.
+      const rest = [...body.matchAll(/<img[^>]+>/g)].map((m) => m[0]).filter((img) => /landing%2Fscreens|post-images|card-photos|avatars/.test(img));
+      assert.ok(rest.length >= ALL_SCREEN_FILES.length - 1 + FIXTURE_POSTS.length, String(rest.length));
+      for (const img of rest) {
+        assert.match(img, /loading="lazy"/, img);
+        assert.doesNotMatch(img, /fetchPriority="high"/i, img);
+      }
+    } finally {
+      fixture.remove();
+    }
   });
 
-  it("keeps the h1 the first big paint: opaque, visible, and never waiting on an image", async () => {
+  it("keeps the h1 opaque and visible from the first paint, ahead of the card in the HTML", async () => {
     const { LandingPage } = await import("@/components/landing-page");
-    const html = await documentHtml(createElement(LandingPage, { founder: FOUNDER, media: EMPTY_MEDIA }));
-    const h1 = html.match(/<h1[^>]*>[\s\S]*?<\/h1>/)?.[0] ?? "";
-    assert.ok(h1.length > 0);
-    assert.doesNotMatch(h1, /opacity-0|invisible|\bhidden\b|visibility|display:\s*none/);
-    assert.match(h1, /^<h1 class="lg-h1">/);
-    // The words are inline, so the h1 stays one text block for the browser's largest-paint pick.
-    const css = read("app/landing.css");
-    const words = css.match(/\.lg-w \{[^}]*\}/)?.[0] ?? "";
-    assert.doesNotMatch(words, /display|opacity|transform|filter/);
-    const wordFrames = css.slice(css.indexOf("@keyframes lg-word {"), css.indexOf("\n}\n", css.indexOf("@keyframes lg-word {")));
-    assert.ok(wordFrames.length > 20);
-    assert.doesNotMatch(wordFrames, /filter|transform|opacity/);
-    for (const rule of css.matchAll(/\.lg-h1[^{]*\{[^}]*\}/g)) assert.doesNotMatch(rule[0], /opacity|visibility/);
-    assert.ok(html.indexOf("<h1") < html.indexOf("data-hero-card"), "the heading comes before the card in the HTML");
+    const fixture = mediaRoot([], { hero: true });
+    try {
+      const html = await documentHtml(createElement(LandingPage, { media: fixture.media() }));
+      const h1 = html.match(/<h1[^>]*>[\s\S]*?<\/h1>/)?.[0] ?? "";
+      assert.equal(h1, '<h1 class="lp-h1">Talk cards here.</h1>');
+      assert.doesNotMatch(h1, /opacity-0|invisible|\bhidden\b|visibility|display:\s*none/);
+      const css = read("app/landing.css");
+      for (const rule of css.matchAll(/\.lp-h1[^{]*\{[^}]*\}/g)) assert.doesNotMatch(rule[0], /opacity|visibility|filter|animation|transform/);
+      assert.doesNotMatch(css, /@keyframes|animation:/, "nothing on the page animates in");
+      assert.ok(html.indexOf("<h1") < html.indexOf("lp-hero-card"), "the heading comes before the card in the HTML");
+    } finally {
+      fixture.remove();
+    }
   });
 });
 
 describe("signed-out Home: clips never block the page", () => {
-  it("puts no video in the head and gives every clip preload=\"none\"", async () => {
+  it("puts no video in the head or the server HTML: a clip is only its lazy still until it is on screen", async () => {
     const { LandingPage } = await import("@/components/landing-page");
-    const fixture = mediaRoot(ALL_MEDIA_FILES);
+    const clips = ["home-for-you", "scan-reveal", "card-sales", "catalog-feed", "profile-cards", "collection-value"];
+    const fixture = mediaRoot([...ALL_SCREEN_FILES, ...clips.map((name) => `${name}.mp4`)], { hero: true });
     try {
-      // Load the clip player first, so the document below has the clips in place.
-      await renderLoaded(withContexts(createElement(LandingPage, { founder: FOUNDER, media: fixture.media() })));
-      const html = await documentHtml(createElement(LandingPage, { founder: FOUNDER, media: fixture.media() }));
+      const html = await documentHtml(createElement(LandingPage, { posts: FIXTURE_POSTS, media: fixture.media() }));
       const head = html.slice(0, html.indexOf("</head>"));
       assert.doesNotMatch(head, /<video|\.mp4|as="video"|as="fetch"/);
-      assert.doesNotMatch(head, /landing\/media\/(?!hero-card)/, "only the hero card may be preloaded");
-      const videos = [...html.matchAll(/<video[^>]*>/g)].map((match) => match[0]);
-      assert.equal(videos.length, 5);
-      for (const video of videos) {
-        assert.match(video, /preload="none"/);
-        assert.match(video, /poster="\/landing\/media\/[a-z]+\.webp"/);
-        assert.match(video, /\bmuted\b/);
-        assert.match(video, /playsInline|playsinline/);
-        assert.match(video, /\bloop\b/);
-        assert.doesNotMatch(video, /autoplay/i);
-      }
-      // Stills other than the hero card load lazily.
-      const stills = [...html.matchAll(/<img[^>]+>/g)].map((m) => m[0]).filter((img) => /serial-macro|share-rank/.test(img));
-      assert.equal(stills.length, 2);
-      assert.ok(stills.every((img) => /loading="lazy"/.test(img) && !/fetchPriority="high"/i.test(img)));
-      assert.equal((html.match(/fetchPriority="high"/gi) ?? []).length, 2, "the hero card and its one preload");
+      assert.doesNotMatch(head, /landing\/screens|landing%2Fscreens/, "no screen is preloaded");
+      assert.doesNotMatch(html, /<video/, "the video is added by the browser, in view");
+      assert.equal((html.match(/data-landing-screen="clip"/g) ?? []).length, clips.length);
     } finally {
       fixture.remove();
     }
@@ -286,17 +247,14 @@ describe("signed-out Home: clips never block the page", () => {
 });
 
 describe("signed-out Home: no client icon code", () => {
-  it("draws the landing page's server icons without lucide-react's client Icon", () => {
+  it("draws the landing page without lucide-react's client Icon", () => {
     // lucide-react's Icon is "use client": one import from a server component
     // ships it in the first-load JS and hydrates it.
     for (const path of [
       "components/landing-page.tsx",
-      "components/landing/glass-hero.tsx",
-      "components/landing/glass-island.tsx",
       "components/landing/sections.tsx",
-      "components/landing/feature-clip.tsx",
-      "components/landing/feature-clip-player.tsx",
-      "components/landing/landing-galaxy.tsx",
+      "components/landing/landing-timeline.tsx",
+      "components/landing/screen-clip.tsx",
       "components/landing/app-store-badge.tsx",
     ]) {
       assert.doesNotMatch(read(path), /from "lucide-react"/, path);

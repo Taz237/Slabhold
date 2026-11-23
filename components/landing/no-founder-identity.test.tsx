@@ -10,7 +10,6 @@ import { ImageConfigContext } from "next/dist/shared/lib/image-config-context.sh
 import { imageConfigDefault } from "next/dist/shared/lib/image-config";
 import nextConfig from "@/next.config";
 import { installDom } from "@/lib/test/dom";
-import type { CompDemo } from "@/components/landing/showcase/sample-data";
 
 installDom();
 
@@ -25,41 +24,22 @@ const text = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/&#x27;/g, 
 /** The founder's name, handle, surname and the founder/creator wording. */
 const IDENTITY = /donnietaz|\bDonnie\b|Taziole|\bfounder\b|\bcreator\b|Built by @|From @/i;
 
-const PHOTOS = "https://knuwflptobyutrauxblj.supabase.co/storage/v1/object/public/card-photos";
+const STORAGE = "https://knuwflptobyutrauxblj.supabase.co/storage/v1/object/public";
+process.env.NEXT_PUBLIC_SUPABASE_URL = new URL(STORAGE).origin;
 
-function card(id: string, playerName: string) {
+function post(id: string, user: string, at: string) {
   return {
     id,
-    photoUrl: `${PHOTOS}/f1/${id}.jpg`,
-    playerName,
-    year: 2023,
-    yearLabel: "2023",
-    setBrand: "Prizm",
-    grade: "10",
-    gradeQualifier: "",
-    certNumber: "",
-    accent: "#7c5cff",
-    conditionType: "graded" as const,
-    grader: "PSA",
+    user_id: user,
+    content: `Post ${id}`,
+    image_url: `${STORAGE}/post-images/${user}/${id}.jpg`,
+    card: null,
+    quoted_post_id: null,
+    created_at: at,
+    hidden_at: null,
+    post_type: "post",
   };
 }
-
-/** An old-shape payload that still carries the profile: the page must drop it. */
-const OLD_PAYLOAD = {
-  profile: { username: "donnietaz", displayName: "Donnie", avatarUrl: "https://cdn.example/donnie.png" },
-  cards: [card("a", "Top Card"), card("b", "Second Card"), card("c", "Third Card")],
-};
-
-const REAL_COMP: CompDemo = {
-  query: "Fixture Maxey 2021 Donruss Optic Downtown PSA 10",
-  label: "Fixture Maxey · 2021 Donruss Optic Downtown · PSA 10",
-  photo: { src: "/_next/image?url=maxey&w=128&q=75" },
-  alt: "Fixture Maxey, 2021 Donruss Optic Downtown, PSA 10",
-  sales: [{ price: 300, when: "today" }],
-  stats: { median: 300, p25: 290, p75: 308, min: 285, max: 310, count: 9 },
-  basis: "Based on 9 sales",
-  real: true,
-};
 
 function files(dir: string): string[] {
   return readdirSync(join(process.cwd(), dir)).flatMap((name) => {
@@ -70,51 +50,53 @@ function files(dir: string): string[] {
 }
 
 describe("logged-out surfaces carry no founder identity", () => {
-  it("the landing page never names the founder, even with real cards", async () => {
+  it("the landing timeline never names the founder: the team account's posts stay off it", async () => {
+    const { landingTimeline } = await import("@/lib/landing/timeline");
+    const posts = landingTimeline(
+      [post("team", "f1", "2026-11-21T10:00:00Z"), post("other", "u2", "2026-11-20T10:00:00Z")],
+      [
+        { id: "f1", username: "donnietaz", display_name: "Donnie", avatar_url: `${STORAGE}/avatars/f1/donnie.png` },
+        { id: "u2", username: "fixture_collector", display_name: "Fixture Collector", avatar_url: null },
+      ],
+      [],
+    );
+    assert.deepEqual(posts.map((item) => item.handle), ["fixture_collector"]);
+    assert.doesNotMatch(JSON.stringify(posts), /donnietaz|Donnie/i);
+    const { LandingPage } = await import("@/components/landing-page");
+    const { EMPTY_MEDIA } = await import("@/lib/landing/media");
+    const html = renderToStaticMarkup(
+      createElement(
+        ImageConfigContext.Provider,
+        { value: { ...imageConfigDefault, ...nextConfig.images } },
+        createElement(SearchParamsContext.Provider, { value: new URLSearchParams() }, createElement(LandingPage, { posts, media: EMPTY_MEDIA })),
+      ),
+    );
+    assert.match(html, /data-landing-post="other"/, "the real post stays");
+    assert.doesNotMatch(text(html), IDENTITY);
+    assert.doesNotMatch(html, /donnietaz|Donnie/i);
+  });
+
+  it("the page with its real hero card names no one", async () => {
     const { LandingPage } = await import("@/components/landing-page");
     const html = renderToStaticMarkup(
       createElement(
         ImageConfigContext.Provider,
         { value: { ...imageConfigDefault, ...nextConfig.images } },
-        createElement(
-          SearchParamsContext.Provider,
-          { value: new URLSearchParams() },
-          createElement(LandingPage, { founder: OLD_PAYLOAD as never }),
-        ),
+        createElement(SearchParamsContext.Provider, { value: new URLSearchParams() }, createElement(LandingPage)),
       ),
     );
-    assert.match(html, /data-glass-hero="card"/, "the real card photos stay");
-    assert.equal((html.match(/card-photos%2Ff1%2F/g) ?? []).length >= 3, true);
+    assert.match(html, /data-hero-card="real"/);
     assert.doesNotMatch(text(html), IDENTITY);
-    assert.doesNotMatch(html, /donnietaz|Donnie|avatar/i);
+    assert.doesNotMatch(html, /donnietaz|Donnie/i);
   });
 
-  it("the Quick Comp section shows a real card without naming anyone", async () => {
-    process.env.NEXT_PUBLIC_QUICK_COMP = "1";
-    try {
-      const { QuickCompSection } = await import("@/components/landing/quick-comp-section");
-      const { LandingCompProvider } = await import("@/components/landing/landing-links");
-      const { default: QuickCompDemo } = await import("@/components/landing/showcase/quick-comp-demo");
-      const html =
-        renderToStaticMarkup(createElement(LandingCompProvider, { comp: REAL_COMP }, createElement(QuickCompSection))) +
-        renderToStaticMarkup(createElement(QuickCompDemo, { comp: REAL_COMP }));
-      assert.match(html, /data-section="quick-comp"/);
-      assert.match(html, /Fixture Maxey/);
-      assert.doesNotMatch(text(html), IDENTITY);
-      assert.doesNotMatch(html, /donnietaz|Donnie/i);
-    } finally {
-      delete process.env.NEXT_PUBLIC_QUICK_COMP;
-    }
-  });
-
-  it("the server showcase and comp never carry the handle, name or avatar", async () => {
+  it("the server showcase never carries the handle, name or avatar", async () => {
     const { founderShowcase } = await import("@/lib/landing/founder");
     const showcase = founderShowcase(
       { id: "f1", username: "donnietaz", display_name: "Donnie", avatar_url: "https://cdn.example/a.png" },
       [],
     );
     assert.doesNotMatch(JSON.stringify(showcase), /donnietaz|Donnie|a\.png/);
-    assert.doesNotMatch(read("lib/landing/founder-comp.ts"), /owner: profile\.username/);
   });
 
   it("About, Help, Terms, Privacy, Support, metadata, manifest and share images", () => {

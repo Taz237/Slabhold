@@ -234,10 +234,14 @@ describe("sortGridCards", () => {
 });
 
 describe("next.config images", () => {
-  it("allows only the card-photos bucket", () => {
+  it("allows only the card-photos bucket, and post photos for the landing timeline", () => {
     const images = nextConfig.images;
     assert.ok(images);
-    assert.equal(images.remotePatterns?.length, 1);
+    assert.equal(images.remotePatterns?.length, 2);
+    const posts = images.remotePatterns?.[1];
+    assert.ok(posts && !(posts instanceof URL));
+    assert.equal(posts.hostname, "knuwflptobyutrauxblj.supabase.co");
+    assert.equal(posts.pathname, "/storage/v1/object/public/post-images/**");
     const pattern = images.remotePatterns?.[0];
     assert.ok(pattern && !(pattern instanceof URL));
     assert.equal(pattern.protocol, "https");

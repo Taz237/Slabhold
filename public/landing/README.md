@@ -1,12 +1,24 @@
 # Landing assets
 
-## `media/`
+## `hero-card.jpg`
 
-The real media slots for signed-out Home: one real card photo and real
-recordings of the app. See `media/README.md` for every slot, its exact file
-name and the encoding. An empty slot shows no media. The home Open Graph and
-Twitter image (`components/og-frame.tsx`) draws the logo and the headline on
-the purple galaxy, plus `media/hero-card.avif` in the slab when it exists.
+The landing hero's card photo: a real card from a team member's collection,
+used with their OK. 2025 Panini Mosaic Jaxson Dart, Orange, 091/199, in a
+one-touch. 774x1200 JPEG, no filters. If the file is missing the hero shows
+no photo.
+
+## `app-store-badge.svg`
+
+Apple's official "Download on the App Store" badge (US English, black), saved
+unchanged from developer.apple.com. Don't recolor, redraw or crop it.
+
+## `screens/`
+
+The real iPhone screenshot slots for signed-out Home. See
+`screens/README.md` for every slot and its exact file name. An empty slot
+shows nothing. The home Open Graph and Twitter image
+(`components/og-frame.tsx`) draws the logo and the headline on a solid dark
+purple field.
 
 ## `kitchen-table-card.webp`
 
@@ -29,13 +41,12 @@ profile. The landing page shows none of them: real cards and real pulls only.
 
 ## Rules for anything in this folder
 
-- No real users by name. The hero slab, the collection grid and Quick Comp
-  can show real public card photos from a team account, but never its name,
-  handle or avatar. The one exception is `media/pulls.json`: approved public
-  pulls, shown with their handle.
-- No team, league or NFL logos, in captures, card photos, avatars or art.
+- Real things only. The landing timeline shows real public posts with
+  their handle, read on the server. Nothing here stands in for a person.
+- No team, league or NFL logos added to captures, avatars or art. A real
+  card photo shows whatever is printed on the card.
 - No generated pictures of the app, and no demo data on the landing page:
-  real recordings of the current app only.
+  real screenshots of the current app only.
 - No "free" in text drawn inside an image.
 
 ## PR screenshots
