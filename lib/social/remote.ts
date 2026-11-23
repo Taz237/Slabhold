@@ -71,6 +71,7 @@ import { BLOCKED_INTERACTION } from "@/lib/safety/block";
 import { contentProblem, usernameProblem } from "@/lib/safety/content-filter";
 import { canNotify, supabaseSafety } from "@/lib/safety/can-notify";
 import { applyAuthorSafety, loadHiddenAuthorIds, withAuthorSafety } from "@/lib/safety/filters";
+import { signupSourceData } from "@/lib/invites/signup-source";
 import { loadPostEngagement } from "./load-feed-page";
 import {
   loadMessagePage,
@@ -609,7 +610,8 @@ export async function remoteSignUp(
     email: input.email.trim(),
     password: input.password,
     options: {
-      data: { username, display_name: displayName },
+      // The signup source rides along in user metadata. The handle and name always win.
+      data: { ...signupSourceData(input.source), username, display_name: displayName },
       emailRedirectTo:
         typeof window === "undefined"
           ? undefined

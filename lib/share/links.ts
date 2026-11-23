@@ -62,8 +62,16 @@ export function cardShareState(input: {
   };
 }
 
-/** What an invite says, next to the link. */
-export const INVITE_SHARE_TEXT = "Join me on Slabhold, the home for your card collection";
+/**
+ * What an invite says. The share sheet puts the link right after it, and the
+ * collector can edit it there before sending.
+ */
+export const INVITE_SHARE_TEXT = "I'm putting my cards on Slabhold. Come talk cards with me:";
+
+/** The whole invite as it reads once sent: the line, then the link. */
+export function inviteShareMessage(url: string): string {
+  return `${INVITE_SHARE_TEXT} ${url}`;
+}
 
 /**
  * Personal invite link: /i/<username>?c=<code>. Only a link with the

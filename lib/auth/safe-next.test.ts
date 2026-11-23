@@ -93,7 +93,7 @@ describe("email confirm next", () => {
     assert.match(auth, /safeNext\(params\.get\("next"\)\)/);
     assert.match(
       auth,
-      /signUp\(\{ email, password, username, displayName, next, captchaToken: captchaToken \?\? undefined \}\)/,
+      /signUp\(\{\s*email,\s*password,\s*username,\s*displayName,\s*next,\s*captchaToken: captchaToken \?\? undefined,[\s\S]*?source: browserSignupSource\(\),\s*\}\)/,
     );
     assert.match(remote, /emailConfirmRedirect\(window\.location\.origin, input\.next\)/);
     assert.doesNotMatch(remote, /publicOrigin/);

@@ -252,7 +252,7 @@ describe("invite a collector", () => {
     assert.deepEqual(shared, [
       {
         title: "Invite a collector",
-        text: "Join me on Slabhold, the home for your card collection",
+        text: "I'm putting my cards on Slabhold. Come talk cards with me:",
         url: "https://slabhold.app/i/maya?ref=share",
       },
     ]);
@@ -271,7 +271,7 @@ describe("invite a collector", () => {
     const dialog = win.document.querySelector('[role="dialog"]');
     assert.ok(dialog, "share sheet");
     const x = [...dialog.querySelectorAll("a")].find((link) => link.textContent?.includes("Post on X"));
-    assert.match(x?.getAttribute("href") ?? "", /^https:\/\/x\.com\/intent\/post\?text=Join%20me%20on%20Slabhold/);
+    assert.match(x?.getAttribute("href") ?? "", /^https:\/\/x\.com\/intent\/post\?text=I'm%20putting%20my%20cards%20on%20Slabhold/);
     const copy = [...dialog.querySelectorAll("button")].find((button) => button.textContent?.includes("Copy link"));
     await act(async () => {
       copy?.click();

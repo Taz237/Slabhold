@@ -5,6 +5,7 @@ import { useState, type ReactNode } from "react";
 import { useUsernameCheck } from "@/components/onboarding/use-username-check";
 import { useSocial } from "@/components/social-provider";
 import { USERNAME_HINT, usernameFieldError } from "@/lib/auth/signup-fields";
+import { browserSignupSource, signupSourceData } from "@/lib/invites/signup-source";
 import { DISPLAY_NAME_MAX } from "@/lib/onboarding/signup-flow";
 import { normalizeUsername } from "@/lib/social/usernames";
 import { TAKEN_USERNAME } from "@/lib/social/username-taken";
@@ -89,9 +90,13 @@ export function HandleSetup({ next, suggestedName }: { next: string; suggestedNa
         return;
       }
     }
-    // Marks the handle as picked, so the next sign-in goes straight in.
+    // Marks the handle as picked, so the next sign-in goes straight in. A new
+    // Apple or Google account also gets its signup source here, the one time
+    // this runs (auth user metadata, never a table).
     const supabase = await loadSupabaseBrowser().catch(() => null);
-    await supabase?.auth.updateUser({ data: { username: name, display_name: finalName } }).catch(() => null);
+    await supabase?.auth
+      .updateUser({ data: { ...signupSourceData(browserSignupSource()), username: name, display_name: finalName } })
+      .catch(() => null);
     router.replace(next);
   }
 

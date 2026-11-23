@@ -8,6 +8,7 @@ import { openSheetFromLink } from "@/components/add-card-link";
 import { CardShareButton } from "@/components/card-share";
 import { useVisibilitySave, type VisibilitySave } from "@/components/card-visibility";
 import { CardSlabArt } from "@/components/card-slab-art";
+import { AddedInviteAction } from "@/components/invite/invite-moment";
 import { tileArtCard } from "@/components/card-tile";
 import { useCollection } from "@/components/collection-provider";
 import { Logo } from "@/components/logo";
@@ -344,6 +345,9 @@ export function CardAddedPanel({
             />
           ) : null}
         </div>
+
+        {/* Second action: invite a buddy. Only here, in the Added scene, never on the card page. */}
+        {card && viewer ? <AddedInviteAction userId={viewer.id} username={viewer.username} /> : null}
 
         {card && onTogglePublic ? (
           <VisibilityPill

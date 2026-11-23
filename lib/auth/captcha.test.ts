@@ -183,7 +183,7 @@ describe("captcha token on supabase auth", () => {
     assert.match(auth, /signIn\(email, password, captchaToken \?\? undefined\)/);
     assert.match(
       auth,
-      /signUp\(\{ email, password, username, displayName, next, captchaToken: captchaToken \?\? undefined \}\)/,
+      /signUp\(\{\s*email,\s*password,\s*username,\s*displayName,\s*next,\s*captchaToken: captchaToken \?\? undefined,[\s\S]*?source: browserSignupSource\(\),\s*\}\)/,
     );
     assert.match(provider, /remoteSignIn\(client, email, password, captchaToken\)/);
     assert.match(

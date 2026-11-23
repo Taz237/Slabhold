@@ -14,6 +14,8 @@ import { useCollection } from "@/components/collection-provider";
 import { AddToHomeTip } from "@/components/add-to-home-tip";
 import { AttachCardField } from "@/components/attach-card-field";
 import { HomeFirstCardPrompt } from "@/components/home-first-card-prompt";
+import { HomeInviteRow } from "@/components/invite/invite-moment";
+import { homeInviteEligible } from "@/lib/invites/moments";
 import { GetStartedCard, useGetStartedDismissed, useRememberNewUser } from "@/components/get-started";
 import { useOnboardingBusy } from "@/components/onboarding/use-onboarding";
 import { useSocial } from "@/components/social-provider";
@@ -443,6 +445,15 @@ export function FeedView({
     <div className="-mx-4 -mt-5">
       {serverScreen && seed && started.visible ? (
         <script dangerouslySetInnerHTML={{ __html: getStartedHintScript(seed.viewer.id, seed.newNow, seed.zeroNow) }} />
+      ) : null}
+      {homeInviteEligible({
+        ready: countsReady,
+        signedIn: Boolean(user),
+        following,
+        // Get started already asks for follows; one card at a time.
+        busy: onboardingBusy || started.visible,
+      }) ? (
+        <HomeInviteRow />
       ) : null}
       {user && started.visible && !onboardingBusy ? (
         <GetStartedCard
