@@ -10,7 +10,8 @@ import type { LandingMedia, MediaSlot } from "@/lib/landing/media";
 import type { LandingPost } from "@/lib/landing/timeline";
 
 /*
- * The landing page in order: hero, the timeline, five features, the close.
+ * The landing page in order: hero, the timeline, five features (the weekly
+ * board only once it has a screen), the close.
  * Each feature is one heading and one line, plus its real iPhone screens
  * when the files exist (lib/landing/media.ts): a still, or a short recording
  * that plays in view. A missing file draws nothing: no stand-in, no broken box.
@@ -55,13 +56,23 @@ function Screens({ shots, big = false }: { shots: readonly Shot[]; big?: boolean
   );
 }
 
-/** The mark of a numbered card: which section this is, out of five. */
-function Count({ at }: { at: number }) {
+/** The mark of a numbered card: which section this is, out of how many the page shows. */
+function Count({ at, of }: { at: number; of: number }) {
   return (
     <span aria-hidden className="lp-count">
-      {`0${at}/06`}
+      {`0${at}/0${of}`}
     </span>
   );
+}
+
+/** The weekly board section is only drawn with a screen to show. */
+export function hasBoard(media: LandingMedia): boolean {
+  return Boolean(media.screens.leaderboard || media.screens.invite);
+}
+
+/** How many numbered sections the page shows: six, or five without the board. */
+export function sectionCount(media: LandingMedia): number {
+  return hasBoard(media) ? 6 : 5;
 }
 
 export function Hero({ card }: { card: MediaSlot | null }) {
@@ -103,7 +114,7 @@ export function TimelineSection({ posts, media }: { posts: readonly LandingPost[
   return (
     <section className="lp-section" data-section="timeline" data-media={posts.length || shots.some((shot) => shot.slot) ? "real" : "none"}>
       <div className="lp-copy">
-        <Count at={1} />
+        <Count at={1} of={sectionCount(media)} />
         <h2 className="lp-h2">A timeline that&apos;s only cards.</h2>
       </div>
       <div className="lp-timeline-body">
@@ -120,10 +131,12 @@ function Feature({
   title,
   line,
   shots,
+  of,
   big = false,
 }: {
   id: string;
   at: number;
+  of: number;
   title: string;
   line: string;
   shots: readonly Shot[];
@@ -132,7 +145,7 @@ function Feature({
   return (
     <section className="lp-section" data-section={id} data-media={shots.some((shot) => shot.slot) ? "real" : "none"}>
       <div className="lp-copy">
-        <Count at={at} />
+        <Count at={at} of={of} />
         <h2 className="lp-h2">{title}</h2>
         <p className="lp-line">{line}</p>
       </div>
@@ -147,6 +160,7 @@ export function ProfileCardsSection({ media }: { media: LandingMedia }) {
     <Feature
       id="profile-cards"
       at={2}
+      of={sectionCount(media)}
       title="Your cards, front and center"
       line="Your profile opens on your cards, in a row you can scroll."
       shots={[{ slot: media.screens.profileCards, alt: "A profile in the Slabhold app, with its row of cards scrolling sideways" }]}
@@ -168,6 +182,7 @@ export function ScanSection({ media }: { media: LandingMedia }) {
     <Feature
       id="scan"
       at={3}
+      of={sectionCount(media)}
       title="Scan a card. See what it sold for."
       line="Crop and straighten, a typed reveal, then the sold prices for that exact card."
       shots={scanShots(media)}
@@ -180,6 +195,7 @@ export function CollectionSection({ media }: { media: LandingMedia }) {
     <Feature
       id="collection"
       at={4}
+      of={sectionCount(media)}
       title="Your cards, and what they're worth."
       line="A cards-first grid, a value you can scrub, and the movers underneath."
       shots={[
@@ -195,6 +211,7 @@ export function CatalogSection({ media }: { media: LandingMedia }) {
     <Feature
       id="catalog"
       at={5}
+      of={sectionCount(media)}
       title="Swipe the catalog."
       line="A feed of cards you can swipe through."
       shots={[{ slot: media.screens.catalogFeed, alt: "The catalog swipe feed in the Slabhold app" }]}
@@ -202,11 +219,14 @@ export function CatalogSection({ media }: { media: LandingMedia }) {
   );
 }
 
+/** Hidden until leaderboard.png or invite.png exists: no heading with nothing under it. */
 export function BoardSection({ media }: { media: LandingMedia }) {
+  if (!hasBoard(media)) return null;
   return (
     <Feature
       id="board"
       at={6}
+      of={sectionCount(media)}
       title="The weekly board."
       line="Climb it each week, and bring a buddy with you."
       shots={[

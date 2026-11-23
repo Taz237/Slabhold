@@ -27,7 +27,10 @@ async function landing(props: Record<string, unknown> = {}, search = "") {
 
 describe("landing page", () => {
   it("leads with Talk cards here, the timeline, then the five features and Join Slabhold, in order", async () => {
-    const html = await landing({ posts: FIXTURE_POSTS });
+    const board = mediaRoot(["leaderboard.png"]);
+    const html = await landing({ posts: FIXTURE_POSTS, media: board.media() });
+    board.remove();
+    assert.deepEqual([...html.matchAll(/class="lp-count">(\d\d\/\d\d)</g)].map((match) => match[1]), ["01/06", "02/06", "03/06", "04/06", "05/06", "06/06"]);
     const sections = [...html.matchAll(/data-section="([a-z-]+)"/g)].map((match) => match[1]);
     assert.deepEqual(sections, ["hero", "timeline", "profile-cards", "scan", "collection", "catalog", "board", "join"]);
     const headings = [...html.matchAll(/<h[12][^>]*>([\s\S]*?)<\/h[12]>/g)].map((match) => htmlText(match[1]).trim());
@@ -219,7 +222,7 @@ describe("landing screen slots", () => {
   it("draws no screen and no box while the files are missing", async () => {
     const html = await landing({ posts: FIXTURE_POSTS });
     assert.doesNotMatch(html, /data-landing-screen|lp-screens|landing\/screens|landing%2Fscreens|<video/);
-    for (const id of ["profile-cards", "scan", "collection", "catalog", "board"]) {
+    for (const id of ["profile-cards", "scan", "collection", "catalog"]) {
       assert.match(html, new RegExp(`data-section="${id}" data-media="none"`), id);
     }
     const images = [...html.matchAll(/<img[^>]+src="([^"]*)"/g)].map((match) => match[1]);
@@ -256,6 +259,24 @@ describe("landing screen slots", () => {
       two.remove();
       old.remove();
     }
+  });
+
+  it("hides the weekly board section until leaderboard.png or invite.png exists, and counts the sections that show", async () => {
+    const without = await landing({ posts: FIXTURE_POSTS });
+    assert.doesNotMatch(without, /data-section="board"/);
+    assert.doesNotMatch(htmlText(without), /The weekly board|Climb it each week/);
+    assert.deepEqual([...without.matchAll(/class="lp-count">(\d\d\/\d\d)</g)].map((match) => match[1]), ["01/05", "02/05", "03/05", "04/05", "05/05"]);
+    for (const name of ["leaderboard.png", "invite.png"]) {
+      const fixture = mediaRoot([name]);
+      try {
+        const html = await landing({ media: fixture.media() });
+        assert.match(html, /data-section="board" data-media="real"/, name);
+        assert.match(htmlText(html), /06\/06\s*The weekly board\.\s*Climb it each week, and bring a buddy with you\./, name);
+      } finally {
+        fixture.remove();
+      }
+    }
+    assert.doesNotMatch(read("components/landing/sections.tsx"), /out of five/);
   });
 
   it("gives the profile cards screen the big spot, right after the timeline", async () => {

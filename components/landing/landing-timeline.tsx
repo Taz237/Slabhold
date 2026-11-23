@@ -1,3 +1,4 @@
+import { getImageProps } from "next/image";
 import type { LandingPost } from "@/lib/landing/timeline";
 
 /*
@@ -21,6 +22,16 @@ function Avatar({ post }: { post: LandingPost }) {
 
 function PostCard({ post }: { post: LandingPost }) {
   const alt = post.cardLabel || `A card photo posted by @${post.handle}`;
+  const card = post.photoKind === "card";
+  // Resized for its slot by the image optimizer (about 600px wide on a phone), never the full upload.
+  const { props } = getImageProps({
+    src: post.photoUrl,
+    alt,
+    width: 500,
+    height: card ? 700 : 625,
+    sizes: card ? "260px" : "(min-width: 640px) 480px, 76vw",
+    quality: 75,
+  });
   return (
     <li className="lp-post" data-landing-post={post.id}>
       <Avatar post={post} />
@@ -32,7 +43,7 @@ function PostCard({ post }: { post: LandingPost }) {
         {post.text ? <p className="lp-post-text">{post.text}</p> : null}
         <figure className="lp-post-photo" data-kind={post.photoKind}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={post.photoUrl} alt={alt} width={500} height={post.photoKind === "card" ? 700 : 625} loading="lazy" decoding="async" />
+          <img {...props} alt={alt} />
           {post.cardLabel ? <figcaption>{post.cardLabel}</figcaption> : null}
         </figure>
       </div>

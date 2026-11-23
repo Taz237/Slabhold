@@ -66,6 +66,11 @@ export type LandingPost = {
 
 const MAX_TEXT = 240;
 
+/** Accounts whose posts never show on the landing timeline, lowercase. */
+export const LANDING_HIDDEN_HANDLES: readonly string[] = [FOUNDER_USERNAME, "slabhold", "slabholdupdates"];
+
+const QUICK_COMP = /quick[\s-]*comp/i;
+
 function remotePhoto(url: unknown): string | null {
   if (typeof url !== "string") return null;
   const value = url.trim();
@@ -129,8 +134,10 @@ export function landingTimeline(
     const handle = author?.username?.trim() ?? "";
     if (!author || !/^[a-z0-9_]{1,32}$/i.test(handle)) continue;
     if (author.is_test === true) continue;
-    // The team account's cards and posts are shown without its name, so its posts stay off this list.
-    if (handle.toLowerCase() === FOUNDER_USERNAME) continue;
+    // The team's own accounts stay off this list: it is for collectors' posts.
+    if (LANDING_HIDDEN_HANDLES.includes(handle.toLowerCase())) continue;
+    // Quick Comp is gone from the app, so a post about it would point at nothing.
+    if (QUICK_COMP.test(post.content ?? "")) continue;
 
     // Words that don't belong on the front page (lib/landing/blocked-words.ts).
     if (landingTextBlocked(post.content ?? "") || landingTextBlocked(author.display_name ?? "")) continue;

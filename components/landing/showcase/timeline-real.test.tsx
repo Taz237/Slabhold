@@ -43,6 +43,8 @@ const PROFILES = [
   { id: "u3", username: "third_real", display_name: "", avatar_url: "https://elsewhere.example/a.jpg", is_test: false },
   { id: "u4", username: "tester", display_name: "Tester", avatar_url: null, is_test: true },
   { id: "u5", username: "donnietaz", display_name: "Team", avatar_url: null, is_test: false },
+  { id: "u6", username: "Slabhold", display_name: "Slabhold", avatar_url: null, is_test: false },
+  { id: "u7", username: "slabholdupdates", display_name: "Slabhold Updates", avatar_url: null, is_test: false },
 ];
 
 /*
@@ -60,7 +62,16 @@ describe("the landing timeline is real posts only", () => {
       assert.ok(text.includes(`@${item.handle}`), item.handle);
       assert.ok(text.includes(item.name), item.name);
       if (item.text) assert.ok(text.includes(item.text), item.text);
-      assert.ok(html.includes(`src="${item.photoUrl}"`), item.photoUrl);
+      assert.ok(decodeURIComponent(html).includes(item.photoUrl), item.photoUrl);
+    }
+    // Every post photo is resized for its slot by the image optimizer: never the full upload.
+    const photos = [...html.matchAll(/<figure class="lp-post-photo"[^>]*><img([^>]+)>/g)].map((match) => match[1]);
+    assert.equal(photos.length, FIXTURE_POSTS.length);
+    for (const img of photos) {
+      assert.match(img, /src="\/_next\/image\?url=/);
+      assert.match(img, /srcSet="[^"]*w=640&amp;q=75 640w/);
+      assert.match(img, /sizes="(260px|\(min-width: 640px\) 480px, 76vw)"/);
+      assert.doesNotMatch(img, /src="https:/);
     }
     assert.match(html, /<img src="[^"]*avatars\/p1\/me\.jpg" alt="" width="40" height="40" loading="lazy"/);
     assert.equal((html.match(/lp-avatar-initial/g) ?? []).length, 2, "no avatar: the initial, never a stand-in face");
@@ -123,11 +134,16 @@ describe("the landing timeline is real posts only", () => {
     assert.doesNotMatch(load, /service_role|SERVICE_ROLE|createServiceClient/);
   });
 
-  it("leaves out test accounts, the team account, quotes, pickups piles, unknown authors and posts with no stored photo", async () => {
+  it("leaves out test accounts, the team accounts, Quick Comp posts, quotes, pickups piles, unknown authors and posts with no stored photo", async () => {
     const { landingTimeline } = await import("@/lib/landing/timeline");
     const rows = [
       post("test", "u4", "2026-11-21T10:00:00Z"),
       post("team", "u5", "2026-11-21T09:00:00Z"),
+      post("brand", "u6", "2026-11-21T08:50:00Z"),
+      post("updates", "u7", "2026-11-21T08:40:00Z"),
+      post("comp1", "u1", "2026-11-21T08:30:00Z", { content: "Try Quick Comp on this one" }),
+      post("comp2", "u2", "2026-11-21T08:20:00Z", { content: "quickcomp says $40" }),
+      post("comp3", "u3", "2026-11-21T08:10:00Z", { content: "QUICK  COMP is gone?" }),
       post("quote", "u1", "2026-11-21T08:00:00Z", { quoted_post_id: "other" }),
       post("pile", "u1", "2026-11-21T07:00:00Z", { post_type: "mail_day" }),
       post("ghost", "nobody", "2026-11-21T06:00:00Z"),

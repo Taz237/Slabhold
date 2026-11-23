@@ -88,8 +88,39 @@ describe("landing media slots", () => {
     assert.match(media, /from "node:fs"/);
     assert.doesNotMatch(media, /^"use client";/m);
     const config = read("next.config.ts");
-    assert.match(config, /"\/": \["public\/landing\/screens\/\*\*", "public\/landing\/hero-card\.jpg"\]/);
-    assert.match(config, /"\/welcome": \["public\/landing\/screens\/\*\*", "public\/landing\/hero-card\.jpg"\]/);
+    assert.match(config, /const LANDING_STILLS = \["public\/landing\/screens\/\*\.png", "public\/landing\/screens\/\*\.webp", "public\/landing\/hero-card\.jpg"\];/);
+    assert.match(config, /"\/": LANDING_STILLS,\s*"\/welcome": LANDING_STILLS,/);
+  });
+
+  it("keeps the recordings out of the server functions, and still knows which exist from the build's list", async () => {
+    const config = read("next.config.ts");
+    assert.match(config, /outputFileTracingExcludes: \{\s*"\*": \[[^\]]*"public\/landing\/screens\/\*\.mp4"\]/);
+    assert.doesNotMatch(config, /screens\/\*\*/, "no pattern that would sweep the .mp4 files in");
+    const { default: nextConfig } = await import("@/next.config");
+    const listed = (nextConfig.env?.LANDING_CLIPS ?? "").split(",").filter(Boolean);
+    const onDisk = readdirSync(join(ROOT, "public/landing/screens")).filter((name) => name.endsWith(".mp4")).sort();
+    assert.deepEqual(listed, onDisk);
+
+    // On the deployed server only the stills are on disk: the list decides.
+    const had = process.env.LANDING_CLIPS;
+    try {
+      process.env.LANDING_CLIPS = "profile-cards.mp4";
+      const media = landingMedia();
+      if (media.screens.profileCards) assert.equal(media.screens.profileCards.video, "/landing/screens/profile-cards.mp4");
+      if (media.screens.catalogFeed) assert.equal(media.screens.catalogFeed.video, null, "not on the list: a still");
+      process.env.LANDING_CLIPS = "";
+      for (const slot of Object.values(landingMedia().screens)) assert.equal(slot?.video ?? null, null);
+      // A test root is never the deployed server: it looks at the folder.
+      const fixture = mediaRoot(["scan-reveal.png", "scan-reveal.mp4"]);
+      try {
+        assert.equal(fixture.media().screens.scanReveal?.video, "/landing/screens/scan-reveal.mp4");
+      } finally {
+        fixture.remove();
+      }
+    } finally {
+      if (had === undefined) delete process.env.LANDING_CLIPS;
+      else process.env.LANDING_CLIPS = had;
+    }
   });
 
   it("documents every slot's exact file name and the rules for a screenshot", () => {

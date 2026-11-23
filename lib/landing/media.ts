@@ -92,13 +92,20 @@ export function landingMedia(root: string = process.cwd()): LandingMedia {
     return { src: `/${path}`, ...(sizeOf(file) ?? fallback), video: null };
   }
 
+  // The deployed server has the stills but not the recordings (next.config.ts
+  // keeps them out of the functions), so there it goes by the list made at
+  // build. Anywhere else, and in tests, it looks at the folder.
+  const built = root === process.cwd() ? process.env.LANDING_CLIPS : undefined;
+  const hasClip = (path: string) =>
+    built !== undefined ? built.split(",").includes(path.slice(SCREENS_DIR.length + 1)) : existsSync(join(/* turbopackIgnore: true */ pub, path));
+
   const screens = noScreens();
   for (const key of SCREEN_KEYS) {
     const png = `${SCREENS_DIR}/${SCREEN_FILES[key]}`;
     const still = slot(png, SCREEN_SIZE) ?? slot(png.replace(/\.png$/, ".webp"), SCREEN_SIZE);
     // A recording needs its still: the still is what paints before it plays, and all that shows with reduced motion.
     const mp4 = png.replace(/\.png$/, ".mp4");
-    const clip = still && CLIP_KEYS.includes(key) && existsSync(join(/* turbopackIgnore: true */ pub, mp4));
+    const clip = still && CLIP_KEYS.includes(key) && hasClip(mp4);
     screens[key] = still && clip ? { ...still, video: `/${mp4}` } : still;
   }
   return { heroCard: slot(HERO_CARD_FILE, { width: 774, height: 1200 }), screens };
