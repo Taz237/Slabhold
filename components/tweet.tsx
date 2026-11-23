@@ -17,6 +17,7 @@ import { ReplyPhotos } from "@/components/reply-photos";
 import { MentionText } from "@/components/mention-text";
 import { QuotedPostEmbed } from "@/components/quoted-post-embed";
 import { SafetyMenu } from "@/components/safety-menu";
+import { ShareToStoryItem } from "@/components/post-story-item";
 import { SendPostSheet } from "@/components/send-post-sheet";
 import { ShareAction } from "@/components/share-button";
 import { useSocial } from "@/components/social-provider";
@@ -440,6 +441,7 @@ function PostMenu({ post }: { post: Post }) {
         reportedUserId={author.id}
         username={author.username}
         askPriceHref={canAskPrice(post, user.id) ? askPriceHref(author.username, post.id) : undefined}
+        extraItem={(done) => <ShareToStoryItem post={post} username={author.username} onDone={done} />}
       />
     );
   }
@@ -489,6 +491,7 @@ function PostMenu({ post }: { post: Post }) {
             </div>
           ) : (
             <>
+              <ShareToStoryItem post={post} username={user.username} onDone={close} />
               {user.pinnedPostId === post.id ? (
                 <button
                   type="button"

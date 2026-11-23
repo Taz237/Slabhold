@@ -86,6 +86,25 @@ export function collectionStoryPath(username: string): string {
   return `/api/share-image/collection/${encodeURIComponent(handle(username))}`;
 }
 
+/** 1080×1920 PNG of one post, for Instagram and TikTok Stories. */
+export function postStoryPath(postId: string): string {
+  return `/api/share-image/post/${encodeURIComponent(postId)}`;
+}
+
+/** Saved file name for a post's Story image. */
+export function postStoryFilename(username: string): string {
+  const name = handle(username).replace(/[^a-z0-9_]/g, "");
+  return name ? `slabhold-${name}-post.png` : "slabhold-post.png";
+}
+
+/**
+ * The invite line printed on a post's Story image: "slabhold.app/i/ada".
+ * The code is only passed in when the viewer is the author.
+ */
+export function postStoryLink(username: string, code?: string | null): string {
+  return `slabhold.app${invitePath(username, code)}`;
+}
+
 /** Saved file name for the Story image. */
 export function collectionStoryFilename(username: string): string {
   return `slabhold-${handle(username)}-collection.png`;

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Ban, Ellipsis, Flag, Tag, VolumeX, X } from "lucide-react";
 import { MenuSheet, MenuSheetIcon, menuSheetItem } from "@/components/menu-sheet";
 import { useSocial } from "@/components/social-provider";
@@ -25,6 +25,7 @@ export function SafetyMenu({
   reportedUserId,
   username,
   askPriceHref,
+  extraItem,
   actions,
 }: {
   targetType: ReportTargetType;
@@ -33,6 +34,8 @@ export function SafetyMenu({
   username: string;
   /** A post with a card: the first item opens a DM with "How much?" ready to send. */
   askPriceHref?: string;
+  /** A row drawn after Ask price, e.g. Share to Story on a post. Gets the menu's close. */
+  extraItem?: (close: () => void) => ReactNode;
   /** Tests stand in for the server actions here. */
   actions?: Partial<typeof SAFETY_ACTIONS>;
 }) {
@@ -158,6 +161,7 @@ export function SafetyMenu({
               Ask price
             </Link>
           ) : null}
+          {extraItem ? extraItem(() => setOpen(false)) : null}
           <button
             type="button"
             role="menuitem"

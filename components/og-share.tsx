@@ -953,6 +953,180 @@ function CollectionStory({ model, canvas }: { model: ShareImage; canvas: Canvas 
   );
 }
 
+// Post Story (1080×1920)
+
+/** Lucide's heart and message-circle, drawn as SVG so the renderer needs no icon font. */
+const HEART_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>`;
+const REPLY_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>`;
+const heartSrc = `data:image/svg+xml;base64,${Buffer.from(HEART_SVG).toString("base64")}`;
+const replySrc = `data:image/svg+xml;base64,${Buffer.from(REPLY_SVG).toString("base64")}`;
+
+/** 1234 -> "1,234", 12345 -> "12.3K". Zero and unknown draw the icon alone, like the feed. */
+export function storyCount(value: number | null): string {
+  if (value == null || value <= 0) return "";
+  if (value < 10_000) return value.toLocaleString("en-US");
+  if (value < 1_000_000) return `${(Math.floor(value / 100) / 10).toString()}K`;
+  return `${(Math.floor(value / 100_000) / 10).toString()}M`;
+}
+
+function StoryCount({ src, value }: { src: string; value: number | null }) {
+  const text = storyCount(value);
+  return (
+    <div style={{ ...row, marginRight: 64 }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt="" width={44} height={44} />
+      {text ? (
+        <div style={{ display: "flex", marginLeft: 16, fontFamily: MONO, fontSize: 34, color: C.muted }}>{text}</div>
+      ) : null}
+    </div>
+  );
+}
+
+/** The post's photo, slab or fan, sized to the space under the text. */
+function storyHero(model: ShareImage, box: { width: number; height: number }): ReactNode | null {
+  const layout = postLayout(model);
+  if (layout === "slab") {
+    const slab = model.slabs[0] ?? null;
+    let width = 560;
+    while (slabHeight(asPortrait(slab), width) > box.height && width > 240) width -= 10;
+    return <Slab slab={slab} width={heroSlabWidth(slab, width, box.width)} />;
+  }
+  if (layout === "photo") {
+    const src = model.kind === "mail" ? model.photos[0] : model.postPhotos[0];
+    if (!src) return null;
+    const height = Math.min(box.height, Math.round(box.width * 1.25));
+    return <Photo src={src} width={Math.round(height * 0.8)} height={height} />;
+  }
+  if (layout === "fan-slabs") {
+    let width = model.slabs.length >= 3 ? 340 : 380;
+    while (fanHeight(model.slabs, width) > box.height && width > 200) width -= 10;
+    return (
+      <Fan
+        box={{ width: box.width, height: fanHeight(model.slabs, width), item: width }}
+        items={model.slabs.map((slab) => <SlabCell key={slab.src} slab={slab} width={width} />)}
+      />
+    );
+  }
+  if (layout === "fan-photos") {
+    const photos = model.kind === "mail" ? model.photos : model.postPhotos;
+    let width = photos.length >= 3 ? 360 : 400;
+    while (width * 1.3 + 40 > box.height && width > 200) width -= 10;
+    return (
+      <Fan
+        box={{ width: box.width, height: Math.round(width * 1.3 + 40), item: width }}
+        items={photos.map((src) => <Photo key={src} src={src} width={width} height={Math.round(width * 1.3)} />)}
+      />
+    );
+  }
+  return null;
+}
+
+/** Logo, the Slabhold name, and the author's invite link in plain text. */
+function StoryStrip({ link }: { link: string }) {
+  return (
+    <div style={{ ...row, justifyContent: "space-between", width: "100%" }}>
+      <div style={row}>
+        <Logo size={64} />
+        <div style={{ display: "flex", marginLeft: 20, fontSize: 40, fontWeight: 700, letterSpacing: -0.5, color: C.text }}>
+          Slabhold
+        </div>
+      </div>
+      <div
+        style={{
+          display: "block",
+          maxWidth: 600,
+          marginLeft: 32,
+          fontFamily: MONO,
+          fontSize: link.length > 34 ? 22 : 30,
+          color: C.accent,
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        }}
+      >
+        {link}
+      </div>
+    </div>
+  );
+}
+
+const STORY_SIDE = 64;
+const STORY_PAD = 56;
+
+/**
+ * A post as it looks on Home, on a 1080×1920 Story: the author, the text,
+ * the photo or slab large, and the like and reply counts. Flat dark panel,
+ * purple accents only, no pill caption (the slab label names the card). The
+ * strip under it carries the invite link.
+ */
+function PostStory({ model, canvas }: { model: ShareImage; canvas: Canvas }) {
+  const story = model.story ?? { likes: null, replies: null, link: "slabhold.app", hasText: true };
+  const inner = canvas.width - STORY_SIDE * 2 - STORY_PAD * 2;
+  const panelMax = canvas.height - STORY_SAFE * 2 - 64 - 56;
+  const authorHeight = 104;
+  const countsHeight = 48;
+  const gap = 44;
+  const textHeight = 250;
+  const heroBox = {
+    width: inner,
+    height: panelMax - STORY_PAD * 2 - authorHeight - countsHeight - gap * 3 - (story.hasText ? textHeight + gap : 0),
+  };
+  const hero = storyHero(model, heroBox);
+  return (
+    <Stage canvas={canvas}>
+      <div
+        style={{
+          ...col,
+          position: "absolute",
+          left: 0,
+          top: STORY_SAFE,
+          width: canvas.width,
+          height: canvas.height - STORY_SAFE * 2,
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: `0 ${STORY_SIDE}px`,
+        }}
+      >
+        <div style={{ display: "flex", flex: 1, width: "100%", alignItems: "center" }}>
+          <div
+            style={{
+              ...col,
+              width: "100%",
+              padding: STORY_PAD,
+              borderRadius: 44,
+              backgroundColor: C.ink,
+              border: "2px solid rgba(255,255,255,0.08)",
+            }}
+          >
+            <Author model={model} size={authorHeight} />
+            {hero ? (
+              <div style={{ ...col, width: inner }}>
+                {story.hasText ? (
+                  <div style={{ display: "flex", marginTop: gap }}>
+                    <Quote text={model.body} box={{ width: inner, height: textHeight, maxLines: 4, sizes: [56, 50, 46, 42, 38] }} />
+                  </div>
+                ) : null}
+                <div style={{ display: "flex", marginTop: gap, width: inner, justifyContent: "center" }}>{hero}</div>
+              </div>
+            ) : (
+              <div style={{ display: "flex", marginTop: gap * 1.5, marginBottom: gap * 0.5 }}>
+                <Quote text={model.body} box={{ width: inner, height: 760, sizes: [104, 92, 84, 76, 68, 60, 54, 48, 44] }} />
+              </div>
+            )}
+            <div style={{ ...row, marginTop: gap, height: countsHeight }}>
+              <StoryCount src={replySrc} value={story.replies} />
+              <StoryCount src={heartSrc} value={story.likes} />
+            </div>
+          </div>
+        </div>
+        <div style={{ display: "flex", width: "100%", marginTop: 56 }}>
+          <StoryStrip link={story.link} />
+        </div>
+      </div>
+    </Stage>
+  );
+}
+
 /** The share designs. Home, leaderboard, and Moving today keep their own frames. */
 export function shareNode(model: ShareImage, canvas: Canvas): ReactNode | null {
   const portrait = canvas.height > canvas.width;
@@ -964,6 +1138,7 @@ export function shareNode(model: ShareImage, canvas: Canvas): ReactNode | null {
     return portrait ? <CollectionStory model={model} canvas={canvas} /> : <CollectionLandscape model={model} canvas={canvas} />;
   }
   if (model.kind === "post" || model.kind === "mail") {
+    if (model.story && canvas.height >= canvas.width * 1.7) return <PostStory model={model} canvas={canvas} />;
     const hero = postHero(model, canvas);
     return hero ? <PostWithHero model={model} hero={hero} canvas={canvas} /> : <PostText model={model} canvas={canvas} />;
   }
