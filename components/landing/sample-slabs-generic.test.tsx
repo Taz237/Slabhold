@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import { createElement } from "react";
@@ -28,16 +28,16 @@ describe("generic sample slabs", () => {
     assert.doesNotMatch(read("components/landing/sample-cards.ts"), GRADERS);
   });
 
-  it("draws no sample slab on the landing page at all: an empty glass slab, no teal, no grader look", () => {
+  it("draws no sample slab on the landing page at all: no teal, no grader look", () => {
     const html = renderToStaticMarkup(withLandingContexts(createElement(LandingPage, { media: EMPTY_MEDIA })));
-    assert.match(html, /data-glass-hero="empty"/);
+    assert.match(html, /data-hero-card="none"/);
     assert.doesNotMatch(html, /data-hero-slabs|data-label="sample"|>Sample slabs</);
     for (const title of ["Your grail", "Rookie auto", "Short print"]) assert.doesNotMatch(html, new RegExp(title));
     assert.doesNotMatch(html, GRADERS);
     assert.doesNotMatch(html, GRADER_LOOKS);
     assert.doesNotMatch(html, /teal/i);
     // The made-up slabs are onboarding's now; the landing page never imports them.
-    for (const file of ["components/landing-page.tsx", "components/landing/glass-hero.tsx", "components/landing/sections.tsx"]) {
+    for (const file of ["components/landing-page.tsx", "components/landing/landing-timeline.tsx", "components/landing/sections.tsx"]) {
       assert.doesNotMatch(read(file), /sample-cards|SAMPLE_SLABS/, file);
     }
   });
@@ -69,10 +69,8 @@ describe("generic sample slabs", () => {
     assert.match(source, /card=\{SAMPLE_FIRST_CARD\}[\s\S]{0,200}label="sample"/);
   });
 
-  it("has no made-up Quick Comp card left to name a grader on", () => {
-    const demo = read("components/landing/showcase/quick-comp-demo.tsx");
-    assert.doesNotMatch(demo, /label: "[^"]*\b(PSA|BGS|SGC|CGC)\b/);
-    assert.doesNotMatch(demo, /SAMPLE|Sample/);
+  it("has no Quick Comp demo left to name a grader on", () => {
+    assert.equal(existsSync(join(process.cwd(), "components/landing/showcase/quick-comp-demo.tsx")), false);
     assert.doesNotMatch(read("components/landing/showcase/sample-data.ts"), /SAMPLE_QUERY/);
   });
 });

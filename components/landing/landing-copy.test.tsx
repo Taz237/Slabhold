@@ -2,34 +2,41 @@ import "@/lib/test/image-env";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { afterEach, describe, it } from "node:test";
+import { describe, it } from "node:test";
 import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { installDom } from "@/lib/test/dom";
 import { EMPTY_MEDIA } from "@/lib/landing/media";
-import { FIXTURE_COMP, FIXTURE_FOUNDER, htmlText, htmlWords, renderLoaded, withLandingContexts } from "@/lib/test/landing-fixtures";
+import { ALL_SCREEN_FILES, htmlText, htmlWords, mediaRoot, withLandingContexts } from "@/lib/test/landing-fixtures";
 
-const { win } = installDom();
-// The Quick Comp panel's code loads "once idle"; jsdom has no idle callback, so idle is now.
-(win as unknown as { requestIdleCallback: (run: () => void) => number }).requestIdleCallback = (run) => win.setTimeout(run, 0);
-
-const FLAG = process.env.NEXT_PUBLIC_QUICK_COMP;
-afterEach(() => {
-  if (FLAG === undefined) delete process.env.NEXT_PUBLIC_QUICK_COMP;
-  else process.env.NEXT_PUBLIC_QUICK_COMP = FLAG;
-});
+installDom();
 
 function read(path: string) {
   return readFileSync(join(process.cwd(), path), "utf8");
 }
 
-/** The rendered landing with real cards and a real comp, its lazy panel loaded. */
-async function landingHtml(flag: "1" | undefined) {
-  if (flag) process.env.NEXT_PUBLIC_QUICK_COMP = flag;
-  else delete process.env.NEXT_PUBLIC_QUICK_COMP;
+/** The landing page with every slot filled and no posts: every word on it is ours. */
+async function landingHtml() {
+  process.env.NEXT_PUBLIC_QUICK_COMP = "1";
   const { LandingPage } = await import("@/components/landing-page");
-  const { LandingCompProvider } = await import("@/components/landing/landing-links");
-  const page = createElement(LandingPage, { founder: FIXTURE_FOUNDER, comp: FIXTURE_COMP, media: EMPTY_MEDIA });
-  return renderLoaded(withLandingContexts(createElement(LandingCompProvider, { comp: FIXTURE_COMP }, page)));
+  const fixture = mediaRoot([...ALL_SCREEN_FILES, "profile-cards.mp4", "home-for-you.mp4"], { hero: true });
+  try {
+    return renderToStaticMarkup(withLandingContexts(createElement(LandingPage, { media: fixture.media() })));
+  } finally {
+    fixture.remove();
+    delete process.env.NEXT_PUBLIC_QUICK_COMP;
+  }
+}
+
+const BADGE = "Download on the App Store";
+
+/** Every word a visitor can read or hear, minus the official badge's own name. */
+function ourWords(html: string): string {
+  const words = htmlWords(html);
+  const badges = (html.match(/<img src="\/landing\/app-store-badge\.svg" alt="Download on the App Store"/g) ?? []).length;
+  assert.equal(words.split(BADGE).length - 1, badges, "the badge's words appear only as the official artwork's name");
+  assert.ok(badges >= 3);
+  return words.split(BADGE).join(" ");
 }
 
 const DESCRIPTION =
@@ -37,7 +44,7 @@ const DESCRIPTION =
 // The PWA manifest keeps its own line until it is changed on purpose.
 const MANIFEST_DESCRIPTION = "Comp any sports card, track your collection and follow the collectors who get it";
 
-/** Words the landing never says. "Download on the App Store" is allowed only inside Apple's own badge, which the page no longer draws. */
+/** Words the landing never says. "Download on the App Store" is allowed only as Apple's own badge. */
 const BANNED: [string, RegExp][] = [
   ["best", /\bbest\b/i],
   ["AI", /\bAI\b/],
@@ -54,51 +61,74 @@ const BANNED: [string, RegExp][] = [
 ];
 
 describe("landing copy", () => {
-  it("says the same hero line with Quick Comp on or off: scan, read the edge, you pick the version", async () => {
-    for (const flag of ["1", undefined] as const) {
-      const page = htmlText(await landingHtml(flag));
-      assert.match(page, /Scan it\. Know the exact version\./);
-      assert.match(
-        page,
-        /Slabhold crops and straightens your card, reads it down to the edge serial, then you pick the exact version and see what it sold for\./,
-      );
-      assert.doesNotMatch(page, /as good as|paid tools/i, "no comparison claims");
-      assert.doesNotMatch(page, /Recent sold prices for any card|It takes a minute/);
+  it("says the hero line and each section's heading and one line, word for word", async () => {
+    const page = htmlText(await landingHtml());
+    for (const line of [
+      "Talk cards here.",
+      "A timeline that's only cards. Post pickups and pulls, follow collectors who chase what you chase, and see what cards really sold for.",
+      "A timeline that's only cards.",
+      "Your cards, front and center",
+      "Scan a card. See what it sold for.",
+      "Crop and straighten, a typed reveal, then the sold prices for that exact card.",
+      "Your cards, and what they're worth.",
+      "A cards-first grid, a value you can scrub, and the movers underneath.",
+      "Swipe the catalog.",
+      "A feed of cards you can swipe through.",
+      "The weekly board.",
+      "Climb it each week, and bring a buddy with you.",
+      "Join Slabhold",
+      "Built by collectors, for collectors.",
+    ]) {
+      assert.ok(page.includes(line), line);
     }
-  });
-
-  it("shows the Quick Comp section only with its flag on", async () => {
-    assert.match(htmlText(await landingHtml("1")), /Quick Comp Recent sold prices, the median and the range\./);
-    assert.doesNotMatch(htmlText(await landingHtml(undefined)), /Quick Comp/);
   });
 
   it("uses none of the banned words anywhere in the rendered page", async () => {
-    const html = await landingHtml("1");
-    const words = htmlWords(html);
-    assert.match(words, /via Trawl/, "the Quick Comp panel was read too");
+    const words = ourWords(await landingHtml());
     for (const [name, pattern] of BANNED) assert.doesNotMatch(words, pattern, name);
   });
 
-  it("has no Sample Rookie, no $128.00 demo price and no \"any card\" line", async () => {
-    const html = await landingHtml("1");
-    assert.doesNotMatch(html, /Sample Rookie/);
-    assert.doesNotMatch(html, /\$128\.00/);
-    assert.doesNotMatch(html, /any card/i);
-    assert.doesNotMatch(htmlWords(html), /\bSample\b|Sample accounts|Replay/);
-    for (const file of ["components/landing/showcase/sample-data.ts", "components/landing/showcase/quick-comp-demo.tsx"]) {
-      assert.doesNotMatch(read(file), /Sample Rookie|SAMPLE_SCAN|sample-raw-card/, file);
-    }
+  it("has no Quick Comp, no comps line, no Get the app label, no samples and no made-up price", async () => {
+    const html = await landingHtml();
+    const words = ourWords(html);
+    assert.doesNotMatch(words, /Quick Comp|see its comps|comp it in the app|Get the app/i);
+    assert.doesNotMatch(words, /Sample Rookie|\bSample\b|Replay/);
+    assert.doesNotMatch(words, /\$128|\$412|\$\s?\d/);
+    assert.doesNotMatch(words, /any card/i);
+    assert.doesNotMatch(words, /you pick the exact version|Know the exact version/);
+    assert.doesNotMatch(html, /\/landing\/avatars\//);
+    assert.doesNotMatch(html, /sample-raw-card\.svg|sample-card\.svg|kitchen-table-card/);
   });
 
-  it("draws no made-up people and no made-up card: no avatar and no sample card image", async () => {
-    const html = await landingHtml("1");
-    assert.doesNotMatch(html, /\/landing\/avatars\//);
-    assert.doesNotMatch(html, /sample-raw-card\.svg|sample-card\.svg/);
+  it("keeps the hobby rules: no marketplace, no TCG, no eBay, no made-up counts, no rivals, team voice", async () => {
+    const words = ourWords(await landingHtml());
+    assert.doesNotMatch(words, /marketplace|buy now|for sale|sell your|asking price|\bask\b|\boffers?\b/i);
+    assert.doesNotMatch(words, /pok[eé]mon|tcg|mail day/i);
+    assert.doesNotMatch(words, /ebay|trawl/i);
+    assert.doesNotMatch(words, /\d[\d,.]*\+?\s*(k\s*)?(collectors|users|members|people)\b/i);
+    assert.doesNotMatch(words, /testimonial|trusted by|loved by/i);
+    assert.doesNotMatch(words, /CollX|Ludex|Card Ladder|Alt\b|130 ?point|Market Movers|unlike|better than|other apps/i);
+    assert.doesNotMatch(words, /\bNBA\b|\bNFL\b|\bMLB\b|\bNHL\b|Panini|Topps|Upper Deck|Giants/, "no league, team or maker names added by the page");
+    assert.doesNotMatch(words, /auto-?detect|automatically|instantly/i);
+    assert.doesNotMatch(words, /\b(we|I)'ve\b|\bmy\b/i, "team voice");
+    assert.doesNotMatch(words, /!/);
+  });
+
+  it("draws only real pictures: the logo, the official badge, the hero card and the screens", async () => {
+    const html = await landingHtml();
     const images = [...html.matchAll(/<img[^>]+src="([^"]+)"/g)].map((match) => decodeURIComponent(match[1].replace(/&amp;/g, "&")));
     assert.ok(images.length >= 5);
     for (const src of images) {
-      assert.ok(src === "/logo.svg" || src.includes("/card-photos/") || src === FIXTURE_COMP.photo.src, src);
+      assert.ok(
+        src === "/logo.svg" || src === "/landing/app-store-badge.svg" || src.includes("/landing/hero-card.jpg") || src.includes("/landing/screens/"),
+        src,
+      );
     }
+    const empty = renderToStaticMarkup(
+      withLandingContexts(createElement((await import("@/components/landing-page")).LandingPage, { media: EMPTY_MEDIA })),
+    );
+    const bare = [...empty.matchAll(/<img[^>]+src="([^"]+)"/g)].map((match) => match[1]);
+    assert.deepEqual([...new Set(bare)].sort(), ["/landing/app-store-badge.svg", "/logo.svg"]);
   });
 
   it("describes today's Slabhold in the site metadata and the manifest", async () => {
@@ -109,21 +139,35 @@ describe("landing copy", () => {
     assert.equal(webAppManifest.description, MANIFEST_DESCRIPTION);
   });
 
+  it("gives / and /welcome the new title and description, on the page, Open Graph and Twitter", async () => {
+    const { LANDING_TITLE, LANDING_DESCRIPTION, LANDING_OPEN_GRAPH, LANDING_TWITTER } = await import("@/lib/landing/seo");
+    assert.equal(LANDING_TITLE, "Slabhold: the sports card timeline, collection and scanner");
+    assert.equal(
+      LANDING_DESCRIPTION,
+      "Talk cards with collectors, show off your collection, and see what cards really sold for. Scan a card or slab to add it.",
+    );
+    assert.equal(LANDING_OPEN_GRAPH.title, LANDING_TITLE);
+    assert.equal(LANDING_OPEN_GRAPH.description, LANDING_DESCRIPTION);
+    assert.equal(LANDING_TWITTER.title, LANDING_TITLE);
+    assert.equal(LANDING_TWITTER.description, LANDING_DESCRIPTION);
+    assert.deepEqual(LANDING_OPEN_GRAPH.images.map((image) => image.url), ["/opengraph-image"]);
+    assert.deepEqual([...LANDING_TWITTER.images], ["/twitter-image"]);
+    for (const page of ["app/welcome/page.tsx", "app/(app)/page.tsx"]) {
+      const source = read(page);
+      assert.match(source, /title: LANDING_TITLE,\s*description: LANDING_DESCRIPTION,/, page);
+      assert.match(source, /openGraph: \{ \.\.\.LANDING_OPEN_GRAPH/, page);
+      assert.match(source, /twitter: \{ \.\.\.LANDING_TWITTER/, page);
+    }
+  });
+
   it("keeps the banned words off the page's title, description and share image", async () => {
     const { LANDING_TITLE, LANDING_DESCRIPTION } = await import("@/lib/landing/seo");
     const { homeShareImage } = await import("@/lib/social/share-image");
     const image = homeShareImage();
     const words = [LANDING_TITLE, LANDING_DESCRIPTION, image.kicker, image.title, image.detail].join("\n");
     for (const [name, pattern] of BANNED) assert.doesNotMatch(words, pattern, name);
-    assert.equal(`${image.title} ${image.detail}`, "Scan it. Know the exact version.");
-  });
-});
-
-describe("landing claims", () => {
-  it("never compares Quick Comp to other tools, and its line says what it shows", () => {
-    for (const file of ["components/landing-page.tsx", "components/landing/sections.tsx", "components/landing/glass-hero.tsx", "components/landing/quick-comp-section.tsx"]) {
-      assert.doesNotMatch(read(file), /as good as|paid tools/i, file);
-    }
-    assert.match(read("components/landing/quick-comp-section.tsx"), /<p className="lg-lead">Recent sold prices, the median and the range\.<\/p>/);
+    assert.equal(`${image.title}${image.detail}`, "Talk cards here.");
+    const og = read("components/og-frame.tsx");
+    assert.doesNotMatch(og, /HOME_GALAXY|radial-gradient\(circle at 8% 0%|HomeSlab|loadHomeCard|landingMedia/, "a solid field: no galaxy and no card");
   });
 });

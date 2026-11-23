@@ -2,11 +2,8 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { HomeGate } from "@/components/home-gate";
 import { LandingPage } from "@/components/landing-page";
-import { LandingCompProvider } from "@/components/landing/landing-links";
-import { landingCompDemo } from "@/lib/landing/founder-comp-load";
-import { founderShowcase } from "@/lib/landing/founder-page";
-import { landingPullsWall } from "@/lib/landing/pulls-load";
 import { LANDING_DESCRIPTION, LANDING_OPEN_GRAPH, LANDING_TITLE, LANDING_TWITTER } from "@/lib/landing/seo";
+import { landingTimelinePosts } from "@/lib/landing/timeline-load";
 import { requestHomeSeed } from "@/lib/social/request-home-seed";
 import { isRouterRequest } from "@/lib/supabase/router-request";
 
@@ -26,28 +23,15 @@ export const metadata: Metadata = {
  * viewer is.
  */
 export default async function Home() {
-  // The cached reads run at once.
-  const compRead = landingCompDemo();
-  const pullsRead = landingPullsWall();
-  const founder = await founderShowcase();
-  const comp = await compRead;
-  const pulls = await pullsRead;
-  // The landing's Quick Comp reads the real card from LandingCompProvider.
+  // A few recent public posts for the landing page, cached.
+  const posts = await landingTimelinePosts();
   // A visit from inside the app already has the timeline in memory.
-  const landing = <LandingPage founder={founder} comp={comp} pulls={pulls} />;
-  if (await isRouterRequest()) {
-    return (
-      <LandingCompProvider comp={comp}>
-        <HomeGate landing={landing} />
-      </LandingCompProvider>
-    );
-  }
+  const landing = <LandingPage posts={posts} />;
+  if (await isRouterRequest()) return <HomeGate landing={landing} />;
   return (
-    <LandingCompProvider comp={comp}>
-      <Suspense fallback={<HomeGate landing={null} />}>
-        <SeededHome landing={landing} />
-      </Suspense>
-    </LandingCompProvider>
+    <Suspense fallback={<HomeGate landing={null} />}>
+      <SeededHome landing={landing} />
+    </Suspense>
   );
 }
 

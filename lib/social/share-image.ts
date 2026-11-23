@@ -210,9 +210,9 @@ export function homeShareImage(): ShareImage {
     ...blank(),
     kind: "home",
     kicker: "",
-    // The landing page's headline, in its two lines.
-    title: "Scan it.",
-    detail: "Know the exact version.",
+    // The landing page's headline.
+    title: "Talk cards here.",
+    detail: "",
   };
 }
 

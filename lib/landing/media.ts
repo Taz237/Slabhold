@@ -1,107 +1,83 @@
-import { existsSync, readFileSync } from "node:fs";
+import { closeSync, existsSync, openSync, readSync } from "node:fs";
 import { join } from "node:path";
+import { IMAGE_HEAD_BYTES, imageSize } from "@/lib/share/image-size";
 
 /*
- * The landing page's real media, looked up on the server only (node:fs, so it
- * can't be bundled for the browser). Each slot is a file with an exact name
- * in public/landing/media/. A slot with no file is null and the page draws no
- * media for it: nothing generated, nothing placeholder. Dropping the files in
- * and redeploying is all it takes to fill a slot (see that folder's README).
+ * The landing page's real pictures, looked up on the server only (node:fs, so
+ * it can't be bundled for the browser). The hero card photo and the iPhone
+ * screens, each a file with an exact name under public/landing/. A screen is
+ * a .png still; six of them can also have a short .mp4 recording of the same
+ * name, and then the .png is the clip's poster. A slot with no .png is null
+ * and the page draws nothing for it: no stand-in, no broken box. Dropping the
+ * files in and redeploying fills a slot (see public/landing/screens/README.md).
  */
 
-export const MEDIA_DIR = "landing/media";
+export const SCREENS_DIR = "landing/screens";
 
-/** Phone recordings, portrait. */
-export const VIDEO_SIZE = { width: 720, height: 1560 } as const;
-/** Card photos and other stills. */
-export const STILL_SIZE = { width: 1280, height: 1792 } as const;
+/** The hero's card photo. */
+export const HERO_CARD_FILE = "landing/hero-card.jpg";
 
-export type MediaSlot = { src: string; poster: string | null; width: number; height: number };
+/** Used only when a file's own size can't be read: an iPhone screenshot. */
+export const SCREEN_SIZE = { width: 1170, height: 2532 } as const;
 
-/** Approved public pulls. Only the handle and the public card's id. */
-export type PullRef = { handle: string; cardId: string };
+/** `src` is the still (the clip's poster). `video` is the recording, when there is one. */
+export type MediaSlot = { src: string; width: number; height: number; video: string | null };
 
-/** Real facts about the hero card, from sizes.json. Each is drawn only when given. */
-export type HeroCardFacts = { alt: string; serial: string };
+/** Every screen slot and its still's file name (a .webp of the same name works too). */
+export const SCREEN_FILES = {
+  homeForYou: "home-for-you.png",
+  homePost: "home-post.png",
+  profileCards: "profile-cards.png",
+  scanCamera: "scan-camera.png",
+  scanReveal: "scan-reveal.png",
+  cardSales: "card-sales.png",
+  scanSales: "scan-sales.png",
+  catalogFeed: "catalog-feed.png",
+  collectionGrid: "collection-grid.png",
+  collectionValue: "collection-value.png",
+  leaderboard: "leaderboard.png",
+  invite: "invite.png",
+} as const;
+
+export type ScreenKey = keyof typeof SCREEN_FILES;
+
+/** The slots that play a recording when <name>.mp4 sits beside <name>.png. The rest are stills only. */
+export const CLIP_KEYS: readonly ScreenKey[] = [
+  "homeForYou",
+  "scanReveal",
+  "cardSales",
+  "catalogFeed",
+  "profileCards",
+  "collectionValue",
+];
 
 export type LandingMedia = {
   heroCard: MediaSlot | null;
-  heroCardBack: MediaSlot | null;
-  heroCardFacts: HeroCardFacts;
-  scan: MediaSlot | null;
-  serial: MediaSlot | null;
-  serialMacro: MediaSlot | null;
-  parallels: MediaSlot | null;
-  collection: MediaSlot | null;
-  arena: MediaSlot | null;
-  shareRank: MediaSlot | null;
-  pulls: PullRef[] | null;
+  screens: Record<ScreenKey, MediaSlot | null>;
 };
 
-export const EMPTY_MEDIA: LandingMedia = {
-  heroCard: null,
-  heroCardBack: null,
-  heroCardFacts: { alt: "", serial: "" },
-  scan: null,
-  serial: null,
-  serialMacro: null,
-  parallels: null,
-  collection: null,
-  arena: null,
-  shareRank: null,
-  pulls: null,
-};
+const SCREEN_KEYS = Object.keys(SCREEN_FILES) as ScreenKey[];
 
-/** Every slot's files, for the README and the tests. */
-export const MEDIA_FILES = {
-  heroCard: "hero-card.avif",
-  heroCardBack: "hero-card-back.avif",
-  scan: "scan.mp4",
-  scanPoster: "scan.webp",
-  serial: "serial.mp4",
-  serialPoster: "serial.webp",
-  serialMacro: "serial-macro.avif",
-  parallels: "parallels.mp4",
-  parallelsPoster: "parallels.webp",
-  collection: "collection.mp4",
-  collectionPoster: "collection.webp",
-  arena: "arena.mp4",
-  arenaPoster: "arena.webp",
-  shareRank: "share-rank.webp",
-  pulls: "pulls.json",
-  sizes: "sizes.json",
-} as const;
+function noScreens(): Record<ScreenKey, MediaSlot | null> {
+  return Object.fromEntries(SCREEN_KEYS.map((key) => [key, null])) as Record<ScreenKey, MediaSlot | null>;
+}
 
-type Sidecar = Record<string, { width?: unknown; height?: unknown; alt?: unknown; serial?: unknown }>;
+export const EMPTY_MEDIA: LandingMedia = { heroCard: null, screens: noScreens() };
 
-function readJson(path: string): unknown {
+/** The file's own pixel size, from its first bytes. */
+function sizeOf(path: string): { width: number; height: number } | null {
   try {
-    return JSON.parse(readFileSync(path, "utf8"));
+    const file = openSync(path, "r");
+    try {
+      const head = Buffer.alloc(IMAGE_HEAD_BYTES);
+      const read = readSync(file, head, 0, IMAGE_HEAD_BYTES, 0);
+      return imageSize(head.subarray(0, read));
+    } finally {
+      closeSync(file);
+    }
   } catch {
     return null;
   }
-}
-
-function positive(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) && value > 0 ? Math.round(value) : null;
-}
-
-function text(value: unknown, max: number): string {
-  return typeof value === "string" ? value.trim().slice(0, max) : "";
-}
-
-/** A handle and a card id, or nothing. Anything else in the file is dropped. */
-function readPulls(value: unknown): PullRef[] {
-  if (!Array.isArray(value)) return [];
-  const pulls: PullRef[] = [];
-  for (const item of value) {
-    if (!item || typeof item !== "object") continue;
-    const { handle, cardId } = item as { handle?: unknown; cardId?: unknown };
-    if (typeof handle !== "string" || typeof cardId !== "string") continue;
-    if (!/^[a-z0-9_]{1,32}$/i.test(handle) || !/^[0-9a-f-]{8,64}$/i.test(cardId)) continue;
-    pulls.push({ handle, cardId });
-  }
-  return pulls.slice(0, 24);
 }
 
 /**
@@ -109,45 +85,21 @@ function readPulls(value: unknown): PullRef[] {
  * folder that holds public/); tests point it at a temp folder.
  */
 export function landingMedia(root: string = process.cwd()): LandingMedia {
-  const dir = join(/* turbopackIgnore: true */ root, "public", MEDIA_DIR);
-  if (!existsSync(dir)) return EMPTY_MEDIA;
-  const at = (name: string) => join(/* turbopackIgnore: true */ dir, name);
-  const has = (name: string) => existsSync(at(name));
-  const sidecar = has(MEDIA_FILES.sizes) ? ((readJson(at(MEDIA_FILES.sizes)) ?? {}) as Sidecar) : {};
-  const url = (name: string) => `/${MEDIA_DIR}/${name}`;
-
-  function size(name: string, fallback: { width: number; height: number }) {
-    const given = sidecar && typeof sidecar === "object" ? sidecar[name] : undefined;
-    return {
-      width: positive(given?.width) ?? fallback.width,
-      height: positive(given?.height) ?? fallback.height,
-    };
+  const pub = join(/* turbopackIgnore: true */ root, "public");
+  function slot(path: string, fallback: { width: number; height: number }): MediaSlot | null {
+    const file = join(/* turbopackIgnore: true */ pub, path);
+    if (!existsSync(file)) return null;
+    return { src: `/${path}`, ...(sizeOf(file) ?? fallback), video: null };
   }
 
-  function still(name: string): MediaSlot | null {
-    return has(name) ? { src: url(name), poster: null, ...size(name, STILL_SIZE) } : null;
+  const screens = noScreens();
+  for (const key of SCREEN_KEYS) {
+    const png = `${SCREENS_DIR}/${SCREEN_FILES[key]}`;
+    const still = slot(png, SCREEN_SIZE) ?? slot(png.replace(/\.png$/, ".webp"), SCREEN_SIZE);
+    // A recording needs its still: the still is what paints before it plays, and all that shows with reduced motion.
+    const mp4 = png.replace(/\.png$/, ".mp4");
+    const clip = still && CLIP_KEYS.includes(key) && existsSync(join(/* turbopackIgnore: true */ pub, mp4));
+    screens[key] = still && clip ? { ...still, video: `/${mp4}` } : still;
   }
-
-  /** A clip needs its poster too: the poster is what paints before it plays. */
-  function clip(name: string, poster: string): MediaSlot | null {
-    return has(name) && has(poster) ? { src: url(name), poster: url(poster), ...size(name, VIDEO_SIZE) } : null;
-  }
-
-  const heroCard = still(MEDIA_FILES.heroCard);
-  const facts = heroCard ? sidecar[MEDIA_FILES.heroCard] : undefined;
-  const pulls = has(MEDIA_FILES.pulls) ? readPulls(readJson(at(MEDIA_FILES.pulls))) : [];
-
-  return {
-    heroCard,
-    heroCardBack: heroCard ? still(MEDIA_FILES.heroCardBack) : null,
-    heroCardFacts: { alt: text(facts?.alt, 140), serial: text(facts?.serial, 16) },
-    scan: clip(MEDIA_FILES.scan, MEDIA_FILES.scanPoster),
-    serial: clip(MEDIA_FILES.serial, MEDIA_FILES.serialPoster),
-    serialMacro: still(MEDIA_FILES.serialMacro),
-    parallels: clip(MEDIA_FILES.parallels, MEDIA_FILES.parallelsPoster),
-    collection: clip(MEDIA_FILES.collection, MEDIA_FILES.collectionPoster),
-    arena: clip(MEDIA_FILES.arena, MEDIA_FILES.arenaPoster),
-    shareRank: still(MEDIA_FILES.shareRank),
-    pulls: pulls.length ? pulls : null,
-  };
+  return { heroCard: slot(HERO_CARD_FILE, { width: 774, height: 1200 }), screens };
 }

@@ -1,1250 +1,525 @@
 /*
  * Signed-out Home (components/landing-page.tsx). Everything is scoped under
- * .lg, the landing root. Purple only. Motion is CSS keyframes: no library,
- * no canvas. The reduced-motion and reduced-transparency fallbacks are at
- * the end of this file.
+ * .lp, the landing root. Solid dark and purple only, flat and still. The
+ * only motion is a color change on hover and the real screen recordings,
+ * which hold still for prefers-reduced-motion.
+ * Phone layout first (390px), then tablet and desktop at the end.
  */
 
-.lg {
+.lp {
   --bg-0: #07050d;
   --bg-1: #0e0a1a;
-  --bg-2: #160f2b;
   --purple: #7c3aed;
-  --purple-deep: #5b21b6;
   --accent: #a78bfa;
   --ink: #f4f4f5;
   --ink-2: rgba(244, 244, 245, 0.68);
-  --ink-3: rgba(244, 244, 245, 0.44);
-  --glass-tint: rgba(167, 139, 250, 0.07);
-  --glass-solid: #160f2b;
-  --glass-border: rgba(255, 255, 255, 0.14);
-  --line: rgba(167, 139, 250, 0.22);
-  --glass-blur: 24px;
-  --glass-sat: 160%;
-  --specular: linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, transparent 38%);
-  --shadow: 0 30px 80px rgba(20, 8, 48, 0.6);
-  --cta: #7c3aed;
-  --cta-hover: #8b5cf6;
-  --lg-ease: cubic-bezier(0.22, 1, 0.36, 1);
-  position: relative;
+  --line: #a78bfa22;
+  --line-strong: #a78bfa55;
   min-height: 100dvh;
   overflow-x: clip;
   background: var(--bg-0);
   color: var(--ink);
 }
 
-/* Glass: a tinted, blurred pane with a hairline edge. */
-.lg-glass {
-  background: var(--glass-tint);
-  border: 1px solid var(--glass-border);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
-  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
-}
-
-/* ---------- Galaxy ---------- */
-
-.lg-galaxy {
-  position: fixed;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-  background: linear-gradient(180deg, var(--bg-0) 0%, var(--bg-1) 52%, var(--bg-2) 100%);
-}
-
-.lg-galaxy-mesh {
-  position: absolute;
-  inset: 0;
-  animation: lg-fade 600ms ease-out both;
-}
-
-.lg-galaxy-mesh i {
-  position: absolute;
-  border-radius: 50%;
-  will-change: transform;
-  animation: lg-drift 40s ease-in-out infinite alternate;
-}
-
-.lg-galaxy-mesh i:nth-child(1) {
-  top: -34vmax;
-  left: -22vmax;
-  width: 78vmax;
-  height: 78vmax;
-  background: radial-gradient(closest-side, rgba(91, 33, 182, 0.62), transparent 72%);
-  --dx: 7vmax;
-  --dy: 5vmax;
-}
-
-.lg-galaxy-mesh i:nth-child(2) {
-  top: -12vmax;
-  right: -30vmax;
-  width: 72vmax;
-  height: 72vmax;
-  background: radial-gradient(closest-side, rgba(124, 58, 237, 0.4), transparent 70%);
-  --dx: -6vmax;
-  --dy: 8vmax;
-  animation-delay: -12s;
-}
-
-.lg-galaxy-mesh i:nth-child(3) {
-  bottom: -40vmax;
-  left: 8vmax;
-  width: 90vmax;
-  height: 90vmax;
-  background: radial-gradient(closest-side, rgba(42, 18, 96, 0.9), transparent 72%);
-  --dx: 5vmax;
-  --dy: -7vmax;
-  animation-delay: -24s;
-}
-
-.lg-galaxy-mesh i:nth-child(4) {
-  top: 22vmax;
-  left: 30vmax;
-  width: 44vmax;
-  height: 44vmax;
-  background: radial-gradient(closest-side, rgba(167, 139, 250, 0.2), transparent 70%);
-  --dx: -8vmax;
-  --dy: -4vmax;
-  animation-delay: -31s;
-}
-
-.lg-galaxy-grain {
-  position: absolute;
-  inset: 0;
-  opacity: 0.05;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .7 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-
-@keyframes lg-fade {
-  from {
-    opacity: 0;
-  }
-}
-
-@keyframes lg-drift {
-  to {
-    transform: translate3d(var(--dx, 0), var(--dy, 0), 0) scale(1.08);
-  }
-}
-
-/* ---------- Nav ---------- */
-
-.lg-nav {
-  position: sticky;
-  top: 0;
-  z-index: 40;
-  padding-top: env(safe-area-inset-top);
-  border-width: 0 0 1px;
-  /* Denser than the other panes: page text scrolls under it. */
-  background: rgba(14, 10, 26, 0.78);
-}
-
-.lg-nav-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  height: 72px;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 16px 0 24px;
-}
-
-.lg-brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 17px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
-.lg-nav-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-/* ---------- Buttons ---------- */
-
-.lg-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  height: 56px;
-  border-radius: 9999px;
-  color: #fff;
-  font-size: 17px;
-  font-weight: 600;
-  transition:
-    background-color 150ms ease,
-    transform 150ms ease;
-}
-
-.lg-btn:active {
-  transform: scale(0.98);
-}
-
-.lg-btn:focus-visible,
-.lg-nav-cta:focus-visible,
-.lg-pause:focus-visible,
-.lg-clip-toggle:focus-visible {
+.lp :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
-.lg-btn-primary {
-  background: var(--cta);
+/* ---------- Nav ---------- */
+
+.lp-nav {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  padding-top: env(safe-area-inset-top);
+  background: var(--bg-0);
+  border-bottom: 1px solid var(--line);
 }
 
-.lg-btn-primary:hover {
-  background: var(--cta-hover);
+.lp-nav-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  max-width: 1200px;
+  height: 56px;
+  margin: 0 auto;
+  padding: 0 16px;
 }
 
-.lg-btn-glass:hover {
-  background: rgba(167, 139, 250, 0.14);
-}
-
-.lg-nav-cta {
+.lp-brand {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 44px;
-  padding: 0 16px;
-  border-radius: 9999px;
-  background: var(--cta);
-  color: #fff;
-  font-size: 15px;
+  gap: 8px;
+  font-size: 17px;
   font-weight: 600;
-  transition: background-color 150ms ease;
 }
 
-.lg-nav-cta:hover {
-  background: var(--cta-hover);
+.lp-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-/* Inside the iOS app the App Store button is hidden before the first paint. */
+.lp-login {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 8px;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 500;
+  transition: color 150ms ease-out;
+}
+
+.lp-login:hover {
+  color: var(--accent);
+}
+
+/* ---------- App Store badge and Open Slabhold ---------- */
+
+/* Apple's artwork, unchanged. The link around it is at least 44px tall. */
+.lp-badge {
+  display: flex;
+}
+
+.lp-badge-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  border-radius: 8px;
+}
+
+.lp-badge-link img {
+  display: block;
+}
+
+/* Inside the iOS app the App Store badge is hidden before the first paint. */
 html[data-native] [data-app-store-badge] {
   display: none;
 }
 
-.lg-ctas {
-  display: grid;
+.lp-ctas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 12px;
-  width: 100%;
-  max-width: 384px;
+}
+
+.lp-open {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 48px;
+  padding: 0 20px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 500;
+  transition:
+    border-color 150ms ease-out,
+    background-color 150ms ease-out;
+}
+
+.lp-open:hover {
+  border-color: var(--accent);
+  background: var(--bg-1);
+}
+
+/* In the app, Open Slabhold is the one action, so it takes the purple. */
+html[data-native] .lp-open {
+  border-color: var(--purple);
+  background: var(--purple);
 }
 
 /* ---------- Hero ---------- */
 
-.lg-hero {
-  position: relative;
+.lp-hero {
   display: grid;
   gap: 40px;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 32px 24px 72px;
+  padding: 48px 16px 64px;
 }
 
-.lg-h1 {
-  margin: 0;
-  color: #fff;
-  font-size: 44px;
-  font-weight: 800;
-  line-height: 1.02;
-  letter-spacing: -0.04em;
+.lp-hero-copy {
+  display: grid;
+  gap: 16px;
+  justify-items: start;
 }
 
-.lg-h1-accent {
-  color: var(--accent);
+.lp-h1 {
+  font-size: 48px;
+  font-weight: 600;
+  line-height: 1.04;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
 }
 
-/*
- * The heading sharpens from an 8px blur and settles 6px, and each word's glow
- * resolves 80ms after the one before. Never transparent. The blur is on the
- * h1 itself and the words stay plain inline text: a filter on a word would
- * take it out of the h1's text block, and the h1 must stay the first big
- * paint (the page's LCP).
- */
-.lg-h1 {
-  animation: lg-settle 520ms var(--lg-ease) both;
-}
-
-.lg-w {
-  animation: lg-word 520ms var(--lg-ease) both;
-  animation-delay: calc(var(--i, 0) * 80ms);
-}
-
-@keyframes lg-settle {
-  from {
-    filter: blur(8px);
-    transform: translateY(6px);
-  }
-}
-
-@keyframes lg-word {
-  from {
-    text-shadow: 0 0 14px currentColor;
-  }
-}
-
-.lg-sub {
-  max-width: 56ch;
-  margin: 20px 0 0;
+.lp-sub {
+  max-width: 34rem;
   color: var(--ink-2);
-  font-size: 16px;
-  font-weight: 500;
+  font-size: 17px;
   line-height: 1.5;
-  text-wrap: pretty;
 }
 
-.lg-hero .lg-ctas {
-  margin-top: 28px;
+.lp-hero .lp-ctas {
+  margin-top: 8px;
 }
 
-.lg-stage {
-  position: relative;
-  display: grid;
-  place-items: center;
-  padding: 16px 0 8px;
-  perspective: 1200px;
-}
-
-.lg-slab-wrap {
-  position: relative;
-  width: min(264px, 64vw);
-}
-
-.lg-tilt {
-  position: relative;
-  transform: rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
-  transform-style: preserve-3d;
-  transition: transform 500ms var(--lg-ease);
-}
-
-.lg-tilt[data-tilting] {
-  transition-duration: 90ms;
-}
-
-.lg-glow {
-  position: absolute;
-  inset: 10% -4%;
-  border-radius: 50%;
-  background: var(--purple);
-  opacity: 0.42;
-  filter: blur(64px);
-}
-
-/* The slab: a small bead of glass that grows into the case. */
-.lg-slab {
-  position: relative;
-  padding: 18px 18px 22px;
-  border-radius: 40px;
-  box-shadow: var(--shadow);
-  animation: lg-bead 520ms var(--lg-ease) 80ms both;
-}
-
-@keyframes lg-bead {
-  from {
-    opacity: 0;
-    transform: scale(0.08);
-    border-radius: 50%;
-  }
-
-  30% {
-    opacity: 1;
-  }
-}
-
-/* The thick rim: only the border ring is painted. */
-.lg-rim {
-  position: absolute;
-  inset: 0;
-  border: 6px solid transparent;
-  border-radius: inherit;
-  background: linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.36),
-      rgba(167, 139, 250, 0.14) 38%,
-      rgba(255, 255, 255, 0.04) 62%,
-      rgba(167, 139, 250, 0.32)
-    )
-    border-box;
-  -webkit-mask:
-    linear-gradient(#000 0 0) padding-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask:
-    linear-gradient(#000 0 0) padding-box exclude,
-    linear-gradient(#000 0 0);
-  pointer-events: none;
-}
-
-.lg-spec,
-.lg-sheen {
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-}
-
-.lg-spec {
-  background: var(--specular);
-}
-
-.lg-sheen {
-  overflow: hidden;
-}
-
-.lg-sheen::before {
-  content: "";
-  position: absolute;
-  inset: -20% -60%;
-  background: linear-gradient(115deg, transparent 42%, rgba(255, 255, 255, 0.1) 50%, transparent 58%);
-  transform: translateX(calc(var(--sheen, 0) * 22%));
-  transition: transform 500ms var(--lg-ease);
-}
-
-.lg-window {
-  position: relative;
-  aspect-ratio: 5 / 7;
-}
-
-/* The card lands a little crooked, then straightens once the corners find it. */
-.lg-card {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  border-radius: 22px;
-  background: rgba(7, 5, 13, 0.5);
-  animation: lg-land 1000ms var(--lg-ease) 420ms both;
-}
-
-.lg-card img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-@keyframes lg-land {
-  0% {
-    opacity: 0;
-    transform: translateY(-28px) rotate(4deg) scale(1.08);
-  }
-
-  38% {
-    opacity: 1;
-    transform: translateY(0) rotate(4deg) scale(1);
-  }
-
-  62% {
-    transform: rotate(4deg);
-  }
-
-  84%,
-  100% {
-    transform: rotate(0deg);
-  }
-}
-
-.lg-corner {
-  position: absolute;
-  width: 18px;
-  height: 18px;
-  border: 0 solid var(--accent);
-  animation: lg-corner 200ms var(--lg-ease) 960ms both;
-}
-
-.lg-corner:nth-of-type(1) {
-  top: -5px;
-  left: -5px;
-  border-top-width: 2px;
-  border-left-width: 2px;
-  border-top-left-radius: 6px;
-}
-
-.lg-corner:nth-of-type(2) {
-  top: -5px;
-  right: -5px;
-  border-top-width: 2px;
-  border-right-width: 2px;
-  border-top-right-radius: 6px;
-}
-
-.lg-corner:nth-of-type(3) {
-  bottom: -5px;
-  left: -5px;
-  border-bottom-width: 2px;
-  border-left-width: 2px;
-  border-bottom-left-radius: 6px;
-}
-
-.lg-corner:nth-of-type(4) {
-  right: -5px;
-  bottom: -5px;
-  border-right-width: 2px;
-  border-bottom-width: 2px;
-  border-bottom-right-radius: 6px;
-}
-
-@keyframes lg-corner {
-  from {
-    opacity: 0;
-    transform: scale(1.5);
-  }
-}
-
-/* One light sweep across the card. It rests off the card when it is done. */
-.lg-sweep {
-  position: absolute;
-  top: -10%;
-  bottom: -10%;
-  left: 0;
-  width: 46%;
-  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.34) 50%, transparent);
-  opacity: 0;
-  transform: translateX(-130%) skewX(-12deg);
-  animation: lg-sweep 460ms ease-in-out 1160ms both;
-  pointer-events: none;
-}
-
-@keyframes lg-sweep {
-  from {
-    opacity: 1;
-    transform: translateX(-130%) skewX(-12deg);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateX(260%) skewX(-12deg);
-  }
-}
-
-.lg-ring {
-  position: absolute;
-  inset: -8px;
-  border: 1.5px solid var(--accent);
-  border-radius: 48px;
-  opacity: 0;
-  animation: lg-ring 460ms ease-out 1200ms both;
-  pointer-events: none;
-}
-
-@keyframes lg-ring {
-  from {
-    opacity: 0.7;
-    transform: scale(0.97);
-  }
-
-  to {
-    opacity: 0;
-    transform: scale(1.1);
-  }
-}
-
-/* Shards: small panes that drift out of the slab, each holding something real. */
-.lg-shard {
-  position: absolute;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 12px;
-  border-radius: 14px;
-  animation:
-    lg-shard-out 620ms var(--lg-ease) 1180ms both,
-    lg-shard-drift 9s ease-in-out 1800ms infinite alternate;
-}
-
-.lg-shard-spark {
-  right: -36px;
-  bottom: 16%;
-  --from-x: -48px;
-  --from-y: -16px;
-  --drift: -8px;
-}
-
-.lg-shard-serial {
-  top: 12%;
-  left: -40px;
-  --from-x: 48px;
-  --from-y: 20px;
-  --drift: 8px;
-  color: var(--ink);
-  font-family: var(--font-geist-mono), ui-monospace, monospace;
-  font-size: 13px;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  font-variant-numeric: tabular-nums;
-}
-
-.lg-shard svg {
+/* The card, flat: a photo on the table. */
+.lp-hero-card {
   display: block;
-}
-
-@keyframes lg-shard-out {
-  from {
-    opacity: 0;
-    transform: translate(var(--from-x, 0), var(--from-y, 0)) scale(0.7);
-  }
-}
-
-@keyframes lg-shard-drift {
-  to {
-    translate: 0 var(--drift, -8px);
-  }
-}
-
-.lg-pause {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  z-index: 3;
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 9999px;
-  color: var(--ink-2);
-}
-
-.lg-pause:hover {
-  color: var(--ink);
-}
-
-/* One control pauses every loop on the page. */
-.lg[data-motion="paused"] *,
-.lg[data-motion="paused"] *::before {
-  animation-play-state: paused !important;
+  width: 62vw;
+  max-width: 280px;
+  height: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-1);
 }
 
 /* ---------- Sections ---------- */
 
-.lg-section {
-  position: relative;
+.lp-section {
+  display: grid;
+  gap: 24px;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 96px 24px;
+  padding: 40px 16px;
+  border-top: 1px solid var(--line);
 }
 
-/* A section with no media is one quiet pane, so it takes less room. */
-.lg-section[data-media="none"] {
-  padding-block: 28px;
-}
-
-.lg-grid {
+.lp-copy {
   display: grid;
-  gap: 40px;
+  gap: 8px;
+  align-content: start;
 }
 
-.lg-tag {
-  margin: 0 0 16px;
+/* Set like the serial on a numbered card. */
+.lp-count {
   color: var(--accent);
   font-family: var(--font-geist-mono), ui-monospace, monospace;
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
 }
 
-.lg-h2 {
-  max-width: 34ch;
-  margin: 0;
-  color: #fff;
-  font-size: 34px;
+.lp-h2 {
+  font-size: 28px;
   font-weight: 600;
-  line-height: 1.08;
-  letter-spacing: -0.03em;
+  line-height: 1.14;
+  letter-spacing: -0.01em;
   text-wrap: balance;
 }
 
-.lg-lead {
-  max-width: 56ch;
-  margin: 16px 0 0;
+.lp-line {
+  max-width: 30rem;
   color: var(--ink-2);
-  font-size: 22px;
-  font-weight: 500;
-  line-height: 1.3;
-  letter-spacing: -0.01em;
-  text-wrap: pretty;
-}
-
-.lg-panel {
-  position: relative;
-  padding: 44px 28px;
-  border-radius: 32px;
-}
-
-/* The crop corners again: the mark of a card found and squared. */
-.lg-panel-corner {
-  position: absolute;
-  width: 16px;
-  height: 16px;
-  border: 0 solid var(--line);
-}
-
-.lg-panel-corner:nth-of-type(1) {
-  top: 16px;
-  left: 16px;
-  border-top-width: 2px;
-  border-left-width: 2px;
-  border-top-left-radius: 8px;
-}
-
-.lg-panel-corner:nth-of-type(2) {
-  top: 16px;
-  right: 16px;
-  border-top-width: 2px;
-  border-right-width: 2px;
-  border-top-right-radius: 8px;
-}
-
-.lg-panel-corner:nth-of-type(3) {
-  bottom: 16px;
-  left: 16px;
-  border-bottom-width: 2px;
-  border-left-width: 2px;
-  border-bottom-left-radius: 8px;
-}
-
-.lg-panel-corner:nth-of-type(4) {
-  right: 16px;
-  bottom: 16px;
-  border-right-width: 2px;
-  border-bottom-width: 2px;
-  border-bottom-right-radius: 8px;
-}
-
-.lg-media {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 24px;
-}
-
-/* The glass phone around a clip. */
-.lg-phone {
-  position: relative;
-  flex: none;
-  width: 78vw;
-  max-width: 320px;
-  padding: 8px;
-  border-radius: 44px;
-  box-shadow: var(--shadow);
-}
-
-.lg-phone-screen {
-  position: relative;
-  overflow: hidden;
-  border-radius: 36px;
-  background: var(--bg-1);
-}
-
-.lg-phone video,
-.lg-phone img {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
-.lg-clip-toggle {
-  position: absolute;
-  right: 16px;
-  bottom: 16px;
-  z-index: 2;
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 9999px;
-  background: rgba(7, 5, 13, 0.72);
-  border: 1px solid var(--glass-border);
-  color: #fff;
-}
-
-.lg-still {
-  flex: none;
-  overflow: hidden;
-  padding: 8px;
-  border-radius: 28px;
-  box-shadow: var(--shadow);
-}
-
-.lg-still img {
-  display: block;
-  width: 100%;
-  height: auto;
-  border-radius: 20px;
-}
-
-.lg-still-macro {
-  width: 36vw;
-  max-width: 220px;
-}
-
-.lg-media-pair {
-  gap: 16px;
-}
-
-.lg-still-rank {
-  position: absolute;
-  right: -4px;
-  bottom: -28px;
-  width: 38vw;
-  max-width: 180px;
-  transform: rotate(6deg);
-}
-
-.lg-media-pair .lg-phone {
-  width: 44vw;
-}
-
-/* The loupe travels from the foil edge to the number the app read. */
-.lg-loupe {
-  position: absolute;
-  top: 50%;
-  left: 21%;
-  z-index: 3;
-  width: 72px;
-  height: 72px;
-  margin: -36px 0 0 -36px;
-  border-radius: 50%;
-  /* A clear lens: it must never blur what it is held over. */
-  background: rgba(255, 255, 255, 0.06);
-  box-shadow:
-    0 12px 32px rgba(20, 8, 48, 0.6),
-    inset 0 0 0 2px rgba(255, 255, 255, 0.4);
-  pointer-events: none;
-}
-
-/* Cards-first grid of real cards. */
-.lg-cards {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.lg-cards li {
-  position: relative;
-  overflow: hidden;
-  aspect-ratio: 5 / 7;
-  padding: 6px;
-  border-radius: 18px;
-}
-
-.lg-cards img {
-  width: 100%;
-  height: 100%;
-  border-radius: 12px;
-  object-fit: contain;
-}
-
-/* Pulls wall: one slow row. */
-.lg-wall {
-  overflow: hidden;
-  padding: 72px 0;
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
-}
-
-.lg-wall-track {
-  display: flex;
-  gap: 16px;
-  width: max-content;
-  animation: lg-marquee 80s linear infinite;
-}
-
-.lg-wall:hover .lg-wall-track,
-.lg-wall:focus-within .lg-wall-track {
-  animation-play-state: paused;
-}
-
-.lg-wall ul {
-  display: flex;
-  gap: 16px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.lg-wall li {
-  width: 148px;
-  padding: 6px 6px 10px;
-  border-radius: 18px;
-}
-
-.lg-wall img {
-  display: block;
-  width: 100%;
-  height: auto;
-  aspect-ratio: 5 / 7;
-  border-radius: 12px;
-  object-fit: contain;
-}
-
-.lg-wall-handle {
-  display: block;
-  margin-top: 8px;
-  overflow: hidden;
-  color: var(--ink-2);
-  font-family: var(--font-geist-mono), ui-monospace, monospace;
-  font-size: 12px;
-  font-weight: 500;
-  text-align: center;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-@keyframes lg-marquee {
-  to {
-    transform: translateX(calc(-50% - 8px));
-  }
-}
-
-.lg-soon {
-  max-width: 560px;
-  margin: 0 auto;
-  padding: 28px;
-  border-radius: 24px;
-}
-
-.lg-soon p:last-child {
-  margin: 0;
-  color: var(--ink-2);
-  font-size: 16px;
-  font-weight: 500;
+  font-size: 17px;
   line-height: 1.5;
 }
 
-.lg-comp {
-  max-width: 420px;
-  width: 100%;
-  margin: 0 auto;
+/* Real iPhone screens in a plain frame: rounded corners and a thin border. */
+.lp-screens {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
 }
 
-/* Join: the slab again, as the last word. */
-.lg-join {
+.lp-screens[data-screens="1"] {
+  grid-template-columns: minmax(0, 220px);
+}
+
+/* The big spot: one screen, most of a phone's width. */
+.lp-screens[data-big] {
+  grid-template-columns: minmax(0, 78vw);
+}
+
+.lp-screen {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 24px;
+  background: var(--bg-1);
+}
+
+.lp-screen img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* The recording sits exactly over its still. */
+.lp-screen video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Less motion: the still only, whatever the script did. */
+@media (prefers-reduced-motion: reduce) {
+  .lp-screen video {
+    display: none;
+  }
+}
+
+/* ---------- Timeline ---------- */
+
+.lp-timeline-body {
+  display: grid;
+  gap: 24px;
+  align-items: start;
+}
+
+.lp-feed {
+  width: 100%;
+  max-width: 560px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--bg-1);
+}
+
+.lp-post {
   display: flex;
-  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+
+.lp-post + .lp-post {
+  border-top: 1px solid var(--line);
+}
+
+.lp-avatar {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--bg-0);
+  object-fit: cover;
+}
+
+.lp-avatar-initial {
+  display: inline-flex;
   align-items: center;
-  padding: 48px 24px;
-  border-radius: 40px;
-  box-shadow: var(--shadow);
+  justify-content: center;
+  border: 1px solid var(--line);
+  color: var(--accent);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.lp-post-body {
+  display: grid;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.lp-post-who {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 8px;
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.lp-post-name {
+  font-weight: 600;
+}
+
+.lp-post-handle {
+  color: var(--ink-2);
+}
+
+.lp-post-text {
+  font-size: 15px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+.lp-post-photo {
+  margin-top: 4px;
+}
+
+.lp-post-photo img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  height: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-0);
+  object-fit: cover;
+}
+
+/* A card from a collection sits like it does in the app: 5:7 and centered. */
+.lp-post-photo[data-kind="card"] {
+  width: 60%;
+  max-width: 260px;
+  margin-inline: auto;
+}
+
+.lp-post-photo[data-kind="card"] img {
+  aspect-ratio: 5 / 7;
+}
+
+.lp-post-photo figcaption {
+  margin-top: 8px;
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 1.35;
   text-align: center;
 }
 
-.lg-join .lg-h2 {
-  margin-top: 16px;
+/* ---------- Close and footer ---------- */
+
+.lp-join {
+  display: grid;
+  gap: 16px;
+  justify-items: start;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 56px 16px;
+  border-top: 1px solid var(--line);
 }
 
-.lg-join .lg-ctas {
-  margin-top: 28px;
-}
-
-.lg-footer {
-  /* Positioned, so it paints above the fixed galaxy. */
-  position: relative;
+.lp-footer {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 16px;
+  gap: 8px 24px;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 8px 24px max(24px, env(safe-area-inset-bottom));
+  padding: 24px 16px calc(32px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
   color: var(--ink-2);
+  font-size: 15px;
+}
+
+.lp-footer a {
+  transition: color 150ms ease-out;
+}
+
+.lp-footer a:hover {
+  color: var(--ink);
+}
+
+.lp-tagline {
+  flex-basis: 100%;
   font-size: 14px;
-}
-
-.lg-footer a {
-  font-weight: 600;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.lg-tagline {
-  margin: 0 0 0 auto;
-  color: var(--ink-2);
-  font-size: 13px;
-}
-
-/* Sections rise once as they scroll in, where the browser can drive it from CSS. */
-@supports (animation-timeline: view()) {
-  @media (prefers-reduced-motion: no-preference) {
-    .lg-rise {
-      animation: lg-rise linear both;
-      animation-timeline: view();
-      animation-range: entry 0% entry 40%;
-    }
-
-    .lg-loupe {
-      animation: lg-loupe linear both;
-      animation-timeline: view();
-      animation-range: cover 25% cover 60%;
-    }
-  }
-}
-
-/* Transform only: text is never faded, so it keeps its contrast at every scroll position. */
-@keyframes lg-rise {
-  from {
-    transform: translateY(32px) scale(0.97);
-  }
-}
-
-@keyframes lg-loupe {
-  to {
-    left: 72%;
-  }
 }
 
 /* ---------- Tablet and up ---------- */
 
 @media (min-width: 768px) {
-  /* The rim bends the light a little. Desktop only: the filter is not cheap. */
-  .lg-rim {
-    filter: url(#lg-refract);
+  .lp-nav-row,
+  .lp-hero,
+  .lp-section,
+  .lp-join,
+  .lp-footer {
+    padding-inline: 32px;
   }
 
-  .lg-slab-wrap {
-    width: 320px;
-  }
-
-  .lg-still-macro {
-    width: 220px;
-  }
-
-  .lg-media-pair .lg-phone {
-    width: 280px;
-  }
-
-  .lg-nav-row {
-    padding: 0 24px 0 32px;
+  .lp-screens {
+    grid-template-columns: repeat(3, minmax(0, 220px));
+    gap: 16px;
   }
 }
 
-@supports (animation-timeline: scroll()) {
-  @media (min-width: 768px) and (prefers-reduced-motion: no-preference) {
-    /* Scrolling away leans the slab back and lets it fall behind. */
-    .lg-scroll-tilt {
-      animation: lg-scroll-tilt linear both;
-      animation-timeline: scroll(root);
-      animation-range: 0 90vh;
-      transform-style: preserve-3d;
-    }
-  }
-}
-
-@keyframes lg-scroll-tilt {
-  to {
-    transform: rotateX(8deg) scale(0.9) translateY(32px);
-  }
-}
+/* ---------- Desktop ---------- */
 
 @media (min-width: 1024px) {
-  .lg-hero {
-    grid-template-columns: repeat(12, minmax(0, 1fr));
-    align-items: center;
-    gap: 24px;
-    min-height: calc(100dvh - 72px);
-    padding: 40px 32px 96px;
+  .lp-nav-row {
+    height: 64px;
   }
 
-  .lg-hero-copy {
-    grid-column: 1 / span 7;
-  }
-
-  .lg-stage {
-    grid-column: 8 / span 5;
-  }
-
-  .lg-h1 {
-    font-size: clamp(60px, 6.1vw, 88px);
-    line-height: 0.98;
-  }
-
-  .lg-sub {
-    margin-top: 28px;
-    font-size: 18px;
-    line-height: 1.55;
-  }
-
-  .lg-hero .lg-ctas {
-    grid-template-columns: 1fr 1fr;
-    max-width: 448px;
-    margin-top: 36px;
-  }
-
-  .lg-slab-wrap {
-    width: 360px;
-  }
-
-  .lg-shard-spark {
-    right: -56px;
-  }
-
-  .lg-shard-serial {
-    left: -64px;
-  }
-
-  .lg-section {
-    padding: 160px 32px;
-  }
-
-  .lg-section[data-media="none"] {
-    padding-block: 40px;
-  }
-
-  .lg-grid {
-    grid-template-columns: repeat(12, minmax(0, 1fr));
-    align-items: center;
-    gap: 24px;
-  }
-
-  .lg-grid > .lg-copy {
-    grid-column: 1 / span 6;
-  }
-
-  .lg-grid > .lg-media {
-    grid-column: 8 / span 5;
-  }
-
-  .lg-grid[data-flip] > .lg-copy {
-    grid-column: 7 / span 6;
-    grid-row: 1;
-  }
-
-  .lg-grid[data-flip] > .lg-media {
-    grid-column: 1 / span 5;
-    grid-row: 1;
-  }
-
-  .lg-h2 {
-    font-size: 56px;
-    line-height: 1.04;
-  }
-
-  .lg-lead {
-    margin-top: 20px;
-    font-size: 28px;
-  }
-
-  .lg-panel {
-    padding: 88px 80px;
-  }
-
-  .lg-panel-corner:nth-of-type(1),
-  .lg-panel-corner:nth-of-type(2) {
-    top: 24px;
-  }
-
-  .lg-panel-corner:nth-of-type(3),
-  .lg-panel-corner:nth-of-type(4) {
-    bottom: 24px;
-  }
-
-  .lg-panel-corner:nth-of-type(1),
-  .lg-panel-corner:nth-of-type(3) {
-    left: 24px;
-  }
-
-  .lg-panel-corner:nth-of-type(2),
-  .lg-panel-corner:nth-of-type(4) {
-    right: 24px;
-  }
-
-  .lg-phone,
-  .lg-media-pair .lg-phone {
-    width: 320px;
-  }
-
-  .lg-still-rank {
-    right: -24px;
-    width: 200px;
-    max-width: none;
-  }
-
-  .lg-cards {
+  .lp-nav-actions {
     gap: 16px;
   }
 
-  .lg-wall {
-    padding: 120px 0;
+  /* Copy on the left, centered against the card on the right. */
+  .lp-hero {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 64px;
+    padding-block: 72px 88px;
   }
 
-  .lg-wall li {
-    width: 184px;
+  .lp-h1 {
+    font-size: 80px;
   }
 
-  .lg-join {
-    padding: 96px 48px;
+  .lp-sub {
+    font-size: 20px;
   }
 
-  .lg-join .lg-ctas {
-    grid-template-columns: 1fr 1fr;
-    max-width: 448px;
+  .lp-hero-card {
+    width: 360px;
+    max-width: none;
   }
 
-  .lg-footer {
-    padding-inline: 32px;
-  }
-}
-
-/* ---------- Fallbacks ---------- */
-
-/* No backdrop blur, or the reader asked for less transparency: solid panes. */
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .lg-glass {
-    background: var(--glass-solid);
-    border: 1px solid var(--line);
-  }
-}
-
-@media (prefers-reduced-transparency: reduce) {
-  .lg-glass {
-    background: var(--glass-solid);
-    border: 1px solid var(--line);
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
+  .lp-section {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    gap: 64px;
+    padding-block: 64px;
   }
 
-  .lg-nav {
-    border-width: 0 0 1px;
-  }
-}
-
-/* Less motion: one composed still. Card straight, sweep held at 60%, nothing drifts. */
-@media (prefers-reduced-motion: reduce) {
-  .lg *,
-  .lg *::before {
-    animation: none !important;
-    transition: none !important;
+  /* No screenshots yet: the heading on the left, its line on the right. */
+  .lp-section[data-media="none"] {
+    grid-template-columns: minmax(0, 1fr);
+    padding-block: 48px;
   }
 
-  .lg-sweep {
-    opacity: 1;
-    transform: translateX(80%) skewX(-12deg);
+  .lp-section[data-media="none"] .lp-copy {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    column-gap: 64px;
   }
 
-  .lg-tilt {
-    transform: none;
+  .lp-section[data-media="none"] .lp-count,
+  .lp-section[data-media="none"] .lp-h2 {
+    grid-column: 1;
   }
 
-  .lg-pause {
-    display: none;
+  .lp-section[data-media="none"] .lp-line {
+    grid-column: 2;
+    grid-row: 2;
+    align-self: center;
+    font-size: 20px;
   }
 
-  .lg-wall {
-    overflow-x: auto;
+  .lp-h2 {
+    font-size: 36px;
   }
 
-  .lg-wall-track > ul[aria-hidden] {
-    display: none;
+  .lp-screens {
+    grid-template-columns: repeat(3, minmax(0, 260px));
+  }
+
+  .lp-screens[data-screens="1"] {
+    grid-template-columns: minmax(0, 260px);
+  }
+
+  .lp-screens[data-big] {
+    grid-template-columns: minmax(0, 340px);
+  }
+
+  .lp-timeline-body .lp-screens {
+    grid-template-columns: repeat(2, minmax(0, 260px));
+  }
+
+  .lp-join {
+    padding-block: 88px;
+  }
+
+  .lp-tagline {
+    flex-basis: auto;
+    margin-left: auto;
   }
 }

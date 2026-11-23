@@ -2,16 +2,14 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, createContext, useEffect, type ReactNode } from "react";
-import type { CompDemo } from "@/components/landing/showcase/sample-data";
+import { Suspense, useEffect, type ReactNode } from "react";
 import { trackEvent } from "@/lib/analytics";
 import { landingLoginHref, landingSignupHref, safeNext } from "@/lib/auth/safe-next";
 import { prefetchOnce, warmOnFirstInteraction } from "@/lib/landing/warm-routes";
 
 /*
  * The landing page is drawn on the server. These are its only client parts:
- * links that carry ?next= and count taps, the App Store button, the slab's
- * tilt, the pause controls and the Quick Comp panel.
+ * links that carry ?next= and count taps, and the App Store badge.
  */
 
 /**
@@ -65,14 +63,6 @@ function IntentLink({
   return <Link {...props} href={href} prefetch={false} onPointerEnter={warm} onTouchStart={warm} onFocus={warm} />;
 }
 
-/** One real card's stored sold prices for Quick Comp and the hero's sold-price line. Null draws neither. */
-export const LandingCompContext = createContext<CompDemo | null>(null);
-
-/** Set by the page around the landing, so the Quick Comp panel gets the real card. */
-export function LandingCompProvider({ comp, children }: { comp: CompDemo | null; children?: ReactNode }) {
-  return <LandingCompContext value={comp}>{children}</LandingCompContext>;
-}
-
 function FromSearch({ render }: { render: (next: string) => ReactNode }) {
   const next = safeNext(useSearchParams().get("next"));
   return <>{render(next)}</>;
@@ -95,9 +85,9 @@ export function LandingLogin() {
 }
 
 /**
- * Open Slabhold, carrying ?next=. On the web it is the glass button beside
- * the App Store one; inside the iOS app, where that one is hidden, it is the
- * only action.
+ * Open Slabhold, carrying ?next=. On the web it is the quiet button beside
+ * the App Store badge; inside the iOS app, where the badge is hidden, it is
+ * the only action.
  */
 export function LandingOpen() {
   return (
@@ -112,7 +102,7 @@ function OpenLink({ next }: { next: string }) {
     <IntentLink
       href={landingSignupHref(next)}
       onClick={() => trackEvent("landing_cta_clicked", { button: "open" })}
-      className="lg-btn lg-btn-glass lg-glass"
+      className="lp-open"
     >
       Open Slabhold
     </IntentLink>
@@ -124,7 +114,7 @@ function LoginLink({ next }: { next: string }) {
     <IntentLink
       href={landingLoginHref(next)}
       onClick={() => trackEvent("landing_cta_clicked", { button: "login" })}
-      className="inline-flex min-h-11 items-center rounded-full px-3 text-[15px] font-semibold text-zinc-200 hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-[#A78BFA] focus-visible:outline-none"
+      className="lp-login"
     >
       Log in
     </IntentLink>

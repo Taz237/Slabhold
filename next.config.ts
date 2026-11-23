@@ -8,11 +8,11 @@ const nextConfig: NextConfig = {
   outputFileTracingExcludes: {
     "*": ["node_modules/sharp/**", "node_modules/@img/**"],
   },
-  // Signed-out Home checks which real media files exist when it renders
+  // Signed-out Home checks which real pictures exist when it renders
   // (lib/landing/media.ts), so they travel with the two routes that draw it.
   outputFileTracingIncludes: {
-    "/": ["public/landing/media/**"],
-    "/welcome": ["public/landing/media/**"],
+    "/": ["public/landing/screens/**", "public/landing/hero-card.jpg"],
+    "/welcome": ["public/landing/screens/**", "public/landing/hero-card.jpg"],
   },
   // Collection tile photos only. Card photos are uploaded under random UUID
   // paths and never change, so a long cache is safe. One quality and short

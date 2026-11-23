@@ -216,11 +216,11 @@ describe("collection screens", () => {
 });
 
 describe("signed-out landing overflow", () => {
-  it("clips the page sideways, so the slab's glow, the shards and the pulls row never widen it", () => {
-    assert.match(read("components/landing-page.tsx"), /className="lg"/);
+  it("clips the page sideways, so nothing on it can widen a phone screen", () => {
+    assert.match(read("components/landing-page.tsx"), /className="lp"/);
     const css = read("app/landing.css");
-    assert.match(css, /\.lg \{[^}]*overflow-x: clip;/);
-    // The pulls row is the one wide thing: it is clipped by its own section.
-    assert.match(css, /\.lg-wall \{\s*overflow: hidden;/);
+    assert.match(css, /\.lp \{[^}]*overflow-x: clip;/);
+    // Long words in a real post wrap inside the post.
+    assert.match(css, /\.lp-post-text \{[^}]*overflow-wrap: anywhere;/);
   });
 });
