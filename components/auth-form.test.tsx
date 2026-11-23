@@ -234,7 +234,16 @@ describe("sign-up flow", () => {
     assert.equal(calls.length, 1);
     assert.deepEqual(
       { ...calls[0], next: undefined },
-      { email: "ada@example.com", password: "secret12", username: "wax_room", displayName: "Ada", next: undefined, captchaToken: undefined },
+      {
+        email: "ada@example.com",
+        password: "secret12",
+        username: "wax_room",
+        displayName: "Ada",
+        next: undefined,
+        captchaToken: undefined,
+        // No invite or campaign link on this device: direct, on the web.
+        source: { signup_source: "direct", signup_platform: "web" },
+      },
     );
     assert.equal(heading(), "Check your email");
     assert.match(view.host.textContent ?? "", /ada@example\.com/);

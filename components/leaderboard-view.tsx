@@ -2,6 +2,7 @@ import { getImageProps } from "next/image";
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 import { ChevronDown, ChevronUp, Crown, Info, Minus, Plus } from "lucide-react";
+import { LeaderboardInviteRow } from "@/components/invite/invite-moment";
 import { LeaderboardAvatar } from "@/components/leaderboard-avatar";
 import { LeaderboardCount } from "@/components/leaderboard-count";
 import { LeaderboardCountdown } from "@/components/leaderboard-countdown";
@@ -31,6 +32,7 @@ import type {
   RankMove,
   YouRow,
 } from "@/lib/leaderboard/present";
+import { leaderboardInviteEligible } from "@/lib/invites/moments";
 import { profileLinkFor } from "@/lib/leaderboard/profile-link";
 import {
   FINAL_LABEL,
@@ -793,6 +795,9 @@ function Board({ board, week }: { board: LeaderboardBoard; week: "current" | "pr
           </ol>
         ) : null}
         {board.you ? <PinnedSpot you={board.you} board={board} week={week} /> : null}
+        {leaderboardInviteEligible({ week, hasSpot: Boolean(board.you && board.you.rank > 0) }) ? (
+          <LeaderboardInviteRow />
+        ) : null}
       </div>
     </section>
   );

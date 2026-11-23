@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   INVITE_SHARE_TEXT,
+  inviteShareMessage,
   badgeImagePath,
   badgeSharePath,
   badgeShareText,
@@ -96,11 +97,16 @@ describe("invite and collection links", () => {
     assert.equal(invitePath("maya", null), "/i/maya");
     assert.equal(invitePath("maya", "bad&code"), "/i/maya");
     assert.equal(withShareRef(`https://slabhold.app${invitePath("maya", code)}`), `https://slabhold.app/i/maya?ref=share&c=${code}`);
-    assert.equal(INVITE_SHARE_TEXT, "Join me on Slabhold, the home for your card collection");
+    assert.equal(INVITE_SHARE_TEXT, "I'm putting my cards on Slabhold. Come talk cards with me:");
+    assert.equal(
+      inviteShareMessage(`https://slabhold.app${invitePath("maya", code)}`),
+      `I'm putting my cards on Slabhold. Come talk cards with me: https://slabhold.app/i/maya?c=${code}`,
+    );
     assert.equal(
       xIntentUrl({ text: INVITE_SHARE_TEXT, url: "https://slabhold.app/i/maya" }),
-      "https://x.com/intent/post?text=Join%20me%20on%20Slabhold%2C%20the%20home%20for%20your%20card%20collection&url=https%3A%2F%2Fslabhold.app%2Fi%2Fmaya",
+      "https://x.com/intent/post?text=I'm%20putting%20my%20cards%20on%20Slabhold.%20Come%20talk%20cards%20with%20me%3A&url=https%3A%2F%2Fslabhold.app%2Fi%2Fmaya",
     );
+    assert.doesNotMatch(INVITE_SHARE_TEXT, /\b(best|ai|free|number one|flip)\b/i);
   });
 
   it("builds the collection page, Story image and file name", () => {

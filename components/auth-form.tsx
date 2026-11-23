@@ -53,6 +53,7 @@ import { TAKEN_USERNAME } from "@/lib/social/username-taken";
 import { isStandaloneApp } from "@/lib/pwa/add-to-home";
 import { forgetEmailHint, loginFinishesSetup, readEmailHint } from "@/lib/pwa/install-step";
 import { readStoredUtm } from "@/lib/utm";
+import { browserSignupSource } from "@/lib/invites/signup-source";
 import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 
 type SignupField = "username" | "email" | "password";
@@ -212,7 +213,16 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
     const result =
       mode === "login"
         ? await signIn(email, password, captchaToken ?? undefined)
-        : await signUp({ email, password, username, displayName, next, captchaToken: captchaToken ?? undefined });
+        : await signUp({
+            email,
+            password,
+            username,
+            displayName,
+            next,
+            captchaToken: captchaToken ?? undefined,
+            // Invite, campaign link or direct, into auth user metadata. Never a table.
+            source: browserSignupSource(),
+          });
     setBusy(false);
     if (result.error) {
       setError(result.error);

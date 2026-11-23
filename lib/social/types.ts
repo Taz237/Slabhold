@@ -1,3 +1,4 @@
+import type { SignupSourceMeta } from "@/lib/invites/signup-source";
 import type { PostGif } from "./gifs";
 import type { PostVideo } from "./videos";
 
@@ -220,6 +221,8 @@ export type SignUpInput = {
   next?: string;
   /** Cloudflare Turnstile token. Omitted when the site key is not set. */
   captchaToken?: string;
+  /** Where the signup came from (lib/invites/signup-source), saved in auth user metadata. */
+  source?: SignupSourceMeta;
 };
 
 export type ProfilePatch = {
