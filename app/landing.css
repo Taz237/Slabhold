@@ -173,8 +173,7 @@ html[data-native] .lp-open {
 /* The card, flat: a photo on the table. */
 .lp-hero-card {
   display: block;
-  width: 62vw;
-  max-width: 280px;
+  width: 208px;
   height: auto;
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -462,7 +461,6 @@ html[data-native] .lp-open {
 
   .lp-hero-card {
     width: 360px;
-    max-width: none;
   }
 
   .lp-section {

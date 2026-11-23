@@ -71,7 +71,7 @@ export function Hero({ card }: { card: MediaSlot | null }) {
         alt: HERO_CARD_ALT,
         width: card.width,
         height: card.height,
-        sizes: "(min-width: 1024px) 360px, min(62vw, 280px)",
+        sizes: "(min-width: 1024px) 360px, 208px",
         quality: 75,
         loading: "eager",
         fetchPriority: "high",
