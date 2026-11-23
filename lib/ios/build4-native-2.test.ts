@@ -20,10 +20,10 @@ function sources(dir: string): string[] {
 }
 
 describe("build 4 part 2: same version, same entitlements", () => {
-  it("keeps one version in Debug and Release (now 1.1.0, build 5)", () => {
+  it("keeps one version in Debug and Release (now 1.2.1, build 10)", () => {
     const pbx = read("ios-app/ios/App/App.xcodeproj/project.pbxproj");
-    assert.equal(count(pbx, /MARKETING_VERSION = 1\.1\.0;/g), 2);
-    assert.equal(count(pbx, /CURRENT_PROJECT_VERSION = 5;/g), 2);
+    assert.equal(count(pbx, /MARKETING_VERSION = 1\.2\.1;/g), 2);
+    assert.equal(count(pbx, /CURRENT_PROJECT_VERSION = 10;/g), 2);
     assert.equal(count(pbx, /CODE_SIGN_ENTITLEMENTS = App\/App\.entitlements;/g), 2);
   });
 

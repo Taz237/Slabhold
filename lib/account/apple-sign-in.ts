@@ -1,8 +1,11 @@
 /**
  * Sign in with Apple and account deletion. Deleting the Slabhold account removes
- * everything we store, but Apple still lists Slabhold under the person's Apple
- * Account until they remove it there (or we revoke the token, which we don't do
- * yet). So after the delete we show them where to finish.
+ * everything we store. Apple keeps listing Slabhold under the person's Apple
+ * Account until the Sign in with Apple token is revoked. When revoke is set up
+ * (lib/account/apple-revoke) and Apple hands us a token, the delete revokes it
+ * first (lib/account/apple-delete-flow). When it isn't set up, no token came
+ * back, or Apple didn't answer 200, the account is still deleted and we show
+ * the person where to remove Slabhold themselves, below.
  */
 
 /** Where to tap on the iPhone, in order. */
