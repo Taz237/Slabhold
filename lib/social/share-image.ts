@@ -27,6 +27,18 @@ export type ShareSlab = {
 
 export type ShareBadge = { category: BadgeCategory; tier: BadgeTier };
 
+/** The extras a post's 1080×1920 Story image draws. Only set by the Story route. */
+export type ShareStory = {
+  /** posts.like_count. Null when it could not be read. */
+  likes: number | null;
+  /** Replies on the post. Null when they could not be counted. */
+  replies: number | null;
+  /** "slabhold.app/i/ada", plus "?c=<code>" only on the author's own image. */
+  link: string;
+  /** False for a photo-only post, so the image does not print "Post". */
+  hasText: boolean;
+};
+
 export type ShareImage = {
   kind: "home" | "profile" | "post" | "mail" | "card" | "badge" | "invite" | "collection" | "player";
   kicker: string;
@@ -54,6 +66,8 @@ export type ShareImage = {
   chip: string;
   /** Profile pins when show_badges is on, or the shared badge. */
   badges: ShareBadge[];
+  /** Post Story extras. Absent on every other image. */
+  story?: ShareStory;
 };
 
 const EMAIL = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
