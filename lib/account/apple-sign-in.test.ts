@@ -46,7 +46,7 @@ describe("delete account: finishing with Apple", () => {
     const route = read("app/api/account/delete/route.ts");
     assert.match(route, /usedAppleSignIn\(/);
     assert.ok(route.indexOf("getUserById(") < route.indexOf("runAccountDelete("), "looked up before the user is gone");
-    assert.match(route, /result\.status === 200 && apple/);
+    assert.match(read("lib/account/apple-delete-flow.ts"), /result\.status === 200 && input\.apple && !revoked/);
   });
 
   it("the screen shows the step before it signs out and leaves, and only for Apple", () => {

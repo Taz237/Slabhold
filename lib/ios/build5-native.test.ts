@@ -117,9 +117,9 @@ describe("build 5: Info.plist and version", () => {
     for (const text of strings) assert.match(text, /\.$/, text);
   });
 
-  it("is version 1.1.0, build 5, in Debug and Release", () => {
+  it("is version 1.2.1, build 10, in Debug and Release", () => {
     const pbx = read("ios-app/ios/App/App.xcodeproj/project.pbxproj");
-    assert.deepEqual([...new Set(pbx.match(/MARKETING_VERSION = [^;]+/g))], ["MARKETING_VERSION = 1.1.0"]);
-    assert.deepEqual([...new Set(pbx.match(/CURRENT_PROJECT_VERSION = [^;]+/g))], ["CURRENT_PROJECT_VERSION = 5"]);
+    assert.deepEqual([...new Set(pbx.match(/MARKETING_VERSION = [^;]+/g))], ["MARKETING_VERSION = 1.2.1"]);
+    assert.deepEqual([...new Set(pbx.match(/CURRENT_PROJECT_VERSION = [^;]+/g))], ["CURRENT_PROJECT_VERSION = 10"]);
   });
 });

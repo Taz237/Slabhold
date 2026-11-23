@@ -22,9 +22,9 @@ const APP = "ios-app/ios/App/App";
 describe("build 4: version and project", () => {
   const pbx = read("ios-app/ios/App/App.xcodeproj/project.pbxproj");
 
-  it("has one version in Debug and Release (now 1.1.0, build 5)", () => {
-    assert.equal(count(pbx, /MARKETING_VERSION = 1\.1\.0;/g), 2);
-    assert.equal(count(pbx, /CURRENT_PROJECT_VERSION = 5;/g), 2);
+  it("has one version in Debug and Release (now 1.2.1, build 10)", () => {
+    assert.equal(count(pbx, /MARKETING_VERSION = 1\.2\.1;/g), 2);
+    assert.equal(count(pbx, /CURRENT_PROJECT_VERSION = 10;/g), 2);
     assert.match(read(`${APP}/Info.plist`), /<key>CFBundleShortVersionString<\/key>\s*<string>\$\(MARKETING_VERSION\)<\/string>/);
   });
 
