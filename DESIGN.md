@@ -192,7 +192,7 @@ Reels (Video Studio) may be more athletic than the website, but they still have 
 
 ## Voice & Content Strategy
 
-Write as the team: "the team at Slabhold," "we." Do not name Donnie in posts, replies, or graphics. Hobby-native, short, and plain. Lead with the collector moment.
+Write as the team: "the team at Slabhold," "we." Do not name the founder in posts, replies, or graphics. Hobby-native, short, and plain. Lead with the collector moment.
 
 The closer, when a reel or film needs one: **Slabhold. Built by collectors, for collectors. Now available on the App Store.** On-screen tagline casing matches the landing footer: "Built by collectors, for collectors."
 
@@ -229,4 +229,4 @@ Phone frames in marketing are plain bezels around a real current-app capture. Ne
 - Recolor the logo, invent UI, or edit Apple's badge.
 - Use the banned words listed under Voice.
 - Mention Quick Comp.
-- Use old app footage, the Andrew Painter card, or Donnie's face or voice. Crop Donnie's large profile header photo out of frames. Small avatars on the no-blur list (DonnieTaz, Jbills, Kevstuff, Flaherty) may stay uncovered.
+- Use old app footage, or show the founder's face or voice.
