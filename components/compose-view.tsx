@@ -49,7 +49,7 @@ import {
   postsSupportMultipleImages,
 } from "@/lib/social/post-photos";
 import type { PostGif } from "@/lib/social/gifs";
-import { emptyPollDraft, pollChoices, pollDraftProblem, type PollDraft } from "@/lib/social/poll-draft";
+import { emptyPollDraft, POLL_QUESTION_REQUIRED, pollChoices, pollDraftProblem, type PollDraft } from "@/lib/social/poll-draft";
 import { postsSupportPolls } from "@/lib/social/poll-support";
 import {
   addSegmentAfter,
@@ -112,7 +112,10 @@ export function ComposeView() {
   const [videoOn, setVideoOn] = useState(false);
   const video = useVideoDraft(user?.id);
   /** A poll on the post being written. A poll post is text only, like X. */
-  const [poll, setPoll] = useState<PollDraft | null>(null);
+  // ?poll=1 (the home feed's poll button) opens with the poll editor, on a plain new post only.
+  const [poll, setPoll] = useState<PollDraft | null>(() =>
+    params.has("poll") && !editId && !quoteParam && !attachCardParam ? emptyPollDraft() : null,
+  );
   /** Polls need their tables. Until the database has them the button stays hidden. */
   const [pollsOn, setPollsOn] = useState(mode !== "supabase");
   /**
@@ -368,25 +371,13 @@ export function ComposeView() {
     if (video.busy) return;
 
     if (poll && !editing) {
-      const problem = !body.trim() ? "Ask a question for your poll." : pollDraftProblem(poll);
+      // A poll is one post, never a quote: it goes out through the single-post save below.
+      const problem = !body.trim() ? POLL_QUESTION_REQUIRED : pollDraftProblem(poll);
       if (problem) {
         setError(problem);
         return;
       }
-      setSending(true);
-      const result = await createPost({ body, imageDataUrl: null, images: [], card: null, poll });
-      setSending(false);
-      if (result.error) {
-        setError(result.error);
-        return;
-      }
-      haptic("post");
-      settleDraft();
-      router.push("/");
-      return;
-    }
-
-    if (quoteId) {
+    } else if (quoteId) {
       const quoteError = validateQuoteContent({
         body: lead.body,
         imageDataUrl: lead.images[0] ?? lead.gif?.still ?? leadVideo?.poster ?? null,
@@ -424,7 +415,7 @@ export function ComposeView() {
       ? await updatePost(editing.id, { body, imageDataUrl: image, images, gif, video: editing.video ?? null })
       : inputs.length > 1
         ? await createThread(inputs)
-        : await createPost(inputs[0]!);
+        : await createPost({ ...inputs[0]!, poll });
     setSending(false);
     if (result.error) {
       // A failed save deleted the uploaded video too: clear the tile so it's added again.
@@ -502,7 +493,8 @@ export function ComposeView() {
   // A poll goes on a single post with text only: no photos, GIF, video, card or quote.
   const canPoll = pollsOn && !editing && !threaded && !quoteId;
   const pollBlocked =
-    images.length > 0 || Boolean(gif) || video.active || readingPhoto || Boolean(attachedPreview) || Boolean(cardId);
+    // An attached card always sets cardId, so that covers the card too.
+    images.length > 0 || Boolean(gif) || video.active || readingPhoto || Boolean(cardId);
 
   function leave() {
     leaveCompose(router);
