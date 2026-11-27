@@ -47,6 +47,8 @@ import { VideoDraftTile } from "@/components/post-video";
 import { useVideoDraft } from "@/components/use-video-draft";
 import { libraryAccept, planMediaPick, postsSupportVideo } from "@/lib/social/videos";
 import { composeDraftKey, keepComposeDraft, threadDraftFromHome } from "@/lib/social/compose-draft";
+import { inlinePollButton, startPollInComposer } from "@/lib/social/inline-poll";
+import { InlinePollButton } from "@/components/inline-poll-button";
 import type { PostGif } from "@/lib/social/gifs";
 import { postsSupportGifsAndThreads } from "@/lib/social/threads";
 import { PhotoFileInputs } from "@/components/photo-file-inputs";
@@ -617,6 +619,8 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
   const [extrasOn, setExtrasOn] = useState(mode !== "supabase");
   /** Videos need Supabase Storage and the posts.video column. */
   const [videoOn, setVideoOn] = useState(false);
+  /** Polls need their tables. Until the database has them the button stays hidden. */
+  const [pollsOn, setPollsOn] = useState(mode !== "supabase");
   const video = useVideoDraft(user?.id);
   const [composePhoto] = useState(() => takeComposePrefill());
   const {
@@ -648,6 +652,13 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
       void postsSupportVideo(supabase).then((ok) => {
         if (!cancelled) setVideoOn(ok);
       });
+      // Its own small chunk, read after the box is up.
+      void import("@/lib/social/poll-support")
+        .then(({ postsSupportPolls }) => postsSupportPolls(supabase))
+        .then((ok) => {
+          if (!cancelled) setPollsOn(ok);
+        })
+        .catch(() => {});
     }).catch(() => {
       // supabase-js failed to load: the photo limit stays at its default.
     });
@@ -730,6 +741,24 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
     clear();
     router.push("/compose");
   }
+
+  /** The poll button: the text goes to /compose, which opens with the poll editor. This box is cleared. */
+  function startPoll() {
+    if (overLimit) return;
+    startPollInComposer(body, (href) => router.push(href));
+    clear();
+  }
+
+  // This box is never a quote, and a thread is written on /compose, so it is always one post.
+  const pollButton = inlinePollButton({
+    pollsOn,
+    quoting: false,
+    posts: 1,
+    photos: images.length,
+    gif: Boolean(gif),
+    video: video.active,
+    card: Boolean(cardId),
+  });
 
   return (
     <form
@@ -821,6 +850,7 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
               <option value="">Attach a card</option>
             </select>
           )}
+          <InlinePollButton state={readingPhoto && pollButton === "on" ? "disabled" : pollButton} onStart={startPoll} />
           <span className="ml-auto flex min-h-11 items-center">
             <CharacterRing length={body.length} limit={POST_LIMIT} />
             <span className="sr-only" aria-live="polite">
