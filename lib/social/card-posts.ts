@@ -17,6 +17,7 @@ import { mappedPostImages } from "./post-photos";
 import { mapPublicCard, PUBLIC_CARD_SELECT, type CardRow } from "./cards";
 import type { MailDayCardView, Post, PostLike, Profile, PublicCard } from "./types";
 import { userHref } from "./user-href";
+import { pollField } from "./poll-meta";
 
 export type CardPostsCursor = {
   createdAt: string;
@@ -161,6 +162,7 @@ function mapPostRow(row: PostRow, mailDayCards: MailDayCardView[]): Post {
       : null,
     mailDayCards,
     ...likeCountField(row.like_count),
+    ...pollField(row.meta),
   };
 }
 

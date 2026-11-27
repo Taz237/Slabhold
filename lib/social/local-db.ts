@@ -29,6 +29,8 @@ import { canDeleteReply, stateAfterReplyDelete } from "./reply-delete";
 import { normalizeUsername, usernameChangeError, usernameError } from "./usernames";
 import { contentProblem, usernameProblem } from "@/lib/safety/content-filter";
 import { BRAND_PURPLE } from "@/lib/pwa/manifest";
+import { localPoll } from "./poll-local";
+import { POLL_QUESTION_REQUIRED, pollDraftProblem, type PollDraft } from "./poll-draft";
 
 export { canDeleteReply, stateAfterReplyDelete } from "./reply-delete";
 export {
@@ -689,15 +691,22 @@ export function localCreatePost(
     quotedPostId?: string | null;
     shareOfNewCard?: boolean;
     gif?: PostGif | null;
+    /** A poll: text only, no photos, GIF, card or quote. */
+    poll?: PollDraft | null;
   },
   /** Set by localCreateThread: this post's place in a thread. */
   slot?: { threadId: string | null; threadPosition: number | null },
 ): { db: LocalDb; error?: string; postId?: string } {
   if (!db.sessionUserId) return { db, error: "Log in to post." };
   const body = input.body.trim();
-  const gif = sanitizeGif(input.gif);
-  const photos = gif ? [] : draftPostPhotos(input);
-  const quotedPostId = input.quotedPostId?.trim() || null;
+  if (input.poll) {
+    if (!body) return { db, error: POLL_QUESTION_REQUIRED };
+    const problem = pollDraftProblem(input.poll);
+    if (problem) return { db, error: problem };
+  }
+  const gif = input.poll ? null : sanitizeGif(input.gif);
+  const photos = gif || input.poll ? [] : draftPostPhotos(input);
+  const quotedPostId = input.poll ? null : input.quotedPostId?.trim() || null;
   if (quotedPostId) {
     const quoteError = validateQuoteContent({
       body,
@@ -714,17 +723,20 @@ export function localCreatePost(
   const bodyProblem = contentProblem(body);
   if (bodyProblem) return { db, error: bodyProblem };
   const createdAt = new Date().toISOString();
-  const threaded = slot?.threadId != null && slot.threadPosition != null;
+  const threaded = !input.poll && slot?.threadId != null && slot.threadPosition != null;
+  const postId = `post-${Date.now().toString(36)}${threaded ? `-${slot.threadPosition}` : ""}`;
+  const poll = input.poll ? localPoll(postId, input.poll, Date.parse(createdAt)) : null;
   const post: Post = {
-    id: `post-${Date.now().toString(36)}${threaded ? `-${slot.threadPosition}` : ""}`,
+    id: postId,
     authorId: db.sessionUserId,
     body,
     imageDataUrl: photos[0] ?? null,
     images: photos,
-    card: input.card,
+    card: input.poll ? null : input.card,
     quotedPostId,
     createdAt,
     ...(gif ? { gif } : {}),
+    ...(poll ? { poll } : {}),
     ...(threaded ? { threadId: slot.threadId, threadPosition: slot.threadPosition } : {}),
   };
   let notifications = withMentionNotifications(

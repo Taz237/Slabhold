@@ -3,6 +3,7 @@ import { cleanImageUrl } from "./link-preview";
 import type { PostGif } from "./gifs";
 import type { PublicCard } from "./types";
 import type { PostVideo } from "./videos";
+import type { PollDraft } from "./poll-draft";
 
 /**
  * A normal post stores its first photo on posts.image_url and any further
@@ -29,6 +30,8 @@ export type PostWrite = {
   gif?: PostGif | null;
   /** One uploaded video. Not saved together with photos or a GIF. */
   video?: PostVideo | null;
+  /** A poll. A poll post is text only: photos, GIF, video, card and quote are left off. */
+  poll?: PollDraft | null;
 };
 
 export function postPhotoLimit(multiPhoto: boolean): number {

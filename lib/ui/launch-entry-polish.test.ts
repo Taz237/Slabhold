@@ -87,7 +87,8 @@ describe("empty card prompts", () => {
     const feed = read("components/feed-view.tsx");
     assert.match(compose, /cardsReady && !syncError \? \([\s\S]*<AttachCardField/);
     assert.match(compose, /aria-label="Attach a card"[\s\S]*disabled=\{!cardsUsable\}/);
-    assert.match(compose, /const cardsUsable = cardsReady && !syncError;/);
+    // A poll post carries no card, so the button also rests while a poll is on.
+    assert.match(compose, /const cardsUsable = cardsReady && !syncError && !poll;/);
     assert.match(feed, /cardsReady && !syncError \? \([\s\S]*<AttachCardField/);
     assert.match(feed, /<select[\s\S]*disabled[\s\S]*Attach a card/);
   });

@@ -289,18 +289,18 @@ describe("composer layout, like X", () => {
     }
   });
 
-  it("only shows tools we have: photo library, camera, GIF, attach a card, add a post", async () => {
+  it("only shows tools we have: photo library, camera, GIF, poll, attach a card, add a post", async () => {
     fakeViewport(0);
     const view = await mount();
     try {
       const labels = [...toolbar().querySelectorAll("button")].map((button) => button.getAttribute("aria-label"));
-      assert.deepEqual(labels, ["Photo library", "Camera", "Add a GIF", "Attach a card", "Add another post"]);
+      assert.deepEqual(labels, ["Photo library", "Camera", "Add a GIF", "Add a poll", "Attach a card", "Add another post"]);
       for (const button of toolbar().querySelectorAll("button")) {
         assert.match(button.className, /\bh-11 w-11\b/, "every tool is a 44px target");
       }
       const text = win.document.querySelector('[role="dialog"]')?.textContent ?? "";
       assert.doesNotMatch(text, /Everyone can reply/, "no reply setting exists, so no fake control");
-      assert.doesNotMatch(text, /Poll|Video/, "no poll or video yet");
+      assert.doesNotMatch(text, /Remove poll|Video/, "no poll editor until the poll button is tapped");
     } finally {
       view.unmount();
     }

@@ -111,6 +111,11 @@ export function QuotedPostEmbed({
               <MentionText text={post.body} />
             </p>
           ) : null}
+          {post.poll ? (
+            <p data-quoted-poll="" className="mt-1 text-13 text-zinc-500">
+              Poll · {post.poll.options.length} choices
+            </p>
+          ) : null}
           {nestedLink ? (
             <p className="mt-1 text-13 text-zinc-500">
               Quoting{" "}

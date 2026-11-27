@@ -1,5 +1,6 @@
 import type { SignupSourceMeta } from "@/lib/invites/signup-source";
 import type { PostGif } from "./gifs";
+import type { PostPoll } from "./poll-meta";
 import type { PostVideo } from "./videos";
 
 export type Profile = {
@@ -97,6 +98,8 @@ export type Post = {
   threadId?: string | null;
   /** Place in the thread, 0 first. Timelines show the post at 0 only. */
   threadPosition?: number | null;
+  /** A poll, from posts.meta.poll. A poll post has text only. */
+  poll?: PostPoll | null;
 };
 
 export type FollowEdge = {
@@ -141,7 +144,9 @@ export type NotificationKind =
   | "want_alert"
   | "deal_confirm"
   /** Someone reacted to your DM. Quiet: never a push. */
-  | "dm_reaction";
+  | "dm_reaction"
+  /** Your poll ended. No actor. Quiet: never a push. */
+  | "poll_ended";
 
 export type Notification = {
   id: string;

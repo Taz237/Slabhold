@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ReadRetry } from "@/components/read-retry";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { AtSign, Bell, Handshake, Heart, MessageCircle, Quote, Repeat2, SmilePlus, Star, UserPlus } from "lucide-react";
+import { AtSign, Bell, ChartBarBig, Handshake, Heart, MessageCircle, Quote, Repeat2, SmilePlus, Star, UserPlus } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { DealConfirmActions, useMyDeals } from "@/components/deal-response";
 import { WantAlertOfferLink } from "@/components/open-to-offers";
@@ -21,6 +21,7 @@ import {
   groupHeadlineParts,
   groupNotifications,
   groupStaysHighlighted,
+  notificationAction,
   unreadNotificationIds,
   type NotificationGroup,
 } from "@/lib/social/group-notifications";
@@ -144,7 +145,14 @@ export function NotificationsView() {
                       aria-hidden="true"
                     />
                   ) : null}
-                  {faces.length > 1 ? (
+                  {group.kind === "poll_ended" ? (
+                    <span
+                      aria-hidden="true"
+                      className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-violet-600/10 text-violet-700 dark:bg-violet-400/15 dark:text-[#A78BFA]"
+                    >
+                      <ChartBarBig className="h-5 w-5" />
+                    </span>
+                  ) : faces.length > 1 ? (
                     <span className="flex shrink-0 -space-x-3">
                       {faces.map((id) => {
                         const person = authors.get(id);
@@ -173,6 +181,8 @@ export function NotificationsView() {
                     <span className="block text-15 leading-5">
                       {group.kind === "want_alert" || group.kind === "deal_confirm" ? (
                         <span>{group.preview}</span>
+                      ) : group.kind === "poll_ended" ? (
+                        <span>{notificationAction("poll_ended")}</span>
                       ) : (
                         <>
                           <span className="font-semibold">{headline.lead}</span>
@@ -246,5 +256,6 @@ function groupIcon(kind: NotificationKind) {
   if (kind === "want_alert") return Star;
   if (kind === "deal_confirm") return Handshake;
   if (kind === "dm_reaction") return SmilePlus;
+  if (kind === "poll_ended") return ChartBarBig;
   return UserPlus;
 }

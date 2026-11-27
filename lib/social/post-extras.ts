@@ -1,21 +1,24 @@
 import { sanitizeGif, type PostGif } from "./gifs";
 import { sanitizeVideo, type PostVideo } from "./videos";
+import { pollFromMeta, type PostPoll } from "./poll-meta";
 
 /** The columns added for GIF posts and threads. */
 export const POST_EXTRA_COLUMNS = "gif, thread_id, thread_position";
 
-type ExtraRow = { gif?: unknown; video?: unknown; thread_id?: unknown; thread_position?: unknown };
+type ExtraRow = { gif?: unknown; video?: unknown; thread_id?: unknown; thread_position?: unknown; meta?: unknown };
 
 /** The video column, read alongside the others once the database has it. */
 export const POST_VIDEO_COLUMN = "video";
 
-/** GIF, video and thread fields of a posts row, as they sit on a Post. */
+/** GIF, video, thread and poll fields of a posts row, as they sit on a Post. */
 export function postExtrasFromRow(row: ExtraRow): {
   gif: PostGif | null;
   /** Left off when the row has no video, so older rows map as before. */
   video?: PostVideo;
   threadId: string | null;
   threadPosition: number | null;
+  /** Left off when the row has no poll (meta.poll). */
+  poll?: PostPoll;
 } {
   const threadId = typeof row.thread_id === "string" && row.thread_id ? row.thread_id : null;
   const position =
@@ -24,9 +27,11 @@ export function postExtrasFromRow(row: ExtraRow): {
       : null;
   const threaded = threadId !== null && position !== null;
   const video = sanitizeVideo(row.video);
+  const poll = pollFromMeta(row.meta);
   return {
     gif: sanitizeGif(row.gif),
     ...(video ? { video } : {}),
+    ...(poll ? { poll } : {}),
     threadId: threaded ? threadId : null,
     threadPosition: threaded ? position : null,
   };

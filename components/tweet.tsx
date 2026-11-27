@@ -12,6 +12,7 @@ import { PostCardTile, postCardHref } from "@/components/post-card-tile";
 import { PostPhotoGrid } from "@/components/post-photo-grid";
 import { PostGifPlayer } from "@/components/post-gif";
 import { PostVideoPlayer } from "@/components/post-video";
+import { PostPoll } from "@/components/post-poll";
 import { isInThread } from "@/lib/social/threads";
 import { ReplyPhotos } from "@/components/reply-photos";
 import { MentionText } from "@/components/mention-text";
@@ -237,6 +238,7 @@ export const Tweet = memo(function Tweet({
                 fit={variant === "detail" ? "full" : "feed"}
               />
             ) : null}
+            {post.poll ? <PostPoll poll={post.poll} authorId={post.authorId} /> : null}
             {post.gif && !photos.length ? <PostGifPlayer gif={post.gif} /> : null}
             {post.video && !photos.length && !post.gif ? (
               <PostVideoPlayer video={post.video} fit={variant === "detail" ? "full" : "feed"} />
@@ -529,18 +531,21 @@ function PostMenu({ post }: { post: Post }) {
                   Pin to profile
                 </button>
               )}
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  close();
-                  router.push(`/compose?edit=${post.id}`);
-                }}
-                className={menuSheetItem}
-              >
-                <MenuSheetIcon icon={Pencil} />
-                Edit post
-              </button>
+              {/* Like X, a poll post can't be edited once it's up. */}
+              {post.poll ? null : (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    close();
+                    router.push(`/compose?edit=${post.id}`);
+                  }}
+                  className={menuSheetItem}
+                >
+                  <MenuSheetIcon icon={Pencil} />
+                  Edit post
+                </button>
+              )}
               <button
                 type="button"
                 role="menuitem"
