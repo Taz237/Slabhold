@@ -36,6 +36,7 @@ export function notificationAction(kind: NotificationKind, metadata?: Record<str
   if (kind === "mention") return "mentioned you";
   if (kind === "want_alert") return "matched a card you want";
   if (kind === "deal_confirm") return "asked you to confirm a deal";
+  if (kind === "poll_ended") return "Your poll ended. See the final results";
   return "followed you";
 }
 

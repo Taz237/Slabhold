@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir, userInfo } from "node:os";
@@ -75,6 +75,24 @@ export async function startPostgres(prefix: string) {
       const path = join(root, `step-${count}.sql`);
       writeFileSync(path, sql);
       return must(psql, [...args, path], label);
+    },
+    /** Each script on its own connection, all at once. Resolves with every exit code and output. */
+    runAtOnce(sqls: readonly string[]) {
+      return Promise.all(
+        sqls.map((sql) => {
+          count += 1;
+          const path = join(root, `step-${count}.sql`);
+          writeFileSync(path, sql);
+          return new Promise<{ status: number | null; stdout: string; stderr: string }>((resolve) => {
+            const child = spawn(psql, ["-X", "-q", "-t", "-A", ...args, path]);
+            let stdout = "";
+            let stderr = "";
+            child.stdout.on("data", (chunk) => (stdout += String(chunk)));
+            child.stderr.on("data", (chunk) => (stderr += String(chunk)));
+            child.on("close", (status) => resolve({ status, stdout, stderr }));
+          });
+        }),
+      );
     },
     stop,
   };

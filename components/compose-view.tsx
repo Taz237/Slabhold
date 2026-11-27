@@ -11,10 +11,11 @@ import {
   useSyncExternalStore,
 } from "react";
 import { createPortal } from "react-dom";
-import { Camera, ImagePlus, Layers, Plus, X } from "lucide-react";
+import { Camera, ChartBarBig, ImagePlus, Layers, Plus, X } from "lucide-react";
 import { AttachCardField } from "@/components/attach-card-field";
 import { Avatar } from "@/components/avatar";
 import { ComposePhotoDrafts } from "@/components/compose-photo-drafts";
+import { ComposePoll } from "@/components/compose-poll";
 import { GifPicker } from "@/components/gif-picker";
 import { GifDraft } from "@/components/post-gif";
 import { savedVideoDraft, VideoDraftTile } from "@/components/post-video";
@@ -48,6 +49,8 @@ import {
   postsSupportMultipleImages,
 } from "@/lib/social/post-photos";
 import type { PostGif } from "@/lib/social/gifs";
+import { emptyPollDraft, pollChoices, pollDraftProblem, type PollDraft } from "@/lib/social/poll-draft";
+import { postsSupportPolls } from "@/lib/social/poll-support";
 import {
   addSegmentAfter,
   canAddToThread,
@@ -108,6 +111,10 @@ export function ComposeView() {
   /** Videos need Supabase Storage and the posts.video column. Until then the library takes photos only. */
   const [videoOn, setVideoOn] = useState(false);
   const video = useVideoDraft(user?.id);
+  /** A poll on the post being written. A poll post is text only, like X. */
+  const [poll, setPoll] = useState<PollDraft | null>(null);
+  /** Polls need their tables. Until the database has them the button stays hidden. */
+  const [pollsOn, setPollsOn] = useState(mode !== "supabase");
   /**
    * Every post of the thread being written. The one at `active` is edited
    * through body, images and gif above, so its slot here is stale until
@@ -272,6 +279,9 @@ export function ComposeView() {
       void postsSupportVideo(supabase).then((ok) => {
         if (!cancelled) setVideoOn(ok);
       });
+      void postsSupportPolls(supabase).then((ok) => {
+        if (!cancelled) setPollsOn(ok);
+      });
     }).catch(() => {
       // supabase-js failed to load: the photo limit stays at its default.
     });
@@ -325,14 +335,14 @@ export function ComposeView() {
   }
 
   function openCamera() {
-    if (gif || video.active) return;
+    if (gif || video.active || poll) return;
     if (photoAttachFull(images.length, limit)) return;
     photoSource.current = "camera";
     cameraRef.current?.click();
   }
 
   function openLibrary() {
-    if (gif || video.active) return;
+    if (gif || video.active || poll) return;
     if (photoAttachFull(images.length, limit)) return;
     photoSource.current = "library";
     libraryRef.current?.click();
@@ -356,6 +366,25 @@ export function ComposeView() {
     // The finished upload. Post stays off while one is still going.
     const leadVideo = editing ? null : video.draft.video;
     if (video.busy) return;
+
+    if (poll && !editing) {
+      const problem = !body.trim() ? "Ask a question for your poll." : pollDraftProblem(poll);
+      if (problem) {
+        setError(problem);
+        return;
+      }
+      setSending(true);
+      const result = await createPost({ body, imageDataUrl: null, images: [], card: null, poll });
+      setSending(false);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      haptic("post");
+      settleDraft();
+      router.push("/");
+      return;
+    }
 
     if (quoteId) {
       const quoteError = validateQuoteContent({
@@ -454,7 +483,10 @@ export function ComposeView() {
 
   const overLimit = thread.some((segment) => isOverLimit(segment.body, POST_LIMIT));
   const videoReady = video.draft.phase === "ready" && Boolean(video.draft.video);
-  const canPost = !overLimit && !video.busy && (quoteId
+  const pollReady = Boolean(poll) && Boolean(body.trim()) && !pollDraftProblem(poll!);
+  const canPost = !overLimit && !video.busy && (poll && !editing
+    ? pollReady && !sending
+    : quoteId
     ? !isQuoteSubmitDisabled({
         body: first.body,
         imageDataUrl: first.images[0] ?? first.gif?.still ?? video.draft.video?.poster ?? null,
@@ -465,7 +497,12 @@ export function ComposeView() {
   const canThread = extrasOn && !editing;
   const threadFull = !canAddToThread(thread.length);
   // A video goes on a single post for now, so a post with one can't start a thread.
-  const canAddPost = canThread && !threadFull && !video.active && !segmentIsEmpty(thread[active] ?? EMPTY_SEGMENT);
+  const canAddPost =
+    canThread && !threadFull && !video.active && !poll && !segmentIsEmpty(thread[active] ?? EMPTY_SEGMENT);
+  // A poll goes on a single post with text only: no photos, GIF, video, card or quote.
+  const canPoll = pollsOn && !editing && !threaded && !quoteId;
+  const pollBlocked =
+    images.length > 0 || Boolean(gif) || video.active || readingPhoto || Boolean(attachedPreview) || Boolean(cardId);
 
   function leave() {
     leaveCompose(router);
@@ -481,8 +518,8 @@ export function ComposeView() {
       shouldConfirmDiscard({
         body: thread.map((segment) => segment.body).join(""),
         imageDataUrl: thread.map((segment) => segment.images[0] ?? segment.gif?.still ?? null).find(Boolean) ?? null,
-        // A picked video counts like a card: worth asking before it's thrown away.
-        hasCard: Boolean(attachedPreview) || video.active,
+        // A picked video or a poll with a choice typed counts like a card: worth asking before it's thrown away.
+        hasCard: Boolean(attachedPreview) || video.active || Boolean(poll && pollChoices(poll).some(Boolean)),
       })
     ) {
       setConfirmDiscard(true);
@@ -492,7 +529,8 @@ export function ComposeView() {
   }
 
   const showCardButton = !editing && !externalCard;
-  const cardsUsable = cardsReady && !syncError;
+  // A poll post carries no card, so the card button rests while a poll is on.
+  const cardsUsable = cardsReady && !syncError && !poll;
 
   return (
     <ComposeSheet
@@ -607,7 +645,7 @@ export function ComposeView() {
                       autoGrow
                       autoFocus
                       menu="inline"
-                      placeholder={index > 0 ? "Add another post" : quoteId ? "Add a comment" : "What's happening?"}
+                      placeholder={index > 0 ? "Add another post" : quoteId ? "Add a comment" : poll ? "Ask a question" : "What's happening?"}
                       className={`block w-full resize-none overflow-hidden bg-transparent pt-2 text-17 leading-6 caret-[#7C3AED] outline-none placeholder:text-zinc-500 ${threaded ? "pr-10" : ""}`}
                     />
                     {error ? <p className="mt-3 text-sm text-rose-600 dark:text-rose-400">{error}</p> : null}
@@ -636,6 +674,20 @@ export function ComposeView() {
                     {gif ? <GifDraft gif={gif} onRemove={() => setGif(null)} /> : null}
                     {editing?.video ? <VideoDraftTile draft={savedVideoDraft(editing.video)} /> : null}
                     {!editing ? <VideoDraftTile draft={video.draft} onRemove={video.remove} /> : null}
+                    {poll && index === 0 && !editing ? (
+                      <ComposePoll
+                        draft={poll}
+                        onChange={(next) => {
+                          setPoll(next);
+                          setError(null);
+                        }}
+                        onRemove={() => {
+                          setPoll(null);
+                          setError(null);
+                          requestAnimationFrame(() => textRef.current?.focus({ preventScroll: true }));
+                        }}
+                      />
+                    ) : null}
                     {readingPhoto ? <p className="mt-2 text-sm text-zinc-500">Reading photo…</p> : null}
                     {quoteId && index === 0 ? (
                       <div className="mt-3 w-full">
@@ -740,7 +792,7 @@ export function ComposeView() {
               <button
                 type="button"
                 aria-label="Photo library"
-                disabled={photosFull || Boolean(gif) || video.active || Boolean(editing?.video)}
+                disabled={photosFull || Boolean(gif) || video.active || Boolean(editing?.video) || Boolean(poll)}
                 aria-describedby={photosFull ? "compose-photo-cap" : undefined}
                 onClick={openLibrary}
                 className={TOOL_BUTTON}
@@ -750,7 +802,7 @@ export function ComposeView() {
               <button
                 type="button"
                 aria-label="Camera"
-                disabled={photosFull || Boolean(gif) || video.active || Boolean(editing?.video)}
+                disabled={photosFull || Boolean(gif) || video.active || Boolean(editing?.video) || Boolean(poll)}
                 aria-describedby={photosFull ? "compose-photo-cap" : undefined}
                 onClick={openCamera}
                 className={TOOL_BUTTON}
@@ -761,7 +813,7 @@ export function ComposeView() {
                 <button
                   type="button"
                   aria-label="Add a GIF"
-                  disabled={Boolean(gif) || images.length > 0 || readingPhoto || video.active || Boolean(editing?.video)}
+                  disabled={Boolean(gif) || images.length > 0 || readingPhoto || video.active || Boolean(editing?.video) || Boolean(poll)}
                   onClick={() => {
                     void GifPicker.preload().catch(() => {});
                     setPickerOpen(false);
@@ -770,6 +822,23 @@ export function ComposeView() {
                   className={TOOL_BUTTON}
                 >
                   <GifGlyph />
+                </button>
+              ) : null}
+              {canPoll && active === 0 ? (
+                <button
+                  type="button"
+                  aria-label={poll ? "Poll added" : "Add a poll"}
+                  aria-pressed={Boolean(poll)}
+                  disabled={Boolean(poll) || pollBlocked}
+                  onPointerDown={ComposePoll.warm}
+                  onClick={() => {
+                    setPickerOpen(false);
+                    setPoll(emptyPollDraft());
+                    setError(null);
+                  }}
+                  className={TOOL_BUTTON}
+                >
+                  <ChartBarBig className="h-[22px] w-[22px]" />
                 </button>
               ) : null}
               {showCardButton && active === 0 ? (

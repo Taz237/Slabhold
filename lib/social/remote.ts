@@ -50,6 +50,8 @@ import {
 } from "./post-photos";
 import { GIFS_UNAVAILABLE, gifColumnMissing, gifForSave, type PostGif } from "./gifs";
 import { postExtrasFromRow } from "./post-extras";
+import { POLL_QUESTION_REQUIRED, pollChoices, pollDraftProblem, type PollDraft } from "./poll-draft";
+import { remoteCreatePollPost, settleEndedPolls } from "./poll-remote";
 import {
   VIDEO_BUCKET,
   VIDEOS_UNAVAILABLE,
@@ -392,7 +394,8 @@ export async function loadSocialSnapshot(supabase: SupabaseClient): Promise<Soci
         ? supabase.from("follows").select("*").or(`follower_id.eq.${viewerId},following_id.eq.${viewerId}`)
         : Promise.resolve({ data: [], error: null }),
       // A visitor with no session has no inbox; RLS would return nothing.
-      viewerId ? loadNotes(viewerId) : Promise.resolve(null),
+      // First, any of the viewer's polls that ended get their "poll ended" notice.
+      viewerId ? settleEndedPolls(supabase).then(() => loadNotes(viewerId)) : Promise.resolve(null),
       viewerId ? loadMessages(viewerId) : Promise.resolve(null),
       guard(
         supabase.from("reposts").select("*").order("created_at", { ascending: false }).limit(SNAPSHOT_TIMELINE_LIMIT),
@@ -1136,6 +1139,7 @@ export async function remoteCreatePost(
   authorId: string,
   input: PostWrite,
 ): Promise<AuthResult & { postId?: string; videoRemoved?: boolean }> {
+  if (input.poll) return remoteCreatePoll(supabase, authorId, input.body, input.poll);
   const prepared = await preparePost(supabase, authorId, input);
   if ("error" in prepared) return { error: prepared.error };
   const { post } = prepared;
@@ -1189,6 +1193,27 @@ export async function remoteCreatePost(
   const mentionProblem = await syncMentionNotifications(supabase, authorId, created.id, post.body);
   if (mentionProblem) return { notice: mentionProblem, postId: created.id };
   return { postId: created.id };
+}
+
+/** A poll post: text and a poll, nothing else (like X). Saved in one call. */
+async function remoteCreatePoll(
+  supabase: SupabaseClient,
+  authorId: string,
+  text: string,
+  poll: PollDraft,
+): Promise<AuthResult & { postId?: string }> {
+  const body = text.trim();
+  if (!body) return { error: POLL_QUESTION_REQUIRED };
+  if (body.length > 280) return { error: "Keep it to 280 characters." };
+  const problem = pollDraftProblem(poll) ?? contentProblem(body) ?? pollChoices(poll).map(contentProblem).find(Boolean);
+  if (problem) return { error: problem };
+  const created = await remoteCreatePollPost(supabase, body, poll);
+  if (created.error || !created.postId) {
+    return { error: rlsBlocked({ message: created.error }) ? BLOCKED_INTERACTION : (created.error ?? "Could not save that post.") };
+  }
+  const mentionProblem = await syncMentionNotifications(supabase, authorId, created.postId, body);
+  if (mentionProblem) return { notice: mentionProblem, postId: created.postId };
+  return { postId: created.postId };
 }
 
 /**

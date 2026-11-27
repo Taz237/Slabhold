@@ -2132,3 +2132,10 @@ html:not([data-get-started-hidden]) [data-after-get-started] {
     background-color: rgb(9 9 11 / 0.9) !important;
   }
 }
+
+/* Poll results: each bar grows out from the left once. Used through motion-safe:, so Reduce Motion shows it in place. */
+@keyframes poll-bar {
+  from {
+    transform: scaleX(0);
+  }
+}
