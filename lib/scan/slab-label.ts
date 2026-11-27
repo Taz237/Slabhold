@@ -145,7 +145,8 @@ const CHROME_SHORT = /\bCHR\b\.?/gi;
 const ROOKIE_TAIL = /\s*[-–—]?\s*\b(?:RC|ROOKIE(?:\s+CARD)?)\b\.?\s*$/i;
 /** Words a label prints that are never part of a player's name. */
 const NOT_NAME_WORDS = new Set([
-  ...SETS.flatMap((name) => name.toUpperCase().split(/[\s&-]+/)),
+  // Not Topps x Bob Ross: "BOB" and "ROSS" are names (BOB COUSY, ROSS CHASTAIN).
+  ...SETS.filter((name) => name !== "Topps x Bob Ross").flatMap((name) => name.toUpperCase().split(/[\s&-]+/)),
   "PROSPECT", "PROSPECTS", "AUTOGRAPH", "AUTOGRAPHS", "AUTO", "AUTOS", "ROOKIE", "ROOKIES", "RC", "TICKET", "REFRACTOR",
   "XFRACTOR", "SUPERFRACTOR", "PRIZM", "PRIZMS", "SILVER", "GOLD", "RED", "BLUE", "GREEN", "ORANGE", "PURPLE", "PINK",
   "BLACK", "WHITE", "YELLOW", "AQUA", "BRONZE", "HOLO", "MOJO", "WAVE", "SHIMMER", "ICE", "TIGER", "STRIPE", "ZEBRA",
