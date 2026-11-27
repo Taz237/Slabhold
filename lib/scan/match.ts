@@ -1081,6 +1081,20 @@ function withChecklistNumber(
   // No year printed: the year its stats point to, once that year's checklist has him at this #.
   const fromStats = statYear(next);
   if (fromStats && next.cardNumber && his(next.cardNumber)) next = { ...next, yearLabel: fromStats };
+  // No year printed, only a © year, and the named set has no checklist for that year at all (a
+  // 2025-26 product signed © 2026): the year before, once its checklist has him at this #. A set
+  // with a checklist for the © year keeps that year, as before.
+  if (!next.yearLabel && next.cardNumber && years.length === 2) {
+    const [copyright, before] = years;
+    const made = (yearLabel: string) =>
+      checklists.some((product) => productPhrase(product.product) === productPhrase(setBrand) && sameSeason(product.yearLabel, yearLabel) && (!next.sport || product.sport.toLowerCase() === next.sport.toLowerCase()));
+    const seasons = new Set(
+      playersAt(checklists, { yearLabel: before, setBrand, cardNumber: next.cardNumber, sport: next.sport || undefined })
+        .filter((hit) => namesAgree(hit.player, name))
+        .map((hit) => hit.yearLabel),
+    );
+    if (!made(copyright) && seasons.size === 1) next = { ...next, yearLabel: [...seasons][0] };
+  }
   return next;
 }
 

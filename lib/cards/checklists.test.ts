@@ -289,7 +289,7 @@ describe("the checklist store", () => {
 
   it("the 2024-and-later files: the page each came from is logged, never a file name, and the spot cards are who the page says", async () => {
     const added = CHECKLIST_INDEX.filter((entry) => entry.source.includes("checklistinsider.com"));
-    assert.equal(added.length, 111);
+    assert.equal(added.length, 112);
     for (const entry of CHECKLIST_INDEX) assert.doesNotMatch(entry.source, /\.csv\b/i, entry.file);
     // Upper Deck Series 1 and Series 2 are one product, with both pages logged.
     for (const year of ["2024-25", "2025-26"]) {
@@ -328,6 +328,12 @@ describe("the checklist store", () => {
     assert.ok((await only("Football", "2025", "Panini Select", "93")).includes("Jaxson Dart"));
     assert.ok((await only("Basketball", "2025-26", "Panini Select", "1")).includes("Giannis Antetokounmpo"));
     assert.deepEqual(await only("Baseball", "2025", "Topps Chrome Update Sapphire", "USC150"), ["Jacob Wilson"]);
+    // Topps x Bob Ross: The Joy of Basketball (2026-11-27): the base # and the insert codes are separate rows.
+    assert.deepEqual(await only("Basketball", "2025-26", "Topps x Bob Ross", "66"), ["VJ Edgecombe"]);
+    assert.deepEqual(await only("Basketball", "2025-26", "Topps x Bob Ross", "SP-66"), ["VJ Edgecombe"]);
+    assert.deepEqual(await only("Basketball", "2025-26", "Topps x Bob Ross", "BT-5"), ["VJ Edgecombe"]);
+    const bobRoss = await loadChecklistsFor({ years: ["2025-26"], setBrand: "Topps x Bob Ross", sport: "Basketball" });
+    assert.equal(bobRoss[0]?.sections.find((section) => section.name === "Base")?.cards.length, 105);
     // The page lists two #USC45 cards, as Topps printed them.
     assert.deepEqual(await only("Baseball", "2025", "Topps Chrome Update Sapphire", "USC45"), ["Tommy Pham", "Cal Raleigh"]);
     assert.deepEqual(await only("Football", "2025", "Topps Resurgence", "11"), ["James Cook"]);

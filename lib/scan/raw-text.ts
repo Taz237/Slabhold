@@ -594,7 +594,7 @@ function hasPhrase(lineWords: string[][], phrase: string[]): boolean {
 }
 
 /** Sets a single word never guesses. */
-const RULE_ONLY_SETS = new Set(["Bowman U Chrome", "Bowman U Chrome Sapphire", "Bowman Draft Sapphire"]);
+const RULE_ONLY_SETS = new Set(["Bowman U Chrome", "Bowman U Chrome Sapphire", "Bowman Draft Sapphire", "Topps x Bob Ross"]);
 
 /** Sets that are only a maker's name. On a back they're legal text; anywhere, a product name beats them. */
 const BARE_MAKER_SETS = new Set(["Topps", "Upper Deck", "Leaf"]);
@@ -641,6 +641,28 @@ function withoutUnlistedProducts(names: string[], lines: readonly string[]): str
   if ((SETS as readonly string[]).includes(`${top} Sapphire`)) return names;
   const phrase = top.split(/\s+/).map((word) => word.replace(/[^a-z0-9]/gi, "")).join("[^a-z0-9\\n]+");
   return new RegExp(`\\b${phrase}[^a-z0-9\\n]+(?:series[^a-z0-9\\n]+)?sapphire\\b`, "i").test(text) ? [] : names;
+}
+
+/** Topps x Bob Ross: The Joy of Basketball, as Add card stores it. */
+const BOB_ROSS_SET = "Topps x Bob Ross";
+
+/**
+ * A Topps x Bob Ross card prints its product two ways: the title THE JOY OF BASKETBALL (front and
+ * back) and the Bob Ross logo (front). Each counts only as a line of its own, letters only, so a
+ * glued or split read still counts ("THEJOY OF" / "BASKETBALL", "THEJ OY OF", "BobRost:") and a
+ * sentence never does: the legal lines' "Bob Ross name and images" is not the product, and neither
+ * is a bio that says "the joy of basketball". BASKETBALL may sit one line further down, since a
+ * bio line can read in between. A logo read one letter off is not the logo when it is a name the
+ * card printed (`names`).
+ */
+function printsBobRoss(lines: readonly string[], names: ReadonlySet<string>): boolean {
+  const letters = lines.map((line) => line.toLowerCase().replace(/[^a-z]/g, ""));
+  return letters.some((text, index) => {
+    if (text === "thejoyofbasketball") return true;
+    if (text === "thejoyof") return letters.slice(index + 1, index + 3).includes("basketball");
+    if (text === "bobross") return true;
+    return text.length === 7 && !names.has(text) && boundedDistance(text, "bobross", 1) <= 1;
+  });
 }
 
 function readSets(lineWords: string[][], options: { back?: boolean } = {}): { names: string[]; printed: string[] } {
@@ -788,7 +810,8 @@ function readTeam(lineWords: string[][], directory: readonly IndexedDirectoryPla
   return null;
 }
 
-const SET_WORDS = new Set(SETS.flatMap((name) => normInterest(name).split(" ")));
+// Topps x Bob Ross is named by its own rule (printsBobRoss): "Bob" and "Ross" stay words a name can have.
+const SET_WORDS = new Set(SETS.filter((name) => name !== BOB_ROSS_SET).flatMap((name) => normInterest(name).split(" ")));
 const PARALLEL_WORD_SET = new Set(PARALLEL_WORDS.flatMap((label) => normInterest(label).split(" ")));
 
 /** A word a card or a sold title prints that is never part of a person's name: set, color, rookie and maker words. */
@@ -1347,13 +1370,17 @@ export function readRawCardText(
   let kept = withoutUnlistedProducts(sets.names, clean);
   // Nothing else names the set, and the back signs T.C.G.: a vintage Topps card.
   if (kept.length === 0 && options.side === "back" && clean.some((line) => TOPPS_CHEWING_GUM.test(line))) kept = ["Topps"];
+  // The card prints THE JOY OF BASKETBALL or the Bob Ross logo: that product, not a guess from a maker word.
+  const printedNames = new Set([read.printedName, ...read.players.map((hit) => hit.line)].map((name) => name.toLowerCase().replace(/[^a-z]/g, "")));
+  const bobRoss = printsBobRoss(clean, printedNames);
+  if (bobRoss) kept = [BOB_ROSS_SET, ...kept.filter((name) => name !== BOB_ROSS_SET && !BARE_MAKER_SETS.has(name))].slice(0, MAX_SETS);
   read.setNames = kept;
   // No set on our list was named: the back's own product line still names the product.
   if (kept.length === 0 && options.side === "back") {
     const product = printedProduct(clean);
     if (product) read.productText = product;
   }
-  read.printedSets = sets.printed.filter((name) => kept.includes(name));
+  read.printedSets = [...(bobRoss ? [BOB_ROSS_SET] : []), ...sets.printed.filter((name) => name !== BOB_ROSS_SET && kept.includes(name))];
   read.parallelWords = readParallelWords(colorLineWords(clean, directory, Boolean(options.side)));
   read.insert = readInsert(clean, Boolean(options.side));
   read.side = readSide(clean, lineWords, read.copyrightYear);
