@@ -158,3 +158,23 @@ describe("local mode polls", () => {
     assert.ok(storage.data.has(LOCAL_POLLS_KEY));
   });
 });
+
+describe("refusals with their own words", () => {
+  it("passes on a suspension from the server and rolls the vote back", async () => {
+    const backend: PollBackend = {
+      load: async () => new Map(),
+      vote: async () => ({ error: "Your account is suspended.", refusal: "suspended" }),
+    };
+    const { store } = syncStore(backend);
+    const result = await store.vote(poll, "a", voter);
+    assert.equal(result.refusal, "suspended");
+    assert.equal(result.error, "Your account is suspended.");
+    assert.equal(store.get(poll.id)?.viewerChoice ?? null, null);
+  });
+
+  it("has copy for both new refusals", async () => {
+    const { VOTE_REFUSAL_COPY } = await import("./poll-store");
+    assert.equal(VOTE_REFUSAL_COPY.suspended, "Your account is suspended.");
+    assert.equal(VOTE_REFUSAL_COPY.poll_choice_text, "A choice can't have line breaks.");
+  });
+});

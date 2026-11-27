@@ -11,6 +11,7 @@ import {
   removeChoice,
   repeatedChoices,
   setChoice,
+  singleLineChoice,
 } from "@/lib/social/poll-editor";
 
 export type ComposePollProps = {
@@ -78,6 +79,25 @@ export function ComposePollView({
                     onFocus={() => setFocused(index)}
                     onBlur={() => setFocused((current) => (current === index ? null : current))}
                     onChange={(event) => onChange(setChoice(draft, index, event.target.value))}
+                    // One line only: a paste loses its line breaks and control characters.
+                    onPaste={(event) => {
+                      event.preventDefault();
+                      const input = event.currentTarget;
+                      const start = input.selectionStart ?? value.length;
+                      const end = input.selectionEnd ?? value.length;
+                      const pasted = singleLineChoice(event.clipboardData.getData("text"));
+                      onChange(setChoice(draft, index, value.slice(0, start) + pasted + value.slice(end)));
+                      const caret = Math.min(start + pasted.length, POLL_OPTION_MAX);
+                      requestAnimationFrame(() => input.setSelectionRange(caret, caret));
+                    }}
+                    // Enter never adds a line and never posts: it moves to the next choice, or closes the keyboard.
+                    onKeyDown={(event) => {
+                      if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+                      event.preventDefault();
+                      const next = document.getElementById(`${id}-choice-${index + 1}`);
+                      if (next) next.focus();
+                      else event.currentTarget.blur();
+                    }}
                     className="block min-h-12 w-full bg-transparent py-3 pr-14 pl-3 text-16 caret-[#7C3AED] outline-none placeholder:text-zinc-500"
                   />
                   <span
