@@ -51,7 +51,7 @@ import {
 import { GIFS_UNAVAILABLE, gifColumnMissing, gifForSave, type PostGif } from "./gifs";
 import { postExtrasFromRow } from "./post-extras";
 import { POLL_QUESTION_REQUIRED, pollChoices, pollDraftProblem, type PollDraft } from "./poll-draft";
-import { remoteCreatePollPost, settleEndedPolls } from "./poll-remote";
+import { remoteCreatePollPost, settleEndedPollsInBackground } from "./poll-remote";
 import {
   VIDEO_BUCKET,
   VIDEOS_UNAVAILABLE,
@@ -378,6 +378,10 @@ export async function loadSocialSnapshot(supabase: SupabaseClient): Promise<Soci
       loadUnreadMessages(supabase, viewer, blockedHidden),
     ]);
 
+  // "Your poll ended" notices: in the background, never holding up the inbox,
+  // at most every 5 minutes. If any were written the provider reads the inbox again.
+  if (viewerId) void settleEndedPollsInBackground(supabase, viewerId);
+
   const [postsRes, homePostsRes, followsRes, notesInbox, messagesInbox, repostsRes, homeRepostsRes, myBlocksRes, myMutesRes] =
     await Promise.all([
       guard(
@@ -394,8 +398,7 @@ export async function loadSocialSnapshot(supabase: SupabaseClient): Promise<Soci
         ? supabase.from("follows").select("*").or(`follower_id.eq.${viewerId},following_id.eq.${viewerId}`)
         : Promise.resolve({ data: [], error: null }),
       // A visitor with no session has no inbox; RLS would return nothing.
-      // First, any of the viewer's polls that ended get their "poll ended" notice.
-      viewerId ? settleEndedPolls(supabase).then(() => loadNotes(viewerId)) : Promise.resolve(null),
+      viewerId ? loadNotes(viewerId) : Promise.resolve(null),
       viewerId ? loadMessages(viewerId) : Promise.resolve(null),
       guard(
         supabase.from("reposts").select("*").order("created_at", { ascending: false }).limit(SNAPSHOT_TIMELINE_LIMIT),

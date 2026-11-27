@@ -142,3 +142,43 @@ describe("creating a poll in local mode", () => {
     assert.equal(localCreatePost(db, post("", poll(["a", "b"]))).error, POLL_QUESTION_REQUIRED);
   });
 });
+
+describe("suspended accounts and line breaks", () => {
+  const suspended = { message: "Your account is suspended", hint: "suspended", code: "42501" };
+  const lineBreak = { message: "A choice can't have line breaks", hint: "poll_choice_text", code: "22023" };
+
+  it("says so plainly when voting", async () => {
+    for (const [error, words, refusal] of [
+      [suspended, "Your account is suspended.", "suspended"],
+      [lineBreak, "A choice can't have line breaks.", "poll_choice_text"],
+    ] as const) {
+      const { supabase } = client(() => ({ data: null, error }));
+      const result = await remotePollBackend(supabase).vote("p1", "o1");
+      assert.equal(result.error, words);
+      assert.equal(result.refusal, refusal);
+      assert.equal(result.already, false);
+    }
+  });
+
+  it("says so plainly when posting a poll", async () => {
+    const off = client(() => ({ data: null, error: suspended }));
+    assert.equal((await remoteCreatePost(off.supabase, AUTHOR, post("Q", poll(["a", "b"])))).error, "Your account is suspended.");
+    const broken = client(() => ({ data: null, error: lineBreak }));
+    assert.equal(
+      (await remoteCreatePost(broken.supabase, AUTHOR, post("Q", poll(["a", "b"])))).error,
+      "A choice can't have line breaks.",
+    );
+  });
+
+  it("knows a suspension from the message when a posts trigger sends no hint", async () => {
+    const { supabase } = client(() => ({ data: null, error: { message: "Your account is suspended", code: "42501" } }));
+    assert.equal((await remoteCreatePost(supabase, AUTHOR, post("Q", poll(["a", "b"])))).error, "Your account is suspended.");
+  });
+
+  it("catches a line break before the server", async () => {
+    const { supabase, calls } = client(() => ({ data: "post-1", error: null }));
+    const result = await remoteCreatePost(supabase, AUTHOR, post("Q", poll(["a\nb", "c"])));
+    assert.equal(result.error, "A choice can't have line breaks.");
+    assert.equal(calls.length, 0);
+  });
+});

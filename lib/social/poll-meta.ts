@@ -43,3 +43,20 @@ export function pollField(meta: unknown): { poll: PostPoll } | Record<string, ne
   const poll = pollFromMeta(meta);
   return poll ? { poll } : {};
 }
+
+/**
+ * "Your poll ended" notices were just written for this viewer. The provider
+ * listens (and reads the inbox again); the settle runs in a lazy chunk.
+ */
+const settledListeners = new Set<(viewerId: string) => void>();
+
+export function onPollsSettled(listener: (viewerId: string) => void): () => void {
+  settledListeners.add(listener);
+  return () => {
+    settledListeners.delete(listener);
+  };
+}
+
+export function announcePollsSettled(viewerId: string) {
+  for (const listener of settledListeners) listener(viewerId);
+}

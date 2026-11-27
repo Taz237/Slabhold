@@ -5,10 +5,21 @@ export type PollBackend = {
   /** Counts for these polls. A poll left out of the map shows no votes yet. */
   load(ids: readonly string[]): Promise<Map<string, PollCounts>>;
   /** One vote. On success, the poll's counts after it. */
-  vote(pollId: string, optionId: string): Promise<{ counts?: PollCounts; error?: string; already?: boolean }>;
+  vote(
+    pollId: string,
+    optionId: string,
+  ): Promise<{ counts?: PollCounts; error?: string; already?: boolean; refusal?: VoteRefusal }>;
 };
 
-export type VoteRefusal = "signed_out" | "own_poll" | "poll_ended" | "already_voted" | "busy" | "unknown_option";
+export type VoteRefusal =
+  | "signed_out"
+  | "own_poll"
+  | "poll_ended"
+  | "already_voted"
+  | "busy"
+  | "unknown_option"
+  | "suspended"
+  | "poll_choice_text";
 
 export const VOTE_REFUSAL_COPY: Record<VoteRefusal, string> = {
   signed_out: "Sign in to vote.",
@@ -17,6 +28,8 @@ export const VOTE_REFUSAL_COPY: Record<VoteRefusal, string> = {
   already_voted: "You already voted in this poll.",
   busy: "Saving your vote…",
   unknown_option: "That choice is unavailable.",
+  suspended: "Your account is suspended.",
+  poll_choice_text: "A choice can't have line breaks.",
 };
 
 const EMPTY: PollCounts = { total: 0, votes: {}, viewerChoice: null };
@@ -122,6 +135,7 @@ export function createPollStore(
           return { error: result.error ?? VOTE_REFUSAL_COPY.already_voted, refusal: "already_voted" };
         }
         counts.set(poll.id, before);
+        if (result.refusal) return { error: result.error ?? VOTE_REFUSAL_COPY[result.refusal], refusal: result.refusal };
         return { error: result.error ?? "Couldn't save your vote. Try again." };
       } catch {
         counts.set(poll.id, before);

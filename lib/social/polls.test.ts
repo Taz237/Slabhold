@@ -204,3 +204,25 @@ describe("stored polls", () => {
     assert.equal(pollErrorMessage(null), "Couldn't save your vote. Try again.");
   });
 });
+
+describe("one-line choices", () => {
+  it("turns a pasted line break into one space and drops control characters", async () => {
+    const { singleLineChoice } = await import("./poll-editor");
+    assert.equal(singleLineChoice("a\nb"), "a b");
+    assert.equal(singleLineChoice("a\r\n\r\nb"), "a b");
+    assert.equal(singleLineChoice("Caleb Williams"), "Caleb Williams");
+    assert.equal(singleLineChoice("a \nb"), "a b", "no double space");
+    assert.equal(singleLineChoice("a\tb\u0007c\u0085d"), "abcd");
+    assert.equal(setChoice(emptyPollDraft(), 0, "a\nb").options[0], "a b");
+    assert.equal(setChoice(emptyPollDraft(), 0, `${"x".repeat(24)}\nyy`).options[0], `${"x".repeat(24)} `, "still 25 at most");
+  });
+
+  it("refuses line breaks and control characters before the server", async () => {
+    const { POLL_CHOICE_LINE_BREAK } = await import("./poll-draft");
+    assert.equal(POLL_CHOICE_LINE_BREAK, "A choice can't have line breaks.");
+    for (const bad of ["a\nb", "a\rb", "a\tb", "a\u0000b", "a\u0007b", "a\u007fb", "a\u0085b", "a b", "a b"]) {
+      assert.equal(pollDraftProblem(draft([bad, "ok"])), POLL_CHOICE_LINE_BREAK, JSON.stringify(bad));
+    }
+    assert.equal(pollDraftProblem(draft(["Caleb Williams", "Jayden Daniels"])), null);
+  });
+});

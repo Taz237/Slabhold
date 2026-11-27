@@ -174,3 +174,68 @@ describe("the poll editor", () => {
     assert.equal(removed, 1);
   });
 });
+
+describe("poll choices stay on one line", () => {
+  async function editor() {
+    let draft = { options: ["", ""], length: { days: 1, hours: 0, minutes: 0 } };
+    let submits = 0;
+    const element = () =>
+      createElement(
+        "form",
+        {
+          onSubmit: (event: Event) => {
+            event.preventDefault();
+            submits += 1;
+          },
+        },
+        createElement(ComposePoll, { draft, onChange: (next) => (draft = next), onRemove: () => {} }),
+      );
+    const view = await render(element());
+    const inputs = () => [...view.host.querySelectorAll<HTMLInputElement>("input")];
+    return {
+      inputs,
+      draft: () => draft,
+      submits: () => submits,
+      rerender: () => view.rerender(element()),
+    };
+  }
+
+  it("is a plain one-line input", async () => {
+    const poll = await editor();
+    assert.ok(poll.inputs().every((input) => input.tagName === "INPUT" && input.type === "text"));
+  });
+
+  it("pastes \"a\\nb\" as one line", async () => {
+    const poll = await editor();
+    const input = poll.inputs()[0]!;
+    const paste = new win.Event("paste", { bubbles: true, cancelable: true });
+    Object.defineProperty(paste, "clipboardData", { value: { getData: () => "a\nb" } });
+    act(() => {
+      input.dispatchEvent(paste);
+    });
+    assert.ok(paste.defaultPrevented, "the raw paste never lands");
+    assert.equal(poll.draft().options[0], "a b");
+    await poll.rerender();
+    assert.equal(poll.inputs()[0]!.value, "a b");
+  });
+
+  it("adds no line break on Enter and never posts the poll", async () => {
+    const poll = await editor();
+    const first = poll.inputs()[0]!;
+    first.focus();
+    const enter = new win.KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+    act(() => {
+      first.dispatchEvent(enter);
+    });
+    assert.ok(enter.defaultPrevented);
+    assert.equal(poll.submits(), 0, "the post form was not submitted");
+    assert.deepEqual(poll.draft().options, ["", ""], "no line break typed");
+    assert.equal(win.document.activeElement, poll.inputs()[1], "Enter moves to the next choice");
+    const last = new win.KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+    act(() => {
+      poll.inputs()[1]!.dispatchEvent(last);
+    });
+    assert.ok(last.defaultPrevented);
+    assert.equal(poll.submits(), 0);
+  });
+});

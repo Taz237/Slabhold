@@ -73,6 +73,7 @@ import { unreadGroupCount } from "@/lib/social/group-notifications";
 import { followingTimeline, type TimelineItem } from "@/lib/social/timeline";
 import { preloadOnHint, sessionHinted } from "@/lib/auth/session-hint";
 import { seedsViewer } from "@/lib/auth/route-access";
+import { onPollsSettled } from "@/lib/social/poll-meta";
 import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 import {
   cursorsAfterRefresh,
@@ -1295,6 +1296,15 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     setRemote((existing) => applyRealtimePatch(existing, patch));
     return notificationsFor(merged.user, merged.notifications);
   }, [mode, refresh]);
+
+  // A background settle wrote "Your poll ended" notices: read the inbox once more.
+  useEffect(
+    () =>
+      onPollsSettled((viewerId) => {
+        if (snapshotRef.current.user?.id === viewerId) void refreshInbox().catch(() => {});
+      }),
+    [refreshInbox],
+  );
 
   const refreshFollows = useCallback(async () => {
     const client = supabaseRef.current;

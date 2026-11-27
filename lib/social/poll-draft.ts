@@ -3,6 +3,14 @@
 export { POLL_MAX_OPTIONS, POLL_MIN_OPTIONS } from "./poll-meta";
 import { POLL_MAX_OPTIONS, POLL_MIN_OPTIONS } from "./poll-meta";
 
+/** The database refuses a choice with a line break or control character (hint 'poll_choice_text'). */
+export const POLL_CHOICE_LINE_BREAK = "A choice can't have line breaks.";
+
+/** True when the text has a line break or any other control character (C0, DEL, C1, U+2028, U+2029). */
+export function hasControlChars(text: string): boolean {
+  return /[\p{Cc}\u2028\u2029]/u.test(text);
+}
+
 export const POLL_OPTION_MAX = 25;
 export const POLL_MIN_MINUTES = 5;
 export const POLL_MAX_DAYS = 7;
@@ -41,6 +49,8 @@ export function pollDraftProblem(draft: PollDraft): string | null {
   const choices = pollChoices(draft);
   if (choices.length < POLL_MIN_OPTIONS || choices.length > POLL_MAX_OPTIONS) return POLL_CHOICE_COUNT;
   if (choices.some((choice) => choice.length === 0)) return POLL_CHOICE_REQUIRED;
+  // A choice is one line: the server refuses line breaks and control characters too.
+  if (draft.options.some(hasControlChars)) return POLL_CHOICE_LINE_BREAK;
   if (choices.some((choice) => [...choice].length > POLL_OPTION_MAX)) return POLL_CHOICE_TOO_LONG;
   if (new Set(choices.map((choice) => choice.toLowerCase())).size !== choices.length) return POLL_CHOICE_REPEAT;
   const minutes = pollMinutes(draft.length);

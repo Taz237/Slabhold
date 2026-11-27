@@ -1,4 +1,5 @@
 import {
+  hasControlChars,
   POLL_MAX_DAYS,
   POLL_MAX_OPTIONS,
   POLL_MIN_MINUTES,
@@ -40,8 +41,29 @@ export function removeChoice(draft: PollDraft, index: number): PollDraft {
 }
 
 /** Typing a choice: never past 25 characters. */
+/**
+ * A choice as one line: each run of line breaks becomes one space, other
+ * control characters go. "a\nb" pasted in reads "a b".
+ */
+export function singleLineChoice(value: string): string {
+  let out = "";
+  let breaking = false;
+  for (const char of value) {
+    const lineBreak = char === "\n" || char === "\r" || char === "\u2028" || char === "\u2029";
+    if (lineBreak) {
+      breaking = true;
+      continue;
+    }
+    if (hasControlChars(char)) continue;
+    if (breaking && out && !out.endsWith(" ") && char !== " ") out += " ";
+    breaking = false;
+    out += char;
+  }
+  return out;
+}
+
 export function setChoice(draft: PollDraft, index: number, value: string): PollDraft {
-  const clipped = [...value].slice(0, POLL_OPTION_MAX).join("");
+  const clipped = [...singleLineChoice(value)].slice(0, POLL_OPTION_MAX).join("");
   return { ...draft, options: draft.options.map((option, at) => (at === index ? clipped : option)) };
 }
 
