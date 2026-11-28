@@ -89,6 +89,8 @@ function social(sendMessage: (to: string, text: string, attachment: unknown) => 
     posts: [],
     messages: [],
     follows: [],
+    // The vouch bar under the header reads who the viewer follows.
+    followingOf: () => [],
     blockedIds: [],
     mutedIds: [],
     safetyAccounts: [],

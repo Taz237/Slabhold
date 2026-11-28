@@ -13,6 +13,7 @@ import { useSocial } from "@/components/social-provider";
 import { EmptyState } from "@/components/status";
 import { useVouchStore } from "@/components/use-vouch-store";
 import { useVouchSummary } from "@/components/use-vouch-summary";
+import { VouchReplySheet } from "@/components/vouches/vouch-sheet";
 import { VouchRowsSkeleton, VouchSummarySkeleton, VouchesPageSkeleton } from "@/components/vouches/vouches-skeleton";
 import { exactTime, timeAgo } from "@/lib/format";
 import { useProfiles } from "@/lib/social/use-profiles";
@@ -32,6 +33,9 @@ import {
 } from "@/lib/vouches/page";
 import { breakdownLine, socialProofLine, VOUCH_COPY, type VouchRating, type VouchSummary } from "@/lib/vouches/rules";
 import type { VouchCursor, VouchRow } from "@/lib/vouches/types";
+
+/** The "Deals between collectors" section of the Terms (app/(app)/terms/page.tsx). */
+const DEALS_TERMS_HREF = "/terms#deals";
 
 /** A vouch notice or the admin link can point at a vouch that is pages down: read this many pages looking for it. */
 const ANCHOR_PAGES = 6;
@@ -103,7 +107,10 @@ export function VouchSummaryCard({ summary, now }: { summary: VouchSummary; now?
             <li key={line}>{line}</li>
           ))}
         </ul>
-        <p className="mt-3 pb-2 text-13 leading-5 text-zinc-500">{VOUCH_COPY.pageFootnote}</p>
+        <p className="mt-3 text-13 leading-5 text-zinc-500">{VOUCH_COPY.pageFootnote}</p>
+        <Link href={DEALS_TERMS_HREF} className="inline-flex min-h-11 items-center text-13 font-medium text-violet-700 hover:underline dark:text-[#A78BFA]">
+          {VOUCH_COPY.termsLink}
+        </Link>
       </details>
     </section>
   );
@@ -149,11 +156,16 @@ export function VouchRowItem({
   highlighted = false,
   now,
   showMenus = true,
+  onReply,
+  onReplyWarm,
 }: {
   row: VouchRow;
   subject: { id: string; username: string };
   highlighted?: boolean;
   now?: Date;
+  /** On your own page: opens the reply sheet for this vouch. */
+  onReply?: () => void;
+  onReplyWarm?: () => void;
   /** Off in tests that draw a row without the app around it. */
   showMenus?: boolean;
 }) {
@@ -212,6 +224,17 @@ export function VouchRowItem({
               {showMenus ? <SafetyMenu targetType="vouch_reply" targetId={row.id} reportedUserId={subject.id} username={subject.username} /> : null}
             </div>
           ) : null}
+          {onReply ? (
+            <button
+              type="button"
+              onClick={onReply}
+              onPointerDown={onReplyWarm}
+              onFocus={onReplyWarm}
+              className="-ml-3 mt-1 inline-flex min-h-11 items-center rounded-full px-3 text-sm font-semibold text-violet-700 dark:text-[#A78BFA]"
+            >
+              {row.reply ? VOUCH_COPY.editReply : VOUCH_COPY.reply}
+            </button>
+          ) : null}
         </div>
       </div>
     </li>
@@ -265,7 +288,23 @@ function useVouchList(store: ListReader, subjectId: string | null, filter: Vouch
     setFailedKey(null);
     setAttempt((value) => value + 1);
   }, []);
-  return { current, failed: !current && Boolean(key) && failedKey === key, loadMore, retry };
+  /** A reply saved or removed on this page shows at once, without reading the list again. */
+  const setReply = useCallback((vouchId: string, reply: string | null) => {
+    const stamp = new Date().toISOString();
+    setLoaded((latest) =>
+      latest
+        ? {
+            ...latest,
+            rows: latest.rows.map((row) =>
+              row.id !== vouchId
+                ? row
+                : { ...row, reply, replyAt: reply ? (row.reply ? row.replyAt : stamp) : null, replyEditedAt: reply && row.reply ? stamp : null },
+            ),
+          }
+        : latest,
+    );
+  }, []);
+  return { current, failed: !current && Boolean(key) && failedKey === key, loadMore, retry, setReply };
 }
 
 /** Everyone can read a person's vouches and replies here. */
@@ -284,6 +323,7 @@ export function VouchesPage({ username }: { username: string }) {
   const list = useVouchList(store, subjectId && supported ? subjectId : null, filter);
   const current = list.current;
   const [highlight, setHighlight] = useState<string | null>(null);
+  const [replyTo, setReplyTo] = useState<string | null>(null);
   const anchorPages = useRef(0);
   const anchorDone = useRef<string | null>(null);
   const more = useLoadMore(list.loadMore);
@@ -340,6 +380,7 @@ export function VouchesPage({ username }: { username: string }) {
   const failed = list.failed;
   // The counts cover everyone. The list leaves out people in a block with the reader, so it can
   // be shorter, or empty, while the count is not. The two are never checked against each other.
+  const replyRow = own && replyTo ? (current?.rows.find((row) => row.id === replyTo) ?? null) : null;
   const hiddenFromReader = Boolean(current && current.rows.length === 0 && (filterCount(summary, filter) ?? 0) > 0);
 
   return (
@@ -380,10 +421,25 @@ export function VouchesPage({ username }: { username: string }) {
           <>
             <ul>
               {current.rows.map((row) => (
-                <VouchRowItem key={row.id} row={row} subject={profile} highlighted={highlight === row.id} />
+                <VouchRowItem
+                  key={row.id}
+                  row={row}
+                  subject={profile}
+                  highlighted={highlight === row.id}
+                  onReply={own ? () => setReplyTo(row.id) : undefined}
+                  onReplyWarm={own ? VouchReplySheet.warm : undefined}
+                />
               ))}
             </ul>
             <LoadMore hasMore={Boolean(current.next)} loading={more.loading} failed={more.failed} onLoadMore={more.run} />
+            {replyRow ? (
+              <VouchReplySheet
+                vouch={replyRow}
+                voucherUsername={replyRow.voucher.username}
+                onClose={() => setReplyTo(null)}
+                onSaved={(reply) => list.setReply(replyRow.id, reply)}
+              />
+            ) : null}
           </>
         )}
       </div>

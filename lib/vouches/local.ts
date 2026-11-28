@@ -3,6 +3,7 @@ import {
   emptySummary,
   LIST_MAX,
   LIST_PAGE,
+  MIN_CHAT_HOURS,
   vouchHintCopy,
   vouchNoteProblem,
   vouchReplyProblem,
@@ -15,8 +16,9 @@ import type { VouchBackend, VouchRow, VouchStatus, VouchWriteResult } from "./ty
 /**
  * Local mode (no Supabase): vouches live on this device, starting from a few sample ones between
  * the sample collectors, so the screens can be seen and photographed without the database.
- * The notes follow the same rules. The message and account-age rules don't apply here: there is
- * no real second person to have a chat with.
+ * The notes follow the same rules. When the caller passes this device's messages (`chat`), the
+ * two message rules apply too: a message each way, and 24 hours since you've both messaged.
+ * Account age isn't checked here.
  */
 export const LOCAL_VOUCHES_KEY = "slabhold.local-vouches.v1";
 
@@ -44,6 +46,24 @@ type StoredVouch = {
 };
 
 type Stored = { vouches: StoredVouch[] };
+
+/** A direct message on this device: who sent it to whom, and when. */
+export type LocalChatMessage = { senderId: string; receiverId: string; createdAt: string };
+
+/** Why these two can't vouch yet, from their messages. The same two checks, in the same order, as the database. */
+export function chatRefusal(messages: readonly LocalChatMessage[], viewerId: string, subjectId: string, now: number): VouchHint | null {
+  const firstFrom = (from: string, to: string) =>
+    messages.reduce<number | null>((first, message) => {
+      if (message.senderId !== from || message.receiverId !== to) return first;
+      const at = Date.parse(message.createdAt);
+      return Number.isFinite(at) && (first === null || at < first) ? at : first;
+    }, null);
+  const mine = firstFrom(viewerId, subjectId);
+  const theirs = firstFrom(subjectId, viewerId);
+  if (mine === null || theirs === null) return "vouch_no_conversation";
+  // The later of the two first messages: each side's first message must be a day old.
+  return Math.max(mine, theirs) > now - MIN_CHAT_HOURS * 60 * 60 * 1000 ? "vouch_conversation_too_new" : null;
+}
 type KeyValue = Pick<Storage, "getItem" | "setItem">;
 
 /**
@@ -194,6 +214,8 @@ export function localVouchBackend(
     following?: readonly string[];
     /** Everyone this device knows, so a voucher shows with their name and photo. */
     people?: readonly LocalVouchPerson[];
+    /** This device's messages. With them, a new vouch needs the same chat the database asks for. */
+    chat?: readonly LocalChatMessage[] | null;
     now?: () => number;
   } = {},
 ): VouchBackend {
@@ -294,7 +316,9 @@ export function localVouchBackend(
       if (!viewer) return { canVouch: false, reason: "vouch_signed_out", mine: null };
       if (viewer.id === subjectId) return { canVouch: false, reason: "vouch_self", mine: null };
       const mine = read().vouches.find((vouch) => vouch.voucherId === viewer.id && vouch.subjectId === subjectId);
-      return { canVouch: true, reason: null, mine: mine ? { id: mine.id, rating: mine.rating, note: mine.note } : null };
+      // Editing your own vouch is always allowed. A new one needs the chat.
+      const reason = mine || !options.chat ? null : chatRefusal(options.chat, viewer.id, subjectId, now());
+      return { canVouch: !reason, reason, mine: mine ? { id: mine.id, rating: mine.rating, note: mine.note } : null };
     },
     async upsert(subjectId, rating, note) {
       if (!viewer) return refuse("vouch_signed_out");
@@ -304,6 +328,8 @@ export function localVouchBackend(
       const body = cleanVouchText(note);
       const stored = read();
       const existing = stored.vouches.find((vouch) => vouch.voucherId === viewer.id && vouch.subjectId === subjectId);
+      const notYet = existing || !options.chat ? null : chatRefusal(options.chat, viewer.id, subjectId, now());
+      if (notYet) return refuse(notYet, people.get(subjectId)?.username);
       const stamp = new Date(now()).toISOString();
       const next: StoredVouch = existing
         ? existing.rating === rating && existing.note === body

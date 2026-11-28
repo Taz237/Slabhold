@@ -68,3 +68,16 @@ export function joinedLabel(iso: string | null | undefined): string {
   if (!then || Number.isNaN(then.getTime())) return "";
   return VOUCH_COPY.joined(then.toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" }));
 }
+
+/** The two have a confirmed deal in the deal log: a vouch between them carries the Logged deal tag. Never looks at a price. */
+export function hasConfirmedDealWith(
+  deals: readonly { sellerId: string; buyerId: string; status: string }[],
+  viewerId: string,
+  otherId: string,
+): boolean {
+  return deals.some(
+    (deal) =>
+      deal.status === "confirmed" &&
+      ((deal.sellerId === viewerId && deal.buyerId === otherId) || (deal.sellerId === otherId && deal.buyerId === viewerId)),
+  );
+}

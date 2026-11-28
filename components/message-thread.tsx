@@ -7,6 +7,7 @@ import { ArrowLeft, SendHorizontal, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Avatar } from "@/components/avatar";
 import { DealSheet } from "@/components/deal-sheet";
+import { VouchThreadBar } from "@/components/vouches/vouch-thread-bar";
 import { DealThreadPanel } from "@/components/deal-response";
 import { MentionText } from "@/components/mention-text";
 import { MessageAttachments } from "@/components/message-attachments";
@@ -415,6 +416,7 @@ export function MessageThread({ username }: { username: string }) {
           onClose={() => setDealOpen(false)}
         />
       ) : null}
+      <VouchThreadBar partner={partner} />
       <DealThreadPanel partnerId={partner.id} />
 
       {sheetFor ? (
