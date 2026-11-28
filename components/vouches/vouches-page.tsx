@@ -34,6 +34,9 @@ import {
 import { breakdownLine, socialProofLine, VOUCH_COPY, type VouchRating, type VouchSummary } from "@/lib/vouches/rules";
 import type { VouchCursor, VouchRow } from "@/lib/vouches/types";
 
+/** The "Deals between collectors" section of the Terms (app/(app)/terms/page.tsx). */
+const DEALS_TERMS_HREF = "/terms#deals";
+
 /** A vouch notice or the admin link can point at a vouch that is pages down: read this many pages looking for it. */
 const ANCHOR_PAGES = 6;
 
@@ -104,7 +107,10 @@ export function VouchSummaryCard({ summary, now }: { summary: VouchSummary; now?
             <li key={line}>{line}</li>
           ))}
         </ul>
-        <p className="mt-3 pb-2 text-13 leading-5 text-zinc-500">{VOUCH_COPY.pageFootnote}</p>
+        <p className="mt-3 text-13 leading-5 text-zinc-500">{VOUCH_COPY.pageFootnote}</p>
+        <Link href={DEALS_TERMS_HREF} className="inline-flex min-h-11 items-center text-13 font-medium text-violet-700 hover:underline dark:text-[#A78BFA]">
+          {VOUCH_COPY.termsLink}
+        </Link>
       </details>
     </section>
   );

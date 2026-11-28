@@ -25,6 +25,19 @@ export default function TermsPage() {
         Reports are reviewed within 24 hours. When content breaks these terms we remove it, and
         we remove the account that posted it.
       </p>
+      <h2 id="deals" className="scroll-mt-20 pt-2 text-lg font-semibold tracking-tight">
+        Deals between collectors
+      </h2>
+      <p>
+        Slabhold doesn&apos;t sell cards, handle payments or check deals. Any deal you make with
+        another collector is only between you and the other collector. Slabhold isn&apos;t a
+        party to it and isn&apos;t responsible for how it goes.
+      </p>
+      <p>
+        Vouches are collectors&apos; own opinions about deals they say they did, and we
+        don&apos;t check them. When you pay for a card, use a payment method with buyer
+        protection.
+      </p>
       <h2 className="pt-2 text-lg font-semibold tracking-tight">Using Slabhold</h2>
       <p>
         You get a personal licence to use Slabhold on devices you own or control. You can&apos;t

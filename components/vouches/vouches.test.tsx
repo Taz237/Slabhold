@@ -224,6 +224,37 @@ describe("vouches page pieces", () => {
   });
 });
 
+describe("deals between collectors, in the Terms", () => {
+  it("the Terms say, in plain words, what Slabhold does and doesn't do in a deal", async () => {
+    const { default: TermsPage } = await import("@/app/(app)/terms/page");
+    const markup = html(createElement(TermsPage));
+    const section = /<h2 id="deals"[^>]*>([^<]+)<\/h2>([\s\S]*?)<h2/.exec(markup);
+    assert.ok(section, "a section with the #deals anchor");
+    assert.equal(section[1], "Deals between collectors");
+    const words = section[2]!.replace(/<[^>]+>/g, " ").replace(/&#x27;/g, "'").replace(/\s+/g, " ").trim();
+    // The four things it has to say.
+    assert.match(words, /doesn't sell cards, handle payments(,)? or check deals/);
+    assert.match(words, /only between (you and the other collector|the two of you)/);
+    assert.match(words, /isn't a party to it/);
+    assert.match(words, /isn't responsible for/);
+    assert.match(words, /Vouches are (collectors'|users') own opinions/);
+    assert.match(words, /payment method with buyer protection/);
+    // Short and plain, like the rest of the page.
+    assert.ok(words.split(/(?<=[.])\s+/).length <= 6, words);
+    assert.doesNotMatch(words, /hereby|herein|notwithstanding|shall|indemnif|\bbest\b|\bfree\b|verif|!/i);
+    assert.match(markup, /scroll-mt-/, "the anchor clears the app header");
+  });
+
+  it("How vouches work links to that section", () => {
+    const card = html(createElement(VouchSummaryCard, { summary: summary(3), now: NOW }));
+    assert.match(card, /<a[^>]+href="\/terms#deals"[^>]*>[^<]*Terms[^<]*<\/a>/);
+    assert.match(/<a[^>]+href="\/terms#deals"[^>]*>|<a[^>]+>(?=[^<]*Terms)/.exec(card)?.[0] ?? "", /min-h-11/);
+    const none = html(createElement(VouchSummaryCard, { summary: { ...emptySummary("u1") }, now: NOW }));
+    assert.match(none, /href="\/terms#deals"/, "also when there are no vouches yet");
+    assert.equal(VOUCH_COPY.termsLink, "Deals between collectors, in our Terms");
+  });
+});
+
 describe("vouches page plumbing", () => {
   it("reads ?rating= so a filtered page can be shared", () => {
     assert.equal(filterFromParam("negative"), "negative");

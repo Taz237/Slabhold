@@ -159,6 +159,7 @@ export const VOUCH_COPY = {
   pageFootnote:
     "Vouches show who's been solid in past deals. Slabhold doesn't handle money or check deals, so use a payment method with buyer protection.",
   howItWorksTitle: "How vouches work",
+  termsLink: "Deals between collectors, in our Terms",
   howItWorks: [
     "You can vouch for someone 24 hours after you've both messaged each other.",
     `Both accounts need to be ${MIN_ACCOUNT_DAYS} days old.`,
