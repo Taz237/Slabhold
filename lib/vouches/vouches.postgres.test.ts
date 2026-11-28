@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { after, describe, it } from "node:test";
 import { startPostgres } from "@/lib/test/postgres";
@@ -27,6 +28,7 @@ const RATER = id(15); // leaves a lot of vouches
 const CON = id(16); // the subject of 20 upserts at once
 const STRANGER = id(17); // messaged nobody
 const LEAVER = id(18); // deletes their account
+const BACKDATER = id(19); // Alice wrote to them 3 days ago; they first wrote back 2 hours ago
 const RATED = Array.from({ length: 11 }, (_, index) => id(100 + index));
 
 const EVERYONE: [string, string, string, boolean][] = [
@@ -48,6 +50,7 @@ const EVERYONE: [string, string, string, boolean][] = [
   [CON, "con", "30 days", false],
   [STRANGER, "stranger", "30 days", false],
   [LEAVER, "leaver", "30 days", false],
+  [BACKDATER, "backdater", "30 days", false],
   ...RATED.map((uid, index): [string, string, string, boolean] => [uid, `rated${index}`, "30 days", false]),
 ];
 
@@ -59,28 +62,46 @@ insert into public.messages (sender_id, receiver_id, content, created_at) values
 
 const LIVE_KINDS = `'like', 'comment', 'follow', 'repost', 'mention', 'quote', 'want_alert', 'deal_confirm', 'dm_reaction', 'poll_ended'`;
 
-/** The live private.set_report_target body, before this migration. */
+/** The live private.set_report_target, as production has it before this migration. */
 const LIVE_SET_REPORT_TARGET = `
 create or replace function private.set_report_target()
-returns trigger language plpgsql security definer set search_path = ''
-as $$
-declare target uuid; author uuid;
+ returns trigger
+ language plpgsql
+ security definer
+ set search_path to ''
+as $function$
+declare
+  target uuid;
+  author uuid;
 begin
-  if new.target_type is null or new.target_id is null then raise exception 'Report target is missing' using errcode = '22023'; end if;
-  if new.target_id !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then raise exception 'Report target not found' using errcode = 'P0002'; end if;
+  if new.target_type is null or new.target_id is null then
+    raise exception 'Report target is missing' using errcode = '22023';
+  end if;
+  if new.target_id !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
+    raise exception 'Report target not found' using errcode = 'P0002';
+  end if;
   target := new.target_id::uuid;
+
   case new.target_type
-    when 'post' then select p.user_id into author from public.posts as p where p.id = target;
-    when 'reply' then select c.user_id into author from public.comments as c where c.id = target;
-    when 'message' then select m.sender_id into author from public.messages as m where m.id = target;
-    when 'user' then select u.id into author from auth.users as u where u.id = target;
-    else raise exception 'Unknown report target type %', new.target_type using errcode = '22023';
+    when 'post' then
+      select p.user_id into author from public.posts as p where p.id = target;
+    when 'reply' then
+      select c.user_id into author from public.comments as c where c.id = target;
+    when 'message' then
+      select m.sender_id into author from public.messages as m where m.id = target;
+    when 'user' then
+      select u.id into author from auth.users as u where u.id = target;
+    else
+      raise exception 'Unknown report target type %', new.target_type using errcode = '22023';
   end case;
-  if author is null then raise exception 'Report target not found' using errcode = 'P0002'; end if;
+
+  if author is null then
+    raise exception 'Report target not found' using errcode = 'P0002';
+  end if;
   new.reported_user_id := author;
   return new;
 end;
-$$;`;
+$function$;`;
 
 /** profiles, messages, follows, blocks, deals, notifications and reports as production has them where this migration touches them. */
 const setupSql = `
@@ -231,6 +252,11 @@ ${chat(ALICE, BOB)}
 insert into public.messages (sender_id, receiver_id, content, created_at) values
   ('${ALICE}', '${ONEWAY}', 'Hello?', now() - interval '3 days');
 ${chat(ALICE, FRESHCHAT, "2 hours")}
+-- A client can set created_at on its own message, so one side's first message can be old
+-- (or backdated) while the other side only just wrote back.
+insert into public.messages (sender_id, receiver_id, content, created_at) values
+  ('${ALICE}', '${BACKDATER}', 'Interested in a trade?', now() - interval '3 days'),
+  ('${BACKDATER}', '${ALICE}', 'Sure.', now() - interval '2 hours');
 ${chat(ALICE, NEWBIE)}
 ${chat(ALICE, BLOCKER)}
 ${chat(BANNED, BOB)}
@@ -315,6 +341,8 @@ ${expect(`(select reason from public.vouch_status('${ALICE}')) = 'vouch_self'`, 
 ${refused(vouch(ONEWAY), "vouch_no_conversation", "they never wrote back")}
 ${refused(vouch(STRANGER), "vouch_no_conversation", "no messages at all")}
 ${refused(vouch(FRESHCHAT), "vouch_conversation_too_new", "the chat started 2 hours ago")}
+${refused(vouch(BACKDATER), "vouch_conversation_too_new", "Alice's first message is 3 days old, but theirs is 2 hours old: the later one counts")}
+${expect(`(select not can_vouch and reason = 'vouch_conversation_too_new' from public.vouch_status('${BACKDATER}'))`, "status: the other side only just wrote back")}
 ${refused(vouch(NEWBIE), "vouch_too_new_subject", "the subject's account is 2 days old")}
 ${refused(vouch(BLOCKER), "vouch_blocked", "they blocked Alice")}
 ${expect(`(select not can_vouch and reason = 'vouch_blocked' from public.vouch_status('${BLOCKER}'))`, "status: blocked")}
@@ -324,6 +352,8 @@ ${refused(vouch(BOB, "great"), "vouch_rating", "a rating that isn't one of the t
 
 ${as(ONEWAY)}
 ${refused(vouch(ALICE), "vouch_no_conversation", "one-way the other way round")}
+${as(BACKDATER)}
+${refused(vouch(ALICE), "vouch_conversation_too_new", "and the same from the other side")}
 ${as(NEWBIE)}
 ${refused(vouch(ALICE), "vouch_too_new_voucher", "the voucher's account is 2 days old")}
 ${as(BLOCKER)}
@@ -348,6 +378,22 @@ ${refused(vouch(BOB, "negative", "too short"), "vouch_note_required", "negative 
 ${refused(vouch(BOB, "neutral", "   short    "), "vouch_note_required", "padding doesn't count")}
 ${refused(vouch(BOB, "positive", "x".repeat(281)), "vouch_note_too_long", "281 characters")}
 ${refused(vouch(BOB, "positive", "Total BadWord of a deal"), "vouch_word_filter", "the word filter")}
+${refused(`perform public.upsert_vouch('${BOB}', 'positive', E'Shipped fast,\\tcard as shown.');`, "vouch_note_chars", "a tab inside the note")}
+${refused(`perform public.upsert_vouch('${BOB}', 'positive', E'Shipped fast\\x07 card as shown.');`, "vouch_note_chars", "a bell character")}
+${refused(`perform public.upsert_vouch('${BOB}', 'positive', E'Shipped fast\\x1b[31m card as shown.');`, "vouch_note_chars", "an escape character")}
+${refused(`perform public.upsert_vouch('${BOB}', 'positive', E'Shipped fast\\x7f card as shown.');`, "vouch_note_chars", "a delete character")}
+${refused(`perform public.upsert_vouch('${BOB}', 'positive', E'Shipped fast.\\rCard as shown.');`, "vouch_note_chars", "a lone carriage return")}
+-- A line break is fine, and a Windows line break is stored as a plain one.
+do $$ begin perform public.upsert_vouch('${BOB}', 'positive', E'  Shipped fast.\\r\\nCard as shown.\\r\\n  '); end $$;
+${owner}
+${expect(`(select note = E'Shipped fast.\\nCard as shown.' and position(E'\\r' in note) = 0 from public.vouches where voucher_id = '${ALICE}' and subject_id = '${BOB}')`, "CRLF became LF, and the ends are trimmed")}
+${refused(`update public.vouches set note = E'By\\thand' where voucher_id = '${ALICE}';`, "vouches_note", "the table itself refuses a control character in a note")}
+${refused(`update public.vouches set reply = E'By\\thand' where voucher_id = '${ALICE}';`, "vouches_reply", "and in a reply")}
+${as(ALICE)}
+select public.delete_vouch('${BOB}');
+${owner}
+delete from private.vouch_log where voucher_id = '${ALICE}';
+${as(ALICE)}
 
 -- ---------------------------------------------------------------------------
 -- Create, edit, remove
@@ -371,7 +417,7 @@ ${owner}
 ${expect(`(select count(*) from public.vouches where voucher_id = '${ALICE}') = 1`, "still one vouch for the pair")}
 ${expect(`(select rating = 'neutral' and edited_at is not null and updated_at >= created_at from public.vouches where voucher_id = '${ALICE}' and subject_id = '${BOB}')`, "the edit landed and is marked")}
 ${expect(`(select count(*) from public.notifications where kind = 'vouch' and recipient_id = '${BOB}' and actor_id = '${ALICE}') = 1`, "an edit never notifies again")}
-${expect(`(select metadata ->> 'rating' from public.notifications where kind = 'vouch' and actor_id = '${ALICE}' and recipient_id = '${BOB}') = 'positive'`, "the notice is left as first written")}
+${expect(`(select metadata ->> 'rating' = 'neutral' and (metadata ->> 'vouch_id')::uuid = ${VOUCH(ALICE, BOB)} from public.notifications where kind = 'vouch' and actor_id = '${ALICE}' and recipient_id = '${BOB}')`, "the one notice now carries the new rating")}
 
 ${as(ALICE)}
 select public.delete_vouch('${BOB}');
@@ -428,6 +474,12 @@ ${as(BOB)}
 ${refused(`perform public.reply_to_vouch('${id(999)}', 'No such vouch');`, "vouch_not_found", "no such vouch")}
 ${refused(`perform public.reply_to_vouch(${VOUCH(ALICE, BOB)}, '${"x".repeat(281)}');`, "vouch_note_too_long", "a 281-character reply")}
 ${refused(`perform public.reply_to_vouch(${VOUCH(ALICE, BOB)}, 'badword to you too');`, "vouch_word_filter", "the word filter on replies")}
+${refused(`perform public.reply_to_vouch(${VOUCH(ALICE, BOB)}, E'Thanks,\\teasy deal.');`, "vouch_note_chars", "a tab inside a reply")}
+select public.reply_to_vouch(${VOUCH(ALICE, BOB)}, E'Thanks.\\r\\nEasy deal.');
+${owner}
+${expect(`(select reply = E'Thanks.\\nEasy deal.' from public.vouches where id = ${VOUCH(ALICE, BOB)})`, "CRLF in a reply became LF")}
+${as(BOB)}
+select public.reply_to_vouch(${VOUCH(ALICE, BOB)}, '');
 select public.reply_to_vouch(${VOUCH(ALICE, BOB)}, '  Thanks, easy deal.  ');
 ${owner}
 ${expect(`(select reply = 'Thanks, easy deal.' and reply_at is not null and reply_edited_at is null from public.vouches where id = ${VOUCH(ALICE, BOB)})`, "the reply is stored trimmed")}
@@ -485,12 +537,11 @@ ${expect(`(select l.voucher_vouch_total from public.list_vouches('${TESTER2}') l
 
 -- Hidden by a moderator (the service role): out of every count and list.
 reset role; set role service_role;
-${refused(`perform 1 from public.vouches;`, "permission denied", "this migration grants the service role nothing new (Supabase's default grants cover it in production)")}
-${owner}
+${refused(`insert into public.vouches (voucher_id, subject_id, rating) values ('${FAN}', '${BOB}', 'positive');`, "permission denied", "the service role can hide and remove, not write vouches for people")}
 update public.vouches set reply_hidden_at = now() where id = ${VOUCH(ALICE, BOB)};
 ${as(null)}
 ${expect(`(select l.reply is null and l.reply_at is null from public.list_vouches('${BOB}') l where l.voucher_id = '${ALICE}')`, "a hidden reply is not shown")}
-${owner}
+reset role; set role service_role;
 update public.vouches set hidden_at = now(), hidden_by = '${FAN}' where id = ${VOUCH(DAN, BOB)};
 ${as(null)}
 ${expect(`${summary(BOB, "total")} = 4 and ${summary(BOB, "negative")} = 0 and ${listed(BOB)} = 4 and ${listed(BOB, "'negative'")} = 0`, "a hidden vouch drops out")}
@@ -516,6 +567,8 @@ ${owner}
 insert into public.blocks (blocker_id, blocked_id) values ('${FAN}', '${CAROL}');
 ${as(FAN)}
 ${expect(`${listed(BOB)} = 4 and not exists (select 1 from public.list_vouches('${BOB}') l where l.voucher_id = '${CAROL}')`, "Fan blocked Carol: her vouch is gone from Fan's list")}
+${expect(`${summary(BOB, "followed_count")} = 1 and ${summary(BOB, "followed_sample_username")} = 'eve'`, "a follow left over from before the block no longer counts as someone Fan follows")}
+${expect(`${summary(BOB, "total")} = 5`, "the totals are the same for everyone")}
 ${as(CAROL)}
 ${expect(`${listed(BOB)} = 5`, "Carol still sees the list")}
 ${as(null)}
@@ -528,6 +581,21 @@ ${refused(vouch(BOB, "negative", "Blocked me after the deal."), "vouch_blocked",
 ${as(BOB)}
 ${refused(`perform public.reply_to_vouch(${VOUCH(CAROL, BOB)}, 'That is not what happened');`, "vouch_blocked", "no replying across a block")}
 ${expect(`not exists (select 1 from public.list_vouches('${BOB}') l where l.voucher_id = '${CAROL}')`, "Bob no longer sees the vouch from the person he blocked")}
+${expect(`${listed(BOB)} = 4`, "Bob still sees the rest of his own list")}
+${as(CAROL)}
+${expect(`${listed(BOB)} = 0 and ${listed(BOB, "'positive'")} = 0`, "a reader Bob blocked gets an empty list: none of Bob's vouches or replies")}
+${as(ALICE)}
+${expect(`${listed(BOB)} = 5`, "everyone else still sees all of it")}
+${owner}
+delete from public.blocks where blocker_id = '${BOB}';
+insert into public.blocks (blocker_id, blocked_id) values ('${CAROL}', '${BOB}');
+${as(BOB)}
+${expect(`${listed(CAROL)} = 0`, "and the same the other way round: Bob can't read the list of someone who blocked him")}
+${as(CAROL)}
+${expect(`${listed(BOB)} = 0`, "nor can the blocker read his")}
+${owner}
+delete from public.blocks where blocker_id = '${CAROL}';
+insert into public.blocks (blocker_id, blocked_id) values ('${BOB}', '${CAROL}');
 ${owner}
 delete from public.blocks where blocker_id = '${BOB}';
 
@@ -648,6 +716,9 @@ as $$ select v.id from public.vouches v where v.voucher_id = a and v.subject_id 
 grant execute on function private.test_vouch_id(uuid, uuid) to anon, authenticated;
 `;
 
+/** The files have no begin/commit: apply_migration wraps each in one transaction, so the tests do too. */
+const inOneTransaction = (file: string) => `begin;\n\\i ${join(process.cwd(), file)}\ncommit;\n`;
+
 const constraintDef = (table: string, name: string) =>
   `(select pg_get_constraintdef(c.oid) from pg_constraint c where c.conrelid = 'public.${table}'::regclass and c.conname = '${name}')`;
 const reportFn = `(select pg_get_functiondef('private.set_report_target()'::regprocedure))`;
@@ -658,6 +729,14 @@ describe("vouches migration (postgres)", () => {
     for (const stop of stops) stop();
   });
 
+  it("ships with no begin or commit of its own, so apply_migration's one transaction wraps each file", () => {
+    for (const file of [MIGRATION, UNDO]) {
+      const sql = readFileSync(join(process.cwd(), file), "utf8");
+      assert.doesNotMatch(sql, /^\s*(begin|commit|start transaction|rollback)\s*;/im, file);
+      assert.match(sql, /^set local lock_timeout = '5s';$/m, file);
+    }
+  });
+
   it("enforces every rule on the server, writes each notice once, and undoes cleanly", async () => {
     const db = await startPostgres("vouches-pg-");
     stops.push(db.stop);
@@ -666,8 +745,8 @@ describe("vouches migration (postgres)", () => {
       `create table private.before as select ${constraintDef("notifications", "notifications_kind")} as kinds, ${constraintDef("reports", "reports_target_type_check")} as targets, ${reportFn} as fn;`,
       "remember the live constraints and function",
     );
-    db.runFile(join(process.cwd(), MIGRATION), "migration");
-    db.runFile(join(process.cwd(), MIGRATION), "migration again");
+    db.run(inOneTransaction(MIGRATION), "migration");
+    db.run(inOneTransaction(MIGRATION), "migration again");
     db.run(testHelperSql, "test helper");
     db.run(behaviorSql, "behavior");
 
@@ -695,13 +774,13 @@ ${expect(`(select count(*) from private.vouch_log where voucher_id = '${ALICE}')
     );
 
     // The undo: refused while vouch notices or reports exist, then everything goes back.
-    assert.throws(() => db.runFile(join(process.cwd(), UNDO), "undo with notices"), /Undo refused: vouch notifications still exist/);
+    assert.throws(() => db.run(inOneTransaction(UNDO), "undo with notices"), /Undo refused: vouch notifications still exist/);
     db.run(`delete from public.notifications where kind in ('vouch', 'vouch_reply');`, "the reviewer deletes the notices");
-    assert.throws(() => db.runFile(join(process.cwd(), UNDO), "undo with reports"), /Undo refused: reports about vouches still exist/);
+    assert.throws(() => db.run(inOneTransaction(UNDO), "undo with reports"), /Undo refused: reports about vouches still exist/);
     db.run(expect(`to_regclass('public.vouches') is not null and (select count(*) from public.vouches) > 0`, "a refused undo changes nothing"), "still there");
     db.run(`delete from public.reports where target_type in ('vouch', 'vouch_reply');`, "the reviewer deletes the reports");
-    db.runFile(join(process.cwd(), UNDO), "undo");
-    db.runFile(join(process.cwd(), UNDO), "undo again");
+    db.run(inOneTransaction(UNDO), "undo");
+    db.run(inOneTransaction(UNDO), "undo again");
     db.run(
       `
 ${expect(`(select kinds from private.before) = ${constraintDef("notifications", "notifications_kind")}`, "notifications_kind is the live list again")}
@@ -723,7 +802,7 @@ ${owner}
     );
 
     // And it can go back in after an undo.
-    db.runFile(join(process.cwd(), MIGRATION), "migration after the undo");
+    db.run(inOneTransaction(MIGRATION), "migration after the undo");
     db.run(`${as(ALICE)} select public.upsert_vouch('${BOB}', 'positive', '');`, "vouching works again");
   });
 });

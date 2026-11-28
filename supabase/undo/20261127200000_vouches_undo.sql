@@ -1,3 +1,8 @@
+-- UNDO for PR #353 vouches (supabase/migrations/20261127200000_vouches.sql or QA's proposed-qa-fixed.sql).
+-- QA Guard fixed version, 2026-11-27. Needs Donnie's OK before running (rules.md: any undo.sql).
+-- DATA LOSS / REAL USERS' DATA: deletes every vouch and reply (drops public.vouches).
+-- Ready for apply_migration (no begin/commit). For the SQL Editor, paste as-is (one transaction).
+-- QA changes: no begin/commit; private.set_report_target restored byte for byte from prod.
 -- UNDO. Do not run without Donnie's OK.
 -- Do not run supabase db push. Do not apply this with the Supabase CLI.
 --
@@ -27,7 +32,6 @@
 --
 -- Safe to run twice.
 
-begin;
 
 set local lock_timeout = '5s';
 
@@ -45,29 +49,45 @@ end
 $$;
 
 -- Reports first, while public.vouches is still there to be forgotten.
+-- QA: the live prod body, byte for byte (pg_get_functiondef 2026-11-27).
 create or replace function private.set_report_target()
-returns trigger
-language plpgsql
-security definer
-set search_path = ''
-as $$
-declare target uuid; author uuid;
+ returns trigger
+ language plpgsql
+ security definer
+ set search_path to ''
+as $function$
+declare
+  target uuid;
+  author uuid;
 begin
-  if new.target_type is null or new.target_id is null then raise exception 'Report target is missing' using errcode = '22023'; end if;
-  if new.target_id !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then raise exception 'Report target not found' using errcode = 'P0002'; end if;
+  if new.target_type is null or new.target_id is null then
+    raise exception 'Report target is missing' using errcode = '22023';
+  end if;
+  if new.target_id !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
+    raise exception 'Report target not found' using errcode = 'P0002';
+  end if;
   target := new.target_id::uuid;
+
   case new.target_type
-    when 'post' then select p.user_id into author from public.posts as p where p.id = target;
-    when 'reply' then select c.user_id into author from public.comments as c where c.id = target;
-    when 'message' then select m.sender_id into author from public.messages as m where m.id = target;
-    when 'user' then select u.id into author from auth.users as u where u.id = target;
-    else raise exception 'Unknown report target type %', new.target_type using errcode = '22023';
+    when 'post' then
+      select p.user_id into author from public.posts as p where p.id = target;
+    when 'reply' then
+      select c.user_id into author from public.comments as c where c.id = target;
+    when 'message' then
+      select m.sender_id into author from public.messages as m where m.id = target;
+    when 'user' then
+      select u.id into author from auth.users as u where u.id = target;
+    else
+      raise exception 'Unknown report target type %', new.target_type using errcode = '22023';
   end case;
-  if author is null then raise exception 'Report target not found' using errcode = 'P0002'; end if;
+
+  if author is null then
+    raise exception 'Report target not found' using errcode = 'P0002';
+  end if;
   new.reported_user_id := author;
   return new;
 end;
-$$;
+$function$;
 
 alter table public.reports drop constraint if exists reports_target_type_check;
 alter table public.reports
@@ -113,4 +133,3 @@ drop function if exists private.vouch_rules();
 
 drop index if exists public.messages_pair_idx;
 
-commit;

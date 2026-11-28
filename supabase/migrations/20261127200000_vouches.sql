@@ -1,3 +1,7 @@
+-- QA Guard fixed version of PR #353 (head a32576be), 2026-11-27. See review/pr353/qa.md.
+-- Ready for Supabase apply_migration: no begin/commit (apply_migration wraps it in one
+-- transaction, so set local lock_timeout still applies). For the SQL Editor, paste as-is
+-- (the editor runs it as one transaction). Changes vs the PR are marked "QA:".
 -- UNAPPLIED. Needs review before running.
 -- Do not run supabase db push. Do not apply this with the Supabase CLI.
 --
@@ -63,8 +67,7 @@
 --
 -- Safe to run twice.
 
-begin;
-
+-- QA: no begin/commit; apply_migration wraps the file.
 set local lock_timeout = '5s';
 
 -- ---------------------------------------------------------------------------
@@ -121,6 +124,8 @@ create table if not exists public.vouches (
   constraint vouches_note check (
     pg_catalog.char_length(note) <= 280
     and note = pg_catalog.btrim(note, E' \t\r\n')
+    -- QA: no control characters except a line break.
+    and note !~ E'[\\x01-\\x09\\x0b-\\x1f\\x7f]'
     and (rating = 'positive' or pg_catalog.char_length(note) >= 10)
   ),
   -- NOTE_MAX 280.
@@ -129,15 +134,17 @@ create table if not exists public.vouches (
     or (
       pg_catalog.char_length(reply) between 1 and 280
       and reply = pg_catalog.btrim(reply, E' \t\r\n')
+      -- QA: no control characters except a line break.
+      and reply !~ E'[\\x01-\\x09\\x0b-\\x1f\\x7f]'
     )
   ),
   constraint vouches_not_self check (voucher_id <> subject_id),
   constraint vouches_one_per_pair unique (voucher_id, subject_id)
 );
 
+-- QA: full index (not partial) so deleting a profile can use it for the subject_id FK.
 create index if not exists vouches_subject_idx
-  on public.vouches (subject_id, created_at desc, id desc)
-  where hidden_at is null;
+  on public.vouches (subject_id, created_at desc, id desc);
 
 create index if not exists vouches_voucher_idx
   on public.vouches (voucher_id, created_at desc);
@@ -164,6 +171,12 @@ alter table private.vouch_log enable row level security;
 
 revoke all on table public.vouches from public, anon, authenticated;
 revoke all on table private.vouch_log from public, anon, authenticated;
+
+-- QA: moderation (hide a vouch or a reply) runs as service_role. Today it already gets ALL
+-- through the postgres default privileges in public; this makes that explicit so it keeps
+-- working if those defaults ever change. service_role bypasses RLS, and the direct-write
+-- trigger lets it through.
+grant select, update, delete on table public.vouches to service_role;
 
 -- Direct writes from API roles are refused even if a grant or a policy is
 -- added later. security definer functions run as the owner, not as authenticated.
@@ -267,11 +280,17 @@ begin
     return 'vouch_no_conversation';
   end if;
 
-  select pg_catalog.min(m.created_at)
-  into first_message
-  from public.messages m
-  where (m.sender_id = p_voucher and m.receiver_id = p_subject)
-     or (m.sender_id = p_subject and m.receiver_id = p_voucher);
+  -- QA: a client can set messages.created_at on insert, so the oldest message of the
+  -- pair can be backdated by either person. Use the later of the two people's first
+  -- messages: each side's first message to the other must be 24 hours old, and nobody
+  -- can backdate the other person's message.
+  select greatest(
+    (select pg_catalog.min(m.created_at) from public.messages m
+      where m.sender_id = p_voucher and m.receiver_id = p_subject),
+    (select pg_catalog.min(m.created_at) from public.messages m
+      where m.sender_id = p_subject and m.receiver_id = p_voucher)
+  )
+  into first_message;
 
   if first_message > pg_catalog.now() - pg_catalog.make_interval(hours => rules.min_chat_hours) then
     return 'vouch_conversation_too_new';
@@ -307,7 +326,7 @@ begin
       when 'vouch_suspended' then 'Your account can''t vouch right now'
       when 'vouch_blocked' then 'You can''t vouch for this account'
       when 'vouch_no_conversation' then 'You can vouch once you''ve both sent each other a message'
-      when 'vouch_conversation_too_new' then 'You can vouch 24 hours after your first message'
+      when 'vouch_conversation_too_new' then 'You can vouch 24 hours after you''ve both messaged'
       when 'vouch_too_new_voucher' then 'Your account needs to be 7 days old to vouch'
       when 'vouch_too_new_subject' then 'That account needs to be 7 days old to get vouches'
       when 'vouch_test_mismatch' then 'You can''t vouch for this account'
@@ -332,8 +351,8 @@ set search_path = ''
 as $$
 declare
   rules record;
-  body text := pg_catalog.btrim(coalesce(p_text, ''), E' \t\r\n');
-  bad boolean;
+  -- QA: Windows line breaks become plain line breaks before the checks.
+  body text := pg_catalog.btrim(pg_catalog.replace(coalesce(p_text, ''), E'\r\n', E'\n'), E' \t\r\n');
 begin
   select * into rules from private.vouch_rules();
 
@@ -345,13 +364,16 @@ begin
     raise exception 'Add a short reason so others know what happened'
       using errcode = '22023', hint = 'vouch_note_required';
   end if;
-  -- The same word filter as post text, where this database has it.
-  if body <> '' and pg_catalog.to_regprocedure('private.blocked_text(text)') is not null then
-    execute 'select private.blocked_text($1)' into bad using body;
-    if coalesce(bad, false) then
-      raise exception 'This includes words Slabhold doesn''t allow. Edit it and try again'
-        using errcode = '23514', hint = 'vouch_word_filter';
-    end if;
+  -- QA: no control characters (tab, bell, escape...) except a line break.
+  if body ~ E'[\\x01-\\x09\\x0b-\\x1f\\x7f]' then
+    raise exception 'Remove the special characters and try again'
+      using errcode = '22023', hint = 'vouch_note_chars';
+  end if;
+  -- The same word filter as post text. QA: called directly (it exists on prod), so a
+  -- missing filter fails loudly instead of being skipped.
+  if body <> '' and coalesce(private.blocked_text(body), false) then
+    raise exception 'This includes words Slabhold doesn''t allow. Edit it and try again'
+      using errcode = '23514', hint = 'vouch_word_filter';
   end if;
   return body;
 end;
@@ -483,6 +505,11 @@ begin
           updated_at = pg_catalog.now(),
           edited_at = pg_catalog.now()
       where id = existing.id;
+      -- QA: keep the one "vouched for you" notice's rating current (no new notice).
+      update public.notifications n
+      set metadata = pg_catalog.jsonb_set(coalesce(n.metadata, '{}'::jsonb), '{rating}', pg_catalog.to_jsonb(p_rating))
+      where n.kind = 'vouch' and n.recipient_id = p_subject and n.actor_id = me
+        and n.metadata ->> 'rating' is distinct from p_rating;
     end if;
     return existing.id;
   end if;
@@ -701,7 +728,7 @@ begin
       me is not null and exists (
         select 1 from public.follows f
         where f.follower_id = me and f.following_id = v.voucher_id
-      ) as followed
+      ) and not private.is_blocked(me, v.voucher_id) as followed  -- QA: blocks don't drop follows
     from public.vouches v
     join public.profiles p on p.id = v.voucher_id
     where v.subject_id = asked.id
@@ -759,6 +786,12 @@ begin
   end if;
 
   select least(greatest(coalesce(p_limit, 20), 1), r.list_max) into page from private.vouch_rules() r;
+
+  -- QA: a reader in a block with the subject (either way) sees no vouches page, so the
+  -- subject's replies don't reach someone they blocked (posts and DMs work the same way).
+  if me is not null and private.is_blocked(me, p_subject) then
+    return;
+  end if;
 
   return query
   select
@@ -823,30 +856,47 @@ alter table public.reports
 
 -- The live function, word for word, plus the 'vouch' and 'vouch_reply' cases.
 -- It sets who a report is about from the target, never from what the client sent.
+-- QA: the live body copied byte for byte from prod (pg_get_functiondef, 2026-11-27), plus
+-- the two new cases, so a diff against prod shows only those 4 lines.
 create or replace function private.set_report_target()
-returns trigger
-language plpgsql
-security definer
-set search_path = ''
-as $$
-declare target uuid; author uuid;
+ returns trigger
+ language plpgsql
+ security definer
+ set search_path to ''
+as $function$
+declare
+  target uuid;
+  author uuid;
 begin
-  if new.target_type is null or new.target_id is null then raise exception 'Report target is missing' using errcode = '22023'; end if;
-  if new.target_id !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then raise exception 'Report target not found' using errcode = 'P0002'; end if;
+  if new.target_type is null or new.target_id is null then
+    raise exception 'Report target is missing' using errcode = '22023';
+  end if;
+  if new.target_id !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
+    raise exception 'Report target not found' using errcode = 'P0002';
+  end if;
   target := new.target_id::uuid;
+
   case new.target_type
-    when 'post' then select p.user_id into author from public.posts as p where p.id = target;
-    when 'reply' then select c.user_id into author from public.comments as c where c.id = target;
-    when 'message' then select m.sender_id into author from public.messages as m where m.id = target;
-    when 'user' then select u.id into author from auth.users as u where u.id = target;
-    when 'vouch' then select v.voucher_id into author from public.vouches as v where v.id = target;
-    when 'vouch_reply' then select v.subject_id into author from public.vouches as v where v.id = target and v.reply is not null;
-    else raise exception 'Unknown report target type %', new.target_type using errcode = '22023';
+    when 'post' then
+      select p.user_id into author from public.posts as p where p.id = target;
+    when 'reply' then
+      select c.user_id into author from public.comments as c where c.id = target;
+    when 'message' then
+      select m.sender_id into author from public.messages as m where m.id = target;
+    when 'user' then
+      select u.id into author from auth.users as u where u.id = target;
+    when 'vouch' then
+      select v.voucher_id into author from public.vouches as v where v.id = target;
+    when 'vouch_reply' then
+      select v.subject_id into author from public.vouches as v where v.id = target and v.reply is not null;
+    else
+      raise exception 'Unknown report target type %', new.target_type using errcode = '22023';
   end case;
-  if author is null then raise exception 'Report target not found' using errcode = 'P0002'; end if;
+
+  if author is null then
+    raise exception 'Report target not found' using errcode = 'P0002';
+  end if;
   new.reported_user_id := author;
   return new;
 end;
-$$;
-
-commit;
+$function$;
