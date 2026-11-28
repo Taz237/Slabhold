@@ -1,10 +1,17 @@
-import { cleanVouchText, emptySummary, SUMMARY_MAX_IDS, VOUCH_COPY, vouchHintCopy, vouchNoteProblem, vouchReplyProblem, type VouchRating, type VouchSummary } from "./rules";
+import { VOUCH_BUSY, VOUCH_FAILED, type VouchRating, type VouchSummary } from "./core";
+import { createSummaryStore, type SummaryStore } from "./summary-store";
 import type { VouchBackend, VouchStatus, VouchWriteResult } from "./types";
 
 type Mine = NonNullable<VouchStatus["mine"]>;
 
-const BUSY: VouchWriteResult = { ok: false, error: VOUCH_COPY.busy, hint: null };
-const FAILED: VouchWriteResult = { ok: false, error: VOUCH_COPY.failed, hint: null };
+const BUSY: VouchWriteResult = { ok: false, error: VOUCH_BUSY, hint: null };
+const FAILED: VouchWriteResult = { ok: false, error: VOUCH_FAILED, hint: null };
+
+/**
+ * The note checks and their copy load with the first save, not with the store: a profile that
+ * only shows a trust line never needs them.
+ */
+const loadRules = () => import("./rules");
 
 /** The counts after one vouch is added, changed or taken away. Never below zero. */
 export function summaryAfter(summary: VouchSummary, before: VouchRating | null, after: VouchRating | null, now: string): VouchSummary {
@@ -22,12 +29,12 @@ export function summaryAfter(summary: VouchSummary, before: VouchRating | null, 
 }
 
 /**
- * Vouch counts for every profile on screen, and whether the reader can vouch for each.
+ * Everything about vouches a screen where someone can vouch needs: the counts (from
+ * ./summary-store), whether the reader can vouch for each person, saving and replying.
  *
- * - Requests made in the same tick go to the backend as one vouch_summaries call, with each id once.
- * - Answers are kept for the session. A write reads the affected profile again.
  * - A save shows at once and is rolled back if the server refuses it.
  * - A second tap while one save is out is ignored.
+ * - The note checks (./rules) load with the first save.
  *
  * Each viewer gets their own store.
  */
@@ -36,60 +43,17 @@ export function createVouchStore(
   schedule: (run: () => void) => void = (run) => {
     setTimeout(run, 0);
   },
+  /** The counts a trust line already reads (./summary-store). Shared, so a save updates the line too. */
+  summaries: SummaryStore = createSummaryStore((ids) => backend.summaries(ids), schedule),
 ) {
-  const summaries = new Map<string, VouchSummary>();
-  const pending = new Set<string>();
-  const loading = new Set<string>();
   const statuses = new Map<string, VouchStatus>();
   const statusLoading = new Set<string>();
   const saving = new Set<string>();
+  /** Taps whose note is still being checked, before the save itself starts. */
+  const starting = new Set<string>();
   const replying = new Set<string>();
-  const listeners = new Set<() => void>();
-  let queued = false;
-  /** Bumped by every write, so a read that started before it can't put stale counts back. */
-  let version = 0;
-
-  function emit() {
-    for (const listener of listeners) listener();
-  }
-
-  function flush() {
-    queued = false;
-    const ids = [...pending];
-    pending.clear();
-    for (let start = 0; start < ids.length; start += SUMMARY_MAX_IDS) {
-      const batch = ids.slice(start, start + SUMMARY_MAX_IDS);
-      const asked = version;
-      for (const id of batch) loading.add(id);
-      void backend
-        .summaries(batch)
-        .then((found) => {
-          // A write happened while this read was away: its counts may be old, so they are dropped.
-          if (asked !== version) return;
-          for (const id of batch) {
-            if (!saving.has(id)) summaries.set(id, found.get(id) ?? emptySummary(id));
-          }
-        })
-        .catch(() => {
-          // Left unloaded: the next request tries again.
-        })
-        .finally(() => {
-          for (const id of batch) loading.delete(id);
-          // Dropped as stale: ask again, now that the write is in.
-          if (asked !== version) for (const id of batch) request(id);
-          emit();
-        });
-    }
-  }
-
-  function request(userId: string) {
-    if (!userId || summaries.has(userId) || loading.has(userId) || pending.has(userId)) return;
-    pending.add(userId);
-    if (!queued) {
-      queued = true;
-      schedule(flush);
-    }
-  }
+  const emit = summaries.emit;
+  const request = summaries.request;
 
   function requestStatus(subjectId: string) {
     if (!subjectId || statuses.has(subjectId) || statusLoading.has(subjectId)) return;
@@ -110,10 +74,8 @@ export function createVouchStore(
 
   /** Forget what we know about a profile and read it again. */
   function invalidate(userId: string) {
-    version += 1;
-    summaries.delete(userId);
     statuses.delete(userId);
-    request(userId);
+    summaries.invalidate(userId);
     requestStatus(userId);
   }
 
@@ -123,7 +85,8 @@ export function createVouchStore(
     const statusBefore = statuses.get(subjectId);
     const mineBefore = statusBefore?.mine ?? null;
     saving.add(subjectId);
-    version += 1;
+    summaries.hold(subjectId);
+    summaries.touch();
     if (summaryBefore) {
       summaries.set(subjectId, summaryAfter(summaryBefore, mineBefore?.rating ?? null, after?.rating ?? null, new Date().toISOString()));
     }
@@ -139,12 +102,12 @@ export function createVouchStore(
       result = FAILED;
     }
     saving.delete(subjectId);
+    summaries.release(subjectId);
     if (result.ok) {
       // The server's counts and the vouch's real id replace the guess.
       invalidate(subjectId);
     } else {
-      if (summaryBefore) summaries.set(subjectId, summaryBefore);
-      else summaries.delete(subjectId);
+      summaries.set(subjectId, summaryBefore);
       if (statusBefore) statuses.set(subjectId, statusBefore);
       else statuses.delete(subjectId);
     }
@@ -155,7 +118,7 @@ export function createVouchStore(
   return {
     /** A profile's counts. Null until they load. */
     summary(userId: string): VouchSummary | null {
-      return summaries.get(userId) ?? null;
+      return summaries.get(userId);
     },
     /** Ask for a profile's counts. Cheap to call on every render. */
     request,
@@ -166,26 +129,38 @@ export function createVouchStore(
     requestStatus,
     invalidate,
     isSaving(subjectId: string) {
-      return saving.has(subjectId);
+      return saving.has(subjectId) || starting.has(subjectId);
     },
     /** Leave a vouch or change yours. Checked here first, so a note that can't be saved never leaves the device. */
     async upsert(subjectId: string, rating: VouchRating, note: string, blocked?: (text: string) => boolean): Promise<VouchWriteResult> {
-      const problem = vouchNoteProblem(rating, note, blocked);
-      if (problem) return { ok: false, error: vouchHintCopy(problem), hint: problem };
-      const body = cleanVouchText(note);
+      if (saving.has(subjectId) || starting.has(subjectId)) return BUSY;
+      starting.add(subjectId);
+      let rules: Awaited<ReturnType<typeof loadRules>>;
+      try {
+        rules = await loadRules();
+      } catch {
+        return FAILED;
+      } finally {
+        starting.delete(subjectId);
+      }
+      const problem = rules.vouchNoteProblem(rating, note, blocked);
+      if (problem) return { ok: false, error: rules.vouchHintCopy(problem), hint: problem };
+      const body = rules.cleanVouchText(note);
       return write(subjectId, { rating, note: body }, () => backend.upsert(subjectId, rating, body));
     },
     async remove(subjectId: string): Promise<VouchWriteResult> {
+      if (starting.has(subjectId)) return BUSY;
       return write(subjectId, null, () => backend.remove(subjectId));
     },
     /** The subject's reply to one vouch. An empty reply removes it. */
     async reply(vouchId: string, text: string, blocked?: (text: string) => boolean): Promise<VouchWriteResult> {
-      const problem = vouchReplyProblem(text, blocked);
-      if (problem) return { ok: false, error: vouchHintCopy(problem), hint: problem };
       if (replying.has(vouchId)) return BUSY;
       replying.add(vouchId);
       try {
-        return await backend.reply(vouchId, cleanVouchText(text));
+        const rules = await loadRules();
+        const problem = rules.vouchReplyProblem(text, blocked);
+        if (problem) return { ok: false, error: rules.vouchHintCopy(problem), hint: problem };
+        return await backend.reply(vouchId, rules.cleanVouchText(text));
       } catch {
         return FAILED;
       } finally {
@@ -194,12 +169,7 @@ export function createVouchStore(
     },
     /** One page of someone's vouches. Not kept: the page that shows them holds its own rows. */
     list: backend.list,
-    subscribe(listener: () => void) {
-      listeners.add(listener);
-      return () => {
-        listeners.delete(listener);
-      };
-    },
+    subscribe: summaries.subscribe,
   };
 }
 

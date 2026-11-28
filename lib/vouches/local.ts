@@ -47,23 +47,72 @@ type Stored = { vouches: StoredVouch[] };
 type KeyValue = Pick<Storage, "getItem" | "setItem">;
 
 /**
- * Three more made-up collectors, on top of the sample ones in lib/social/local-db.ts (user-maya,
- * user-jordan, user-sam), which the caller passes in as `people`. Nobody here is a real account.
+ * Made-up collectors who only exist to leave sample vouches, on top of the sample people in
+ * lib/social/local-db.ts (user-maya, user-jordan, user-sam), which the caller passes in as
+ * `people`. Nobody here is a real account.
  */
-export const SAMPLE_PEOPLE: readonly LocalVouchPerson[] = [
-  { id: "sample-kev", username: "kevpulls", displayName: "Kev Marlow", accent: "#22c55e" },
-  { id: "sample-dee", username: "deeslabs", displayName: "Dee Okafor", accent: "#0ea5e9" },
-  { id: "sample-rio", username: "riorookies", displayName: "Rio Vance", accent: "#f97316" },
+const SAMPLE_NAMES: readonly [string, string][] = [
+  ["kevpulls", "Kev Marlow"],
+  ["deeslabs", "Dee Okafor"],
+  ["riorookies", "Rio Vance"],
+  ["toploaderted", "Ted Brandt"],
+  ["nina_pc", "Nina Castell"],
+  ["hoopsbyhal", "Hal Whitaker"],
+  ["grailhunt", "Priya Raman"],
+  ["sundaywax", "Marcus Bell"],
+  ["cornersharp", "Lena Fischer"],
+  ["rookieyear", "Owen Tate"],
+  ["thebinder", "Sofia Marin"],
+  ["onetouch", "Darnell Reyes"],
+  ["refractorron", "Ron Akers"],
+  ["pennysleeve", "Amy Lindqvist"],
+  ["slabsandsuch", "Theo Nakamura"],
+  ["papergrader", "Wes Coleman"],
+  ["midnightrips", "Jo Hartley"],
+  ["sgcsteve", "Steve Pruitt"],
+  ["chasecards", "Imani Brooks"],
+  ["setbuilder", "Gus Lindholm"],
+  ["cardshowcal", "Cal Dempsey"],
+  ["junkwaxjen", "Jen Okoro"],
+  ["firstbowman", "Milo Strand"],
+  ["patchwork", "Bea Santoro"],
 ];
+const SAMPLE_ACCENTS = ["#7c5cff", "#22c55e", "#0ea5e9", "#f97316", "#f43f5e", "#fbbf24"];
+
+export const SAMPLE_PEOPLE: readonly LocalVouchPerson[] = SAMPLE_NAMES.map(([username, displayName], index) => ({
+  id: `sample-${username}`,
+  username,
+  displayName,
+  accent: SAMPLE_ACCENTS[index % SAMPLE_ACCENTS.length],
+  createdAt: new Date(Date.UTC(2026, index % 10, 3 + index)).toISOString(),
+}));
 
 const HOUR = 60 * 60 * 1000;
 
-/** A mix of ratings, one reply, one edited vouch and one with a logged deal. */
+const POSITIVE_NOTES = [
+  "Shipped fast, card as shown.",
+  "Easy trade. Packed in a top loader and a team bag.",
+  "",
+  "Paid within the hour. Would deal again.",
+  "Card looked better in hand than in the photos.",
+  "Good comms the whole way.",
+  "Smooth deal, tracking sent same day.",
+  "",
+  "Fair price and no haggling games.",
+  "Second deal with this collector. Same as the first.",
+];
+
+/**
+ * Sample vouches for the three sample collectors:
+ *   user-maya   many (26): every rating, replies, an edited vouch, logged deals, more than one page.
+ *   user-sam    a few (4).
+ *   user-jordan none, for the empty page.
+ */
 export function sampleVouches(now: number): StoredVouch[] {
   const at = (hoursAgo: number) => new Date(now - hoursAgo * HOUR).toISOString();
   const row = (
     id: string,
-    voucherId: string,
+    voucher: number,
     subjectId: string,
     rating: VouchRating,
     note: string,
@@ -71,7 +120,7 @@ export function sampleVouches(now: number): StoredVouch[] {
     extra: Partial<StoredVouch> = {},
   ): StoredVouch => ({
     id,
-    voucherId,
+    voucherId: SAMPLE_PEOPLE[voucher]!.id,
     subjectId,
     rating,
     note,
@@ -83,22 +132,34 @@ export function sampleVouches(now: number): StoredVouch[] {
     hasLoggedDeal: false,
     ...extra,
   });
-  return [
-    row("sample-vouch-1", "user-jordan", "user-maya", "positive", "Shipped fast, card as shown.", 20, { hasLoggedDeal: true }),
-    row("sample-vouch-2", "user-sam", "user-maya", "positive", "Easy trade. Packed in a top loader and a team bag.", 52, {
-      reply: "Thanks Sam, same on my end.",
-      replyAt: at(50),
-    }),
-    row("sample-vouch-3", "sample-kev", "user-maya", "positive", "", 90),
-    row("sample-vouch-4", "sample-dee", "user-maya", "neutral", "Took a week to ship, but it showed up as described.", 200, { editedAt: at(150) }),
-    row("sample-vouch-5", "sample-rio", "user-maya", "negative", "Corner ding that wasn't in the photos.", 400, {
+  const maya: StoredVouch[] = [
+    row("sample-vouch-1", 0, "user-maya", "positive", POSITIVE_NOTES[0]!, 20, { hasLoggedDeal: true }),
+    row("sample-vouch-2", 1, "user-maya", "positive", POSITIVE_NOTES[1]!, 52, { reply: "Thanks Dee, same on my end.", replyAt: at(50) }),
+    row("sample-vouch-3", 2, "user-maya", "positive", "", 90),
+    row("sample-vouch-4", 3, "user-maya", "neutral", "Took a week to ship, but it showed up as described.", 200, { editedAt: at(150) }),
+    row("sample-vouch-5", 4, "user-maya", "negative", "Corner ding that wasn't in the photos.", 400, {
       reply: "Refunded the difference the same day.",
       replyAt: at(390),
       replyEditedAt: at(380),
     }),
-    row("sample-vouch-6", "user-maya", "user-jordan", "positive", "Smooth deal, quick payment.", 30),
-    row("sample-vouch-7", "user-sam", "user-jordan", "positive", "Good comms the whole way.", 110),
-    row("sample-vouch-8", "user-maya", "user-sam", "positive", "Card arrived early.", 70),
+    row("sample-vouch-6", 5, "user-maya", "neutral", "Fine in the end, just slow to answer messages.", 470),
+  ];
+  for (let index = 6; index < 24; index += 1) {
+    maya.push(
+      row(`sample-vouch-${index + 1}`, index, "user-maya", "positive", POSITIVE_NOTES[index % POSITIVE_NOTES.length]!, 500 + index * 31, {
+        hasLoggedDeal: index % 5 === 0,
+      }),
+    );
+  }
+  // Two more from the other sample collectors, so the page has people the device already knows.
+  maya.push({ ...row("sample-vouch-25", 0, "user-maya", "positive", "Card arrived early.", 36), voucherId: "user-sam" });
+  maya.push({ ...row("sample-vouch-26", 0, "user-maya", "positive", "Smooth deal, quick payment.", 75), voucherId: "user-jordan" });
+  return [
+    ...maya,
+    row("sample-vouch-s1", 0, "user-sam", "positive", "Shipped next morning in a one-touch.", 30, { hasLoggedDeal: true }),
+    row("sample-vouch-s2", 6, "user-sam", "positive", "", 110),
+    row("sample-vouch-s3", 9, "user-sam", "positive", "Honest about a print line before I paid.", 260, { reply: "Appreciate it, Owen.", replyAt: at(255) }),
+    { ...row("sample-vouch-s4", 0, "user-sam", "neutral", "Good card, but the trade took three weeks.", 700), voucherId: "user-maya" },
   ];
 }
 

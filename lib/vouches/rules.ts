@@ -4,7 +4,10 @@
  * The numbers mirror private.vouch_rules() in supabase/migrations/20261127200000_vouches.sql.
  * Change them in both places together (lib/vouches/rules.test.ts reads the SQL and fails if they drift).
  * The database is the judge: everything here only makes the app say the same thing sooner.
+ *
+ * The few things a profile's trust line needs live in ./core, so a profile doesn't load this file.
  */
+import { NO_VOUCHES, VOUCH_BUSY, VOUCH_FAILED, vouchCount, wholeCount as count, type VouchRating, type VouchSummary } from "./core";
 
 /** Both accounts must be this old. */
 export const MIN_ACCOUNT_DAYS = 7;
@@ -18,63 +21,12 @@ export const NOTE_MIN_NON_POSITIVE = 10;
 export const REPLY_MIN = 1;
 /** New vouches per person per rolling 24 hours. Edits don't count. */
 export const DAILY_NEW_LIMIT = 10;
-/** The percent shows once this many vouches are positive or negative. */
-export const PERCENT_MIN_RATED = 3;
-/** Most profiles in one vouch_summaries call. */
-export const SUMMARY_MAX_IDS = 50;
 /** Most rows in one list_vouches page. */
 export const LIST_MAX = 50;
 /** Rows the vouches page asks for at a time. */
 export const LIST_PAGE = 20;
 
-export const VOUCH_RATINGS = ["positive", "neutral", "negative"] as const;
-export type VouchRating = (typeof VOUCH_RATINGS)[number];
-
-export function isVouchRating(value: unknown): value is VouchRating {
-  return typeof value === "string" && (VOUCH_RATINGS as readonly string[]).includes(value);
-}
-
-/**
- * The counts behind a trust line. They cover everyone's vouches, so they can be higher than the
- * number of rows a reader gets from the list: the list leaves out people in a block with the reader.
- * Never check one against the other.
- */
-export type VouchSummary = {
-  userId: string;
-  total: number;
-  positive: number;
-  neutral: number;
-  negative: number;
-  lastVouchAt: string | null;
-  /** Vouchers the reader follows. Zero when signed out. */
-  followedCount: number;
-  followedSampleUsername: string | null;
-};
-
-export function emptySummary(userId: string): VouchSummary {
-  return { userId, total: 0, positive: 0, neutral: 0, negative: 0, lastVouchAt: null, followedCount: 0, followedSampleUsername: null };
-}
-
-/**
- * Percent positive = positive / (positive + negative). Neutral doesn't count against anyone.
- * Rounded down, so 99.6% never shows as 100%. Null until enough vouches are rated.
- */
-export function percentPositive(summary: Pick<VouchSummary, "positive" | "negative">): number | null {
-  const rated = summary.positive + summary.negative;
-  if (rated < PERCENT_MIN_RATED) return null;
-  return Math.floor((summary.positive * 100) / rated);
-}
-
-const count = (value: number) => (Number.isFinite(value) && value > 0 ? Math.floor(value) : 0);
-const vouchCount = (total: number) => `${total.toLocaleString("en-US")} ${total === 1 ? "vouch" : "vouches"}`;
-
-/** "✓ 14 vouches · 100% positive", "✓ 1 vouch", "No vouches yet". */
-export function trustLine(summary: Pick<VouchSummary, "total" | "positive" | "negative"> | null | undefined): string {
-  const total = count(summary?.total ?? 0);
-  if (!summary || total === 0) return VOUCH_COPY.none;
-  const percent = percentPositive(summary);
-  return percent === null ? `✓ ${vouchCount(total)}` : `✓ ${vouchCount(total)} · ${percent}% positive`;
-}
+export * from "./core";
 
 /** "8 vouches", for the line under a voucher's name. */
 export function vouchCountLabel(total: number): string {
@@ -170,7 +122,7 @@ export function isVouchHint(value: unknown): value is VouchHint {
 
 /** Every string the vouch screens show. One place, so the wording rules can be checked over all of it. */
 export const VOUCH_COPY = {
-  none: "No vouches yet",
+  none: NO_VOUCHES,
   vouch: "Vouch",
   editVouch: "Edit vouch",
   removeVouch: "Remove vouch",
@@ -202,6 +154,13 @@ export const VOUCH_COPY = {
     "Neutral and negative vouches need a short reason.",
     "The person you vouch for can post one reply.",
   ],
+  backToProfile: "Back to profile",
+  filterLabel: "Filter vouches",
+  joined: (monthYear: string) => `joined ${monthYear}`,
+  lastVouch: (when: string) => `Last vouch ${when}`,
+  emptyHiddenTitle: "No vouches to show",
+  emptyHidden: "Vouches from accounts you've blocked, or that blocked you, don't show here.",
+  unavailable: "That page isn't available",
   edited: "Edited",
   loggedDeal: "Logged deal",
   emptyOther: (handle: string) => `Vouches come from people @${handle} has messaged with about a deal.`,
@@ -213,9 +172,9 @@ export const VOUCH_COPY = {
   reportVouch: "Report vouch",
   reportReply: "Report reply",
   hideVouch: "Hide vouch",
-  failed: "Couldn't save that. Try again.",
+  failed: VOUCH_FAILED,
   loadFailed: "Couldn't load vouches. Try again.",
-  busy: "Saving…",
+  busy: VOUCH_BUSY,
 } as const;
 
 /** What each refusal says. `{handle}` is the other person's handle. */

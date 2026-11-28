@@ -82,6 +82,9 @@ function fakeBackend(start: Record<string, VouchSummary> = {}, statuses: Record<
   };
 }
 
+/** Lets the note check (a lazy import) finish, so the save has started. */
+const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
+
 /** Runs the queued batch read at once. */
 function syncStore(backend: VouchBackend) {
   const queue: (() => void)[] = [];
@@ -163,6 +166,8 @@ describe("vouch store: saving", () => {
     await flush();
     const release = fake.pause();
     const saving = store.upsert(BOB, "positive", "  Shipped fast.\r\nCard as shown.  ");
+    assert.equal(store.isSaving(BOB), true, "busy from the tap itself");
+    await tick();
     assert.equal(store.summary(BOB)?.total, 3, "counted before the server answers");
     assert.equal(store.summary(BOB)?.positive, 3);
     assert.equal(store.status(BOB)?.mine?.rating, "positive");
@@ -228,6 +233,7 @@ describe("vouch store: saving", () => {
     const first = store.upsert(BOB, "positive", "");
     const second = await store.upsert(BOB, "positive", "");
     const third = await store.remove(BOB);
+    await tick();
     assert.deepEqual(second, { ok: false, error: VOUCH_COPY.busy, hint: null });
     assert.deepEqual(third, { ok: false, error: VOUCH_COPY.busy, hint: null });
     assert.equal(store.summary(BOB)?.total, 1, "counted once");
@@ -494,36 +500,49 @@ describe("local mode: sample vouches on this device", () => {
     assert.ok(samples.some((vouch) => vouch.reply));
     assert.ok(samples.some((vouch) => vouch.editedAt));
     assert.ok(samples.some((vouch) => vouch.hasLoggedDeal));
+    assert.equal(new Set(samples.map((vouch) => vouch.id)).size, samples.length, "every sample has its own id");
+    assert.equal(new Set(samples.map((vouch) => `${vouch.voucherId}>${vouch.subjectId}`)).size, samples.length, "one vouch per pair");
     const backend = local(null);
-    const summary = (await backend.summaries(["user-maya"])).get("user-maya")!;
-    assert.deepEqual([summary.total, summary.positive, summary.neutral, summary.negative], [5, 3, 1, 1]);
-    assert.equal(trustLine(summary), "✓ 5 vouches · 75% positive");
+    const found = await backend.summaries(["user-maya", "user-sam", "user-jordan"]);
+    const maya = found.get("user-maya")!;
+    // Many, a few, and none: the three states the vouches page has to draw.
+    assert.deepEqual([maya.total, maya.positive, maya.neutral, maya.negative], [26, 23, 2, 1]);
+    assert.equal(trustLine(maya), "✓ 26 vouches · 95% positive");
+    assert.equal(trustLine(found.get("user-sam")), "✓ 4 vouches · 100% positive");
+    assert.equal(trustLine(found.get("user-jordan")), "No vouches yet");
     const page = await backend.list("user-maya");
-    assert.equal(page.rows.length, 5);
-    assert.equal(page.next, null);
+    assert.equal(page.rows.length, 20, "the first page");
+    assert.ok(page.next);
     assert.deepEqual(page.rows.map((row) => row.createdAt), [...page.rows.map((row) => row.createdAt)].sort().reverse(), "newest first");
-    assert.equal(page.rows[0]?.voucher.displayName, "Jordan Hale");
+    assert.equal(page.rows[0]?.voucher.displayName, "Kev Marlow");
     assert.equal(page.rows[0]?.hasLoggedDeal, true);
-    assert.equal(page.rows[0]?.voucher.vouchTotal, 2, "the voucher's own count rides along");
+    assert.equal(page.rows[1]?.voucher.displayName, "Sam Ortiz");
+    assert.equal(page.rows[1]?.voucher.vouchTotal, 4, "the voucher's own count rides along");
+    assert.equal((await backend.list("user-jordan")).rows.length, 0);
   });
 
   it("filters and pages the same way the database does", async () => {
     const backend = local(null);
     assert.equal((await backend.list("user-maya", { rating: "negative" })).rows.length, 1);
-    assert.equal((await backend.list("user-maya", { rating: "neutral" })).rows[0]?.editedAt !== null, true);
-    const first = await backend.list("user-maya", { limit: 2 });
-    assert.equal(first.rows.length, 2);
-    assert.ok(first.next);
-    const second = await backend.list("user-maya", { limit: 2, before: first.next });
-    const third = await backend.list("user-maya", { limit: 2, before: second.next });
-    const seen = [...first.rows, ...second.rows, ...third.rows].map((row) => row.id);
-    assert.equal(new Set(seen).size, 5);
-    assert.equal(third.next, null);
+    assert.equal((await backend.list("user-maya", { rating: "neutral" })).rows.length, 2);
+    assert.ok((await backend.list("user-maya", { rating: "neutral" })).rows.some((row) => row.editedAt));
+    const seen: string[] = [];
+    let before: Awaited<ReturnType<typeof backend.list>>["next"] = null;
+    let pages = 0;
+    do {
+      const page = await backend.list("user-maya", { limit: 10, before });
+      seen.push(...page.rows.map((row) => row.id));
+      before = page.next;
+      pages += 1;
+    } while (before && pages < 10);
+    assert.equal(seen.length, 26);
+    assert.equal(new Set(seen).size, 26, "no vouch twice");
+    assert.equal(pages, 3);
     assert.equal((await backend.list("nobody")).rows.length, 0);
   });
 
   it("counts the vouchers the viewer follows, newest first", async () => {
-    const backend = local(ME, memoryStorage(), ["user-sam", "sample-rio", "user-nobody"]);
+    const backend = local(ME, memoryStorage(), ["user-sam", "sample-riorookies", "user-nobody"]);
     const summary = (await backend.summaries(["user-maya"])).get("user-maya")!;
     assert.equal(summary.followedCount, 2);
     assert.equal(summary.followedSampleUsername, "boxbreak");
@@ -538,16 +557,16 @@ describe("local mode: sample vouches on this device", () => {
     assert.ok(storage.data[LOCAL_VOUCHES_KEY]);
     const again = local(ME, storage);
     assert.deepEqual((await again.status("user-maya")).mine?.note, "Shipped fast.\nCard as shown.");
-    assert.equal((await again.summaries(["user-maya"])).get("user-maya")?.total, 6);
+    assert.equal((await again.summaries(["user-maya"])).get("user-maya")?.total, 27);
     assert.equal((await again.list("user-maya")).rows[0]?.voucher.username, "donnie");
     assert.equal((await again.list("user-maya")).rows[0]?.editedAt, null);
     await again.upsert("user-maya", "neutral", "Slow to ship, but it arrived.");
     const edited = (await again.list("user-maya")).rows.find((row) => row.voucher.id === ME.id);
     assert.equal(edited?.rating, "neutral");
     assert.ok(edited?.editedAt);
-    assert.equal((await again.summaries(["user-maya"])).get("user-maya")?.total, 6, "still one vouch for the pair");
+    assert.equal((await again.summaries(["user-maya"])).get("user-maya")?.total, 27, "still one vouch for the pair");
     assert.deepEqual(await again.remove("user-maya"), { ok: true });
-    assert.equal((await again.summaries(["user-maya"])).get("user-maya")?.total, 5);
+    assert.equal((await again.summaries(["user-maya"])).get("user-maya")?.total, 26);
     assert.deepEqual(await again.remove("user-maya"), { ok: true }, "removing twice is fine");
   });
 
@@ -567,11 +586,11 @@ describe("local mode: sample vouches on this device", () => {
     const maya = local(MAYA, storage);
     assert.equal((await local(JORDAN, storage).reply("sample-vouch-1", "Not mine") as { hint: string }).hint, "vouch_not_yours");
     assert.equal((await maya.reply("no-such-vouch", "Hello") as { hint: string }).hint, "vouch_not_found");
-    assert.equal((await maya.reply("sample-vouch-1", "Thanks Jordan.")).ok, true);
+    assert.equal((await maya.reply("sample-vouch-1", "Thanks Kev.")).ok, true);
     let row = (await maya.list("user-maya")).rows.find((item) => item.id === "sample-vouch-1");
-    assert.equal(row?.reply, "Thanks Jordan.");
+    assert.equal(row?.reply, "Thanks Kev.");
     assert.equal(row?.replyEditedAt, null);
-    await maya.reply("sample-vouch-1", "Thanks Jordan. Any time.");
+    await maya.reply("sample-vouch-1", "Thanks Kev. Any time.");
     row = (await maya.list("user-maya")).rows.find((item) => item.id === "sample-vouch-1");
     assert.ok(row?.replyEditedAt);
     await maya.reply("sample-vouch-1", "  ");
@@ -583,8 +602,8 @@ describe("local mode: sample vouches on this device", () => {
     const unknown = localVouchBackend({ storage: memoryStorage(), viewer: null, people: [MAYA], now: () => NOW });
     const page = await unknown.list("user-maya");
     assert.ok(page.rows.every((row) => row.voucher.username));
-    assert.equal(page.rows.length, 3, "only the vouchers still known: the three extra sample collectors");
-    assert.equal((await unknown.summaries(["user-maya"])).get("user-maya")?.total, 3);
+    assert.equal(page.rows.length, 20);
+    assert.equal((await unknown.summaries(["user-maya"])).get("user-maya")?.total, 24, "the two from collectors this device doesn't know are left out");
     for (const junk of ["not json", "[]", '{"vouches":"nope"}', '{"vouches":[{"id":1},null]}']) {
       const backend = localVouchBackend({ storage: memoryStorage({ [LOCAL_VOUCHES_KEY]: junk }), viewer: ME, people, now: () => NOW });
       assert.ok((await backend.summaries(["user-maya"])).get("user-maya"));
@@ -595,7 +614,7 @@ describe("local mode: sample vouches on this device", () => {
   it("works with no storage at all (private browsing)", async () => {
     const backend = localVouchBackend({ storage: null, viewer: ME, people, now: () => NOW });
     assert.equal((await backend.upsert("user-maya", "positive", "")).ok, true);
-    assert.equal((await backend.summaries(["user-maya"])).get("user-maya")?.total, 6);
+    assert.equal((await backend.summaries(["user-maya"])).get("user-maya")?.total, 27);
   });
 
   it("drives the store end to end", async () => {
@@ -608,10 +627,10 @@ describe("local mode: sample vouches on this device", () => {
     store.request("user-maya");
     store.requestStatus("user-maya");
     await flush();
-    assert.equal(trustLine(store.summary("user-maya")), "✓ 5 vouches · 75% positive");
+    assert.equal(trustLine(store.summary("user-maya")), "✓ 26 vouches · 95% positive");
     assert.equal((await store.upsert("user-maya", "positive", "Great deal.")).ok, true);
     await flush();
-    assert.equal(trustLine(store.summary("user-maya")), "✓ 6 vouches · 80% positive");
+    assert.equal(trustLine(store.summary("user-maya")), "✓ 27 vouches · 96% positive");
     assert.equal(store.status("user-maya")?.mine?.note, "Great deal.");
   });
 });
