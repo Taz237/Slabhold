@@ -51,3 +51,12 @@ export function groupHeadline(
   const parts = groupHeadlineParts(kind, names, metadata);
   return `${parts.lead}${parts.rest}`;
 }
+
+/** What a vouch row's icon shows: the rating when every vouch in the row has the same one, else just "vouches". */
+export type VouchNoticeIcon = "positive" | "neutral" | "negative" | "mixed";
+
+export function vouchNoticeIcon(notes: readonly { metadata?: Record<string, unknown> | null }[]): VouchNoticeIcon {
+  const ratings = new Set(notes.map((note) => note.metadata?.rating));
+  const [only] = ratings;
+  return ratings.size === 1 && (only === "positive" || only === "neutral" || only === "negative") ? only : "mixed";
+}

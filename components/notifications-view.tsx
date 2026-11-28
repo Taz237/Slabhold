@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ReadRetry } from "@/components/read-retry";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { AtSign, Bell, ChartBarBig, Handshake, Heart, MessageCircle, Quote, Repeat2, SmilePlus, Star, UserPlus } from "lucide-react";
+import { AtSign, BadgeCheck, Bell, ChartBarBig, Handshake, Heart, MessageCircle, Minus, Quote, Repeat2, Reply, SmilePlus, Star, ThumbsDown, ThumbsUp, UserPlus } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { DealConfirmActions, useMyDeals } from "@/components/deal-response";
 import { WantAlertOfferLink } from "@/components/open-to-offers";
@@ -17,7 +17,7 @@ import { useSocial } from "@/components/social-provider";
 import { loginPath } from "@/lib/auth/safe-next";
 import { groupHref } from "@/lib/social/notification-href";
 import { exactTime, timeAgo } from "@/lib/format";
-import { groupHeadlineParts, notificationAction } from "@/lib/social/notification-copy";
+import { groupHeadlineParts, notificationAction, vouchNoticeIcon } from "@/lib/social/notification-copy";
 import {
   groupNotifications,
   groupStaysHighlighted,
@@ -122,7 +122,7 @@ export function NotificationsView() {
         <ul className="mt-3 divide-y divide-zinc-200 dark:divide-white/10">
           {groups.map((group) => {
             const href = groupHref(group, authors, user?.username);
-            const Icon = groupIcon(group.kind);
+            const Icon = groupIcon(group.kind, group.notes);
             const stamp = timeAgo(group.createdAt);
             const names = group.actorIds.map(
               (id) => authors.get(id)?.displayName?.trim() || "Someone",
@@ -246,7 +246,12 @@ function photosOnReplyNotice(
   return imagesForReplyNotice(note, commentsFor(note.postId));
 }
 
-function groupIcon(kind: NotificationKind) {
+const VOUCH_ICONS = { positive: ThumbsUp, neutral: Minus, negative: ThumbsDown, mixed: BadgeCheck };
+
+function groupIcon(kind: NotificationKind, notes: NotificationGroup["notes"] = []) {
+  // A vouch shows its rating: thumbs up, a dash, or thumbs down. A reply to your vouch, a reply arrow.
+  if (kind === "vouch") return VOUCH_ICONS[vouchNoticeIcon(notes)];
+  if (kind === "vouch_reply") return Reply;
   if (kind === "like") return Heart;
   if (kind === "comment") return MessageCircle;
   if (kind === "repost") return Repeat2;

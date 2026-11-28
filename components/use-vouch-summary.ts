@@ -17,12 +17,14 @@ export type VouchMode = "local" | "supabase";
 type Person = { id: string; username: string; displayName: string; avatarDataUrl?: string | null; accent?: string | null; createdAt?: string | null };
 
 /** What local mode needs to know about this device's people. Refreshed as the provider learns more. */
-const localContext: { viewer: Person | null; people: Person[]; following: string[] } = { viewer: null, people: [], following: [] };
+type Chat = { senderId: string; receiverId: string; createdAt: string }[];
+const localContext: { viewer: Person | null; people: Person[]; following: string[]; chat: Chat } = { viewer: null, people: [], following: [], chat: [] };
 
-function setLocalContext(viewer: Person | null, people: Person[], following: string[]) {
+function setLocalContext(viewer: Person | null, people: Person[], following: string[], chat: Chat) {
   localContext.viewer = viewer;
   localContext.people = people;
   localContext.following = following;
+  localContext.chat = chat;
 }
 
 /** The backend loads with the first trust line on screen, not with every page. */
@@ -41,6 +43,7 @@ export async function vouchBackendFor(mode: VouchMode): Promise<VouchBackend | n
       viewer: localContext.viewer ? person(localContext.viewer) : null,
       people: localContext.people.map(person),
       following: localContext.following,
+      chat: localContext.chat,
     });
   }
   const [supabase, remote] = await Promise.all([loadSupabaseBrowser(), import("@/lib/vouches/remote")]);
@@ -93,15 +96,15 @@ function askGate() {
  * can hold its place. Local mode always has vouches.
  */
 export function useVouchGate(): { mode: VouchMode; viewerId: string | null; supported: boolean; pending: boolean } {
-  const { mode, ready, user, profiles, followingOf } = useSocial();
+  const { mode, ready, user, profiles, followingOf, messages } = useSocial();
   const known = useSyncExternalStore(subscribeGate, vouchSupportKnown, () => null);
   useEffect(() => {
     if (ready && mode === "supabase") askGate();
   }, [ready, mode]);
   // Before any store's own requests: this effect is declared first, so it runs first.
   useEffect(() => {
-    if (mode === "local") setLocalContext(user, profiles, user ? followingOf(user.id).map((profile) => profile.id) : []);
-  }, [mode, user, profiles, followingOf]);
+    if (mode === "local") setLocalContext(user, profiles, user ? followingOf(user.id).map((profile) => profile.id) : [], messages);
+  }, [mode, user, profiles, followingOf, messages]);
   const supported = ready && (mode === "local" || known === true);
   return { mode, viewerId: user?.id ?? null, supported, pending: !supported && (!ready || (mode === "supabase" && known === null)) };
 }
