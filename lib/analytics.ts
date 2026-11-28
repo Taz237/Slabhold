@@ -158,6 +158,7 @@ export const PAGE_PATTERNS = [
   "/u/[username]/collection",
   "/u/[username]/followers",
   "/u/[username]/following",
+  "/u/[username]/vouches",
 ] as const;
 
 function normalizePath(pathname: string): string {

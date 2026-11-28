@@ -3,30 +3,33 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { useSocial } from "@/components/social-provider";
 import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
-import type { VouchSummary } from "@/lib/vouches/rules";
-import { createVouchStore, type VouchStore } from "@/lib/vouches/store";
+import type { VouchSummary } from "@/lib/vouches/core";
+import { createSummaryStore, type SummaryStore } from "@/lib/vouches/summary-store";
 import { vouchesSupported, vouchSupportKnown } from "@/lib/vouches/support";
-import type { VouchBackend, VouchStatus } from "@/lib/vouches/types";
+import type { VouchBackend } from "@/lib/vouches/types";
 
-type Mode = "local" | "supabase";
-type Viewer = { id: string; username: string; displayName: string; avatarDataUrl?: string | null; accent?: string | null; createdAt?: string | null };
+/**
+ * What a trust line needs, and no more: whether this database has vouches, and a profile's counts.
+ * Every profile loads this file, so saving, statuses and the list are in ./use-vouch-store.
+ */
 
-/** One store per mode and viewer, so a sign-out never shows the last person's vouch state. */
-const stores = new Map<string, VouchStore>();
+export type VouchMode = "local" | "supabase";
+type Person = { id: string; username: string; displayName: string; avatarDataUrl?: string | null; accent?: string | null; createdAt?: string | null };
+
 /** What local mode needs to know about this device's people. Refreshed as the provider learns more. */
-const localContext: { viewer: Viewer | null; people: Viewer[]; following: string[] } = { viewer: null, people: [], following: [] };
+const localContext: { viewer: Person | null; people: Person[]; following: string[] } = { viewer: null, people: [], following: [] };
 
-function setLocalContext(viewer: Viewer | null, people: Viewer[], following: string[]) {
+function setLocalContext(viewer: Person | null, people: Person[], following: string[]) {
   localContext.viewer = viewer;
   localContext.people = people;
   localContext.following = following;
 }
 
 /** The backend loads with the first trust line on screen, not with every page. */
-async function backendFor(mode: Mode): Promise<VouchBackend | null> {
+export async function vouchBackendFor(mode: VouchMode): Promise<VouchBackend | null> {
   if (mode === "local") {
     const local = await import("@/lib/vouches/local");
-    const person = (profile: Viewer) => ({
+    const person = (profile: Person) => ({
       id: profile.id,
       username: profile.username,
       displayName: profile.displayName,
@@ -44,23 +47,16 @@ async function backendFor(mode: Mode): Promise<VouchBackend | null> {
   return supabase ? remote.remoteVouchBackend(supabase) : null;
 }
 
-const UNAVAILABLE = { ok: false as const, error: "Couldn't save that. Try again.", hint: null };
+/** One store per mode and viewer, so a sign-out never shows the last person's vouch state. */
+const stores = new Map<string, SummaryStore>();
 
-function storeFor(mode: Mode, viewerId: string | null): VouchStore {
+export function summaryStoreFor(mode: VouchMode, viewerId: string | null): SummaryStore {
   const key = `${mode}:${viewerId ?? "signed-out"}`;
   let store = stores.get(key);
   if (!store) {
-    const call = async <T,>(run: (backend: VouchBackend) => Promise<T>, missing: T): Promise<T> => {
-      const backend = await backendFor(mode);
-      return backend ? run(backend) : missing;
-    };
-    store = createVouchStore({
-      summaries: (ids) => call((backend) => backend.summaries(ids), new Map<string, VouchSummary>()),
-      list: (subjectId, options) => call((backend) => backend.list(subjectId, options), { rows: [], next: null }),
-      status: (subjectId) => call((backend) => backend.status(subjectId), { canVouch: false, reason: null, mine: null }),
-      upsert: (subjectId, rating, note) => call((backend) => backend.upsert(subjectId, rating, note), UNAVAILABLE),
-      remove: (subjectId) => call((backend) => backend.remove(subjectId), UNAVAILABLE),
-      reply: (vouchId, text) => call((backend) => backend.reply(vouchId, text), UNAVAILABLE),
+    store = createSummaryStore(async (ids) => {
+      const backend = await vouchBackendFor(mode);
+      return backend ? backend.summaries(ids) : new Map<string, VouchSummary>();
     });
     stores.set(key, store);
   }
@@ -92,48 +88,36 @@ function askGate() {
 }
 
 /**
- * The vouch store for whoever is signed in. `supported` is false until this database has the
- * vouches migration: every vouch screen renders nothing until it is true. Local mode always has them.
+ * `supported` is false until this database has the vouches migration: every vouch screen renders
+ * nothing until it is true. `pending` is true while that is still being found out, so a screen
+ * can hold its place. Local mode always has vouches.
  */
-export function useVouchStore(): { store: VouchStore; supported: boolean } {
+export function useVouchGate(): { mode: VouchMode; viewerId: string | null; supported: boolean; pending: boolean } {
   const { mode, ready, user, profiles, followingOf } = useSocial();
   const known = useSyncExternalStore(subscribeGate, vouchSupportKnown, () => null);
   useEffect(() => {
     if (ready && mode === "supabase") askGate();
   }, [ready, mode]);
-  // Before the store's own requests: this hook's effect is declared first, so it runs first.
+  // Before any store's own requests: this effect is declared first, so it runs first.
   useEffect(() => {
     if (mode === "local") setLocalContext(user, profiles, user ? followingOf(user.id).map((profile) => profile.id) : []);
   }, [mode, user, profiles, followingOf]);
-  return { store: storeFor(mode, user?.id ?? null), supported: ready && (mode === "local" || known === true) };
+  const supported = ready && (mode === "local" || known === true);
+  return { mode, viewerId: user?.id ?? null, supported, pending: !supported && (!ready || (mode === "supabase" && known === null)) };
 }
 
 /** One profile's vouch counts. Null until vouches are supported here and the counts have loaded. */
-export function useVouchSummary(userId: string | null | undefined): { summary: VouchSummary | null; supported: boolean } {
-  const { store, supported } = useVouchStore();
+export function useVouchSummary(userId: string | null | undefined): { summary: VouchSummary | null; supported: boolean; pending: boolean } {
+  const { mode, viewerId, supported, pending } = useVouchGate();
+  const store = summaryStoreFor(mode, viewerId);
   const id = supported && userId ? userId : null;
   useEffect(() => {
     if (id) store.request(id);
   }, [store, id]);
   const summary = useSyncExternalStore(
     store.subscribe,
-    () => (id ? store.summary(id) : null),
+    () => (id ? store.get(id) : null),
     () => null,
   );
-  return { summary, supported };
-}
-
-/** Whether the signed-in reader can vouch for this person, and the vouch they left. Null until it loads. */
-export function useVouchStatus(subjectId: string | null | undefined): VouchStatus | null {
-  const { store, supported } = useVouchStore();
-  const { user } = useSocial();
-  const id = supported && user && subjectId && subjectId !== user.id ? subjectId : null;
-  useEffect(() => {
-    if (id) store.requestStatus(id);
-  }, [store, id]);
-  return useSyncExternalStore(
-    store.subscribe,
-    () => (id ? store.status(id) : null),
-    () => null,
-  );
+  return { summary, supported, pending };
 }

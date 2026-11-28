@@ -52,6 +52,7 @@ import { sortSpotlightCards } from "@/lib/profile/spotlight";
 import { useCardValues } from "@/lib/value/use-card-values";
 import type { ServerCardCount } from "@/lib/social/profile-card-count";
 import { InviteButton } from "@/components/invite/invite-button";
+import { TrustLine } from "@/components/vouches/trust-line";
 import { TeamBadge } from "@/components/team-badge";
 
 /**
@@ -446,6 +447,7 @@ export function ProfileView({
             label="Following"
           />
         </div>
+        <TrustLine userId={profile.id} username={profile.username} />
       </div>
 
       {spotlightHidden ? null : (

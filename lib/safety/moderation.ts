@@ -3,6 +3,9 @@ import "server-only";
 import { notFound } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { userHref } from "@/lib/social/user-href";
+import { vouchHref } from "@/lib/vouches/links";
+
+export { vouchHref };
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getAuthUserId } from "@/lib/supabase/server";
 import { adminAccess, parseAdminIds } from "./admin";
@@ -184,11 +187,6 @@ export async function loadOpenReports(now = Date.now(), deps: ModeratorDeps = {}
       canRemoveVouchReply: row.target_type === "vouch_reply" && Boolean(vouch?.reply) && !vouch?.replyHidden,
     };
   });
-}
-
-/** A vouch on its subject's vouches page. */
-export function vouchHref(subjectUsername: string, vouchId: string): string {
-  return `${userHref(subjectUsername)}/vouches#vouch-${encodeURIComponent(vouchId)}`;
 }
 
 async function stamp(
