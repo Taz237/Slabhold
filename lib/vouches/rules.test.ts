@@ -199,7 +199,11 @@ describe("refusal copy", () => {
   });
 
   it("says what the brief says", () => {
-    assert.equal(vouchHintCopy("vouch_no_conversation"), "You can vouch once you've both sent each other a message.");
+    // One line for both "not yet" message reasons: the real rule is 24 hours after you've both
+    // messaged, so a reader who hasn't had a reply yet is told that, not half of it.
+    assert.equal(vouchHintCopy("vouch_no_conversation"), "You can vouch 24 hours after you've both messaged.");
+    assert.equal(vouchHintCopy("vouch_no_conversation"), vouchHintCopy("vouch_conversation_too_new"));
+    for (const hint of VOUCH_HINTS) assert.doesNotMatch(vouchHintCopy(hint, "kev"), /once you've both sent each other a message/, hint);
     assert.equal(vouchHintCopy("vouch_conversation_too_new"), "You can vouch 24 hours after you've both messaged.");
     assert.equal(vouchHintCopy("vouch_too_new_voucher"), "Your account needs to be 7 days old to vouch.");
     assert.equal(vouchHintCopy("vouch_too_new_subject", "sam"), "@sam's account needs to be 7 days old to get vouches.");

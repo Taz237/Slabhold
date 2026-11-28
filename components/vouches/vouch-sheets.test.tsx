@@ -264,6 +264,29 @@ describe("vouch sheet", () => {
   });
 });
 
+describe("the Terms link in the vouch sheet", () => {
+  const termsLink = () => [...host.querySelectorAll<HTMLAnchorElement>("a")].find((node) => node.textContent === "Deals between collectors, in our Terms");
+
+  it("is there on a new vouch, on an edit, and stays while Remove asks to confirm", () => {
+    mount(createElement(VouchSheet, { subject: KEV, onClose: () => {}, writes: fakeWrites() }));
+    assert.equal(termsLink()?.getAttribute("href"), "/terms#deals");
+    assert.match(termsLink()!.className, /min-h-11/);
+    act(() => root!.unmount());
+    root = createRoot(host);
+    mount(createElement(VouchSheet, { subject: KEV, mine: { id: "v1", rating: "positive", note: "" }, onClose: () => {}, writes: fakeWrites() }));
+    assert.equal(termsLink()?.getAttribute("href"), "/terms#deals");
+    click(button("Remove vouch"));
+    assert.equal(termsLink()?.getAttribute("href"), "/terms#deals");
+  });
+
+  it("the bar's not-yet line in a real row reads the 24-hour rule for someone who hasn't had a reply", () => {
+    mount(createElement(VouchThreadBarRow, { partner: KEV, status: { canVouch: false, reason: "vouch_no_conversation", mine: null }, onVouch: () => {} }));
+    const bar = $("[data-vouch-bar]")!;
+    assert.ok(bar.textContent?.includes("You can vouch 24 hours after you've both messaged."));
+    assert.ok(!bar.textContent?.includes("sent each other a message"));
+  });
+});
+
 describe("reply sheet", () => {
   const vouch = { id: "v1", note: "Corner ding that wasn't in the photos.", reply: null as string | null };
 
@@ -343,7 +366,8 @@ describe("the vouch bar in a chat", () => {
 
   it("gives each not-yet reason as a short, quiet line", () => {
     const reason = (hint: VouchStatus["reason"]) => vouchBarAction(status({ reason: hint }), "kev");
-    assert.deepEqual(reason("vouch_no_conversation"), { kind: "reason", text: "You can vouch once you've both sent each other a message." });
+    // No reply yet, or a reply under a day old: the same line, the real rule.
+    assert.deepEqual(reason("vouch_no_conversation"), { kind: "reason", text: "You can vouch 24 hours after you've both messaged." });
     assert.deepEqual(reason("vouch_conversation_too_new"), { kind: "reason", text: "You can vouch 24 hours after you've both messaged." });
     assert.deepEqual(reason("vouch_too_new_voucher"), { kind: "reason", text: "Your account needs to be 7 days old to vouch." });
     assert.deepEqual(reason("vouch_too_new_subject"), { kind: "reason", text: "@kev's account needs to be 7 days old to get vouches." });

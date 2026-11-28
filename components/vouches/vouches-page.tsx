@@ -18,6 +18,7 @@ import { VouchRowsSkeleton, VouchSummarySkeleton, VouchesPageSkeleton } from "@/
 import { exactTime, timeAgo } from "@/lib/format";
 import { useProfiles } from "@/lib/social/use-profiles";
 import { userHref } from "@/lib/social/user-href";
+import { DEALS_TERMS_HREF } from "@/lib/vouches/links";
 import {
   breakdownShares,
   filterCount,
@@ -33,9 +34,6 @@ import {
 } from "@/lib/vouches/page";
 import { breakdownLine, socialProofLine, VOUCH_COPY, type VouchRating, type VouchSummary } from "@/lib/vouches/rules";
 import type { VouchCursor, VouchRow } from "@/lib/vouches/types";
-
-/** The "Deals between collectors" section of the Terms (app/(app)/terms/page.tsx). */
-const DEALS_TERMS_HREF = "/terms#deals";
 
 /** A vouch notice or the admin link can point at a vouch that is pages down: read this many pages looking for it. */
 const ANCHOR_PAGES = 6;
@@ -98,20 +96,24 @@ export function VouchSummaryCard({ summary, now }: { summary: VouchSummary; now?
       )}
       {/* With no vouches yet, the card is just the explainer, already open. */}
       <details open={none} className={`group ${none ? "" : "mt-3 border-t border-zinc-200 pt-1 dark:border-white/10"}`}>
-        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 text-sm font-medium [&::-webkit-details-marker]:hidden">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 text-sm font-medium text-violet-700 dark:text-[#A78BFA] [&::-webkit-details-marker]:hidden">
           {VOUCH_COPY.howItWorksTitle}
-          <ChevronDown aria-hidden="true" className="h-4 w-4 text-zinc-500 transition-transform duration-150 group-open:rotate-180 motion-reduce:transition-none" />
+          <ChevronDown aria-hidden="true" className="h-4 w-4 transition-transform duration-150 group-open:rotate-180 motion-reduce:transition-none" />
         </summary>
         <ul className="list-disc space-y-1.5 pb-1 pl-5 text-sm leading-5 text-zinc-700 dark:text-zinc-300">
           {VOUCH_COPY.howItWorks.map((line) => (
             <li key={line}>{line}</li>
           ))}
         </ul>
-        <p className="mt-3 text-13 leading-5 text-zinc-500">{VOUCH_COPY.pageFootnote}</p>
-        <Link href={DEALS_TERMS_HREF} className="inline-flex min-h-11 items-center text-13 font-medium text-violet-700 hover:underline dark:text-[#A78BFA]">
-          {VOUCH_COPY.termsLink}
-        </Link>
+        <p className="mt-3 pb-1 text-13 leading-5 text-zinc-500">{VOUCH_COPY.pageFootnote}</p>
       </details>
+      {/* Outside the fold-out, so it shows whether or not "How vouches work" is open, and with no vouches too. */}
+      <Link
+        href={DEALS_TERMS_HREF}
+        className="inline-flex min-h-11 items-center text-sm font-medium text-violet-700 underline decoration-violet-700/40 underline-offset-2 dark:text-[#A78BFA] dark:decoration-[#A78BFA]/40"
+      >
+        {VOUCH_COPY.termsLink}
+      </Link>
     </section>
   );
 }

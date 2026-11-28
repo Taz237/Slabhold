@@ -196,7 +196,9 @@ const HINT_COPY: Record<VouchHint, string> = {
   vouch_signed_out: "Sign in to vouch.",
   vouch_suspended: "Your account can't vouch right now.",
   vouch_blocked: "You can't vouch for this account.",
-  vouch_no_conversation: "You can vouch once you've both sent each other a message.",
+  // The same line as vouch_conversation_too_new: the whole rule is 24 hours after you've both
+  // messaged. Saying only "once you've both sent a message" promised a button that then didn't come.
+  vouch_no_conversation: "You can vouch 24 hours after you've both messaged.",
   vouch_conversation_too_new: "You can vouch 24 hours after you've both messaged.",
   vouch_too_new_voucher: `Your account needs to be ${MIN_ACCOUNT_DAYS} days old to vouch.`,
   vouch_too_new_subject: `{handle}'s account needs to be ${MIN_ACCOUNT_DAYS} days old to get vouches.`,
