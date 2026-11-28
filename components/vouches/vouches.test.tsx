@@ -245,13 +245,32 @@ describe("deals between collectors, in the Terms", () => {
     assert.match(markup, /scroll-mt-/, "the anchor clears the app header");
   });
 
-  it("How vouches work links to that section", () => {
-    const card = html(createElement(VouchSummaryCard, { summary: summary(3), now: NOW }));
-    assert.match(card, /<a[^>]+href="\/terms#deals"[^>]*>[^<]*Terms[^<]*<\/a>/);
-    assert.match(/<a[^>]+href="\/terms#deals"[^>]*>|<a[^>]+>(?=[^<]*Terms)/.exec(card)?.[0] ?? "", /min-h-11/);
-    const none = html(createElement(VouchSummaryCard, { summary: { ...emptySummary("u1") }, now: NOW }));
-    assert.match(none, /href="\/terms#deals"/, "also when there are no vouches yet");
+  it("the Terms link is always on the vouches page: collapsed or open, with vouches or none", () => {
+    const outsideDetails = (markup: string) => markup.replace(/<details[\s\S]*?<\/details>/g, "");
+    for (const [label, card] of [
+      ["with vouches, collapsed", html(createElement(VouchSummaryCard, { summary: summary(3), now: NOW }))],
+      ["many vouches", html(createElement(VouchSummaryCard, { summary: summary(23, 2, 1), now: NOW }))],
+      ["no vouches (the box is open)", html(createElement(VouchSummaryCard, { summary: { ...emptySummary("u1") }, now: NOW }))],
+    ] as const) {
+      // Not inside the fold-out: a reader who never opens "How vouches work" still sees it.
+      const visible = outsideDetails(card);
+      const link = /<a[^>]*>Deals between collectors, in our Terms<\/a>/.exec(visible)?.[0];
+      assert.ok(link, label);
+      assert.match(link, /href="\/terms#deals"/, label);
+      assert.match(link, /min-h-11/, label);
+      assert.match(link, /underline/, `${label}: it reads as a link`);
+      assert.equal((card.match(/href="\/terms#deals"/g) ?? []).length, 1, `${label}: once, not twice`);
+    }
     assert.equal(VOUCH_COPY.termsLink, "Deals between collectors, in our Terms");
+  });
+
+  it("How vouches work reads as something to tap, not a plain heading", () => {
+    const card = html(createElement(VouchSummaryCard, { summary: summary(3), now: NOW }));
+    const toggle = /<summary[^>]*>[\s\S]*?<\/summary>/.exec(card)?.[0] ?? "";
+    assert.match(toggle, /How vouches work/);
+    assert.match(toggle, /min-h-11/);
+    assert.match(toggle, /<svg/, "a chevron");
+    assert.match(toggle, /text-violet-700/, "in the link color");
   });
 });
 

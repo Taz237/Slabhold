@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Handshake, Minus, ThumbsDown, ThumbsUp } from "lucide-react";
 import { outlineButton } from "@/components/button-styles";
@@ -9,6 +10,7 @@ import { contentProblem } from "@/lib/safety/content-filter";
 import { useFocusTrap } from "@/lib/ui/focus-trap";
 import { useKeyboardInset } from "@/lib/ui/use-keyboard-inset";
 import { useSheetDrag } from "@/lib/ui/use-sheet-drag";
+import { DEALS_TERMS_HREF } from "@/lib/vouches/links";
 import {
   NOTE_MAX,
   VOUCH_COPY,
@@ -283,6 +285,14 @@ export function VouchSheet({ subject, mine = null, hasLoggedDeal = false, onClos
             </p>
           ) : null}
 
+          {/* Always in the sheet, whatever step it is on: what Slabhold does and doesn't do in a deal. */}
+          <Link
+            href={DEALS_TERMS_HREF}
+            className="mt-2 inline-flex min-h-11 items-center text-13 font-medium text-violet-700 underline decoration-violet-700/40 underline-offset-2 dark:text-[#A78BFA] dark:decoration-[#A78BFA]/40"
+          >
+            {VOUCH_COPY.termsLink}
+          </Link>
+
           {removing ? (
             <RemoveConfirm
               title={VOUCH_COPY.removeConfirmTitle}
@@ -294,7 +304,7 @@ export function VouchSheet({ subject, mine = null, hasLoggedDeal = false, onClos
             />
           ) : (
             <>
-              <p className="mt-4 text-13 leading-5 text-zinc-500">{VOUCH_COPY.sheetFootnote(subject.username)}</p>
+              <p className="mt-1 text-13 leading-5 text-zinc-500">{VOUCH_COPY.sheetFootnote(subject.username)}</p>
               <div className="mt-3 flex items-center gap-2">
                 {editing ? (
                   <button type="button" onClick={() => setRemoving(true)} disabled={pending} className={quietDanger}>
