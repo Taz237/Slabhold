@@ -17,11 +17,10 @@ import { useSocial } from "@/components/social-provider";
 import { loginPath } from "@/lib/auth/safe-next";
 import { groupHref } from "@/lib/social/notification-href";
 import { exactTime, timeAgo } from "@/lib/format";
+import { groupHeadlineParts, notificationAction } from "@/lib/social/notification-copy";
 import {
-  groupHeadlineParts,
   groupNotifications,
   groupStaysHighlighted,
-  notificationAction,
   unreadNotificationIds,
   type NotificationGroup,
 } from "@/lib/social/group-notifications";
@@ -122,7 +121,7 @@ export function NotificationsView() {
         <>
         <ul className="mt-3 divide-y divide-zinc-200 dark:divide-white/10">
           {groups.map((group) => {
-            const href = groupHref(group, authors);
+            const href = groupHref(group, authors, user?.username);
             const Icon = groupIcon(group.kind);
             const stamp = timeAgo(group.createdAt);
             const names = group.actorIds.map(

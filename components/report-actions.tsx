@@ -7,7 +7,9 @@ import { SAFETY_ACTION_FAILED } from "@/lib/safety/report";
 import {
   deleteReportTarget,
   hideReportPost,
+  hideReportVouch,
   markReportReviewed,
+  removeReportVouchReply,
   suspendReportUser,
 } from "@/lib/safety/actions";
 
@@ -26,11 +28,15 @@ export function ReportActions({
   reported,
   canModeratePost,
   canDelete,
+  canHideVouch = false,
+  canRemoveVouchReply = false,
 }: {
   reportId: string;
   reported: string;
   canModeratePost: boolean;
   canDelete: boolean;
+  canHideVouch?: boolean;
+  canRemoveVouchReply?: boolean;
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -80,6 +86,16 @@ export function ReportActions({
           className="inline-flex min-h-11 items-center rounded-full bg-rose-600 px-4 text-sm font-semibold text-white disabled:opacity-50"
         >
           {canModeratePost ? "Delete post" : "Delete reply"}
+        </button>
+      ) : null}
+      {canHideVouch ? (
+        <button type="button" disabled={busy} onClick={() => void run(hideReportVouch)} className={outline}>
+          Hide vouch
+        </button>
+      ) : null}
+      {canRemoveVouchReply ? (
+        <button type="button" disabled={busy} onClick={() => void run(removeReportVouchReply)} className={outline}>
+          Remove reply
         </button>
       ) : null}
       <button

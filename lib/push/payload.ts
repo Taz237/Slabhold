@@ -1,4 +1,4 @@
-import { notificationAction } from "@/lib/social/group-notifications";
+import { notificationAction } from "@/lib/social/notification-copy";
 import { notificationHref } from "@/lib/social/notification-href";
 import { inboxPreviewText } from "@/lib/social/dm-inbox";
 import type { NotificationKind } from "@/lib/social/types";

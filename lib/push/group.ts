@@ -1,4 +1,4 @@
-import { groupHeadline } from "@/lib/social/group-notifications";
+import { groupHeadline } from "@/lib/social/notification-copy";
 import type { NotificationKind } from "@/lib/social/types";
 import type { SourceKind } from "./prefs";
 

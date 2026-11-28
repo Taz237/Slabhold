@@ -62,8 +62,9 @@ export function SafetyMenu({
 
   if (!user || user.id === reportedUserId) return null;
 
+  // The same wording as reportTitle in lib/safety/vouch-report.ts (a test keeps the two in step).
   const reportLabel =
-    targetType === "user" ? "Report user" : targetType === "reply" ? "Report reply" : "Report post";
+    targetType === "user" ? "Report user" : targetType === "vouch" ? "Report vouch" : targetType === "post" ? "Report post" : "Report reply";
 
   async function afterChange(type: "block" | "unblock" | "mute" | "unmute") {
     applySafetyChange({ type, userId: reportedUserId });

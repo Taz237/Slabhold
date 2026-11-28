@@ -7,13 +7,15 @@ import { blockUser } from "./block";
 import {
   deleteReportedTarget,
   hideReportedPost,
+  hideReportedVouch,
+  removeReportedVouchReply,
   reviewReport,
   suspendReportedUser,
 } from "./moderation";
+import { reportedAccountFor } from "./vouch-report";
 import {
   REPORT_LIMIT_MESSAGE,
   reportCapReached,
-  reportedAccount,
   saveReport,
   type ReportInput,
 } from "./report";
@@ -43,11 +45,17 @@ export async function submitReport(input: {
   });
   if (capped) return { ok: false, error: REPORT_LIMIT_MESSAGE };
   // The client's reportedUserId is ignored: the author comes from the row itself.
-  const account = await reportedAccount(input.targetType, input.targetId, async (table, id) => {
-    const { data, error } = await supabase.from(table).select("user_id").eq("id", id).maybeSingle();
-    if (error) return { userId: null, error: error.message };
-    return { userId: typeof data?.user_id === "string" ? data.user_id : null };
-  });
+  // A vouch can't be read from here: the database trigger sets its real author.
+  const account = await reportedAccountFor(
+    input.targetType,
+    input.targetId,
+    async (table, id) => {
+      const { data, error } = await supabase.from(table).select("user_id").eq("id", id).maybeSingle();
+      if (error) return { userId: null, error: error.message };
+      return { userId: typeof data?.user_id === "string" ? data.user_id : null };
+    },
+    { claimed: input.reportedUserId },
+  );
   if ("error" in account) return { ok: false, error: account.error };
   return saveReport(
     {
@@ -157,6 +165,14 @@ export async function hideReportPost(reportId: string) {
 
 export async function deleteReportTarget(reportId: string) {
   return deleteReportedTarget(reportId);
+}
+
+export async function hideReportVouch(reportId: string) {
+  return hideReportedVouch(reportId);
+}
+
+export async function removeReportVouchReply(reportId: string) {
+  return removeReportedVouchReply(reportId);
 }
 
 /** Only the report id crosses from the client. */

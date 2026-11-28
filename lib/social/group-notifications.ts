@@ -1,4 +1,3 @@
-import { isReactionEmoji } from "./message-reactions";
 import type { Notification, NotificationKind } from "./types";
 
 export type NotificationGroup = {
@@ -22,53 +21,18 @@ const GROUPED_KINDS = new Set<NotificationKind>([
   "quote",
   "mention",
   "follow",
+  "vouch",
 ]);
 
-export function notificationAction(kind: NotificationKind, metadata?: Record<string, unknown> | null): string {
-  if (kind === "dm_reaction") {
-    const emoji = metadata?.emoji;
-    return isReactionEmoji(emoji) ? `reacted ${emoji} to your message` : "reacted to your message";
-  }
-  if (kind === "like") return "liked your post";
-  if (kind === "comment") return "commented on your post";
-  if (kind === "repost") return "reposted your post";
-  if (kind === "quote") return "quoted your post";
-  if (kind === "mention") return "mentioned you";
-  if (kind === "want_alert") return "matched a card you want";
-  if (kind === "deal_confirm") return "asked you to confirm a deal";
-  if (kind === "poll_ended") return "Your poll ended. See the final results";
-  return "followed you";
-}
-
-/** Likes, replies, reposts, quotes, and mentions group per post. Follows group together. */
+/**
+ * Likes, replies, reposts, quotes, and mentions group per post. Follows group together, and so
+ * do vouches ("@kev and @sam vouched for you": they all sit on your own vouches page). A reply
+ * to your vouch stays one row each, because each one opens a different person's page.
+ */
 export function notificationGroupKey(note: Notification): string {
   if (!GROUPED_KINDS.has(note.kind)) return `${note.kind}:${note.id}`;
-  if (note.kind === "follow") return "follow";
+  if (note.kind === "follow" || note.kind === "vouch") return note.kind;
   return `${note.kind}:${note.postId ?? note.id}`;
-}
-
-export function groupHeadlineParts(
-  kind: NotificationKind,
-  names: string[],
-  metadata?: Record<string, unknown> | null,
-): { lead: string; rest: string } {
-  const action = notificationAction(kind, metadata);
-  const lead = names[0]?.trim() || "Someone";
-  if (names.length <= 1) return { lead, rest: ` ${action}` };
-  if (names.length === 2) {
-    const second = names[1]?.trim() || "Someone";
-    return { lead, rest: ` and ${second} ${action}` };
-  }
-  return { lead, rest: ` and ${names.length - 1} others ${action}` };
-}
-
-export function groupHeadline(
-  kind: NotificationKind,
-  names: string[],
-  metadata?: Record<string, unknown> | null,
-): string {
-  const parts = groupHeadlineParts(kind, names, metadata);
-  return `${parts.lead}${parts.rest}`;
 }
 
 /** Same kind and target, within this long of the newest notice, and the same read state. */
@@ -137,6 +101,16 @@ function chunksWithinWindow(sorted: Notification[]): Notification[][] {
 }
 
 /**
+ * A vouch notice that can still be shown: it names who sent it and which vouch it is about.
+ * When the sender's account is deleted the database clears the actor, and a notice written
+ * without a vouch id points at nothing. Those are skipped quietly, never shown as "Someone".
+ * Every other kind is always shown.
+ */
+export function noticeCanShow(note: Notification): boolean {
+  return !note.kind.startsWith("vouch") || Boolean(note.actorId && note.metadata?.vouch_id);
+}
+
+/**
  * Collapse similar alerts for display. Want alerts stay one row each because
  * each preview is a different card event. Likes, replies, reposts, quotes,
  * mentions, and follows share a row only when they match in kind, target, and
@@ -146,6 +120,7 @@ function chunksWithinWindow(sorted: Notification[]): Notification[][] {
 export function groupNotifications(notes: Notification[]): NotificationGroup[] {
   const buckets = new Map<string, Notification[]>();
   for (const note of notes) {
+    if (!noticeCanShow(note)) continue;
     const key = bucketKey(note);
     const bucket = buckets.get(key);
     if (bucket) bucket.push(note);
