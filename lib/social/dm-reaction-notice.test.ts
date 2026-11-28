@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { groupHeadline, groupNotifications } from "./group-notifications";
+import { groupNotifications } from "./group-notifications";
+import { groupHeadline } from "./notification-copy";
 import { notificationHref } from "./notification-href";
 import type { Notification } from "./types";
 

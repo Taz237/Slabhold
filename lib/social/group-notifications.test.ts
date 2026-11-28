@@ -4,8 +4,8 @@ import { describe, it } from "node:test";
 import { join } from "node:path";
 import { localMarkNotificationsRead, type LocalDb } from "./local-db";
 import { remoteMarkNotificationsRead } from "./remote";
+import { groupHeadline } from "./notification-copy";
 import {
-  groupHeadline,
   groupNotifications,
   groupStaysHighlighted,
   unreadGroupCount,

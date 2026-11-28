@@ -44,7 +44,7 @@ export default async function AdminReportsPage() {
               </p>
               <p className="mt-1 text-sm">
                 <span className="font-semibold">{report.reason}</span>
-                <span className="text-zinc-500"> · {report.targetType}</span>
+                <span className="text-zinc-500"> · {report.targetType.replace("_", " ")}</span>
               </p>
               {report.details ? (
                 <p className="mt-2 text-sm leading-5 whitespace-pre-wrap">{report.details}</p>
@@ -66,6 +66,8 @@ export default async function AdminReportsPage() {
                 reported={report.reported}
                 canModeratePost={report.canModeratePost}
                 canDelete={report.canDelete}
+                canHideVouch={report.canHideVouch}
+                canRemoveVouchReply={report.canRemoveVouchReply}
               />
             </li>
           ))}

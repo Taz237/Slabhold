@@ -146,7 +146,11 @@ export type NotificationKind =
   /** Someone reacted to your DM. Quiet: never a push. */
   | "dm_reaction"
   /** Your poll ended. No actor. Quiet: never a push. */
-  | "poll_ended";
+  | "poll_ended"
+  /** Someone vouched for you. Quiet: never a push. */
+  | "vouch"
+  /** The person you vouched for replied to your vouch. Quiet: never a push. */
+  | "vouch_reply";
 
 export type Notification = {
   id: string;

@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { groupHeadline, groupNotifications } from "./group-notifications";
+import { groupNotifications } from "./group-notifications";
+import { groupHeadline } from "./notification-copy";
 import { mentionUsernames } from "./mentions";
 import { remoteAddComment, syncMentionNotifications } from "./remote";
 import { allowReplyMention, replyMentionCandidates } from "./reply-mentions";

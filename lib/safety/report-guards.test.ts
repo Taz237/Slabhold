@@ -79,7 +79,7 @@ describe("submitReport wiring", () => {
 
   it("checks the cap, then the author, before saving, all with the session client", () => {
     const cap = fn.indexOf("reportCapReached(");
-    const author = fn.indexOf("reportedAccount(");
+    const author = fn.indexOf("reportedAccountFor(");
     const save = fn.indexOf("saveReport(");
     assert.ok(cap > 0 && author > cap && save > author);
     assert.match(fn, /\.eq\("reporter_id", reporterId\)/);

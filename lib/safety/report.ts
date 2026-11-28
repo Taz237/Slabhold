@@ -10,9 +10,11 @@ export const REPORT_REASONS = [
 ] as const;
 
 export type ReportReason = (typeof REPORT_REASONS)[number]["id"];
-export type ReportTargetType = "post" | "reply" | "user";
+export type ReportTargetType = "post" | "reply" | "user" | "vouch" | "vouch_reply";
 
 const REASON_IDS = new Set<string>(REPORT_REASONS.map((reason) => reason.id));
+
+export const REPORT_VOUCH_GONE = "That vouch is gone.";
 
 export type ReportInput = {
   reporterId: string;
@@ -42,7 +44,7 @@ export function validateReport(input: {
 }): string | null {
   if (!REASON_IDS.has(input.reason)) return "Pick a reason.";
   if (input.details && input.details.length > 500) return "Keep details to 500 characters.";
-  if (input.targetType && !["post", "reply", "user"].includes(input.targetType)) {
+  if (input.targetType && !["post", "reply", "user", "vouch", "vouch_reply"].includes(input.targetType)) {
     return "That report target isn't supported.";
   }
   if (input.targetId !== undefined && !input.targetId.trim()) return "Missing report target.";
@@ -79,6 +81,10 @@ export async function saveReport(
   if ("error" in row) return { ok: false, error: row.error };
   const result = await db.insert(row);
   if (!result.error || result.code === "23505") return { ok: true };
+  // The database couldn't find the vouch (removed, or its reply was): say so plainly.
+  if (result.code === "P0002" && (row.target_type === "vouch" || row.target_type === "vouch_reply")) {
+    return { ok: false, error: REPORT_VOUCH_GONE };
+  }
   return { ok: false, error: result.error };
 }
 
@@ -98,6 +104,7 @@ export type AuthorLookup = (
 /**
  * The account a report is about. Post and reply reports use the real author,
  * never the id the client sent. A user report is about its target.
+ * Vouch reports go through reportedAccountFor in ./vouch-report.
  */
 export async function reportedAccount(
   targetType: string,

@@ -6,7 +6,8 @@ import { userHref } from "@/lib/social/user-href";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getAuthUserId } from "@/lib/supabase/server";
 import { adminAccess, parseAdminIds } from "./admin";
-import { REPORT_REASONS, REPORT_TARGET_GONE, reportedAccount } from "./report";
+import { REPORT_REASONS, REPORT_TARGET_GONE, REPORT_VOUCH_GONE } from "./report";
+import { reportedAccountFor } from "./vouch-report";
 
 export type OpenReportRow = {
   id: string;
@@ -23,6 +24,10 @@ export type OpenReportRow = {
   href: string | null;
   canModeratePost: boolean;
   canDelete: boolean;
+  /** A report on a vouch that is still showing: it can be hidden. */
+  canHideVouch: boolean;
+  /** A report on a reply to a vouch that is still showing: the reply can be taken off. */
+  canRemoveVouchReply: boolean;
 };
 
 type ReportRow = {
@@ -66,8 +71,8 @@ async function requireModerator(deps: ModeratorDeps = {}) {
   return { userId, admin };
 }
 
-export async function loadOpenReports(now = Date.now()): Promise<OpenReportRow[]> {
-  const { admin } = await requireModerator();
+export async function loadOpenReports(now = Date.now(), deps: ModeratorDeps = {}): Promise<OpenReportRow[]> {
+  const { admin } = await requireModerator(deps);
   if (!admin) return [];
   const { data, error } = await admin
     .from("reports")
@@ -112,8 +117,37 @@ export async function loadOpenReports(now = Date.now()): Promise<OpenReportRow[]
     }
   }
 
+  // Vouches: the note (or the reply) as the preview, and a link to the vouch on its subject's page.
+  const vouchIds = [
+    ...new Set(rows.filter((row) => row.target_type === "vouch" || row.target_type === "vouch_reply").map((row) => row.target_id)),
+  ];
+  type VouchRow = { note: string; reply: string | null; subjectId: string; hidden: boolean; replyHidden: boolean };
+  const vouchRows = new Map<string, VouchRow>();
+  if (vouchIds.length > 0) {
+    const vouches = await admin.from("vouches").select("id, note, reply, subject_id, hidden_at, reply_hidden_at").in("id", vouchIds);
+    // The vouches table isn't in every database yet: those reports show as "Target unavailable".
+    if (!vouches.error) {
+      for (const vouch of vouches.data ?? []) {
+        vouchRows.set(vouch.id as string, {
+          note: (vouch.note as string | null) ?? "",
+          reply: (vouch.reply as string | null) ?? null,
+          subjectId: vouch.subject_id as string,
+          hidden: vouch.hidden_at != null,
+          replyHidden: vouch.reply_hidden_at != null,
+        });
+      }
+      const subjectIds = [...new Set([...vouchRows.values()].map((vouch) => vouch.subjectId))].filter((id) => !names.has(id));
+      if (subjectIds.length > 0) {
+        const subjects = await admin.from("profiles").select("id, username").in("id", subjectIds);
+        if (subjects.error) throw new Error(subjects.error.message);
+        for (const profile of subjects.data ?? []) names.set(profile.id as string, `@${profile.username as string}`);
+      }
+    }
+  }
+
   return rows.map((row) => {
     const age = reportAge(row.created_at, now);
+    const vouch = row.target_type === "vouch" || row.target_type === "vouch_reply" ? vouchRows.get(row.target_id) : undefined;
     let preview: string | null = null;
     let href: string | null = null;
     if (row.target_type === "post") {
@@ -123,6 +157,10 @@ export async function loadOpenReports(now = Date.now()): Promise<OpenReportRow[]
       const reply = replyPreview.get(row.target_id);
       preview = reply?.body ?? null;
       href = reply?.postId ? `/posts/${reply.postId}` : null;
+    } else if (row.target_type === "vouch" || row.target_type === "vouch_reply") {
+      const subject = vouch ? names.get(vouch.subjectId) : undefined;
+      preview = (row.target_type === "vouch" ? vouch?.note : vouch?.reply) || null;
+      href = vouch && subject ? vouchHref(subject.slice(1), row.target_id) : null;
     } else {
       const reportedName = names.get(row.reported_user_id);
       href = reportedName ? userHref(reportedName.slice(1)) : null;
@@ -142,8 +180,15 @@ export async function loadOpenReports(now = Date.now()): Promise<OpenReportRow[]
       href,
       canModeratePost: row.target_type === "post",
       canDelete: row.target_type === "post" || row.target_type === "reply",
+      canHideVouch: row.target_type === "vouch" && Boolean(vouch) && !vouch?.hidden,
+      canRemoveVouchReply: row.target_type === "vouch_reply" && Boolean(vouch?.reply) && !vouch?.replyHidden,
     };
   });
+}
+
+/** A vouch on its subject's vouches page. */
+export function vouchHref(subjectUsername: string, vouchId: string): string {
+  return `${userHref(subjectUsername)}/vouches#vouch-${encodeURIComponent(vouchId)}`;
 }
 
 async function stamp(
@@ -213,7 +258,63 @@ export async function deleteReportedTarget(reportId: string): Promise<{ error?: 
   return failed ? { error: failed } : {};
 }
 
+export const VOUCH_REPORT_GONE = "That vouch is gone.";
+
+/** The vouch a report is about, when the report is of the kind asked for. */
+async function reportedVouchId(
+  admin: SupabaseClient,
+  reportId: string,
+  kind: "vouch" | "vouch_reply",
+): Promise<{ id: string } | { error: string }> {
+  const { data, error } = await admin.from("reports").select("target_type, target_id").eq("id", reportId).maybeSingle();
+  if (error) return { error: error.message };
+  if (!data) return { error: "That report is gone." };
+  if (data.target_type !== kind) {
+    return { error: kind === "vouch" ? "This report isn't about a vouch." : "This report isn't about a reply to a vouch." };
+  }
+  return { id: String(data.target_id ?? "") };
+}
+
+/**
+ * Hides a reported vouch (service role): it drops out of every count and list.
+ * The vouch stays in the table, so it can be shown again by clearing hidden_at.
+ */
+export async function hideReportedVouch(reportId: string, deps: ModeratorDeps = {}): Promise<{ error?: string }> {
+  const { userId, admin } = await requireModerator(deps);
+  if (!admin) return { error: "Moderation is unavailable right now." };
+  const target = await reportedVouchId(admin, reportId, "vouch");
+  if ("error" in target) return { error: target.error };
+  const hidden = await admin
+    .from("vouches")
+    .update({ hidden_at: new Date().toISOString(), hidden_by: userId })
+    .eq("id", target.id)
+    .select("id");
+  if (hidden.error) return { error: hidden.error.message };
+  if ((hidden.data ?? []).length === 0) return { error: VOUCH_REPORT_GONE };
+  const failed = await stamp(reportId, userId, "actioned", admin);
+  return failed ? { error: failed } : {};
+}
+
+/** Takes a reported reply off its vouch (service role). The vouch itself stays. */
+export async function removeReportedVouchReply(reportId: string, deps: ModeratorDeps = {}): Promise<{ error?: string }> {
+  const { userId, admin } = await requireModerator(deps);
+  if (!admin) return { error: "Moderation is unavailable right now." };
+  const target = await reportedVouchId(admin, reportId, "vouch_reply");
+  if ("error" in target) return { error: target.error };
+  const hidden = await admin
+    .from("vouches")
+    .update({ reply_hidden_at: new Date().toISOString() })
+    .eq("id", target.id)
+    .not("reply", "is", null)
+    .select("id");
+  if (hidden.error) return { error: hidden.error.message };
+  if ((hidden.data ?? []).length === 0) return { error: VOUCH_REPORT_GONE };
+  const failed = await stamp(reportId, userId, "actioned", admin);
+  return failed ? { error: failed } : {};
+}
+
 export const SUSPEND_TARGET_GONE = "This post is gone. Suspend from a report on the account";
+export const SUSPEND_VOUCH_GONE = "This vouch is gone. Suspend from a report on the account";
 export const SUSPEND_AUTHOR_MISMATCH = "This report names a different account than the author";
 
 /** Supabase Auth's built-in ban, about 100 years. Lifted in the dashboard (Unban). */
@@ -237,7 +338,7 @@ export async function suspendReportedUser(
   if (error) return { error: error.message };
   if (!data) return { error: "That report is gone." };
   // reports.reported_user_id is set by the reporter's client. Trust the row's author instead.
-  const author = await reportedAccount(
+  const author = await reportedAccountFor(
     String(data.target_type ?? ""),
     String(data.target_id ?? ""),
     async (table, id) => {
@@ -245,8 +346,18 @@ export async function suspendReportedUser(
       if (found.error) return { userId: null, error: found.error.message };
       return { userId: typeof found.data?.user_id === "string" ? found.data.user_id : null };
     },
+    {
+      // A vouch report: the voucher (or, for a reply, the subject) from the real row.
+      async lookup(id) {
+        const found = await admin.from("vouches").select("voucher_id, subject_id, reply").eq("id", id).maybeSingle();
+        if (found.error) return { error: found.error.message };
+        if (typeof found.data?.voucher_id !== "string" || typeof found.data?.subject_id !== "string") return null;
+        return { voucherId: found.data.voucher_id, subjectId: found.data.subject_id, hasReply: found.data.reply != null };
+      },
+    },
   );
   if ("error" in author) {
+    if (author.error === REPORT_VOUCH_GONE) return { error: SUSPEND_VOUCH_GONE };
     return { error: author.error === REPORT_TARGET_GONE ? SUSPEND_TARGET_GONE : author.error };
   }
   const reportedId = author.userId;
